@@ -12762,6 +12762,14 @@ function generateAllInvoices(month){
 const _genInvLocks=new Map(); // key: cid+'_'+month → timestamp. Per-contract-month lock
                                // ไม่ใช้ global เพราะจะ block generateAllInvoices loop ที่วน contracts คนละตัว
 function generateInvoice(cid,month){
+  // Type guard — รับเฉพาะ "YYYY-MM" (Gregorian) เท่านั้น
+  // กัน null/undefined/number → crash กลางทาง + invoice เลขเพี้ยน "INV-invalid-0001"
+  if(typeof month!=='string'||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)){
+    console.warn('[generateInvoice] invalid month parameter:',month);
+    if(typeof toast==='function') toast('เดือนไม่ถูกต้อง — ใช้ format YYYY-MM','error');
+    return;
+  }
+
   // Guard: anti double-click per (contract,month) — block 2 วินาที
   // ปลอดภัยสำหรับ generateAllInvoices loop เพราะ key ไม่ซ้ำกัน (different cids)
   // แต่กันกรณี user ดับเบิลคลิก context-menu บนสัญญาเดียวกัน → ออกบิลซ้ำ
