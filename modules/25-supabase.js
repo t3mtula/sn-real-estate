@@ -198,32 +198,48 @@ async function loadActivityLog(filter) {
 }
 
 // ── STAFF ROLE RESOLUTION ─────────────────────────────────────────────────
-// Bootstrap allowlist: เฉพาะ email เหล่านี้เท่านั้นที่ "ขึ้นเป็น admin คนแรก"
-// ได้ตอน re_staff ว่าง — กันเคส staff ถูกลบหมดแล้วใครก็ยึด admin ได้
-// (เปลี่ยน array นี้ + apply supabase/06-bootstrap-allowlist.sql ฝั่ง DB)
-const BOOTSTRAP_EMAILS = ['t3mtula@gmail.com'];
+// Allowlists — sync กับ supabase/07-domain-allowlist.sql ฝั่ง DB
+//   BOOTSTRAP_EMAILS: email เดี่ยวที่ admin คนแรกได้ตอน re_staff ว่าง
+//   BOOTSTRAP_DOMAINS: domain ที่ใครก็ได้ใน Workspace นี้ login ได้ → auto-add เป็น admin
+// ⚠️ Default role = 'admin' ระหว่าง permission ยังไม่เคลียร์ — Tem ปรับ role ที่หน้า Settings → พนักงาน
+const BOOTSTRAP_EMAILS  = ['t3mtula@gmail.com'];
+const BOOTSTRAP_DOMAINS = ['sstpconstruction.com'];
+const DOMAIN_DEFAULT_ROLE = 'admin';
+
+function _emailDomain(email) {
+  const i = String(email||'').lastIndexOf('@');
+  return i > -1 ? email.slice(i+1).toLowerCase() : '';
+}
 
 // คืน { allowed: boolean, role: string|null }
-//  - allowed=true หมายถึง email อยู่ใน re_staff (หรือเป็น bootstrap email + table ว่าง)
-//  - allowed=false หมายถึงอย่างอื่นทั้งหมด
 async function _resolveStaffRole(email, name) {
   try {
     const token = await _getToken();
     if(!token) return { allowed:false, role:null };
 
-    // 1. ตรวจว่า email อยู่ใน re_staff หรือไม่
+    // 1. email อยู่ใน re_staff อยู่แล้ว → ใช้ role ที่บันทึกไว้
     const r = await fetch(`${SUPA_REST}/re_staff?email=eq.${encodeURIComponent(email)}&select=id,role&limit=1`, { headers: _authHeaders(token) });
     const rows = await r.json();
     if(rows && rows.length > 0) {
       return { allowed:true, role: rows[0].role || 'staff' };
     }
 
-    // 2. ไม่อยู่ใน re_staff — bootstrap path เปิดเฉพาะ BOOTSTRAP_EMAILS
+    // 2. ไม่อยู่ใน re_staff — เช็ค domain allowlist ก่อน (Workspace auto-add)
+    const domain = _emailDomain(email);
+    if(BOOTSTRAP_DOMAINS.includes(domain)) {
+      const ins = await fetch(`${SUPA_REST}/re_staff`, {
+        method: 'POST',
+        headers: _authHeaders(token),
+        body: JSON.stringify({ id:email, name, role:DOMAIN_DEFAULT_ROLE, email, data:{name,role:DOMAIN_DEFAULT_ROLE,email,createdAt:Date.now(),via:'domain'} })
+      });
+      if(ins.ok) return { allowed:true, role: DOMAIN_DEFAULT_ROLE };
+      // RLS reject → fall through to bootstrap path
+    }
+
+    // 3. Bootstrap email path (re_staff ว่าง + email ใน allowlist เดี่ยว)
     if(!BOOTSTRAP_EMAILS.includes(email)) {
       return { allowed:false, role:null };
     }
-
-    // 3. Bootstrap email + เช็คว่า table ว่างหรือไม่ (frontend guard; RLS ก็ enforce อีกชั้น)
     const countR = await fetch(`${SUPA_REST}/re_staff?select=id`, { headers: _authHeaders(token) });
     const all = await countR.json();
     if(!all || all.length === 0) {
@@ -232,9 +248,7 @@ async function _resolveStaffRole(email, name) {
         headers: _authHeaders(token),
         body: JSON.stringify({ id:email, name, role:'admin', email, data:{name,role:'admin',email,createdAt:Date.now()} })
       });
-      if(!ins.ok) {
-        return { allowed:false, role:null };
-      }
+      if(!ins.ok) return { allowed:false, role:null };
       return { allowed:true, role:'admin' };
     }
 
