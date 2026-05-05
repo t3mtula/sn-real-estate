@@ -419,6 +419,34 @@ input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 2px rgba(9
   /* 12. Preserve colors in printed invoices/receipts that need them (optional bleed-through) */
   .print-keep-color{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
 }
+
+/* ========================================================================
+   Mobile responsive — sidebar collapse + hamburger
+   ======================================================================== */
+.mobile-hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px;margin-right:6px;border-radius:6px}
+.mobile-hamburger:hover{background:#f1f5f9}
+.mobile-hamburger svg{width:22px;height:22px;color:#64748b}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:39;animation:backdropFade .2s ease}
+@keyframes backdropFade{from{opacity:0}to{opacity:1}}
+
+@media (max-width: 767px){
+  .mobile-hamburger{display:inline-flex}
+  #app > aside{
+    position:fixed !important;
+    top:0;left:0;bottom:0;
+    z-index:40;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.12);
+  }
+  #app > aside.nav-open{transform:translateX(0)}
+  body.nav-open .sidebar-backdrop{display:block}
+  body.nav-open{overflow:hidden}
+  #app > main{width:100% !important}
+  #app > main > header{padding-left:8px !important;padding-right:8px !important}
+  #app > main > header h1{font-size:1rem}
+  #app > main > div#content{padding:12px !important}
+}
 </style>
 </head>
 <body class="bg-gray-50">
@@ -454,9 +482,15 @@ input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 2px rgba(9
   </div>
 </aside>
 
+<!-- Backdrop for mobile sidebar -->
+<div class="sidebar-backdrop" onclick="closeSidebar()" aria-hidden="true"></div>
+
 <!-- Main -->
 <main class="flex-1 overflow-y-auto">
   <header class="h-16 bg-white border-b flex items-center px-6">
+    <button class="mobile-hamburger" onclick="toggleSidebar()" aria-label="เปิดเมนู">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <h1 id="title" class="text-lg font-semibold text-gray-900">Dashboard</h1>
     <div class="ml-auto flex items-center gap-4">
       <div style="position:relative">
@@ -6182,9 +6216,30 @@ function showPage(p){
   buildNav();
   render();
   if(actualPage!=='login'&&typeof injectHelpButton==='function')injectHelpButton();
+  _autoCloseSidebarOnMobile();
 }
 function _restorePage(){const v=['dashboard','properties','contracts','landlords','invoices','pipeline','reports','settings','datafix'];try{const s=sessionStorage.getItem('sn_lastPage');if(s&&v.includes(s))return s;}catch(e){}return'dashboard';}
 function showPropTab(t){propTab=t;render();}
+
+// ── Mobile sidebar toggle ─────────────────────────────────────────────────
+function toggleSidebar(){
+  const aside=document.querySelector('#app > aside');
+  if(!aside)return;
+  const open=aside.classList.toggle('nav-open');
+  document.body.classList.toggle('nav-open',open);
+}
+function closeSidebar(){
+  const aside=document.querySelector('#app > aside');
+  if(!aside)return;
+  aside.classList.remove('nav-open');
+  document.body.classList.remove('nav-open');
+}
+// Auto-close on nav button click (mobile only — <768px)
+function _autoCloseSidebarOnMobile(){
+  if(window.matchMedia&&window.matchMedia('(max-width: 767px)').matches){
+    closeSidebar();
+  }
+}
 
 
 // ===== 11-settings.js =====
