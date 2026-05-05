@@ -19528,9 +19528,14 @@ async function loadActivityLog(filter) {
 }
 
 // ── STAFF ROLE RESOLUTION ─────────────────────────────────────────────────
+// Bootstrap allowlist: เฉพาะ email เหล่านี้เท่านั้นที่ "ขึ้นเป็น admin คนแรก"
+// ได้ตอน re_staff ว่าง — กันเคส staff ถูกลบหมดแล้วใครก็ยึด admin ได้
+// (เปลี่ยน array นี้ + apply supabase/06-bootstrap-allowlist.sql ฝั่ง DB)
+const BOOTSTRAP_EMAILS = ['t3mtula@gmail.com'];
+
 // คืน { allowed: boolean, role: string|null }
-//  - allowed=true หมายถึง email อยู่ใน re_staff (หรืออยู่ใน bootstrap mode)
-//  - allowed=false หมายถึง re_staff non-empty + email ไม่อยู่ในนั้น → DENY
+//  - allowed=true หมายถึง email อยู่ใน re_staff (หรือเป็น bootstrap email + table ว่าง)
+//  - allowed=false หมายถึงอย่างอื่นทั้งหมด
 async function _resolveStaffRole(email, name) {
   try {
     const token = await _getToken();
@@ -19543,24 +19548,26 @@ async function _resolveStaffRole(email, name) {
       return { allowed:true, role: rows[0].role || 'staff' };
     }
 
-    // 2. ไม่อยู่ใน re_staff — เช็ค bootstrap (table ว่าง = first user เป็น admin)
+    // 2. ไม่อยู่ใน re_staff — bootstrap path เปิดเฉพาะ BOOTSTRAP_EMAILS
+    if(!BOOTSTRAP_EMAILS.includes(email)) {
+      return { allowed:false, role:null };
+    }
+
+    // 3. Bootstrap email + เช็คว่า table ว่างหรือไม่ (frontend guard; RLS ก็ enforce อีกชั้น)
     const countR = await fetch(`${SUPA_REST}/re_staff?select=id`, { headers: _authHeaders(token) });
     const all = await countR.json();
     if(!all || all.length === 0) {
-      // Bootstrap: insert เป็น admin คนแรก
       const ins = await fetch(`${SUPA_REST}/re_staff`, {
         method: 'POST',
         headers: _authHeaders(token),
         body: JSON.stringify({ id:email, name, role:'admin', email, data:{name,role:'admin',email,createdAt:Date.now()} })
       });
       if(!ins.ok) {
-        // RLS reject — แสดงว่า bootstrap path ไม่ผ่าน, treat as denied
         return { allowed:false, role:null };
       }
       return { allowed:true, role:'admin' };
     }
 
-    // 3. ไม่อยู่ใน re_staff + table มีคนอยู่แล้ว → ปฏิเสธ
     return { allowed:false, role:null };
   } catch(e) {
     console.warn('[auth] _resolveStaffRole error:', e);
