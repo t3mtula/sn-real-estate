@@ -16630,17 +16630,17 @@ function _runGlobalSearch(){
   });
 
   if(matches.length===0){
-    out.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px">ไม่เจอข้อมูล "${q.replace(/</g,'&lt;')}"</div>`;
+    out.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px">ไม่เจอข้อมูล "${esc(q)}"</div>`;
     return;
   }
-  // Limit 30 per type
+  // Limit 50 across types
   const top = matches.slice(0, 50);
   out.innerHTML = top.map(m => `
     <button onclick="${m.action};closeGlobalSearch()" style="width:100%;text-align:left;padding:10px 14px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;gap:12px;border-radius:8px;font-family:Sarabun" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
       <span style="font-size:18px;flex-shrink:0">${m.icon}</span>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.label.replace(/</g,'&lt;')}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.sub}</div>
+        <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.label)}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.sub)}</div>
       </div>
     </button>
   `).join('');
