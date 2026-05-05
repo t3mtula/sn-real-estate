@@ -813,6 +813,10 @@ function deleteProperty(pid) {
 // ========== CONTRACTS ==========
 let tenantExpanded = new Set();
 let cSort={key:'rent',dir:'desc'};
+// Tier B pagination — render top N tenants, "show more" loads next 50
+const TENANTS_PER_PAGE = 50;
+let tenantsShown = TENANTS_PER_PAGE;
+function showMoreTenants(){ tenantsShown += TENANTS_PER_PAGE; renderContracts(); }
 let cBatchSelect=new Set();
 let cLastChecked=null;
 function toggleTenantExpand(key){if(tenantExpanded.has(key))tenantExpanded.delete(key);else tenantExpanded.add(key);renderContracts();}
@@ -928,9 +932,9 @@ function renderContracts(){
     <!-- Batch Select Info -->
     ${cBatchSelect.size>0?'<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;margin-bottom:8px"><span style="font-size:12px;font-weight:600;color:#4338ca">เลือก '+cBatchSelect.size+' สัญญา</span><button onclick="batchPrintContracts()" style="padding:4px 12px;background:#6366f1;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">พิมพ์ที่เลือก</button><button onclick="batchMarkSigned(true)" style="padding:4px 12px;background:#059669;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">เซ็นแล้ว</button><button onclick="batchMarkSigned(false)" style="padding:4px 12px;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;cursor:pointer">ยังไม่เซ็น</button><button onclick="cBatchSelect.clear();renderContracts()" style="padding:4px 8px;background:none;color:#64748b;border:none;font-size:11px;cursor:pointer">ยกเลิก</button></div>':''}
 
-    <!-- Tenant Rows -->
+    <!-- Tenant Rows (Tier B pagination) -->
     <div>
-    ${tenants.map(t=>{
+    ${tenants.slice(0,tenantsShown).map(t=>{
       const expanded=tenantExpanded.has(t.tenant);
       const tContracts=t.contracts;
       const active=tContracts.filter(c=>{const s=status(c);return s==='active'||s==='expiring'});
@@ -1009,6 +1013,7 @@ function renderContracts(){
         </div>`:''}
       </div>`;
     }).join('')}
+    ${tenants.length>tenantsShown?`<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreTenants()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(TENANTS_PER_PAGE,tenants.length-tenantsShown)} ราย <span style="color:#94a3b8;font-weight:400;margin-left:6px">(แสดง ${tenantsShown}/${tenants.length})</span></button></div>`:''}
     ${tenants.length===0?`<div style="text-align:center;padding:60px 20px;background:#fff;border:2px dashed #e5e7eb;border-radius:12px;margin-top:12px">
       <div style="font-size:48px;margin-bottom:12px">📄</div>
       <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px">${DB.contracts.length===0?'ยังไม่มีสัญญา':'ไม่พบสัญญาตามตัวกรอง'}</div>
@@ -1018,9 +1023,9 @@ function renderContracts(){
     </div>`;
 
   let _cqTimer;
-  $('cq').addEventListener('input',e=>{cFilter.q=e.target.value;clearTimeout(_cqTimer);_cqTimer=setTimeout(()=>{const v=cFilter.q;cPage=0;renderContracts();const ne=$('cq');if(ne){ne.value=v;ne.focus();ne.setSelectionRange(v.length,v.length)}},300)});
-  $('csf').addEventListener('change',e=>{cFilter.st=e.target.value;cPage=0;renderContracts()});
-  if($('csignf'))$('csignf').addEventListener('change',e=>{cFilter.signed=e.target.value;cPage=0;renderContracts()});
+  $('cq').addEventListener('input',e=>{cFilter.q=e.target.value;clearTimeout(_cqTimer);_cqTimer=setTimeout(()=>{const v=cFilter.q;cPage=0;tenantsShown=TENANTS_PER_PAGE;renderContracts();const ne=$('cq');if(ne){ne.value=v;ne.focus();ne.setSelectionRange(v.length,v.length)}},300)});
+  $('csf').addEventListener('change',e=>{cFilter.st=e.target.value;cPage=0;tenantsShown=TENANTS_PER_PAGE;renderContracts()});
+  if($('csignf'))$('csignf').addEventListener('change',e=>{cFilter.signed=e.target.value;cPage=0;tenantsShown=TENANTS_PER_PAGE;renderContracts()});
 }
 
 function toggleAllContracts(checked){

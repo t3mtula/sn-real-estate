@@ -1,9 +1,14 @@
 // ========== LANDLORDS VIEW ==========
 let llFilter = '';
 let _llFilterTimer = null;
+// Tier B pagination
+const LANDLORDS_PER_PAGE = 50;
+let llShown = LANDLORDS_PER_PAGE;
+function showMoreLandlords(){ llShown += LANDLORDS_PER_PAGE; renderLandlords(); }
 // Debounced filter — กัน focus loss + Thai IME break เพราะ re-render ทุก keystroke
 function llFilterDebounced(v){
   llFilter = v;
+  llShown = LANDLORDS_PER_PAGE; // reset pagination on filter
   if(_llFilterTimer) clearTimeout(_llFilterTimer);
   _llFilterTimer = setTimeout(()=>{
     renderLandlords();
@@ -82,7 +87,7 @@ function renderLandlords(){
   </div>`;
 
   // Landlord cards
-  llArr.forEach(l => {
+  llArr.slice(0,llShown).forEach(l => {
     const propCount = l.properties.size;
     const bankArr = [...l.banks.values()];
     const totalRev = l.totalRevMo + (l.totalRevYr / 12);
@@ -171,6 +176,8 @@ function renderLandlords(){
 
   if(llArr.length === 0) {
     html += `<div style="text-align:center;padding:40px;color:#9ca3af;font-size:14px">ไม่พบผู้ให้เช่า</div>`;
+  } else if(llArr.length > llShown) {
+    html += `<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreLandlords()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(LANDLORDS_PER_PAGE,llArr.length-llShown)} ราย <span style="color:#94a3b8;font-weight:400;margin-left:6px">(แสดง ${llShown}/${llArr.length})</span></button></div>`;
   }
 
   html += `</div>`;
