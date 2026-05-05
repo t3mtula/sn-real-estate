@@ -5237,6 +5237,26 @@ function addActivityLog(action, desc, data){
   }
 }
 
+// Per-contract audit trail — log การแก้ไข/ยกเลิก/restore สัญญา
+// รูปแบบเดียวกับ addInvoiceAudit แต่เก็บใน c.audit
+function addContractAudit(cid, action, detail, snapshot){
+  const c=DB.contracts.find(x=>x.id===cid);
+  if(!c){
+    if(!DB.contractAuditOrphan) DB.contractAuditOrphan=[];
+    const now=new Date();
+    const beDateStr=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+(now.getFullYear()+543)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    DB.contractAuditOrphan.unshift({cid,ts:now.toISOString(),beDateStr,action,detail,snapshot:snapshot||null});
+    if(DB.contractAuditOrphan.length>500) DB.contractAuditOrphan.length=500;
+    return;
+  }
+  if(!c.audit) c.audit=[];
+  const now=new Date();
+  const beDateStr=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+(now.getFullYear()+543)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const user=(typeof currentUser!=='undefined'&&currentUser)?currentUser.email||currentUser.name:'-';
+  c.audit.unshift({ts:now.toISOString(),beDateStr,action,detail,user,snapshot:snapshot||null});
+  if(c.audit.length>50) c.audit.length=50;
+}
+
 function addInvoiceAudit(invId, action, detail, snapshot){
   const inv=DB.invoices.find(x=>x.id===invId);
   if(!inv){
@@ -8685,8 +8705,26 @@ function viewContract(id) {
 
   const workflowStrip=_vcWorkflowStrip(c,st);
 
-  // Layout: header → actions → workflow strip → KPI → timeline → details (collapsed)
-  $('mbody').innerHTML = `<div id="vcForm">${cancelBanner}${workflowStrip}${headerHTML}${btnRow}${kpiHTML}${timelineHTML}${detailHTML}</div>`;
+  // === AUDIT HISTORY === (collapsible "ประวัติการแก้ไข")
+  const auditHTML=(()=>{
+    const audit=c.audit||[];
+    if(!audit.length)return '';
+    const rows=audit.slice(0,20).map(a=>`<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px">
+      <span style="color:#64748b;flex-shrink:0;font-variant-numeric:tabular-nums">${esc(a.beDateStr)}</span>
+      <span style="flex:1;color:#334155">${esc(a.detail)}</span>
+      <span style="color:#94a3b8;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
+    </div>`).join('');
+    return `<details style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0;overflow:hidden">
+      <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#475569;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        <span>📜 ประวัติการแก้ไข (${audit.length})</span>
+        <span style="font-size:11px;color:#94a3b8">คลิกเพื่อดู</span>
+      </summary>
+      <div style="background:#fff;max-height:300px;overflow-y:auto">${rows}</div>
+    </details>`;
+  })();
+
+  // Layout: header → actions → workflow strip → KPI → timeline → details (collapsed) → audit
+  $('mbody').innerHTML = `<div id="vcForm">${cancelBanner}${workflowStrip}${headerHTML}${btnRow}${kpiHTML}${timelineHTML}${detailHTML}${auditHTML}</div>`;
 
   // No form submit handler needed — read-only view
 
@@ -8775,6 +8813,7 @@ function saveFieldEdit(row,cid){
   const c=DB.contracts.find(x=>x.id===cid);if(!c)return;
   const key=row.dataset.key;
   const dtype=row.dataset.type;
+  const _vcAuditOldVal=c[key]; // capture before-value for audit trail
   if(dtype==='dropdown_bank'){
     const sel=row.querySelector('.vc-edit select');
     const bk=sel?sel.value:'';
@@ -8812,6 +8851,11 @@ function saveFieldEdit(row,cid){
     const inp=row.querySelector('.vc-edit input, .vc-edit textarea');
     const newVal=inp?inp.value:'';
     c[key]=newVal;
+  }
+  // Audit trail — บันทึกเฉพาะตอนค่าจริงๆ เปลี่ยน
+  if(c[key]!==_vcAuditOldVal){
+    const _vcAuditFieldLabel=row.querySelector('.text-gray-500')?.textContent||key;
+    addContractAudit(cid,'edit_field',_vcAuditFieldLabel+': "'+(_vcAuditOldVal||'-')+'" → "'+(c[key]||'-')+'"',{field:key,from:_vcAuditOldVal,to:c[key]});
   }
   save();
   toast('บันทึก "'+row.querySelector('.text-gray-500').textContent+'" แล้ว');
@@ -9061,6 +9105,7 @@ function _doCancelContract(c,cid,cancelDate,fd){
   c.originalEnd=c.originalEnd||c.end;
   c.end=cancelDate;
   addActivityLog('cancel_contract','ยกเลิกสัญญา '+(c.no||'#'+cid)+' — '+c.tenant,{reason:c.cancelledReason});
+  addContractAudit(cid,'cancel','ยกเลิกสัญญา · '+cancelDate+(c.cancelledReason?' — '+c.cancelledReason:''),{originalEnd:c.originalEnd,cancelDate});
   save();toast('ยกเลิกสัญญาแล้ว · วันที่ยกเลิก: '+cancelDate);viewContract(cid);
 }
 
@@ -9150,6 +9195,7 @@ function restoreContract(cid){
   customConfirm('คืนสถานะสัญญา','คืนสถานะ '+c.tenant+' ?\nสัญญาจะกลับมานับรายได้ตามปกติ',function(){
   if(c.originalEnd)c.end=c.originalEnd; // restore original end date
   c.cancelled=false;delete c.cancelledDate;delete c.cancelledReason;delete c.originalEnd;
+  addContractAudit(cid,'restore','คืนสถานะสัญญา · กลับมามีผลตามวันสิ้นสุดเดิม');
   save();toast('คืนสถานะสัญญาแล้ว');viewContract(cid);
   },{icon:'🔄',yesLabel:'คืนสถานะ',yesColor:'#059669'});
 }

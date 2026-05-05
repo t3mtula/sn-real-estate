@@ -18,6 +18,26 @@ function addActivityLog(action, desc, data){
   }
 }
 
+// Per-contract audit trail — log การแก้ไข/ยกเลิก/restore สัญญา
+// รูปแบบเดียวกับ addInvoiceAudit แต่เก็บใน c.audit
+function addContractAudit(cid, action, detail, snapshot){
+  const c=DB.contracts.find(x=>x.id===cid);
+  if(!c){
+    if(!DB.contractAuditOrphan) DB.contractAuditOrphan=[];
+    const now=new Date();
+    const beDateStr=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+(now.getFullYear()+543)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+    DB.contractAuditOrphan.unshift({cid,ts:now.toISOString(),beDateStr,action,detail,snapshot:snapshot||null});
+    if(DB.contractAuditOrphan.length>500) DB.contractAuditOrphan.length=500;
+    return;
+  }
+  if(!c.audit) c.audit=[];
+  const now=new Date();
+  const beDateStr=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+(now.getFullYear()+543)+' '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const user=(typeof currentUser!=='undefined'&&currentUser)?currentUser.email||currentUser.name:'-';
+  c.audit.unshift({ts:now.toISOString(),beDateStr,action,detail,user,snapshot:snapshot||null});
+  if(c.audit.length>50) c.audit.length=50;
+}
+
 function addInvoiceAudit(invId, action, detail, snapshot){
   const inv=DB.invoices.find(x=>x.id===invId);
   if(!inv){

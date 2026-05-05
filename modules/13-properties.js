@@ -926,8 +926,26 @@ function viewContract(id) {
 
   const workflowStrip=_vcWorkflowStrip(c,st);
 
-  // Layout: header → actions → workflow strip → KPI → timeline → details (collapsed)
-  $('mbody').innerHTML = `<div id="vcForm">${cancelBanner}${workflowStrip}${headerHTML}${btnRow}${kpiHTML}${timelineHTML}${detailHTML}</div>`;
+  // === AUDIT HISTORY === (collapsible "ประวัติการแก้ไข")
+  const auditHTML=(()=>{
+    const audit=c.audit||[];
+    if(!audit.length)return '';
+    const rows=audit.slice(0,20).map(a=>`<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px">
+      <span style="color:#64748b;flex-shrink:0;font-variant-numeric:tabular-nums">${esc(a.beDateStr)}</span>
+      <span style="flex:1;color:#334155">${esc(a.detail)}</span>
+      <span style="color:#94a3b8;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
+    </div>`).join('');
+    return `<details style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0;overflow:hidden">
+      <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#475569;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        <span>📜 ประวัติการแก้ไข (${audit.length})</span>
+        <span style="font-size:11px;color:#94a3b8">คลิกเพื่อดู</span>
+      </summary>
+      <div style="background:#fff;max-height:300px;overflow-y:auto">${rows}</div>
+    </details>`;
+  })();
+
+  // Layout: header → actions → workflow strip → KPI → timeline → details (collapsed) → audit
+  $('mbody').innerHTML = `<div id="vcForm">${cancelBanner}${workflowStrip}${headerHTML}${btnRow}${kpiHTML}${timelineHTML}${detailHTML}${auditHTML}</div>`;
 
   // No form submit handler needed — read-only view
 
@@ -1016,6 +1034,7 @@ function saveFieldEdit(row,cid){
   const c=DB.contracts.find(x=>x.id===cid);if(!c)return;
   const key=row.dataset.key;
   const dtype=row.dataset.type;
+  const _vcAuditOldVal=c[key]; // capture before-value for audit trail
   if(dtype==='dropdown_bank'){
     const sel=row.querySelector('.vc-edit select');
     const bk=sel?sel.value:'';
@@ -1053,6 +1072,11 @@ function saveFieldEdit(row,cid){
     const inp=row.querySelector('.vc-edit input, .vc-edit textarea');
     const newVal=inp?inp.value:'';
     c[key]=newVal;
+  }
+  // Audit trail — บันทึกเฉพาะตอนค่าจริงๆ เปลี่ยน
+  if(c[key]!==_vcAuditOldVal){
+    const _vcAuditFieldLabel=row.querySelector('.text-gray-500')?.textContent||key;
+    addContractAudit(cid,'edit_field',_vcAuditFieldLabel+': "'+(_vcAuditOldVal||'-')+'" → "'+(c[key]||'-')+'"',{field:key,from:_vcAuditOldVal,to:c[key]});
   }
   save();
   toast('บันทึก "'+row.querySelector('.text-gray-500').textContent+'" แล้ว');

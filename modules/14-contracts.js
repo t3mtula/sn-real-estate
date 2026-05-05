@@ -225,6 +225,7 @@ function _doCancelContract(c,cid,cancelDate,fd){
   c.originalEnd=c.originalEnd||c.end;
   c.end=cancelDate;
   addActivityLog('cancel_contract','ยกเลิกสัญญา '+(c.no||'#'+cid)+' — '+c.tenant,{reason:c.cancelledReason});
+  addContractAudit(cid,'cancel','ยกเลิกสัญญา · '+cancelDate+(c.cancelledReason?' — '+c.cancelledReason:''),{originalEnd:c.originalEnd,cancelDate});
   save();toast('ยกเลิกสัญญาแล้ว · วันที่ยกเลิก: '+cancelDate);viewContract(cid);
 }
 
@@ -314,6 +315,7 @@ function restoreContract(cid){
   customConfirm('คืนสถานะสัญญา','คืนสถานะ '+c.tenant+' ?\nสัญญาจะกลับมานับรายได้ตามปกติ',function(){
   if(c.originalEnd)c.end=c.originalEnd; // restore original end date
   c.cancelled=false;delete c.cancelledDate;delete c.cancelledReason;delete c.originalEnd;
+  addContractAudit(cid,'restore','คืนสถานะสัญญา · กลับมามีผลตามวันสิ้นสุดเดิม');
   save();toast('คืนสถานะสัญญาแล้ว');viewContract(cid);
   },{icon:'🔄',yesLabel:'คืนสถานะ',yesColor:'#059669'});
 }
