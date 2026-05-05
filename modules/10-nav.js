@@ -12,6 +12,11 @@ const PAGES=[
 ];
 
 function buildNav(){
+  // ไม่มี currentUser หรือ role='pending' → render nav ว่าง (กัน UI โชว์เมนูตอนยังไม่ผ่าน auth)
+  if(!currentUser || currentUser.role==='pending'){
+    const navEl=$('nav'); if(navEl) navEl.innerHTML='';
+    return;
+  }
   const roleLabels={admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',staff:'พนักงาน'};
   const roleColors={admin:'#6366f1',manager:'#f59e0b',staff:'#64748b'};
   const roleBg={admin:'#eef2ff',manager:'#fef3c7',staff:'#f1f5f9'};

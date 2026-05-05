@@ -3173,20 +3173,28 @@ async function afterGoogleLogin(user, accessToken) {
     _showLoadingScreen();
     const email = user.email;
     const name  = user.user_metadata?.full_name || user.user_metadata?.name || email.split('@')[0];
-    _setStatus('โหลดข้อมูล...');
 
     // ใช้ accessToken จาก callback โดยตรง — ไม่เรียก getSession() (กัน hang)
     window._currentAccessToken = accessToken;
-    currentUser = { name, email, role: 'admin' };
 
+    // ── ตรวจสิทธิ์ก่อนสร้าง currentUser ที่มี role ──────────────────────────
+    // กัน race condition: role='admin' ตอนแรก แล้ว downgrade ทีหลัง = UI โกหก 2 วินาที
+    currentUser = { name, email, role: 'pending' }; // pending = ไม่มีสิทธิ์อะไรเลย
+    _setStatus('ตรวจสอบสิทธิ์...');
+
+    const auth = await _resolveStaffRole(email, name);
+    if(!auth.allowed) {
+      _showAccessDenied(email);
+      return;
+    }
+    currentUser.role = auth.role;
+
+    _setStatus('โหลดข้อมูล...');
     await loadFromSupabase();
     _setStatus('เตรียมหน้าจอ...');
 
     if(!DB.formConfig) DB.formConfig = {};
     if(!DB.sysConfig)  DB.sysConfig  = {};
-
-    // Sync re_staff ในพื้นหลัง (ไม่ block UI)
-    setTimeout(() => _syncStaffRecord(email, name), 2000);
 
     // เปิด realtime + cloud backup
     if(typeof setupRealtimeSync === 'function') setTimeout(() => setupRealtimeSync(), 3000);
@@ -3202,11 +3210,27 @@ async function afterGoogleLogin(user, accessToken) {
         <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)">
           <div style="font-size:40px;margin-bottom:12px">⚠️</div>
           <div style="font-size:15px;font-weight:700;color:#dc2626;margin-bottom:8px">โหลดข้อมูลไม่สำเร็จ</div>
-          <div style="font-size:12px;color:#64748b;margin-bottom:20px;word-break:break-all">${err.message}</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:20px;word-break:break-all">${esc(err.message)}</div>
           <button onclick="logout()" style="padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ออกจากระบบ / ลองใหม่</button>
         </div>
       </div>`;
   }
+}
+
+function _showAccessDenied(email) {
+  // ล้าง currentUser + nav ก่อน — กัน sidebar/topbar โชว์ user info ที่ไม่มีสิทธิ์
+  currentUser = null;
+  if(typeof buildNav === 'function') buildNav();
+  document.getElementById('content').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:80vh">
+      <div style="background:#fff;border-radius:16px;padding:40px;max-width:440px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1)">
+        <div style="font-size:48px;margin-bottom:12px">🚫</div>
+        <div style="font-size:18px;font-weight:800;color:#dc2626;margin-bottom:8px">ไม่ได้รับอนุญาต</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:6px">บัญชี <b style="color:#1e293b">${esc(email)}</b></div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:24px">ไม่ได้อยู่ในรายชื่อพนักงานที่ได้รับอนุญาต</div>
+        <button onclick="logout()" style="padding:12px 32px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">ออกจากระบบ</button>
+      </div>
+    </div>`;
 }
 
 
@@ -6172,6 +6196,11 @@ const PAGES=[
 ];
 
 function buildNav(){
+  // ไม่มี currentUser หรือ role='pending' → render nav ว่าง (กัน UI โชว์เมนูตอนยังไม่ผ่าน auth)
+  if(!currentUser || currentUser.role==='pending'){
+    const navEl=$('nav'); if(navEl) navEl.innerHTML='';
+    return;
+  }
   const roleLabels={admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',staff:'พนักงาน'};
   const roleColors={admin:'#6366f1',manager:'#f59e0b',staff:'#64748b'};
   const roleBg={admin:'#eef2ff',manager:'#fef3c7',staff:'#f1f5f9'};
@@ -19498,28 +19527,45 @@ async function loadActivityLog(filter) {
   } catch(e) { console.warn('audit load error:', e); return []; }
 }
 
-// ── STAFF SYNC ────────────────────────────────────────────────────────────
-async function _syncStaffRecord(email, name) {
+// ── STAFF ROLE RESOLUTION ─────────────────────────────────────────────────
+// คืน { allowed: boolean, role: string|null }
+//  - allowed=true หมายถึง email อยู่ใน re_staff (หรืออยู่ใน bootstrap mode)
+//  - allowed=false หมายถึง re_staff non-empty + email ไม่อยู่ในนั้น → DENY
+async function _resolveStaffRole(email, name) {
   try {
     const token = await _getToken();
-    if(!token) return;
+    if(!token) return { allowed:false, role:null };
+
+    // 1. ตรวจว่า email อยู่ใน re_staff หรือไม่
     const r = await fetch(`${SUPA_REST}/re_staff?email=eq.${encodeURIComponent(email)}&select=id,role&limit=1`, { headers: _authHeaders(token) });
     const rows = await r.json();
     if(rows && rows.length > 0) {
-      if(currentUser) currentUser.role = rows[0].role || 'admin';
-    } else {
-      const countR = await fetch(`${SUPA_REST}/re_staff?select=id`, { headers: _authHeaders(token) });
-      const all = await countR.json();
-      const role = (!all || all.length === 0) ? 'admin' : 'staff';
-      await fetch(`${SUPA_REST}/re_staff`, {
+      return { allowed:true, role: rows[0].role || 'staff' };
+    }
+
+    // 2. ไม่อยู่ใน re_staff — เช็ค bootstrap (table ว่าง = first user เป็น admin)
+    const countR = await fetch(`${SUPA_REST}/re_staff?select=id`, { headers: _authHeaders(token) });
+    const all = await countR.json();
+    if(!all || all.length === 0) {
+      // Bootstrap: insert เป็น admin คนแรก
+      const ins = await fetch(`${SUPA_REST}/re_staff`, {
         method: 'POST',
         headers: _authHeaders(token),
-        body: JSON.stringify({ id:email, name, role, email, data:{name,role,email,createdAt:Date.now()} })
+        body: JSON.stringify({ id:email, name, role:'admin', email, data:{name,role:'admin',email,createdAt:Date.now()} })
       });
-      if(currentUser) currentUser.role = role;
+      if(!ins.ok) {
+        // RLS reject — แสดงว่า bootstrap path ไม่ผ่าน, treat as denied
+        return { allowed:false, role:null };
+      }
+      return { allowed:true, role:'admin' };
     }
-    if(typeof buildNav === 'function') buildNav();
-  } catch(e) { console.warn('[auth] _syncStaffRecord error:', e); }
+
+    // 3. ไม่อยู่ใน re_staff + table มีคนอยู่แล้ว → ปฏิเสธ
+    return { allowed:false, role:null };
+  } catch(e) {
+    console.warn('[auth] _resolveStaffRole error:', e);
+    return { allowed:false, role:null };
+  }
 }
 
 // ── REALTIME + AUTO-RELOAD ────────────────────────────────────────────────
