@@ -4581,7 +4581,7 @@ function doImportExcelFull(){
             id:invId,cid:r['cid']||null,pid:r['pid']||null,
             month:r['ประจำเดือน']||'',tenant:r['ผู้เช่า']||'',property:r['ทรัพย์สิน']||'',
             invoiceNo:String(r['เลขที่']||''),date:r['วันที่ออก']||'',dueDate:r['กำหนดชำระ']||'',
-            items:items,total:parseFloat(r['รวมเงิน'])||0,
+            items:items,total:clampMoney(r['รวมเงิน']),
             headerId:r['headerId']||null,
             freqType:r['freqType']||'monthly',freqLabel:r['ความถี่']||'รายเดือน',
             status:stMap[r['สถานะ']]||r['สถานะ']||'draft',
@@ -5329,6 +5329,32 @@ async function _renderAuditLog(){
 // ========== HELPERS ==========
 // Escape HTML สำหรับ render user input ใน template literals (กัน XSS)
 function esc(s){if(s==null)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+// Clamp helpers — boundary validation สำหรับ money/integer values
+// ใช้ที่ Excel import / form save / API response เพื่อกัน negative + NaN + overflow
+//   clampMoney('-50,000')         → 0       (negative clamped to min=0)
+//   clampMoney('1,234.50')        → 1234.5
+//   clampMoney('abc',{def:100})   → 100
+//   clampMoney('1e15',{max:1e9})  → 1e9
+function clampMoney(v,opts){
+  opts=opts||{};
+  const min=opts.min!=null?opts.min:0;
+  const max=opts.max!=null?opts.max:1e10;
+  const def=opts.def!=null?opts.def:0;
+  const n=parseFloat(String(v==null?'':v).replace(/[,\s฿]/g,''));
+  if(isNaN(n)||!isFinite(n))return def;
+  return Math.max(min,Math.min(max,n));
+}
+// clampInt('5',{min:1,max:31,def:5}) → 5 ; clampInt('99',{min:1,max:31,def:5}) → 31
+function clampInt(v,opts){
+  opts=opts||{};
+  const min=opts.min!=null?opts.min:0;
+  const max=opts.max!=null?opts.max:Number.MAX_SAFE_INTEGER;
+  const def=opts.def!=null?opts.def:0;
+  const n=parseInt(v);
+  if(isNaN(n))return def;
+  return Math.max(min,Math.min(max,n));
+}
 // Currency formatter — single source of truth สำหรับเงินบาท
 // fmtBaht(1234567)        → "฿1,234,567"
 // fmtBaht(1234567,{sym:0}) → "1,234,567"
@@ -10118,7 +10144,7 @@ function openAddContractDialog(pid){
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
-        dueDay: parseInt(fd.get('dueDay'))||5,
+        dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         invHeaderId: fd.get('invHeaderId') || null,
         tenantLogo: fd.get('tenantLogo') || null,
         cancelled: false
@@ -10167,7 +10193,7 @@ function renewContract(cid) {
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
-        dueDay: parseInt(fd.get('dueDay'))||5,
+        dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         renewedFrom: cid,
         invHeaderId: fd.get('invHeaderId') || null,
         tenantLogo: fd.get('tenantLogo') || null,
@@ -10213,7 +10239,7 @@ function copyContract(cid) {
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', deed: fd.get('deed') || '',
-        dueDay: parseInt(fd.get('dueDay'))||5,
+        dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         copiedFrom: cid,
         invHeaderId: fd.get('invHeaderId') || null,
         tenantLogo: fd.get('tenantLogo') || null,
