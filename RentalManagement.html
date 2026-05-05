@@ -19696,17 +19696,84 @@ function setupRealtimeSync() {
   } catch(e) { console.warn('[realtime] setup failed', e); }
 }
 
+// ถ้ากำลังเปิด modal แก้งานอยู่ → defer reload กัน user เสียงานที่ยังไม่ save
+let _pendingRemoteReload = false;
 async function _onRemoteChange(payload) {
   // ถ้า save() ของเราเองเพิ่งทำงาน — skip
   if(window._lastLocalSaveAt && (Date.now() - window._lastLocalSaveAt) < 2000) return;
   // Debounce reload
   if(Date.now() - _lastReloadAt < _RELOAD_DEBOUNCE_MS) return;
+
+  // ── Concurrent edit guard ────────────────────────────────────────────
+  // ถ้า modal เปิดอยู่ + dirty → defer reload + แสดง banner เตือน
+  // (กัน user A กรอกแบบฟอร์มอยู่ แล้ว user B save ทับ → form A หาย)
+  const modalEl = document.getElementById('modal');
+  const modalOpen = modalEl && !modalEl.classList.contains('hidden');
+  if(modalOpen && (typeof _modalDirty!=='undefined' && _modalDirty)) {
+    _pendingRemoteReload = true;
+    _showConcurrentEditBanner();
+    return;
+  }
+
   _lastReloadAt = Date.now();
   console.log('[realtime] remote change detected, reloading...');
   await loadFromSupabase();
   if(typeof render === 'function') render();
   if(typeof toast === 'function') toast('🔄 ข้อมูลอัปเดตจาก user อื่น', 'info', 2000);
 }
+
+function _showConcurrentEditBanner() {
+  let bn = document.getElementById('concurrentEditBanner');
+  if(bn) return; // already shown
+  bn = document.createElement('div');
+  bn.id = 'concurrentEditBanner';
+  bn.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:10000;background:#fffbeb;border:2px solid #f59e0b;border-radius:10px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.15);font-family:Sarabun;display:flex;align-items:center;gap:12px;max-width:520px';
+  bn.innerHTML = `
+    <span style="font-size:24px;flex-shrink:0">⚠️</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:700;color:#92400e">มีคนอื่นเพิ่งแก้ข้อมูล</div>
+      <div style="font-size:11px;color:#b45309;margin-top:2px">บันทึกของคุณก่อน หรือยกเลิกเพื่อโหลดข้อมูลใหม่</div>
+    </div>
+    <button onclick="_dismissConcurrentEditAndReload()" style="padding:6px 14px;background:#f59e0b;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;flex-shrink:0">ยกเลิก + โหลดใหม่</button>`;
+  document.body.appendChild(bn);
+}
+
+async function _dismissConcurrentEditAndReload() {
+  const bn = document.getElementById('concurrentEditBanner');
+  if(bn) bn.remove();
+  _pendingRemoteReload = false;
+  if(typeof _modalDirty!=='undefined') _modalDirty = false;
+  const modalEl = document.getElementById('modal');
+  if(modalEl) modalEl.classList.add('hidden');
+  _lastReloadAt = Date.now();
+  await loadFromSupabase();
+  if(typeof render === 'function') render();
+  if(typeof toast === 'function') toast('🔄 โหลดข้อมูลใหม่แล้ว', 'info', 2000);
+}
+
+// เมื่อ modal ถูกปิด (save หรือ cancel) → ถ้ามี pending reload, ทำเลย
+// hook ผ่าน MutationObserver เพื่อไม่ต้องแก้ closeModal/save() ทุกที่
+(function _watchModalClose(){
+  if(typeof window==='undefined') return;
+  const setup = () => {
+    const m = document.getElementById('modal');
+    if(!m) { setTimeout(setup, 500); return; }
+    const ob = new MutationObserver(() => {
+      if(m.classList.contains('hidden') && _pendingRemoteReload) {
+        const bn = document.getElementById('concurrentEditBanner');
+        if(bn) bn.remove();
+        _pendingRemoteReload = false;
+        _lastReloadAt = Date.now();
+        loadFromSupabase().then(() => {
+          if(typeof render === 'function') render();
+          if(typeof toast === 'function') toast('🔄 ข้อมูลอัปเดตจาก user อื่น', 'info', 2000);
+        });
+      }
+    });
+    ob.observe(m, { attributes: true, attributeFilter: ['class'] });
+  };
+  setup();
+})();
 
 // Reload เมื่อกลับมา tab (visibilitychange)
 document.addEventListener('visibilitychange', async function() {
