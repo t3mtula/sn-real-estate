@@ -6,17 +6,26 @@ const TH_ID_TO_LOC = {};
 Object.entries(TH_LOC_MAP).forEach(([loc,id])=>TH_ID_TO_LOC[id]=loc);
 
 // Extract province from address text — รองรับหลาย format
+// Order: BKK keywords → "จ.XXX" / "จังหวัด XXX" → bare province name (substring match กับ TH_PROVINCES)
 function extractProvince(text){
   if(!text) return null;
   const s = String(text);
-  // BKK keyword (ไม่มี "จ." นำ)
-  if(/กรุงเทพมหานคร|กทม\.|กรุงเทพฯ/.test(s)) return 'กรุงเทพฯ';
-  // Pattern "จ.XXX" หรือ "จังหวัด XXX" ที่ท้ายข้อความ
-  const m = s.match(/จ(?:ังหวัด)?\.?\s*([฀-๿]+(?:\s[฀-๿]+)?)\s*$/);
-  if(m) return m[1].trim();
-  // Pattern กลางข้อความ
-  const m2 = s.match(/จ(?:ังหวัด)?\.?\s*([฀-๿]+)/);
-  if(m2) return m2[1].trim();
+  // BKK keyword (รวม "กรุงเทพ" stand-alone — เคสบ้าน/ทาวน์เฮาส์ไม่มี "จ." นำ)
+  if(/กรุงเทพมหานคร|กทม\.|กรุงเทพฯ|กรุงเทพ/.test(s)) return 'กรุงเทพฯ';
+  // Pattern "จ.XXX" หรือ "จังหวัด XXX" (ที่ไหนก็ได้ — ไม่บังคับท้ายข้อความ)
+  const m = s.match(/จ(?:ังหวัด)?\.?\s*([฀-๿]+(?:\s[฀-๿]+)?)/);
+  if(m) {
+    const cand = m[1].trim();
+    if(typeof TH_PROVINCES==='undefined' || TH_PROVINCES.includes(cand) || cand==='กรุงเทพมหานคร') {
+      return cand==='กรุงเทพมหานคร'?'กรุงเทพฯ':cand;
+    }
+  }
+  // Fallback: substring scan กับ list จังหวัดทั้งหมด (เคส address เก็บแค่ชื่อจังหวัดล้วน เช่น "ราชบุรี")
+  if(typeof TH_PROVINCES!=='undefined') {
+    for(const prov of TH_PROVINCES) {
+      if(s.includes(prov)) return prov==='กรุงเทพมหานคร'?'กรุงเทพฯ':prov;
+    }
+  }
   return null;
 }
 
@@ -321,12 +330,14 @@ function renderDash(){
     provincePaths+=`<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${isActive?0.8:0.4}" class="map-prov-bg" data-id="${id}"/>`;
   });
 
-  // Interactive colored bubbles for active provinces
+  // Interactive colored bubbles — เฉพาะจังหวัดที่มีทรัพย์สิน (count>0)
+  // ซ่อนจังหวัด 0 เพราะรกแผนที่และให้ข้อมูลผิด ("รายได้ 0 บาท" = ไม่ได้ลงทุน, ไม่ใช่ insight)
   let labelsHTML='';
   const bubbleData=Object.entries(TH_LOC_MAP).map(([loc,id])=>{
     const c=TH_CENTROIDS[id];if(!c)return null;
     const ld=locData[loc];
     const count=ld?ld.props.length:0;
+    if(count===0)return null;
     const rev=ld?ld.rev:0;
     return{loc,id,cx:c[0],cy:c[1],count,rev,color:MAP_LOC_COLORS[loc]||'#6366f1'};
   }).filter(Boolean).sort((a,b)=>a.count-b.count);
@@ -519,7 +530,7 @@ function renderDash(){
     <!-- V2 KPI row: Hero revenue + 3 secondary -->
     <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px" class="v2-kpi-grid">
       <div class="kpi-v2 hero" onclick="showPage('properties')">
-        <div class="kpi-v2-icon ic-indigo"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+        <div class="kpi-v2-icon ic-indigo"><svg viewBox="0 0 24 24" fill="currentColor" aria-label="บาท"><text x="12" y="17.5" text-anchor="middle" font-size="17" font-weight="800" font-family="Sarabun,system-ui,sans-serif">฿</text></svg></div>
         <div class="kpi-v2-body">
           <p class="kpi-v2-value">${fmtBaht(tot,{sym:0})}</p>
           <p class="kpi-v2-label">รายได้ต่อเดือน (เฉลี่ย)${_hasPayments?' · เก็บได้ '+fmtBaht(moCollected,{sym:0})+' ('+collectionRate+'%)':''}</p>
