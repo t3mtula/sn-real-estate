@@ -7058,8 +7058,13 @@ const MAP_LOC_COLORS = {'ราชบุรี':'#6366f1','กรุงเทพ
 const TH_ID_TO_LOC = {};
 Object.entries(TH_LOC_MAP).forEach(([loc,id])=>TH_ID_TO_LOC[id]=loc);
 
+// Ambiguous short province names — ติดเป็น substring ในคำธรรมดาบ่อย ("เลย"=adv, "ตาก"=verb, ฯลฯ)
+// ต้องระบุด้วย "จ." / "จังหวัด" เท่านั้น — ไม่ accept substring fallback
+const _AMBIGUOUS_PROVINCES = new Set(['เลย','ตาก','น่าน','แพร่','ตรัง','ตราด']);
+const _RE_ESC = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Extract province from address text — รองรับหลาย format
-// Order: BKK keywords → "จ.XXX" / "จังหวัด XXX" → bare province name (substring match กับ TH_PROVINCES)
+// Order: BKK keywords → "จ.XXX" / "จังหวัด XXX" → bare province name (boundary-checked substring)
 function extractProvince(text){
   if(!text) return null;
   const s = String(text);
@@ -7073,10 +7078,15 @@ function extractProvince(text){
       return cand==='กรุงเทพมหานคร'?'กรุงเทพฯ':cand;
     }
   }
-  // Fallback: substring scan กับ list จังหวัดทั้งหมด (เคส address เก็บแค่ชื่อจังหวัดล้วน เช่น "ราชบุรี")
+  // Fallback: bare province name — ต้องมี boundary (start/space/comma/dot/hyphen) คั่นทั้ง 2 ฝั่ง
+  // กันคำธรรมดาที่บังเอิญมีชื่อจังหวัดเป็น substring (เช่น "ตาก" ใน "ตากสิน")
+  // เรียงยาว→สั้น เพื่อให้ "ราชบุรี" match ก่อน ถ้ามีคำสั้นกว่าใน list
   if(typeof TH_PROVINCES!=='undefined') {
-    for(const prov of TH_PROVINCES) {
-      if(s.includes(prov)) return prov==='กรุงเทพมหานคร'?'กรุงเทพฯ':prov;
+    const sorted = [...TH_PROVINCES].sort((a,b)=>b.length-a.length);
+    for(const prov of sorted) {
+      if(_AMBIGUOUS_PROVINCES.has(prov)) continue; // ต้องมี "จ." นำเท่านั้น
+      const re = new RegExp('(?:^|[\\s,.\\-(])' + _RE_ESC(prov) + '(?:$|[\\s,.\\-)\\d])');
+      if(re.test(s)) return prov==='กรุงเทพมหานคร'?'กรุงเทพฯ':prov;
     }
   }
   return null;
