@@ -2,3 +2,4 @@
 *.bak.*
 export-data.html
 .DS_Store
+.claude/

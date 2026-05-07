@@ -1337,10 +1337,10 @@ function rptArrearsHTML(){
     <div style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
         <div style="font-size:13px;font-weight:700;color:#1e293b">📊 ค้างชำระแยก Property</div>
-        <div style="font-size:10px;color:#94a3b8">เรียงตามยอดค้างมาก → น้อย</div>
+        <div style="font-size:10px;color:#64748b">เรียงตามยอดค้างมาก → น้อย</div>
       </div>
       ${propRanked.length===0
-        ? '<div style="text-align:center;padding:30px 12px;color:#94a3b8;font-size:12px">ไม่มีข้อมูล</div>'
+        ? '<div style="text-align:center;padding:30px 12px;color:#64748b;font-size:12px">ไม่มีข้อมูล</div>'
         : `<div style="max-height:280px;overflow-y:auto">
             <table style="width:100%;border-collapse:collapse;font-size:11px">
               <thead><tr style="background:#fafbfc;color:#64748b;font-weight:600;text-align:right;position:sticky;top:0">
@@ -1360,7 +1360,7 @@ function rptArrearsHTML(){
                   <td style="padding:7px 8px;text-align:right;color:${p['61-90']>0?'#d97706':'#cbd5e1'}">${p['61-90']>0?fmtBaht(p['61-90'],{sym:0}):'—'}</td>
                   <td style="padding:7px 8px;text-align:right;color:${p['90+']>0?'#dc2626':'#cbd5e1'};font-weight:${p['90+']>0?700:400}">${p['90+']>0?fmtBaht(p['90+'],{sym:0}):'—'}</td>
                 </tr>`).join('')}
-                ${propRanked.length>10?`<tr><td colspan="6" style="padding:6px;text-align:center;color:#94a3b8;font-size:10px">+${propRanked.length-10} ทรัพย์</td></tr>`:''}
+                ${propRanked.length>10?`<tr><td colspan="6" style="padding:6px;text-align:center;color:#64748b;font-size:10px">+${propRanked.length-10} ทรัพย์</td></tr>`:''}
               </tbody>
             </table>
           </div>`}
@@ -1802,7 +1802,7 @@ function rptTaxSalesHTML(){
   const overview = d.overview;
 
   const tableRowsHTML = d.rows.length===0
-    ? `<tr><td colspan="10" style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">ไม่มีรายการในช่วงที่เลือก</td></tr>`
+    ? `<tr><td colspan="10" style="padding:32px;text-align:center;color:#64748b;font-size:12px">ไม่มีรายการในช่วงที่เลือก</td></tr>`
     : d.rows.map((r,i)=>`<tr>
         <td>${r.date}</td>
         <td style="font-weight:600">${esc(r.no)}</td>
@@ -1865,7 +1865,7 @@ function rptTaxSalesHTML(){
             <th style="padding:8px 10px;text-align:right">รวมภาษี</th>
           </tr></thead>
           <tbody>${d.rows.length===0
-            ? `<tr><td colspan="10" style="padding:32px;text-align:center;color:#94a3b8">ไม่มีรายการในช่วงที่เลือก</td></tr>`
+            ? `<tr><td colspan="10" style="padding:32px;text-align:center;color:#64748b">ไม่มีรายการในช่วงที่เลือก</td></tr>`
             : d.rows.map(r=>`<tr style="border-top:1px solid #f1f5f9">
               <td style="padding:8px 10px;color:#475569">${r.date}</td>
               <td style="padding:8px 10px;color:#1e293b;font-weight:600">${esc(r.no)}</td>
@@ -1992,7 +1992,7 @@ function rptRentBillsHTML(){
   const tdStyle = 'padding:8px 10px';
   const thStyle = 'padding:8px 10px;background:#fafbfc;color:#475569;font-weight:700;text-align:left';
   const tableRows = d.rows.length === 0
-    ? `<tr><td colspan="8" style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">ไม่มีรายการในช่วงที่เลือก</td></tr>`
+    ? `<tr><td colspan="8" style="padding:32px;text-align:center;color:#64748b;font-size:12px">ไม่มีรายการในช่วงที่เลือก</td></tr>`
     : d.rows.map(r => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle};font-size:12px">${r.date}</td>
         <td style="${tdStyle};font-size:12px;font-weight:600">${esc(r.no)}</td>
@@ -2141,7 +2141,7 @@ function rptDepositBalanceHTML(){
   const tdStyle = 'padding:8px 10px;font-size:12px';
   const thStyle = 'padding:8px 10px;background:#fafbfc;color:#475569;font-weight:700;text-align:left;font-size:12px';
   const tableRows = d.rows.length === 0
-    ? `<tr><td colspan="6" style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">ไม่มีเงินประกันคงค้าง</td></tr>`
+    ? `<tr><td colspan="6" style="padding:32px;text-align:center;color:#64748b;font-size:12px">ไม่มีเงินประกันคงค้าง</td></tr>`
     : d.rows.map(r => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle}">${esc(r.contractNo)}</td>
         <td style="${tdStyle}">${esc(r.tenant)}</td>
@@ -2250,7 +2250,7 @@ function rptDepositReturnHTML(){
   const tdStyle = 'padding:8px 10px;font-size:12px';
   const thStyle = 'padding:8px 10px;background:#fafbfc;color:#475569;font-weight:700;text-align:left;font-size:12px';
   const tableRows = d.rows.length === 0
-    ? `<tr><td colspan="7" style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">ไม่มีรายการคืนเงินประกัน</td></tr>`
+    ? `<tr><td colspan="7" style="padding:32px;text-align:center;color:#64748b;font-size:12px">ไม่มีรายการคืนเงินประกัน</td></tr>`
     : d.rows.map(r => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle}">${r.date}</td>
         <td style="${tdStyle}">${esc(r.contractNo)}</td>
@@ -2384,7 +2384,7 @@ function rptBadDebtHTML(){
   const tdStyle = 'padding:8px 10px;font-size:12px';
   const thStyle = 'padding:8px 10px;background:#fafbfc;color:#475569;font-weight:700;text-align:left;font-size:12px';
   const tableRows = d.rows.length === 0
-    ? `<tr><td colspan="7" style="padding:32px;text-align:center;color:#94a3b8;font-size:12px">ไม่มีรายการหนี้สูญ</td></tr>`
+    ? `<tr><td colspan="7" style="padding:32px;text-align:center;color:#64748b;font-size:12px">ไม่มีรายการหนี้สูญ</td></tr>`
     : d.rows.map(r => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle}">${r.date}</td>
         <td style="${tdStyle};font-weight:600">${esc(r.no)}</td>
@@ -2487,14 +2487,14 @@ function rptRevAnalysisHTML(){
   const tdStyle = 'padding:8px 10px;font-size:12px';
   const thStyle = 'padding:8px 10px;background:#fafbfc;color:#475569;font-weight:700;text-align:left;font-size:12px';
   const catRows = d.categories.length === 0
-    ? `<tr><td colspan="3" style="padding:16px;text-align:center;color:#94a3b8">ไม่มีข้อมูล</td></tr>`
+    ? `<tr><td colspan="3" style="padding:16px;text-align:center;color:#64748b">ไม่มีข้อมูล</td></tr>`
     : d.categories.map(c => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle}"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c.color};margin-right:6px;vertical-align:middle"></span>${c.label}</td>
         <td style="${tdStyle};text-align:right;font-weight:600">${fmtBaht(c.amt,{sym:0,dec:2})}</td>
         <td style="${tdStyle};text-align:right;color:#64748b">${c.pct}%</td>
       </tr>`).join('');
   const monthRows = d.months.length === 0
-    ? `<tr><td colspan="2" style="padding:16px;text-align:center;color:#94a3b8">ไม่มีข้อมูล</td></tr>`
+    ? `<tr><td colspan="2" style="padding:16px;text-align:center;color:#64748b">ไม่มีข้อมูล</td></tr>`
     : d.months.map(m => `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="${tdStyle}">${m.label}</td>
         <td style="${tdStyle};text-align:right;font-weight:600">${fmtBaht(m.total,{sym:0,dec:2})}</td>

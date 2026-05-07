@@ -109,24 +109,24 @@ function renderLandlords(){
                 const chips=sks.sort((a,b)=>l.signers[b]-l.signers[a]).map(n=>`<span style="display:inline-block;background:#eef2ff;color:#4338ca;font-size:10px;padding:2px 8px;border-radius:99px;margin-right:4px">เซ็นโดย ${esc(n)} (${l.signers[n]})</span>`).join('');
                 return `<div style="margin-top:3px">${chips}</div>`;
               })()}
-              ${l.addr ? `<div style="font-size:11px;color:#9ca3af;max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.addr)} <span onclick="event.stopPropagation();editLandlordAddr('${esc(l.name.replace(/'/g,"\\'"))}')" style="color:#6366f1;cursor:pointer;font-size:10px;text-decoration:underline">แก้ไข</span>${l.addrs.size>1?`<span style="color:#dc2626;font-size:10px;margin-left:6px;font-weight:600" title="บริษัทเดียวกันมีหลายที่อยู่ — ตรวจสอบ">⚠ มี ${l.addrs.size} ที่อยู่</span>`:''}</div>` : `<div><span onclick="event.stopPropagation();editLandlordAddr('${esc(l.name.replace(/'/g,"\\'"))}')" style="color:#6366f1;cursor:pointer;font-size:11px">+ เพิ่มที่อยู่</span></div>`}
+              ${l.addr ? `<div style="font-size:11px;color:#64748b;max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(l.addr)} <span onclick="event.stopPropagation();editLandlordAddr('${esc(l.name.replace(/'/g,"\\'"))}')" style="color:#6366f1;cursor:pointer;font-size:10px;text-decoration:underline">แก้ไข</span>${l.addrs.size>1?`<span style="color:#dc2626;font-size:10px;margin-left:6px;font-weight:600" title="บริษัทเดียวกันมีหลายที่อยู่ — ตรวจสอบ">⚠ มี ${l.addrs.size} ที่อยู่</span>`:''}</div>` : `<div><span onclick="event.stopPropagation();editLandlordAddr('${esc(l.name.replace(/'/g,"\\'"))}')" style="color:#6366f1;cursor:pointer;font-size:11px">+ เพิ่มที่อยู่</span></div>`}
             </div>
           </div>
         </div>
         <div style="display:flex;gap:16px;align-items:center;flex-shrink:0;flex-wrap:wrap">
           <div style="text-align:center">
             <div style="font-size:20px;font-weight:800;color:#6366f1">${propCount}</div>
-            <div style="font-size:10px;color:#9ca3af">แปลง</div>
+            <div style="font-size:10px;color:#64748b">แปลง</div>
           </div>
           <div style="text-align:center">
             <div style="font-size:20px;font-weight:800;color:#059669">${l.active}</div>
-            <div style="font-size:10px;color:#9ca3af">สัญญามีผล</div>
+            <div style="font-size:10px;color:#64748b">สัญญามีผล</div>
           </div>
           <div style="text-align:center">
             <div style="font-size:16px;font-weight:700;color:#d97706">${totalRev ? fmtBaht(totalRev,{sym:0}) : '0'}</div>
-            <div style="font-size:10px;color:#9ca3af">บ./เดือน</div>
+            <div style="font-size:10px;color:#64748b">บ./เดือน</div>
           </div>
-          <svg style="width:16px;height:16px;color:#9ca3af;transition:transform 0.2s" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg style="width:16px;height:16px;color:#64748b;transition:transform 0.2s" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ function renderLandlords(){
               <div style="font-size:13px;font-weight:600;color:#111827">${esc(b.accountName) || '-'}</div>
               <div style="font-size:12px;color:#6b7280">${esc(b.bank)} · ${esc(b.acctNo)}</div>
             </div>
-          </div>`).join('') : '<div style="font-size:12px;color:#9ca3af;padding:4px 0">ไม่มีข้อมูลบัญชี</div>'}
+          </div>`).join('') : '<div style="font-size:12px;color:#64748b;padding:4px 0">ไม่มีข้อมูลบัญชี</div>'}
         </div>
 
         <!-- Properties & contracts -->
@@ -161,23 +161,23 @@ function renderLandlords(){
                 const acSt = status(ac);
                 const stC = {active:'#059669',expiring:'#d97706',expired:'#dc2626',upcoming:'#2563eb',cancelled:'#64748b'}[acSt] || '#6b7280';
                 return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:3px 0;color:#374151">
-                  <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${stC};margin-right:6px"></span>${esc(ac.tenant)||'-'} <span style="color:#9ca3af">(${esc(ac.no)||''})</span></span>
+                  <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${stC};margin-right:6px"></span>${esc(ac.tenant)||'-'} <span style="color:#64748b">(${esc(ac.no)||''})</span></span>
                   <span style="color:${stC};font-weight:600">${fmtBaht(monthlyRev(ac),{sym:0})} บ./ด.</span>
                 </div>`;
-              }).join('') : '<div style="font-size:12px;color:#9ca3af">ไม่มีสัญญามีผล</div>'}
+              }).join('') : '<div style="font-size:12px;color:#64748b">ไม่มีสัญญามีผล</div>'}
             </div>`;
           }).join('')}
         </div>
-        ${l.cancelled > 0 ? `<div style="font-size:11px;color:#9ca3af;margin-top:8px">ยกเลิก ${l.cancelled} ฉบับ</div>` : ''}
-        ${l.expired > 0 ? `<div style="font-size:11px;color:#9ca3af">หมดอายุ ${l.expired} ฉบับ</div>` : ''}
+        ${l.cancelled > 0 ? `<div style="font-size:11px;color:#64748b;margin-top:8px">ยกเลิก ${l.cancelled} ฉบับ</div>` : ''}
+        ${l.expired > 0 ? `<div style="font-size:11px;color:#64748b">หมดอายุ ${l.expired} ฉบับ</div>` : ''}
       </div>
     </div>`;
   });
 
   if(llArr.length === 0) {
-    html += `<div style="text-align:center;padding:40px;color:#9ca3af;font-size:14px">ไม่พบผู้ให้เช่า</div>`;
+    html += `<div style="text-align:center;padding:40px;color:#64748b;font-size:14px">ไม่พบผู้ให้เช่า</div>`;
   } else if(llArr.length > llShown) {
-    html += `<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreLandlords()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(LANDLORDS_PER_PAGE,llArr.length-llShown)} ราย <span style="color:#94a3b8;font-weight:400;margin-left:6px">(แสดง ${llShown}/${llArr.length})</span></button></div>`;
+    html += `<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreLandlords()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(LANDLORDS_PER_PAGE,llArr.length-llShown)} ราย <span style="color:#64748b;font-weight:400;margin-left:6px">(แสดง ${llShown}/${llArr.length})</span></button></div>`;
   }
 
   html += `</div>`;

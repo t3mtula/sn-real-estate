@@ -24,7 +24,7 @@ function openGlobalSearch(){
       <div style="padding:14px 18px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;gap:10px">
         <span style="font-size:18px">🔎</span>
         <input id="searchInput" placeholder="ค้นผู้เช่า, ทรัพย์สิน, เลขที่บิล, ผู้ให้เช่า..." style="flex:1;border:none;outline:none;font-size:15px;font-family:Sarabun;color:#1e293b">
-        <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:3px 8px;border-radius:6px">ESC</span>
+        <span style="font-size:11px;color:#64748b;background:#f1f5f9;padding:3px 8px;border-radius:6px">ESC</span>
       </div>
       <div id="searchResults" style="max-height:60vh;overflow-y:auto;padding:6px"></div>
     </div>`;
@@ -46,7 +46,7 @@ function _runGlobalSearch(){
   const out = document.getElementById('searchResults');
   if(!out) return;
   if(!q){
-    out.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px">เริ่มพิมพ์เพื่อค้นข้ามทั้งระบบ</div>`;
+    out.innerHTML = `<div style="padding:32px;text-align:center;color:#64748b;font-size:13px">เริ่มพิมพ์เพื่อค้นข้ามทั้งระบบ</div>`;
     return;
   }
   const matches = [];
@@ -73,7 +73,7 @@ function _runGlobalSearch(){
   });
 
   if(matches.length===0){
-    out.innerHTML = `<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px">ไม่เจอข้อมูล "${esc(q)}"</div>`;
+    out.innerHTML = `<div style="padding:32px;text-align:center;color:#64748b;font-size:13px">ไม่เจอข้อมูล "${esc(q)}"</div>`;
     return;
   }
   // Limit 50 across types

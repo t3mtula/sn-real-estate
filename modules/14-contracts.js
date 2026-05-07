@@ -180,7 +180,7 @@ function openCancelDialog(cid){
       <div>
         <label class="text-xs font-semibold text-gray-700 mb-1 block">วันที่ออกจริง <span class="text-red-400">*</span></label>
         <div style="position:relative"><input type="text" name="cancelDate" value="${_cancelDefaultDate}" required class="w-full px-3 py-2 pr-9 border-2 border-red-200 rounded-lg text-sm font-medium bg-red-50 focus:border-red-500 outline-none" placeholder="dd/mm/yyyy พ.ศ."><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#64748b" title="เลือกวันที่">📅</span></div>
-        <div style="font-size:11px;color:#9ca3af;margin-top:3px">ระบบจะไม่คิดรายได้หลังวันนี้ · งวดที่ค้างก่อนวันยกเลิกยังต้องเก็บเงิน</div>
+        <div style="font-size:11px;color:#64748b;margin-top:3px">ระบบจะไม่คิดรายได้หลังวันนี้ · งวดที่ค้างก่อนวันยกเลิกยังต้องเก็บเงิน</div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-700 mb-1 block">เหตุผลการยกเลิก</label>
@@ -1013,7 +1013,7 @@ function renderContracts(){
         </div>`:''}
       </div>`;
     }).join('')}
-    ${tenants.length>tenantsShown?`<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreTenants()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(TENANTS_PER_PAGE,tenants.length-tenantsShown)} ราย <span style="color:#94a3b8;font-weight:400;margin-left:6px">(แสดง ${tenantsShown}/${tenants.length})</span></button></div>`:''}
+    ${tenants.length>tenantsShown?`<div style="text-align:center;padding:14px;margin-top:8px"><button onclick="showMoreTenants()" style="padding:10px 22px;background:#fff;color:#475569;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">⬇ แสดงเพิ่ม ${Math.min(TENANTS_PER_PAGE,tenants.length-tenantsShown)} ราย <span style="color:#64748b;font-weight:400;margin-left:6px">(แสดง ${tenantsShown}/${tenants.length})</span></button></div>`:''}
     ${tenants.length===0?`<div style="text-align:center;padding:60px 20px;background:#fff;border:2px dashed #e5e7eb;border-radius:12px;margin-top:12px">
       <div style="font-size:48px;margin-bottom:12px">📄</div>
       <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:6px">${DB.contracts.length===0?'ยังไม่มีสัญญา':'ไม่พบสัญญาตามตัวกรอง'}</div>

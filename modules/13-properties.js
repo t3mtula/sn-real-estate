@@ -624,7 +624,7 @@ function buildContractTimeline(c, cInvoices){
       : `<button onclick="event.stopPropagation();closeModal();viewInvoiceDetail(${inv.id})" style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun;flex-shrink:0" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">ดูรายละเอียด</button>`;
 
     return `<div style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;margin-bottom:6px">
-      ${slipThumb||'<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;font-size:14px">📄</div>'}
+      ${slipThumb||'<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0;font-size:14px">📄</div>'}
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:600;color:#1e293b">${fmtMonth(inv.month)}</span>
@@ -642,7 +642,7 @@ function buildContractTimeline(c, cInvoices){
   }).join('');
 
   const showMoreBtn=remaining>0?`<div style="text-align:center;margin-top:6px">
-    <button onclick="showMoreVcTimeline()" style="padding:8px 18px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">▾ แสดงเพิ่ม ${Math.min(12,remaining)} ใบ <span style="color:#94a3b8;font-weight:400">(เหลือ ${remaining})</span></button>
+    <button onclick="showMoreVcTimeline()" style="padding:8px 18px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">▾ แสดงเพิ่ม ${Math.min(12,remaining)} ใบ <span style="color:#64748b;font-weight:400">(เหลือ ${remaining})</span></button>
   </div>`:'';
 
   return `<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">
@@ -684,13 +684,13 @@ function _vcWorkflowStrip(c, st){
           <div style="font-size:11px;font-weight:700;color:${inspDone?'#059669':'#92400e'}">${inspDone?'✓ ตรวจแล้ว':'1. ตรวจรับคืนทรัพย์'}</div>
           <div style="font-size:10px;color:#64748b;margin-top:2px">${inspDone?'กดดูรายงาน':'กดเพื่อเริ่มตรวจ'}</div>
         </button>
-        <div style="display:flex;align-items:center;color:#94a3b8;font-size:18px;font-weight:300">›</div>
+        <div style="display:flex;align-items:center;color:#64748b;font-size:18px;font-weight:300">›</div>
         ${hasDeposit
           ?`<button onclick="openDepositReturn(${cid})" style="flex:1;padding:8px 10px;background:${depReturnDone?'#ecfdf5':'#fff'};border:1.5px solid ${depReturnDone?'#059669':'#fbbf24'};border-radius:8px;cursor:pointer;text-align:left;font-family:Sarabun">
               <div style="font-size:11px;font-weight:700;color:${depReturnDone?'#059669':'#92400e'}">${depReturnDone?'✓ คืนแล้ว':'2. คืนเงินประกัน'}</div>
               <div style="font-size:10px;color:#64748b;margin-top:2px">${depReturnDone?'กดดูใบคืน':'กดเพื่อดำเนินการ'}</div>
             </button>`
-          :`<div style="flex:1;padding:8px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8">ไม่มีเงินประกัน</div>`}
+          :`<div style="flex:1;padding:8px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#64748b">ไม่มีเงินประกัน</div>`}
       </div>
     </div>`;
   }
@@ -825,20 +825,20 @@ function viewContract(id) {
             ${st==='active'&&remaining>0&&remaining<=180?`<span style="font-size:11px;color:#6b7280">เหลือ ${remaining} วัน</span>`:''}
           </div>
           <div style="display:flex;gap:20px;flex-wrap:wrap">
-            <div><div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ผู้เช่า</div>
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">ผู้เช่า</div>
               <div style="font-size:16px;font-weight:700;color:#111827">${esc(c.tenant)||'-'}</div>
               ${c.phone?`<div style="font-size:12px;color:#6b7280">${esc(c.phone)}</div>`:''}
             </div>
-            <div><div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ผู้ให้เช่า</div>
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">ผู้ให้เช่า</div>
               <div style="font-size:16px;font-weight:700;color:#111827">${esc(shortLandlordName(c.landlord))||'-'}</div>
             </div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
           <div style="text-align:right">
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ค่าเช่า/เดือน</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:2px">ค่าเช่า/เดือน</div>
             <div style="font-size:22px;font-weight:800;color:${stColors[st]};line-height:1.2">${moRev?fmtBaht(moRev,{sym:0})+' <span style="font-size:13px;font-weight:600">บ.</span>':'-'}</div>
-            <div style="font-size:11px;color:#9ca3af">${freq.type==='monthly'?'รายเดือน':freq.type==='quarterly'?'รายไตรมาส':freq.type==='semi'?'ราย 6 เดือน':freq.type==='yearly'?'รายปี':'เหมาจ่าย'}</div>
+            <div style="font-size:11px;color:#64748b">${freq.type==='monthly'?'รายเดือน':freq.type==='quarterly'?'รายไตรมาส':freq.type==='semi'?'ราย 6 เดือน':freq.type==='yearly'?'รายปี':'เหมาจ่าย'}</div>
           </div>
         </div>
       </div>
@@ -933,12 +933,12 @@ function viewContract(id) {
     const rows=audit.slice(0,20).map(a=>`<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px">
       <span style="color:#64748b;flex-shrink:0;font-variant-numeric:tabular-nums">${esc(a.beDateStr)}</span>
       <span style="flex:1;color:#334155">${esc(a.detail)}</span>
-      <span style="color:#94a3b8;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
+      <span style="color:#64748b;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
     </div>`).join('');
     return `<details style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0;overflow:hidden">
       <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#475569;list-style:none;display:flex;justify-content:space-between;align-items:center">
         <span>📜 ประวัติการแก้ไข (${audit.length})</span>
-        <span style="font-size:11px;color:#94a3b8">คลิกเพื่อดู</span>
+        <span style="font-size:11px;color:#64748b">คลิกเพื่อดู</span>
       </summary>
       <div style="background:#fff;max-height:300px;overflow-y:auto">${rows}</div>
     </details>`;
