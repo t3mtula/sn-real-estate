@@ -686,7 +686,9 @@ function doImportDBReady(){
             return ws ? XLSX.utils.sheet_to_json(ws) : [];
           };
 
-          // Properties
+          // Properties — map ทุก field จาก Excel โดยใช้ field name ตรงตาม Excel header
+          // Excel headers: pid, name, description, propertyType, addr_line, addr_subdistrict,
+          //                addr_district, addr_province, titleDeed, area, owner, status
           const propRows = getSheet('properties');
           let addedProps = 0;
           propRows.forEach(r => {
@@ -694,39 +696,78 @@ function doImportDBReady(){
             const pid = r.pid || DB.nextPId++;
             // skip ถ้ามีแล้ว
             if(DB.properties.find(p => p.pid === pid || p.name === r.name)) return;
+            const province = r.addr_province || '';
             DB.properties.push({
-              pid, name: r.name||'', location: r['addr.line']||r.description||'',
-              province: r['addr.province']||'', type: r.propertyType||'',
-              owner: r.owner||'', status: r.status||'active',
-              titleDeed: r.titleDeed||'', area: r.area||''
+              pid,
+              name: r.name||'',
+              // location = full address description (สำหรับ display แบบเก่า)
+              location: r.description || r.addr_line || '',
+              // address = full address (alias ของ location สำหรับ form)
+              address: r.description || '',
+              // structured address fields
+              addr_line: r.addr_line || '',
+              addr_subdistrict: r.addr_subdistrict || '',
+              addr_district: r.addr_district || '',
+              addr_province: province,
+              province: province, // alias สำหรับ dashboard map
+              type: r.propertyType || '',
+              owner: r.owner || '',
+              status: r.status || 'active',
+              titleDeed: r.titleDeed || '',
+              area: r.area || ''
             });
             if(pid >= DB.nextPId) DB.nextPId = pid + 1;
             addedProps++;
           });
 
-          // Contracts
+          // Contracts — map ทุก structured field จาก Excel (อย่าทิ้งข้อมูล)
+          // Excel มี 71 columns: รวมทั้ง rateAmount, rateFreq, monthlyBaht, escalationPct,
+          // escalationCycle, payTiming, payFreq, payDueDay, payInstallments, payAmount,
+          // tenantAddr_line/_subdistrict/_district/_province, landlordAddr_*, durMonths, ฯลฯ
           const conRows = getSheet('contracts');
           let addedCons = 0;
+          // ฟิลด์ที่ map ตรง ๆ จาก Excel column → contract field (ชื่อเดียวกัน)
+          const PASS_THROUGH = [
+            'pid','no','date','madeAt',
+            'tenant','taxId','taxIdKind','taxIdRemark','phone',
+            'tenantAddr','tenantAddr_line','tenantAddr_subdistrict','tenantAddr_district','tenantAddr_province',
+            'landlord','landlordSignerName','landlordAddr','landlordAddr_line','landlordAddr_subdistrict','landlordAddr_district','landlordAddr_province',
+            'property','area','purpose',
+            'durMonths','durDays','durRaw',
+            'rateAmount','rateFreq','monthlyBaht','rateRaw',
+            'depositAmount','depositRaw',
+            'escalationPct','escalationCycle','escalationBase','rateAdjRaw',
+            'payTiming','payFreq','payDueDay','payDueMonth','payInstallments','payAmount','payRaw',
+            'bank','acctNo','accountName'
+          ];
           conRows.forEach(r => {
             if(!r.tenant && !r.no) return;
             const id = r.id || DB.nextCId++;
             if(DB.contracts.find(c => c.id === id || c.no === r.no)) return;
-            DB.contracts.push({
-              id, pid: r.pid||null, no: r.no||'',
-              date: r.date||'', madeAt: r.madeAt||'',
-              tenant: r.tenant||'', taxId: r.taxId||'', phone: r.phone||'',
-              tenantAddr: r['tenantAddr.raw']||r.tenantAddr||'',
-              landlord: r.landlord||'', landlordAddr: r.landlordAddr||'',
-              landlordSignerName: r.landlordSignerName||'',
-              property: r.property||'', area: r.area||'', purpose: r.purpose||'',
-              start: String(r.start||''), end: String(r.end||''),
-              rate: r.monthlyBaht ? ('เดือนละ '+Number(r.monthlyBaht).toLocaleString()+' บาท') : (r.rateAmount ? (Number(r.rateAmount).toLocaleString()+' บาท') : ''),
-              deposit: r.depositAmount ? (Number(r.depositAmount).toLocaleString()+' บาท') : '',
-              bank: r.bank||'', acctNo: r.acctNo||'', accountName: r.accountName||'',
+            const c = {
+              id,
+              start: String(r.start||''),
+              end: String(r.end||''),
+              prepaid: r.prepaid === true || r.prepaid === 'true' || r.prepaid === 1,
               signed: r.signed === true || r.signed === 'true' || r.signed === 1,
               cancelled: r.cancelled === true || r.cancelled === 'true' || r.cancelled === 1,
-              status: r.status||'active'
+              status: r.status || 'active'
+            };
+            // copy pass-through fields (เก็บค่าจริง อย่าตัดทิ้ง)
+            PASS_THROUGH.forEach(k => {
+              if(r[k] !== undefined && r[k] !== null && r[k] !== '') c[k] = r[k];
             });
+            // backward-compat: derive `rate` + `deposit` strings ถ้า UI เก่ายังอ่าน
+            if(!c.rate) {
+              if(r.rateRaw) c.rate = r.rateRaw;
+              else if(r.monthlyBaht) c.rate = 'เดือนละ '+Number(r.monthlyBaht).toLocaleString()+' บาท';
+              else if(r.rateAmount) c.rate = Number(r.rateAmount).toLocaleString()+' บาท';
+            }
+            if(!c.deposit) {
+              if(r.depositRaw) c.deposit = r.depositRaw;
+              else if(r.depositAmount) c.deposit = Number(r.depositAmount).toLocaleString()+' บาท';
+            }
+            DB.contracts.push(c);
             if(id >= DB.nextCId) DB.nextCId = id + 1;
             addedCons++;
           });
