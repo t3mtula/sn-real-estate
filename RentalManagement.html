@@ -3086,7 +3086,24 @@ const DEFAULT_CLAUSES = [
   { text: 'การบอกกล่าวใดๆ เกี่ยวกับสัญญานี้ หากทำเป็นลายลักษณ์อักษร และส่งทางไปรษณีย์ลงทะเบียนตามที่อยู่ที่ระบุในสัญญานี้ ให้ถือว่าเป็นการส่งโดยชอบและถูกต้องตามกฎหมาย ในกรณีคู่สัญญาฝ่ายหนึ่งฝ่ายใดย้ายที่อยู่ คู่สัญญานั้นจะต้องแจ้งเป็นลายลักษณ์อักษรให้คู่สัญญาอีกฝ่ายหนึ่งทราบภายในกำหนด 15 (สิบห้า) วันนับแต่วันที่ย้ายที่อยู่ มิฉะนั้นให้ถือว่าคู่สัญญาทั้งสองฝ่ายยังมีที่อยู่ตามที่ระบุไว้ในสัญญานี้ทุกประการ', sub: [] }
 ];
 
-const DEFAULT_INTRO = 'สัญญาฉบับนี้ทำขึ้นระหว่าง <strong>บริษัท สมบัตินภา จำกัด</strong> ซึ่งต่อไปนี้เรียกว่า "ผู้ให้เช่า" ฝ่ายหนึ่ง กับ <strong>{{tenant}}</strong> ซึ่งต่อไปนี้เรียกว่า "ผู้เช่า" อีกฝ่ายหนึ่ง ตามที่ระบุไว้ในเอกสารแนบท้าย 1 โดยคู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากัน โดยมีข้อความดังต่อไปนี้';
+const DEFAULT_INTRO = 'สัญญาฉบับนี้ทำขึ้นระหว่าง <strong>{{landlord}}</strong> ซึ่งต่อไปนี้เรียกว่า "ผู้ให้เช่า" ฝ่ายหนึ่ง กับ <strong>{{tenant}}</strong> ซึ่งต่อไปนี้เรียกว่า "ผู้เช่า" อีกฝ่ายหนึ่ง ตามที่ระบุไว้ในเอกสารแนบท้าย 1 โดยคู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากัน โดยมีข้อความดังต่อไปนี้';
+
+// Render template text — replace {{tenant}} + {{landlord}} placeholders
+// + migrate legacy templates ที่ hard-code "บริษัท สมบัตินภา จำกัด" ให้ใช้ landlord จริงของสัญญา
+function renderTemplateText(text, c){
+  if(!text) return '';
+  const landlord = (c && c.landlord) || '';
+  const tenant = (c && c.tenant) || '';
+  let out = String(text)
+    .replace(/\{\{tenant\}\}/g, tenant)
+    .replace(/\{\{landlord\}\}/g, landlord);
+  // Legacy fallback: ถ้า template hard-code "บริษัท สมบัตินภา จำกัด"
+  // และสัญญานี้ landlord เป็นคนอื่น → ใช้ landlord จริงแทน
+  if(landlord && landlord.indexOf('บริษัท สมบัตินภา') === -1){
+    out = out.replace(/บริษัท\s*สมบัตินภา\s*จำกัด/g, landlord);
+  }
+  return out;
+}
 
 const DEFAULT_CLOSING = 'สัญญานี้ทำขึ้นเป็นสองฉบับมีข้อความถูกต้องตรงกัน คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจข้อความโดยตลอดแล้ว เพื่อเป็นหลักฐานแห่งการนี้ จึงได้ลงลายมือชื่อและประทับตราของตน (หากมี) ไว้ต่อหน้าพยาน';
 
@@ -8924,44 +8941,63 @@ function openEditContract(id){
     form.dataset.editId=c.id;
     form.addEventListener('submit',e=>{
       e.preventDefault();
-      resolveFormDropdowns(new FormData(e.target));
-      if(!validateContractForm(e.target))return;
-      const fd=new FormData(e.target);
-      resolveFormDropdowns(fd);
-      confirmOverlapAndSave(c.pid,fd.get('start'),fd.get('end'),c.id,()=>{
-        c.no=fd.get('no')||c.no;
-        c.date=fd.get('date')||c.date;
-        c.tenant=fd.get('tenant')||c.tenant;
-        c.phone=fd.get('phone')||'';
-        c.purpose=fd.get('purpose')||'';
-        c.taxId=fd.get('taxId')||'';
-        c.tenantAddr=assembleAddrFromPrefix(fd,'ta');
-        c.madeAt=fd.get('madeAt')||'';
-        c.rate=buildRateStr(fd);
-        c.start=fd.get('start')||c.start;
-        c.end=fd.get('end')||c.end;
-        c.dur=fd.get('dur')||'';
-        c.deposit=(fd.get('deposit')||'').replace(/[^\d.]/g,'');
-        c.payment=fd.get('payment')||'';
-        c.bank=fd.get('bank')||'';
-        c.acctNo=fd.get('acctNo')||'';
-        c.accountName=fd.get('accountName')||'';
-        c.area=fd.get('area')||'';
-        c.spot=fd.get('spot')||'';
-        c.landlord=fd.get('landlord')||'';
-        c.landlordAddr=assembleAddrFromPrefix(fd,'la');
-        c.rateAdj=fd.get('rateAdj')||'';
-        c.dueDay=parseInt(fd.get('dueDay'))||5;
-        c.invHeaderId=fd.get('invHeaderId')||null;
-        c.tenantLogo=fd.get('tenantLogo')||null;
-        addActivityLog('edit_contract','แก้ไขสัญญา '+(c.no||'#'+c.id)+' — '+c.tenant);
-        save();toast('บันทึกการเปลี่ยนแปลงแล้ว');
-        viewContract(c.id);
-      });
+      try {
+        resolveFormDropdowns(new FormData(e.target));
+        if(!validateContractForm(e.target)){
+          // validation fail → แสดงข้อความว่าทำไมบันทึกไม่ได้ + scroll ไปที่ summary
+          toast('กรุณาแก้ไขข้อมูลที่ผิดพลาดก่อนบันทึก','error');
+          return;
+        }
+        const fd=new FormData(e.target);
+        resolveFormDropdowns(fd);
+        confirmOverlapAndSave(c.pid,fd.get('start'),fd.get('end'),c.id,()=>{
+          c.no=fd.get('no')||c.no;
+          c.date=fd.get('date')||c.date;
+          c.tenant=fd.get('tenant')||c.tenant;
+          c.phone=fd.get('phone')||'';
+          c.purpose=fd.get('purpose')||'';
+          c.taxId=fd.get('taxId')||'';
+          c.tenantAddr=assembleAddrFromPrefix(fd,'ta');
+          c.madeAt=fd.get('madeAt')||'';
+          c.rate=buildRateStr(fd);
+          c.start=fd.get('start')||c.start;
+          c.end=fd.get('end')||c.end;
+          c.dur=fd.get('dur')||'';
+          c.deposit=(fd.get('deposit')||'').replace(/[^\d.]/g,'');
+          c.payment=fd.get('payment')||'';
+          c.bank=fd.get('bank')||'';
+          c.acctNo=fd.get('acctNo')||'';
+          c.accountName=fd.get('accountName')||'';
+          c.area=fd.get('area')||'';
+          c.spot=fd.get('spot')||'';
+          c.landlord=fd.get('landlord')||'';
+          c.landlordAddr=assembleAddrFromPrefix(fd,'la');
+          c.rateAdj=fd.get('rateAdj')||'';
+          c.dueDay=parseInt(fd.get('dueDay'))||5;
+          c.invHeaderId=fd.get('invHeaderId')||null;
+          c.tenantLogo=fd.get('tenantLogo')||null;
+          // Apply signer/witness fields ด้วย (ก่อนหน้าไม่ได้เก็บ → ฟิลด์ลายเซ็นหายหลังบันทึก)
+          if(typeof applySignerFields==='function') applySignerFields(c,fd);
+          addActivityLog('edit_contract','แก้ไขสัญญา '+(c.no||'#'+c.id)+' — '+c.tenant);
+          save();
+          toast('✓ บันทึกการเปลี่ยนแปลงแล้ว','success');
+          // Mark form as clean → ไม่ให้ขึ้น "ออกไม่บันทึก?" dialog (Bug 3)
+          form.dataset.dirty='0';
+          form.dataset.justSaved='1';
+          _modalDirty=false;  // reset global dirty flag (closeModal เช็คตัวนี้)
+          viewContract(c.id);
+        });
+      } catch(err){
+        console.error('Save contract error:', err);
+        toast('บันทึกไม่สำเร็จ: '+(err.message||'เกิดข้อผิดพลาด'),'error');
+      }
     });
   }
   setTimeout(cfCalcEndFromDur,50);
   setTimeout(()=>enhanceDatalistInputs($('mbody')),50);
+  // Reset dirty flag หลัง initial render — กันเคสที่ browser ยิง input event
+  // ตอน render select/input value แล้ว trigger _modalDirty=true ทั้งที่ user ยังไม่แก้อะไร
+  setTimeout(()=>{ _modalDirty=false; },150);
 }
 
 function toggleFieldEdit(row){
@@ -9677,6 +9713,77 @@ function assemblePropAddr(fd){
 }
 
 const TH_PROVINCES=['กรุงเทพมหานคร','กระบี่','กาญจนบุรี','กาฬสินธุ์','กำแพงเพชร','ขอนแก่น','จันทบุรี','ฉะเชิงเทรา','ชลบุรี','ชัยนาท','ชัยภูมิ','ชุมพร','เชียงราย','เชียงใหม่','ตรัง','ตราด','ตาก','นครนายก','นครปฐม','นครพนม','นครราชสีมา','นครศรีธรรมราช','นครสวรรค์','นนทบุรี','นราธิวาส','น่าน','บึงกาฬ','บุรีรัมย์','ปทุมธานี','ประจวบคีรีขันธ์','ปราจีนบุรี','ปัตตานี','พระนครศรีอยุธยา','พังงา','พัทลุง','พิจิตร','พิษณุโลก','เพชรบุรี','เพชรบูรณ์','แพร่','พะเยา','ภูเก็ต','มหาสารคาม','มุกดาหาร','แม่ฮ่องสอน','ยโสธร','ยะลา','ร้อยเอ็ด','ระนอง','ระยอง','ราชบุรี','ลพบุรี','ลำปาง','ลำพูน','เลย','ศรีสะเกษ','สกลนคร','สงขลา','สตูล','สมุทรปราการ','สมุทรสงคราม','สมุทรสาคร','สระแก้ว','สระบุรี','สิงห์บุรี','สุโขทัย','สุพรรณบุรี','สุราษฎร์ธานี','สุรินทร์','หนองคาย','หนองบัวลำภู','อ่างทอง','อุดรธานี','อุทัยธานี','อุตรดิตถ์','อุบลราชธานี','อำนาจเจริญ'];
+
+// ── Thailand address dataset (ตำบล/อำเภอ/จังหวัด/รหัสไปรษณีย์ ครบ 7,000+ ตำบล) ──
+// Lazy-load จาก CDN (kongvut/thai-province-data) + cache ใน localStorage
+let _thAddrData = null;
+async function loadThaiAddrData(){
+  if(_thAddrData) return _thAddrData;
+  try {
+    const cached = localStorage.getItem('thAddrData_v1');
+    if(cached){ _thAddrData = JSON.parse(cached); return _thAddrData; }
+  } catch(e){}
+  try {
+    const res = await fetch('https://cdn.jsdelivr.net/gh/kongvut/thai-province-data@master/api_district_with_amphure_province.json');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    _thAddrData = data;
+    try { localStorage.setItem('thAddrData_v1', JSON.stringify(data)); } catch(e){ /* quota — ใช้ in-memory ก็ได้ */ }
+    return data;
+  } catch(err){
+    console.warn('Failed to load Thai address data:', err);
+    return null;
+  }
+}
+
+// อัพเดต datalist ตำบล/อำเภอ ตามจังหวัดที่เลือก + auto-fill zip code
+async function updateAddrDatalists(formSelector){
+  const data = await loadThaiAddrData();
+  if(!data) return;
+  const root = document.querySelector(formSelector) || document;
+  const provInput = root.querySelector('[name="province"]');
+  const sdInput = root.querySelector('[name="subDistrict"]');
+  const dtInput = root.querySelector('[name="district"]');
+  const zipInput = root.querySelector('[name="zip"]');
+  const sdList = root.querySelector('#dl_sd') || document.getElementById('dl_sd');
+  const dtList = root.querySelector('#dl_dt') || document.getElementById('dl_dt');
+  const province = (provInput?.value||'').trim();
+  // Filter subdistricts/districts ตาม province ที่เลือก
+  const sdSet = new Set();
+  const dtSet = new Set();
+  data.forEach(row => {
+    const amph = row.amphure;
+    const prov = amph && amph.province;
+    if(province && prov && prov.name_th !== province) return;
+    sdSet.add(row.name_th);
+    if(amph) dtSet.add(amph.name_th);
+  });
+  if(sdList) sdList.innerHTML = [...sdSet].sort().map(t=>'<option value="'+t+'">').join('');
+  if(dtList) dtList.innerHTML = [...dtSet].sort().map(t=>'<option value="'+t+'">').join('');
+  // Auto-fill zip + อำเภอ จากตำบลที่กรอก/เลือก (ถ้ามี match)
+  if(sdInput && sdInput.value){
+    const matches = data.filter(x => x.name_th === sdInput.value && (!province || x.amphure.province.name_th === province));
+    if(matches.length === 1){
+      const m = matches[0];
+      if(zipInput && !zipInput.value) zipInput.value = String(m.zip_code).padStart(5,'0');
+      if(dtInput && !dtInput.value) dtInput.value = m.amphure.name_th;
+      if(provInput && !provInput.value) provInput.value = m.amphure.province.name_th;
+    }
+  }
+}
+
+// Bind events ให้ form ทุก field ที่มี name province/subDistrict — เรียกใน openAddPropertyDialog
+function bindThaiAddrAutoFill(formSelector){
+  const root = document.querySelector(formSelector);
+  if(!root) return;
+  const fields = root.querySelectorAll('[name="province"],[name="subDistrict"],[name="district"]');
+  fields.forEach(f => {
+    f.addEventListener('change', () => updateAddrDatalists(formSelector));
+    f.addEventListener('blur', () => updateAddrDatalists(formSelector));
+  });
+  // โหลด full dataset ครั้งแรก + populate
+  updateAddrDatalists(formSelector);
+}
 function buildAddrSubFields(prefix, addrStr, opts){
   const ap=parseAddrParts(addrStr);
   const safeV=s=>(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -9875,6 +9982,10 @@ function openAddPropertyDialog() {
   });
   $('modal').classList.remove('hidden');
   setTimeout(()=>enhanceDatalistInputs($('mbody')),50);
+  // Bug 4: lazy-load Thailand address dataset → ตำบล/อำเภอ auto-suggest + zip auto-fill
+  setTimeout(()=>bindThaiAddrAutoFill('#propForm'),100);
+  // Reset dirty flag หลัง initial render
+  setTimeout(()=>{ _modalDirty=false; },150);
 }
 
 function autoEnrichPropName(name, address, titleDeed) {
@@ -10895,10 +11006,26 @@ function contractFormHTML(mode, c, pid) {
             <label class="text-xs font-medium text-gray-600 mb-1 block">ผู้ให้เช่า / บริษัท <span style="font-weight:400;color:#6366f1">(ดึงข้อมูลอัตโนมัติจากตั้งค่า)</span></label>
             <select id="cfHeaderSelect" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfSelectHeader(this.value)" style="border-color:#6366f1;background:#faf5ff">
               <option value="">— เลือกผู้ให้เช่า/บริษัท —</option>
-              ${(DB.invoiceHeaders||[]).map(h=>{
-                const sel=v('invHeaderId')==h.id||((!v('invHeaderId'))&&v('landlord')===h.companyName)?'selected':'';
-                return '<option value="'+h.id+'" '+sel+'>'+h.name+' — '+(h.companyName||'')+'</option>';
-              }).join('')}
+              ${(()=>{
+                const headers=DB.invoiceHeaders||[];
+                // นับจำนวนเดียวกันต่อชื่อบริษัท → ถ้าซ้ำ append เลขบัญชีเพื่อแยกแยะ
+                const companyCount={};
+                headers.forEach(h=>{ const k=h.companyName||h.name; companyCount[k]=(companyCount[k]||0)+1; });
+                return headers.map(h=>{
+                  const sel=v('invHeaderId')==h.id||((!v('invHeaderId'))&&v('landlord')===h.companyName)?'selected':'';
+                  const k=h.companyName||h.name;
+                  // ถ้ามีบริษัทเดียวกันหลายบัญชี → ใส่ข้อมูลบัญชี/ธนาคาร เพื่อให้แยกได้
+                  let suffix='';
+                  if(companyCount[k]>1){
+                    const parts=[];
+                    if(h.bankName) parts.push(h.bankName);
+                    if(h.bankAccount) parts.push(h.bankAccount);
+                    if(parts.length===0 && h.id) parts.push('#'+h.id);
+                    suffix=' · '+parts.join(' ');
+                  }
+                  return '<option value="'+h.id+'" '+sel+'>'+(h.name||'')+' — '+(h.companyName||'')+suffix+'</option>';
+                }).join('');
+              })()}
               <option value="_manual">+ กรอกเอง (ไม่ใช้ข้อมูลจากระบบ)</option>
             </select>
             <input type="hidden" name="invHeaderId" id="cfInvHeaderId" value="${v('invHeaderId')||''}">
@@ -11693,6 +11820,11 @@ body { counter-reset: pagenum; }
 @media print {
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .no-print { display: none !important; }
+  /* Bug 6 fix: clause + sub-clause ห้าม split ระหว่างหน้า → ป้องกันข้อความล้นขอบ */
+  .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; }
+  /* page padding-bottom เผื่อพื้นที่ให้ footer (absolute positioned) ไม่ทับเนื้อหา */
+  .page { padding-bottom: 24mm; }
+  .c-body { padding-bottom: 6mm; }
 }
 @media screen {
   body { background: #e2e8f0; padding: 20px; }
@@ -11737,7 +11869,7 @@ ${contracts.map(c=>{
 
     // ── Body ──
     '<div class="c-body">'+
-      '<p class="c-intro">'+(tpl.intro||'').replace('{{tenant}}',c.tenant)+'</p>'+
+      '<p class="c-intro">'+renderTemplateText(tpl.intro||'',c)+'</p>'+
       (function(){
         const merged=(typeof applyClauseOverrides==='function')
           ? applyClauseOverrides(tpl.clauses,c.clauseOverrides||{})
@@ -11745,19 +11877,19 @@ ${contracts.map(c=>{
         return merged.map((cl,i)=>{
           const mainCls=cl._overridden?'clause override-mark':'clause';
           const note=cl._overridden?'<span class="override-note">(แก้ไขเฉพาะสัญญานี้)</span>':'';
-          let html='<div class="'+mainCls+'"><span class="clause-num">ข้อ '+(i+1)+'.</span> '+(cl.text||'')+note+'</div>';
+          let html='<div class="'+mainCls+'"><span class="clause-num">ข้อ '+(i+1)+'.</span> '+renderTemplateText(cl.text||'',c)+note+'</div>';
           if(cl.sub&&cl.sub.length){
             html+=cl.sub.map((s,j)=>{
               const overridden=cl._overriddenSub&&cl._overriddenSub[j];
               const subCls=overridden?'sub-clause override-mark':'sub-clause';
               const subNote=overridden?'<span class="override-note">(แก้ไข)</span>':'';
-              return '<div class="'+subCls+'"><span class="sub-clause-num">'+(i+1)+'.'+(j+1)+'</span> '+s+subNote+'</div>';
+              return '<div class="'+subCls+'"><span class="sub-clause-num">'+(i+1)+'.'+(j+1)+'</span> '+renderTemplateText(s,c)+subNote+'</div>';
             }).join('');
           }
           return html;
         }).join('');
       })()+
-      (tpl.closing?'<p class="c-closing">'+tpl.closing.replace('{{tenant}}',c.tenant)+'</p>':'')+
+      (tpl.closing?'<p class="c-closing">'+renderTemplateText(tpl.closing,c)+'</p>':'')+
     '</div>'+
 
     // ── Signature ──
@@ -14418,6 +14550,9 @@ function openInvoiceForm(invId){
   if(isEdit && inv.cid){
     setTimeout(()=>_updateInvContractHint(inv.cid, inv.month, inv.id),0);
   }
+  // Bug 3: reset dirty flag หลัง initial render — กัน input event ตอน render
+  // ทำให้เปิดเฉยๆ แล้วปิด → ไม่ขึ้น "ออกจากหน้านี้?" ดักลก
+  setTimeout(()=>{ _modalDirty=false; },150);
 }
 
 function addInvoiceItemRow(){
