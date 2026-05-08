@@ -8930,14 +8930,16 @@ function openEditContract(id){
   if(!c)return;
   $('mtitle').textContent='แก้ไขสัญญา '+(c.no||'#'+c.id);
   const formHTML=contractFormHTML('edit',c,c.pid);
-  // Bug C fix: ใส่ form="contractForm" ให้ submit ทำงานแม้ browser auto-close form
-  // (parser บางครั้งปิด <form> เร็วเพราะ inline onchange มี arrow `=>` → buttons เลยอยู่นอก form)
-  $('mbody').innerHTML=`<div>${formHTML.replace('</form>',`
+  // Bug C deep fix: ห้ามห่อ <div> รอบ formHTML — HTML5 parser ตี form ปิดเร็วใน div context
+  // (verified: no-wrap → form 12 children, div-wrap → form 8 children → inputs/buttons ตกออกนอก form
+  //  → submit ส่ง FormData ไม่ครบ → validation fail ทุก field)
+  // Inject formHTML ตรงๆ + ใส่ form="contractForm" ที่ปุ่ม "บันทึกการเปลี่ยนแปลง" เพื่อความปลอดภัย
+  $('mbody').innerHTML=formHTML.replace('</form>',`
     <div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;display:flex;gap:8px;justify-content:center">
       <button type="submit" form="contractForm" style="padding:10px 32px;background:#059669;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">บันทึกการเปลี่ยนแปลง</button>
       <button type="button" onclick="viewContract(${c.id})" style="padding:10px 20px;background:#f1f5f9;color:#64748b;font-size:14px;border:none;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">ยกเลิก</button>
     </div>
-  </form>`)}</div>`;
+  </form>`);
   const form=$('contractForm');
   if(form){
     form.dataset.editId=c.id;
