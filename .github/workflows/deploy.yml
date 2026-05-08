@@ -29,4 +29,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=sn-real-estate --branch=main --commit-dirty=true
+          # ใส่ commit message เป็น ASCII (sha + branch) — Cloudflare API ไม่รับ UTF-8
+          command: pages deploy dist --project-name=sn-real-estate --branch=main --commit-dirty=true --commit-hash=${{ github.sha }} --commit-message="Auto-deploy ${{ github.sha }}"
