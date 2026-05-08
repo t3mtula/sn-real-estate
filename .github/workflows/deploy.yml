@@ -1,0 +1,32 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # ปุ่ม run manual ใน Actions tab
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare deploy directory
+        # site เป็น single-file HTML — copy เป็น index.html ให้ Pages serve ที่ root
+        run: |
+          mkdir -p dist
+          cp RentalManagement.html dist/index.html
+          # เก็บไฟล์ original ไว้ด้วย เผื่อ link ตรงๆ
+          cp RentalManagement.html dist/RentalManagement.html
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=sn-real-estate --branch=main --commit-dirty=true
