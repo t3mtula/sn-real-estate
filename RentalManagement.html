@@ -3949,9 +3949,13 @@ function createDepositInvoice(cid) {
   const parts = (c.start||'01/01/2567').split('/');
   const ceYear = parseInt(parts[2])-543;
   const month = ceYear+'-'+String(parts[1]).padStart(2,'0');
+  // BUGFIX: ห้าม hardcode -0001 — มี deposit หลาย contract ในเดือนเดียวกันได้ → max+1
+  const existDepNums = DB.invoices.filter(x=>x.category==='deposit'&&x.month===month)
+    .map(x=>{const m=(x.invoiceNo||'').match(/-(\d+)$/);return m?parseInt(m[1]):0;});
+  const nxtDep = Math.max(0, ...existDepNums) + 1;
   DB.invoices.push({
     id: maxId+1, category:'deposit',
-    invoiceNo: 'DEP-'+month+'-0001',
+    invoiceNo: 'DEP-'+month+'-'+String(nxtDep).padStart(4,'0'),
     cid, pid: c.pid,
     tenant: c.tenant||'', property: c.property||'',
     landlord: c.landlord||'', headerId: c.invHeaderId||null,
