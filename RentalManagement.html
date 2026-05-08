@@ -13304,6 +13304,16 @@ function generateInvoice(cid,month){
 
   const c=DB.contracts.find(x=>x.id===cid);
   if(!c)return;
+  // Skip prepaid contracts — Excel ระบุ "ค่าเช่าจ่ายครบเรียบร้อยแล้ว" → rateAmount=0 / monthlyBaht=0
+  // กัน generate ใบแจ้งหนี้ 0 บาทอัตโนมัติ (เคส cid=277 บจก.รัตนาวดีขนส่ง)
+  const _baseAmt = invoiceAmount(c);
+  if(_baseAmt <= 0){
+    const _kw = String(c.rateRaw||c.rate||'').toLowerCase();
+    if(/จ่ายครบ|ชำระครบ|ชำระค่าเช่าหมด|prepaid|จ่ายเรียบร้อย/.test(_kw) || _baseAmt === 0){
+      console.warn('[generateInvoice] skip prepaid/zero-rate contract',cid,c.no);
+      return; // เงียบ ๆ ข้ามไป — generateAllInvoices loop จะข้ามต่อได้
+    }
+  }
   const p=DB.properties.find(x=>x.pid===c.pid);
   const headerId=+(c.invHeaderId||DB.defaultInvHeader||DB.invoiceHeaders[0]?.id)||null;
 
