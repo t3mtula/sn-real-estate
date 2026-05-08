@@ -302,9 +302,11 @@ function restoreContract(cid){
   const c=DB.contracts.find(x=>x.id===cid);if(!c)return;
   // BUGFIX P2-4: เช็ค overlap ก่อนคืนสถานะ
   // ถ้าระหว่างที่ยกเลิกไป มีสัญญาอื่นมาเช่าทรัพย์เดียวกันในช่วงเวลาทับ → ต้องเตือนก่อน
+  // Skip ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน (ดาดฟ้า ฯลฯ)
   const restoredEnd = c.originalEnd || c.end;
   const cs = parseBE(c.start), ce = parseBE(restoredEnd);
-  const overlap = cs && ce && DB.contracts.find(x => x.id!==cid && x.pid===c.pid && !x.cancelled
+  const skipMulti = typeof isMultiTenantProperty==='function' && isMultiTenantProperty(c.pid);
+  const overlap = !skipMulti && cs && ce && DB.contracts.find(x => x.id!==cid && x.pid===c.pid && !x.cancelled
     && (()=>{const s=parseBE(x.start),e=parseBE(x.end);return s&&e&&!(e<cs||s>ce);})());
   if(overlap){
     customConfirm('ไม่สามารถคืนสถานะได้',
@@ -326,15 +328,21 @@ function openPropertyDetail(pid) {
   const cs = DB.contracts.filter(x => x.pid === pid).sort((a, b) => (parseBE(b.start) || 0) - (parseBE(a.start) || 0));
   const activeC = cs.find(x => {const s = status(x); return s === 'active' || s === 'upcoming';});
 
+  // ที่อยู่สำหรับแสดงผล — fallback ไป titleDeed ถ้า address ว่าง/สั้นเกิน (เคสที่ดินเปล่า)
+  const dispAddr = (typeof getPropertyAddress === 'function') ? getPropertyAddress(p) : (p.address||p.location||'');
+  const isMulti = (typeof isMultiTenantProperty === 'function') && isMultiTenantProperty(p);
   $('mtitle').textContent = p.name;
   $('mbody').innerHTML = `
     <div class="space-y-6">
       <div class="bg-gray-50 rounded-lg p-4 space-y-3">
-        <h4 class="font-semibold text-gray-900">ข้อมูลทรัพย์สิน</h4>
+        <div class="flex items-center justify-between">
+          <h4 class="font-semibold text-gray-900">ข้อมูลทรัพย์สิน</h4>
+          <button onclick="openEditPropertyDialog(${pid})" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-medium hover:bg-indigo-100" title="แก้ไขข้อมูลทรัพย์สิน">✏️ แก้ไข</button>
+        </div>
         <div class="grid grid-cols-2 gap-4 text-sm">
-          <div><span class="text-gray-500">ประเภท:</span><div class="font-medium">${esc(p.type)}</div></div>
+          <div><span class="text-gray-500">ประเภท:</span><div class="font-medium">${esc(p.type)}${isMulti?' <span style="font-size:9px;color:#fff;background:#10b981;padding:1px 6px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน — ระบบจะไม่เตือนเรื่องสัญญาซ้อน">หลายผู้เช่า</span>':''}</div></div>
           <div><span class="text-gray-500">สถานที่:</span><div class="font-medium">${esc(p.location)}</div></div>
-          <div class="col-span-2"><span class="text-gray-500">ที่อยู่:</span>${isBadAddr(p)?'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-top:4px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>'+(p.address?'<div style="font-size:11px;color:#64748b;margin-top:2px">ปัจจุบัน: '+esc(p.address)+'</div>':'')+(p.titleDeed&&p.titleDeed!=='-'?'<div style="font-size:11px;color:#6366f1;margin-top:2px">💡 ข้อมูลโฉนด: '+esc(p.titleDeed)+'</div>':''):'<div class="font-medium text-xs mt-1">'+esc(p.address)+'</div>'}</div>
+          <div class="col-span-2"><span class="text-gray-500">ที่อยู่:</span>${isBadAddr(p)?'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-top:4px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>'+(dispAddr?'<div style="font-size:11px;color:#64748b;margin-top:2px">ปัจจุบัน: '+esc(dispAddr)+'</div>':''):'<div class="font-medium text-xs mt-1">'+esc(dispAddr)+'</div>'}</div>
           <div><span class="text-gray-500">พื้นที่:</span><div class="font-medium">${esc(p.area) || '-'}</div></div>
           <div><span class="text-gray-500">โฉนด:</span><div class="font-medium text-xs mt-1">${esc(p.titleDeed) || '-'}</div></div>
         </div>
@@ -376,6 +384,8 @@ function openPropertyDetail(pid) {
 
       ${(()=>{
         // Check for overlapping contracts on this property
+        // Skip ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน (ดาดฟ้า ฯลฯ)
+        if(typeof isMultiTenantProperty==='function' && isMultiTenantProperty(p))return'';
         const activeCs=cs.filter(c=>!c.cancelled&&status(c)!=='cancelled');
         const overlaps=[];
         for(let i=0;i<activeCs.length;i++){
@@ -1096,6 +1106,8 @@ function batchMarkSigned(val){
 // === CONTRACT OVERLAP CHECK ===
 function checkContractOverlap(pid,startStr,endStr,excludeId){
   if(!pid||!startStr||!endStr)return[];
+  // Skip ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน
+  if(typeof isMultiTenantProperty==='function' && isMultiTenantProperty(pid))return[];
   const s=parseBE(startStr),e=parseBE(endStr);
   if(!s||!e)return[];
   return DB.contracts.filter(c=>{
