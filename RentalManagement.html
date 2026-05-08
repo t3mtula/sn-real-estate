@@ -8930,9 +8930,11 @@ function openEditContract(id){
   if(!c)return;
   $('mtitle').textContent='แก้ไขสัญญา '+(c.no||'#'+c.id);
   const formHTML=contractFormHTML('edit',c,c.pid);
+  // Bug C fix: ใส่ form="contractForm" ให้ submit ทำงานแม้ browser auto-close form
+  // (parser บางครั้งปิด <form> เร็วเพราะ inline onchange มี arrow `=>` → buttons เลยอยู่นอก form)
   $('mbody').innerHTML=`<div>${formHTML.replace('</form>',`
     <div style="margin-top:12px;padding-top:12px;border-top:2px solid #e2e8f0;display:flex;gap:8px;justify-content:center">
-      <button type="submit" style="padding:10px 32px;background:#059669;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">บันทึกการเปลี่ยนแปลง</button>
+      <button type="submit" form="contractForm" style="padding:10px 32px;background:#059669;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#059669'">บันทึกการเปลี่ยนแปลง</button>
       <button type="button" onclick="viewContract(${c.id})" style="padding:10px 20px;background:#f1f5f9;color:#64748b;font-size:14px;border:none;border-radius:8px;cursor:pointer" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">ยกเลิก</button>
     </div>
   </form>`)}</div>`;
@@ -11187,7 +11189,7 @@ function contractFormHTML(mode, c, pid) {
 
       </div>
       <div class="flex gap-3 pt-2">
-        <button type="submit" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">${isRenew ? 'สร้างสัญญาต่อ' : 'บันทึก'}</button>
+        <button type="submit" form="contractForm" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">${isRenew ? 'สร้างสัญญาต่อ' : 'บันทึก'}</button>
         <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">ยกเลิก</button>
       </div>
     </form>
