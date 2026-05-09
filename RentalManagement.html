@@ -8359,8 +8359,12 @@ function renderPropContracts(p, info) {
       </div>
       <div>
         <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">จังหวัด</div>
-        <div style="color:#334155">${esc(p.addr_province||p.province||extractProvince(p.location||p.address))||'-'}</div>
+        <div style="color:#334155">${esc(p.addr_province||p.province||extractProvince(p.address))||'-'}</div>
       </div>
+      ${p.location?`<div>
+        <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">สถานที่ (label)</div>
+        <div><span style="display:inline-block;padding:2px 8px;background:#eef2ff;color:#4338ca;border-radius:99px;font-size:11px;font-weight:600">${esc(p.location)}</span></div>
+      </div>`:''}
     </div>
     <div style="display:flex;gap:20px;align-items:end">
       <div>
@@ -9918,6 +9922,10 @@ function buildPropFormHTML(p, types, locs){
           <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
           <input type="text" name="owner" value="${safeV(v('owner'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น บริษัท สมบัตินภา จำกัด">
         </div>
+        <div class="col-span-2">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ ให้พนักงาน category — ดูหลังบ้าน)</span></label>
+          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง", "อาคารพาณิชย์บ้านโป่ง"'>
+        </div>
         ${isEdit ? `
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">สถานะ</label>
@@ -9927,12 +9935,8 @@ function buildPropFormHTML(p, types, locs){
             <option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option>
           </select>
         </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">ป้ายกำกับ (location label)</label>
-          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น ดาดฟ้า ราชเทวี (ใส่ก็ได้ ไม่ใส่ก็ได้)">
-        </div>` : `
+        ` : `
         <input type="hidden" name="status" value="active">
-        <input type="hidden" name="location" value="">
         `}
       </div>
       ${isEdit ? `<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
