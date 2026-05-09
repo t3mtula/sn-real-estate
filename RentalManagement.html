@@ -7542,16 +7542,18 @@ function renderDash(){
 
   // ===== PER-CONTRACT BILLING TABLE (current month) =====
   // Helper: clean province label (กัน p.location ที่เก็บ full address มาทำ column แตก)
+  // Normalize 'กรุงเทพมหานคร' → 'กรุงเทพฯ' เพื่อ match MAP_LOC_COLORS + ความยาวสมดุลกับจังหวัดอื่น
+  const _normProv = v => /^กรุงเทพ/.test(v||'') ? 'กรุงเทพฯ' : (v||'');
   const _cleanProv = (p) => {
     if(!p) return '-';
     // Priority 1: structured field
-    if(p.addr_province && p.addr_province.length <= 25) return p.addr_province;
+    if(p.addr_province && p.addr_province.length <= 25) return _normProv(p.addr_province);
     // Priority 2: short p.location (≤ 15 chars = น่าจะเป็น label)
-    if(p.location && p.location.length <= 15) return p.location;
+    if(p.location && p.location.length <= 15) return _normProv(p.location);
     // Priority 3: parse "จ.ชื่อ" จาก address
     const src = p.address || p.location || '';
     const m = src.match(/จ(?:\.|ังหวัด)\s*([^\s,]+)/);
-    if(m) return m[1];
+    if(m) return _normProv(m[1]);
     // Priority 4: ถ้า address มี "กรุงเทพ" หรือ "กทม" → กรุงเทพฯ
     if(/กรุงเทพ|กทม/.test(src)) return 'กรุงเทพฯ';
     // Fallback: short slice
