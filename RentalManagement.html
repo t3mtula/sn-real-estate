@@ -6087,13 +6087,47 @@ function markModalDirty(){_modalDirty=true;}
 function closeModal(force){
   if(!force && _modalDirty){
     const mbody=document.getElementById('mbody');
-    const hasForm=mbody&&(mbody.querySelector('form')||mbody.querySelector('input[type="text"],textarea,select'));
+    const form = mbody && mbody.querySelector('form');
+    const hasForm = form || (mbody && mbody.querySelector('input[type="text"],textarea,select'));
     if(hasForm){
-      customConfirm('ออกจากหน้านี้?','คุณมีข้อมูลที่ยังไม่ได้บันทึก\nต้องการออกโดยไม่บันทึกใช่หรือไม่?',function(){
+      // Dialog แบบ 2 ปุ่ม "บันทึก" หรือ "ปิด ไม่บันทึก"
+      const ov = document.createElement('div');
+      ov.id = '_unsavedDialog';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-family:Sarabun';
+      ov.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:24px;max-width:420px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+          <div style="text-align:center;font-size:36px;margin-bottom:8px">⚠️</div>
+          <div style="font-size:16px;font-weight:700;text-align:center;color:#1e293b;margin-bottom:6px">ยังไม่ได้บันทึก</div>
+          <div style="font-size:13px;color:#64748b;text-align:center;margin-bottom:18px;line-height:1.5">คุณมีข้อมูลที่ยังไม่ได้บันทึก<br>ต้องการบันทึกก่อนปิดหรือไม่?</div>
+          <div style="display:flex;gap:8px">
+            <button id="_unsavedSave" style="flex:1;padding:11px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+            <button id="_unsavedDiscard" style="flex:1;padding:11px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Sarabun">🗑️ ปิด ไม่บันทึก</button>
+          </div>
+          <div style="margin-top:8px;text-align:center"><button id="_unsavedCancel" style="background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;font-family:Sarabun;padding:6px 14px">ยกเลิก (กลับไปแก้ต่อ)</button></div>
+        </div>`;
+      document.body.appendChild(ov);
+      const cleanup = () => { ov.remove(); };
+      ov.addEventListener('click', e => { if(e.target === ov) cleanup(); });
+      document.getElementById('_unsavedCancel').onclick = cleanup;
+      document.getElementById('_unsavedSave').onclick = () => {
+        cleanup();
+        if(form){
+          // Trigger submit ฟอร์ม → handler ของฟอร์มจะ save + closeModal เอง
+          if(typeof form.requestSubmit === 'function') form.requestSubmit();
+          else form.dispatchEvent(new Event('submit', {bubbles:true, cancelable:true}));
+        } else {
+          // ไม่มี form tag ชัดๆ → fall back ปิดแบบ force (ถือว่าผู้ใช้รู้ว่า save ไปแล้ว)
+          _modalDirty=false;
+          document.getElementById('modal').classList.add('hidden');
+          render();
+        }
+      };
+      document.getElementById('_unsavedDiscard').onclick = () => {
+        cleanup();
         _modalDirty=false;
         document.getElementById('modal').classList.add('hidden');
         render();
-      },{icon:'⚠️',yesLabel:'ออกไม่บันทึก',yesColor:'#dc2626',noLabel:'อยู่ต่อ'});
+      };
       return;
     }
   }
