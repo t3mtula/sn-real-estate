@@ -8172,6 +8172,7 @@ function renderProperties(){
       <select id="pcatf" class="px-3 py-2 border rounded-lg text-sm bg-white" title="หมวด (ป้ายกำกับที่ลูกน้องตั้งเอง)">
         <option value="all">ทุกหมวด</option>${locs.map(l => `<option value="${esc(l)}" ${propFilter.loc===l?'selected':''}>${esc(l)}</option>`).join('')}
       </select>
+      <button onclick="openCategoryManager()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium" title="จัดการหมวด — เพิ่ม/ลบ/แก้ชื่อ">⚙️ จัดการหมวด</button>
       <select id="ppvf" class="px-3 py-2 border rounded-lg text-sm bg-white" title="กรองตามจังหวัด (ที่ตั้งจริง)">
         <option value="all">ทุกจังหวัด</option>${provs.map(p => `<option value="${esc(p)}" ${propFilter.prov===p?'selected':''}>${esc(p)}</option>`).join('')}
       </select>
@@ -20092,6 +20093,101 @@ async function promptAddCategoryAndSelect(targetSelectId){
       sel.value = created.name;
     }
   }
+}
+
+// Rename หมวด: เปลี่ยนชื่อใน table + อัปเดตทรัพย์ที่ใช้หมวดนี้ทั้งหมด
+async function renamePropertyCategory(oldName, newName){
+  oldName = (oldName||'').trim();
+  newName = (newName||'').trim();
+  if(!newName){ toast('กรุณาใส่ชื่อใหม่','warning'); return false; }
+  if(oldName === newName) return true;
+  const dup = DB.categories.find(c => c.name === newName);
+  if(dup){ toast('ชื่อหมวด "'+newName+'" มีอยู่แล้ว','warning'); return false; }
+  const cat = DB.categories.find(c => c.name === oldName);
+  if(!cat){ toast('ไม่พบหมวด','error'); return false; }
+  const token = await _getToken();
+  if(!token){ toast('ไม่มี session','error'); return false; }
+  try {
+    // Update table
+    const r = await fetch(`${SUPA_REST}/property_categories?id=eq.${cat.id}`, {
+      method:'PATCH',
+      headers: { ..._authHeaders(token), 'Prefer':'return=minimal' },
+      body: JSON.stringify({ name: newName })
+    });
+    if(!r.ok){ toast('แก้ชื่อหมวดไม่สำเร็จ','error'); return false; }
+    // Update DB.categories
+    cat.name = newName;
+    DB.categories.sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    // Update properties ที่ใช้หมวดเดิม
+    let updated = 0;
+    (DB.properties||[]).forEach(p => {
+      if((p.location||'').trim() === oldName){ p.location = newName; updated++; }
+    });
+    if(updated > 0) await save(); // sync DB.properties → Supabase
+    addActivityLog && addActivityLog('rename_category','แก้ชื่อหมวด: '+oldName+' → '+newName+(updated>0?' (อัปเดต '+updated+' ทรัพย์)':''));
+    toast('แก้ชื่อหมวดสำเร็จ — อัปเดต '+updated+' ทรัพย์','success');
+    return true;
+  } catch(e){
+    toast('แก้ชื่อหมวดผิดพลาด: '+e.message,'error');
+    return false;
+  }
+}
+
+// Modal จัดการหมวดทรัพย์สิน — เปิดจากหน้าทรัพย์สิน
+function openCategoryManager(){
+  $('mtitle').textContent = '⚙️ จัดการหมวดทรัพย์สิน';
+  const renderBody = () => {
+    const cats = (DB.categories||[]).slice().sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    const counts = {};
+    (DB.properties||[]).forEach(p => {
+      const loc = (p.location||'').trim();
+      if(loc) counts[loc] = (counts[loc]||0) + 1;
+    });
+    const noCatCount = (DB.properties||[]).filter(p => !(p.location||'').trim()).length;
+    return `
+      <div style="font-family:Sarabun">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#1e40af">
+          💡 หมวดคือป้ายชื่อจัดกลุ่มทรัพย์ — เพิ่ม/ลบ/แก้ชื่อได้ตามต้องการ. หมวดที่มีทรัพย์ผูกอยู่ลบไม่ได้ต้องย้ายทรัพย์ออกก่อน
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <input id="catManagerNewName" type="text" placeholder='เช่น "ค่ายหลวง", "ดาดฟ้า ราชเทวี"' class="flex-1 px-3 py-2 border rounded-lg text-sm" style="flex:1" onkeydown="if(event.key==='Enter')document.getElementById('catManagerAddBtn').click()">
+          <button id="catManagerAddBtn" onclick="(async()=>{const i=document.getElementById('catManagerNewName');const n=i.value.trim();if(!n)return;await addPropertyCategory(n);i.value='';openCategoryManager();})()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">+ เพิ่มหมวด</button>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+          <div style="background:#f8fafc;padding:8px 14px;font-size:11px;font-weight:600;color:#64748b;display:grid;grid-template-columns:1fr 80px 120px;gap:10px">
+            <span>ชื่อหมวด</span>
+            <span style="text-align:center">จำนวนทรัพย์</span>
+            <span style="text-align:right">จัดการ</span>
+          </div>
+          ${cats.length === 0 ? '<div style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">ยังไม่มีหมวด — กด "+ เพิ่มหมวด" ด้านบนเพื่อสร้าง</div>' :
+            cats.map(c => {
+              const n = counts[c.name] || 0;
+              const canDelete = n === 0;
+              return `<div style="padding:10px 14px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:1fr 80px 120px;gap:10px;align-items:center;font-size:13px">
+                <span style="font-weight:600;color:#1e293b">${esc(c.name)}</span>
+                <span style="text-align:center;color:${n>0?'#0891b2':'#94a3b8'};font-weight:600">${n}</span>
+                <div style="display:flex;gap:4px;justify-content:flex-end">
+                  <button onclick="(async()=>{const newN=prompt('แก้ชื่อหมวด:',${JSON.stringify(c.name)});if(newN){const ok=await renamePropertyCategory(${JSON.stringify(c.name)},newN.trim());if(ok)openCategoryManager();}})()" class="px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs hover:bg-amber-100" title="แก้ชื่อ">✏️</button>
+                  <button onclick="(async()=>{await deletePropertyCategory(${JSON.stringify(c.name)});openCategoryManager();})()" ${canDelete?'':'disabled'} class="px-2 py-1 ${canDelete?'bg-red-50 text-red-700 hover:bg-red-100':'bg-gray-100 text-gray-400 cursor-not-allowed'} rounded text-xs" title="${canDelete?'ลบหมวด':'ลบไม่ได้ — ยังมีทรัพย์ผูกอยู่ '+n+' รายการ ย้ายออกก่อน'}">🗑️ ลบ</button>
+                </div>
+              </div>`;
+            }).join('')
+          }
+          ${noCatCount>0 ? `<div style="padding:10px 14px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:1fr 80px 120px;gap:10px;align-items:center;font-size:13px;background:#fafafa;color:#94a3b8;font-style:italic">
+            <span>(ไม่มีหมวด)</span>
+            <span style="text-align:center;font-weight:600">${noCatCount}</span>
+            <span></span>
+          </div>` : ''}
+        </div>
+        <div style="margin-top:14px;text-align:right">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">ปิด</button>
+        </div>
+      </div>
+    `;
+  };
+  $('mbody').innerHTML = renderBody();
+  $('modal').classList.remove('hidden');
+  setTimeout(()=>{ const i=document.getElementById('catManagerNewName'); if(i)i.focus(); }, 100);
 }
 
 // ── SAVE ──────────────────────────────────────────────────────────────────
