@@ -9139,9 +9139,9 @@ function viewContract(id) {
     const r = _vcRow(label, val);
     return r ? r.replace('<div style="display:flex;', '<div style="grid-column:1/-1;display:flex;') : '';
   };
-  // Inline edit row: label + input (full width by default since edits are wider)
+  // Inline edit row: label + input (default = single column, ใส่ full=true เพื่อ span 2 columns เหมือน address/textarea)
   const _vcRowEdit = (label, inputHTML, full) => {
-    const wrap = full !== false ? 'grid-column:1/-1;' : '';
+    const wrap = full === true ? 'grid-column:1/-1;' : '';
     return `<div style="${wrap}display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:center">
       <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;font-weight:500">${esc(label)}</span>
       <span style="flex:1">${inputHTML}</span>
@@ -9165,11 +9165,11 @@ function viewContract(id) {
   if(editMode === 'tenant'){
     const isHead = (c.branch||'00000') === '00000';
     sec1Tenant = _vcSection('ผู้เช่า (กำลังแก้ไข)', '✏️',
-      _vcRowEdit('ชื่อผู้เช่า', `<input type="text" id="vcEdit_tenant" value="${safeAttr(c.tenant)}" class="${inpCls}">`) +
+      _vcRowEdit('ชื่อผู้เช่า', `<input type="text" id="vcEdit_tenant" value="${safeAttr(c.tenant)}" class="${inpCls}">`, true) +
       _vcRowEdit('เลขผู้เสียภาษี', `<input type="text" id="vcEdit_taxId" value="${safeAttr(c.taxId)}" class="${inpCls}" maxlength="17" placeholder="1-2345-67890-12-3">`) +
-      _vcRowEdit('สาขา', `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:12px"><input type="radio" name="vcEdit_branch" value="head" ${isHead?'checked':''}>สำนักงานใหญ่</label><label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="radio" name="vcEdit_branch" value="branch" ${!isHead?'checked':''}>สาขา</label> <input type="text" id="vcEdit_branchNo" value="${isHead?'':safeAttr(c.branch)}" placeholder="เลขสาขา" maxlength="5" class="${inpCls}" style="display:inline-block;width:100px;margin-left:6px;${isHead?'visibility:hidden':''}" onfocus="document.querySelector('input[name=vcEdit_branch][value=branch]').checked=true;this.style.visibility='visible'">`) +
+      _vcRowEdit('สาขา', `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:12px"><input type="radio" name="vcEdit_branch" value="head" ${isHead?'checked':''}>สำนักงานใหญ่</label><label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="radio" name="vcEdit_branch" value="branch" ${!isHead?'checked':''}>สาขา</label> <input type="text" id="vcEdit_branchNo" value="${isHead?'':safeAttr(c.branch)}" placeholder="เลขสาขา" maxlength="5" class="${inpCls}" style="display:inline-block;width:90px;margin-left:6px;${isHead?'visibility:hidden':''}" onfocus="document.querySelector('input[name=vcEdit_branch][value=branch]').checked=true;this.style.visibility='visible'">`) +
       _vcRowEdit('เบอร์โทร', `<input type="text" id="vcEdit_phone" value="${safeAttr(c.phone)}" class="${inpCls}">`) +
-      _vcRowEdit('ที่อยู่ผู้เช่า', `<textarea id="vcEdit_tenantAddr" class="${inpCls}" style="min-height:60px;resize:vertical">${esc(c.tenantAddr||'')}</textarea>`) +
+      _vcRowEdit('ที่อยู่ผู้เช่า', `<textarea id="vcEdit_tenantAddr" class="${inpCls}" style="min-height:60px;resize:vertical">${esc(c.tenantAddr||'')}</textarea>`, true) +
       _vcRowEdit('ลงนามโดย', `<input type="text" id="vcEdit_tenantSignerName" value="${safeAttr(c.tenantSignerName)}" placeholder="ปล่อยว่าง = ผู้เช่าเองเป็นผู้ลงนาม" class="${inpCls}">`) +
       _vcRowEdit('ตำแหน่งผู้ลงนาม', `<input type="text" id="vcEdit_tenantSignerTitle" value="${safeAttr(c.tenantSignerTitle)}" placeholder="(ไม่บังคับ)" class="${inpCls}">`) +
       _vcSaveCancel('vcSaveTenant')
@@ -9199,10 +9199,10 @@ function viewContract(id) {
       _vcRowEdit('ผู้ให้เช่า (หัวบิล)', `<select id="vcEdit_invHeaderId" class="${inpCls}" onchange="vcOnHeaderChange(this.value)">
         <option value="">— เลือก / กรอกเอง —</option>
         ${headers.map(h => '<option value="'+h.id+'" '+(c.invHeaderId==h.id?'selected':'')+'>'+esc(h.companyName||h.name)+'</option>').join('')}
-      </select>`) +
-      _vcRowEdit('ชื่อ (override)', `<input type="text" id="vcEdit_landlord" value="${safeAttr(c.landlord)}" class="${inpCls}" placeholder="ปล่อยว่าง = ใช้ตามหัวบิล">`) +
-      _vcRowEdit('ที่อยู่ผู้ให้เช่า', `<textarea id="vcEdit_landlordAddr" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.landlordAddr||'')}</textarea>`) +
-      _vcRowEdit('ทำที่', `<input type="text" id="vcEdit_madeAt" value="${safeAttr(c.madeAt)}" class="${inpCls}" placeholder="ดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ">`) +
+      </select>`, true) +
+      _vcRowEdit('ชื่อ (override)', `<input type="text" id="vcEdit_landlord" value="${safeAttr(c.landlord)}" class="${inpCls}" placeholder="ปล่อยว่าง = ใช้ตามหัวบิล">`, true) +
+      _vcRowEdit('ที่อยู่ผู้ให้เช่า', `<textarea id="vcEdit_landlordAddr" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.landlordAddr||'')}</textarea>`, true) +
+      _vcRowEdit('ทำที่', `<input type="text" id="vcEdit_madeAt" value="${safeAttr(c.madeAt)}" class="${inpCls}" placeholder="ดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ">`, true) +
       _vcRowEdit('กรรมการลงนาม', `<select id="vcEdit_landlordSignerName" class="${inpCls}" onchange="const t=this.options[this.selectedIndex].dataset.title||'';document.getElementById('vcEdit_landlordSignerTitle').value=t;">
         <option value="">— เลือกกรรมการ —</option>
         ${signers.map(s => '<option value="'+esc(s.name)+'" data-title="'+(s.title||'').replace(/"/g,'&quot;')+'" '+(c.landlordSignerName===s.name?'selected':'')+'>'+esc(s.name)+(s.title?' ('+esc(s.title)+')':'')+'</option>').join('')}
@@ -9210,7 +9210,7 @@ function viewContract(id) {
       _vcRowEdit('ตำแหน่ง', `<input type="text" id="vcEdit_landlordSignerTitle" value="${safeAttr(c.landlordSignerTitle)}" placeholder="กรรมการผู้จัดการ" class="${inpCls}">`) +
       _vcRowEdit('ธนาคาร', `<input type="text" id="vcEdit_bank" value="${safeAttr(c.bank)}" class="${inpCls}">`) +
       _vcRowEdit('เลขบัญชี', `<input type="text" id="vcEdit_acctNo" value="${safeAttr(c.acctNo)}" class="${inpCls}">`) +
-      _vcRowEdit('ชื่อบัญชี', `<input type="text" id="vcEdit_accountName" value="${safeAttr(c.accountName)}" class="${inpCls}">`) +
+      _vcRowEdit('ชื่อบัญชี', `<input type="text" id="vcEdit_accountName" value="${safeAttr(c.accountName)}" class="${inpCls}">`, true) +
       _vcSaveCancel('vcSaveLandlord')
     );
   } else {
@@ -9234,11 +9234,11 @@ function viewContract(id) {
       _vcRowEdit('วันเริ่มต้น', `<input type="text" id="vcEdit_start" value="${safeAttr(c.start)}" placeholder="DD/MM/BBBB" class="${inpCls}">`) +
       _vcRowEdit('วันสิ้นสุด', `<input type="text" id="vcEdit_end" value="${safeAttr(c.end)}" placeholder="DD/MM/BBBB" class="${inpCls}">`) +
       _vcRowEdit('ระยะเวลา', `<input type="text" id="vcEdit_dur" value="${safeAttr(c.dur)}" placeholder="เช่น 3 ปี" class="${inpCls}">`) +
-      _vcRowEdit('ค่าเช่า', `<input type="text" id="vcEdit_rate" value="${safeAttr(c.rate)}" placeholder="เดือนละ 10,000 บาท" class="${inpCls}">`) +
+      _vcRowEdit('ค่าเช่า', `<input type="text" id="vcEdit_rate" value="${safeAttr(c.rate)}" placeholder="เดือนละ 10,000 บาท" class="${inpCls}">`, true) +
       _vcRowEdit('วิธีชำระ', `<input type="text" id="vcEdit_payment" value="${safeAttr(c.payment)}" placeholder="ทุกเดือน · โอนเงิน" class="${inpCls}">`) +
       _vcRowEdit('เงินประกัน', `<input type="text" id="vcEdit_deposit" value="${safeAttr(c.deposit)}" placeholder="50000" class="${inpCls}">`) +
-      _vcRowEdit('การปรับค่าเช่า', `<input type="text" id="vcEdit_rateAdj" value="${safeAttr(c.rateAdj)}" placeholder="ไม่ปรับตลอดสัญญา / ปรับเพิ่ม 5% ทุกปี" class="${inpCls}">`) +
-      _vcRowEdit('วัตถุประสงค์', `<textarea id="vcEdit_purpose" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.purpose||'')}</textarea>`) +
+      _vcRowEdit('การปรับค่าเช่า', `<input type="text" id="vcEdit_rateAdj" value="${safeAttr(c.rateAdj)}" placeholder="ไม่ปรับตลอดสัญญา / ปรับเพิ่ม 5% ทุกปี" class="${inpCls}">`, true) +
+      _vcRowEdit('วัตถุประสงค์', `<textarea id="vcEdit_purpose" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.purpose||'')}</textarea>`, true) +
       _vcSaveCancel('vcSaveLease')
     );
   } else {
@@ -9266,7 +9266,7 @@ function viewContract(id) {
       _vcRowEdit('ทรัพย์สิน', `<select id="vcEdit_pid" class="${inpCls}">
         <option value="">— เลือก —</option>
         ${(DB.properties||[]).map(pp => '<option value="'+pp.pid+'" '+(c.pid===pp.pid?'selected':'')+'>'+esc(pp.name)+(pp.location?' ('+esc(pp.location)+')':'')+'</option>').join('')}
-      </select><div style="font-size:10px;color:#92400e;background:#fef3c7;padding:4px 8px;border-radius:4px;margin-top:4px">⚠️ เปลี่ยนทรัพย์สินใช้เฉพาะกรณีผูกผิด — ใบแจ้งหนี้/ใบเสร็จเก่าจะไม่ย้ายไปด้วย</div>`) +
+      </select><div style="font-size:10px;color:#92400e;background:#fef3c7;padding:4px 8px;border-radius:4px;margin-top:4px">⚠️ เปลี่ยนทรัพย์สินใช้เฉพาะกรณีผูกผิด — ใบแจ้งหนี้/ใบเสร็จเก่าจะไม่ย้ายไปด้วย</div>`, true) +
       _vcRowEdit('พื้นที่ที่เช่า', `<input type="text" id="vcEdit_area" value="${safeAttr(c.area)}" placeholder="เช่น 600 ตร.ม." class="${inpCls}">`) +
       _vcRowEdit('จุด/ตำแหน่ง', `<input type="text" id="vcEdit_spot" value="${safeAttr(c.spot)}" placeholder="ล็อก A, ห้อง 1, ชั้น 2" class="${inpCls}">`) +
       _vcSaveCancel('vcSaveProperty')
@@ -10032,8 +10032,9 @@ function openPropertyDetail(pid) {
     return r ? r.replace('<div style="display:flex;', '<div style="grid-column:1/-1;display:flex;') : '';
   };
   // Inline edit row — input control แทน display value
+  // default = single column (เหมือน display layout); full=true → span 2 columns สำหรับ textarea/dropdown ยาว
   const _pdRowEdit = (label, inputHTML, full) => {
-    const wrap = full ? 'grid-column:1/-1;' : '';
+    const wrap = full === true ? 'grid-column:1/-1;' : '';
     return `<div style="${wrap}display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:center">
       <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;font-weight:500">${esc(label)}</span>
       <span style="flex:1">${inputHTML}</span>
