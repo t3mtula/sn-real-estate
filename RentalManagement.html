@@ -17871,12 +17871,12 @@ function renderLandlords(){
 
   let html = `<div style="max-width:1100px;margin:0 auto">`;
 
-  // KPI cards (unified design)
-  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px">
-    <div class="kpi-box"><div class="kv" style="color:#6366f1">${totalLL}</div><div class="kl">ผู้ให้เช่า</div></div>
-    <div class="kpi-box"><div class="kv" style="color:#059669">${totalActiveContracts}</div><div class="kl">สัญญามีผล</div></div>
-    <div class="kpi-box accent"><div class="kv" style="color:#059669">${fmtBaht(totalRevMo,{sym:0})}</div><div class="kl">บ./เดือน</div></div>
-    ${totalRevYr>0?'<div class="kpi-box accent2"><div class="kv" style="color:#2563eb">'+fmtBaht(totalRevYr,{sym:0})+'</div><div class="kl">บ./ปี</div></div>':''}
+  // KPI cards — unified .kpi utility class
+  html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
+    <div class="kpi kpi-accent" style="--kpi-color:var(--c-primary)"><div class="kpi-label">ผู้ให้เช่า</div><div class="kpi-value" style="color:var(--c-primary)">${totalLL}</div></div>
+    <div class="kpi kpi-accent" style="--kpi-color:var(--c-success)"><div class="kpi-label">สัญญามีผล</div><div class="kpi-value" style="color:var(--c-success)">${totalActiveContracts}</div></div>
+    <div class="kpi kpi-accent" style="--kpi-color:var(--c-success)"><div class="kpi-label">รายได้รวม / เดือน</div><div class="kpi-value" style="color:var(--c-success);font-size:22px">${fmtBaht(totalRevMo,{sym:0})}</div></div>
+    ${totalRevYr>0?'<div class="kpi kpi-accent" style="--kpi-color:#2563eb"><div class="kpi-label">รายได้รายปี</div><div class="kpi-value" style="color:#2563eb;font-size:22px">'+fmtBaht(totalRevYr,{sym:0})+'</div></div>':''}
   </div>`;
 
   // Search (unified design)
