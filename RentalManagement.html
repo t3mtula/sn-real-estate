@@ -22,22 +22,72 @@
 <style>
 /* ========== DESIGN TOKENS (H2) ========== */
 :root{
-  /* Colors */
-  --c-text:#1e293b; --c-text-muted:#64748b; --c-text-subtle:#475569;
-  --c-border:#e5e7eb; --c-border-subtle:#f1f5f9;
-  --c-bg:#f8fafc; --c-bg-card:#fff;
-  --c-primary:#4f46e5; --c-primary-hover:#4338ca;
-  --c-success:#16a34a; --c-warning:#f59e0b; --c-danger:#dc2626;
-  --c-success-bg:#dcfce7; --c-warning-bg:#fef3c7; --c-danger-bg:#fee2e2;
-  /* Spacing */
-  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px;
-  /* Radius */
-  --r-sm:6px; --r-md:8px; --r-lg:12px; --r-xl:16px;
-  /* Font sizes (M1: min 13px) */
-  --f-xs:12px; --f-sm:13px; --f-base:14px; --f-md:15px; --f-lg:18px; --f-xl:24px;
-  /* Min touch target (H4) */
+  /* === Colors — Semantic === */
+  --c-text:#1e293b; --c-text-muted:#64748b; --c-text-subtle:#475569; --c-text-faint:#94a3b8;
+  --c-border:#e5e7eb; --c-border-subtle:#f1f5f9; --c-border-strong:#cbd5e1;
+  --c-bg:#f8fafc; --c-bg-card:#fff; --c-bg-soft:#f1f5f9;
+  /* === Action colors (intent) === */
+  --c-primary:#4f46e5; --c-primary-hover:#4338ca; --c-primary-bg:#eef2ff;
+  --c-info:#0ea5e9; --c-info-bg:#e0f2fe;
+  /* === Status colors (state) — clear hierarchy: success > info > warning > danger === */
+  --c-success:#16a34a; --c-success-bg:#dcfce7; --c-success-text:#15803d;
+  --c-warning:#f59e0b; --c-warning-bg:#fef3c7; --c-warning-text:#92400e;
+  --c-danger:#dc2626;  --c-danger-bg:#fee2e2;  --c-danger-text:#991b1b;
+  --c-neutral:#64748b; --c-neutral-bg:#f1f5f9; --c-neutral-text:#475569;
+  /* === Spacing scale (4px base) === */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:20px; --s-6:24px; --s-7:32px; --s-8:40px;
+  /* === Radius === */
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:12px; --r-2xl:16px; --r-full:99px;
+  /* === Typography scale (12 → 28) === */
+  --f-xs:11px; --f-sm:12px; --f-base:13px; --f-md:14px; --f-lg:16px; --f-xl:20px; --f-2xl:24px; --f-3xl:28px;
+  /* === Font weights === */
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700; --fw-extrabold:800;
+  /* === Shadows (depth) === */
+  --sh-sm:0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --sh-lg:0 4px 12px rgba(0,0,0,.08);
+  --sh-xl:0 8px 24px rgba(0,0,0,.10);
+  /* === Min touch target (H4) === */
   --touch:44px;
 }
+
+/* ========== Reusable utility classes (use จากนี้ไป — "design system v3") ========== */
+/* KPI card — single source of truth */
+.kpi{display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:var(--r-xl);transition:border-color .15s,box-shadow .15s}
+.kpi:hover{border-color:var(--c-border-strong);box-shadow:var(--sh-md)}
+.kpi-label{font-size:var(--f-xs);color:var(--c-text-muted);font-weight:var(--fw-medium);text-transform:uppercase;letter-spacing:.4px}
+.kpi-value{font-size:var(--f-3xl);font-weight:var(--fw-bold);color:var(--c-text);line-height:1.1}
+.kpi-sub{font-size:var(--f-sm);color:var(--c-text-muted)}
+.kpi-accent{border-top:3px solid var(--kpi-color,var(--c-primary))}
+/* Section card — gradient header style ที่ใช้ใน inline edit */
+.sec{background:var(--c-bg-card);border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:var(--s-3)}
+.sec-head{padding:9px 14px;background:linear-gradient(to bottom,#fafbff,#f1f5f9);border-bottom:1px solid var(--c-border);display:flex;align-items:center;gap:8px}
+.sec-head-icon{font-size:14px}
+.sec-head-title{font-size:var(--f-sm);font-weight:var(--fw-bold);color:var(--c-text);letter-spacing:.3px;flex:1}
+.sec-head-action{font-size:var(--f-xs)}
+.sec-body{padding:12px 14px}
+/* Action button hierarchy */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:var(--f-sm);font-weight:var(--fw-semibold);border-radius:var(--r-md);cursor:pointer;border:1px solid transparent;font-family:'Sarabun',sans-serif;transition:background-color .12s,border-color .12s,color .12s;line-height:1.4}
+.btn-primary{background:var(--c-primary);color:#fff;border-color:var(--c-primary)}
+.btn-primary:hover{background:var(--c-primary-hover);border-color:var(--c-primary-hover)}
+.btn-success{background:var(--c-success);color:#fff;border-color:var(--c-success)}
+.btn-success:hover{filter:brightness(.92)}
+.btn-danger{background:var(--c-danger);color:#fff;border-color:var(--c-danger)}
+.btn-danger:hover{filter:brightness(.92)}
+.btn-secondary{background:#fff;color:var(--c-text);border-color:var(--c-border)}
+.btn-secondary:hover{background:var(--c-bg);border-color:var(--c-border-strong)}
+.btn-ghost{background:transparent;color:var(--c-text-muted);border-color:transparent}
+.btn-ghost:hover{background:var(--c-bg);color:var(--c-text)}
+.btn-sm{padding:4px 10px;font-size:var(--f-xs)}
+.btn-lg{padding:9px 18px;font-size:var(--f-md)}
+/* Status badges — semantic */
+.bdg{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:var(--r-full);font-size:var(--f-xs);font-weight:var(--fw-semibold);white-space:nowrap;line-height:1.5}
+.bdg-success{background:var(--c-success-bg);color:var(--c-success-text)}
+.bdg-warning{background:var(--c-warning-bg);color:var(--c-warning-text)}
+.bdg-danger{background:var(--c-danger-bg);color:var(--c-danger-text)}
+.bdg-neutral{background:var(--c-neutral-bg);color:var(--c-neutral-text)}
+.bdg-info{background:var(--c-info-bg);color:var(--c-info)}
+.bdg-primary{background:var(--c-primary-bg);color:var(--c-primary)}
 /* ========== Settings card hover (R2-M3) ========== */
 .set-card{transition:box-shadow .15s,border-color .15s,transform .15s}
 .set-card:hover{border-color:#c7d2fe!important;box-shadow:0 4px 12px rgba(79,70,229,.08);transform:translateY(-1px)}
@@ -7850,12 +7900,12 @@ function renderDash(){
         </div>
         <button onclick="toggleNotifPanel()" style="font-size:11px;color:#6366f1;background:none;border:none;cursor:pointer;font-family:Sarabun;font-weight:600;text-decoration:underline">ดูทั้งหมด →</button>
       </div>
-      <div style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px">
+      <div style="padding:10px 12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
         ${_urgentNotifs.slice(0,6).map(n=>{
           const col=n.type==='danger'?{bg:'#fee2e2',text:'#991b1b',border:'#fca5a5'}:{bg:'#fef3c7',text:'#92400e',border:'#fcd34d'};
-          return '<div onclick="'+n.actionStr.replace(/"/g,'&quot;')+'" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:'+col.bg+';border:1px solid '+col.border+';cursor:pointer;transition:transform .1s;flex:1;min-width:200px" onmouseover="this.style.transform=\'scale(1.02)\'" onmouseout="this.style.transform=\'\'"><span style="font-size:14px">'+esc(n.icon)+'</span><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:'+col.text+'">'+esc(n.title)+'</div><div style="font-size:10px;color:'+col.text+';opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(n.desc)+'</div></div></div>';
+          return '<div onclick="'+n.actionStr.replace(/"/g,'&quot;')+'" style="display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;background:'+col.bg+';border:1px solid '+col.border+';cursor:pointer;transition:transform .1s" onmouseover="this.style.transform=\'scale(1.01)\'" onmouseout="this.style.transform=\'\'"><span style="font-size:14px;flex-shrink:0;line-height:1.4">'+esc(n.icon)+'</span><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:700;color:'+col.text+';line-height:1.3">'+esc(n.title)+'</div><div style="font-size:10.5px;color:'+col.text+';opacity:.85;line-height:1.4;margin-top:2px;word-break:break-word">'+esc(n.desc)+'</div></div></div>';
         }).join('')}
-        ${_urgentNotifs.length>6?'<div style="font-size:11px;color:#64748b;padding:6px;text-align:center;width:100%">+อีก '+(_urgentNotifs.length-6)+' รายการ</div>':''}
+        ${_urgentNotifs.length>6?'<div style="font-size:11px;color:#64748b;padding:6px;text-align:center;grid-column:1/-1">+อีก '+(_urgentNotifs.length-6)+' รายการ</div>':''}
       </div>
     </div>`:'';
 
@@ -10951,13 +11001,13 @@ function renderContracts(){
   const cSortArrow=(k)=>cSort.key===k?'<span class="arrow">'+(cSort.dir==='asc'?'▲':'▼')+'</span>':'';
 
   $('content').innerHTML=`${propTabBar()}
-    <!-- KPI Summary -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
-      <div class="kpi-box"><div class="kv" style="color:#6366f1">${totalTenants}</div><div class="kl">ผู้เช่า</div></div>
-      <div class="kpi-box"><div class="kv" style="color:#1e293b">${totalContracts}</div><div class="kl">สัญญาทั้งหมด</div></div>
-      <div class="kpi-box"><div class="kv" style="color:#059669">${activeContracts}</div><div class="kl">สัญญามีผล</div></div>
-      ${expiringContracts>0?'<div class="kpi-box" style="border-color:#fde68a"><div class="kv" style="color:#d97706">'+expiringContracts+'</div><div class="kl">ใกล้หมดอายุ</div></div>':''}
-      <div class="kpi-box accent"><div class="kv" style="color:#059669">${fmtBaht(totalRevMo,{sym:0})}</div><div class="kl">บ./เดือน</div></div>
+    <!-- KPI Summary — unified .kpi utility class -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
+      <div class="kpi kpi-accent" style="--kpi-color:var(--c-primary)"><div class="kpi-label">ผู้เช่า</div><div class="kpi-value" style="color:var(--c-primary)">${totalTenants}</div></div>
+      <div class="kpi kpi-accent" style="--kpi-color:var(--c-text-muted)"><div class="kpi-label">สัญญาทั้งหมด</div><div class="kpi-value">${totalContracts}</div></div>
+      <div class="kpi kpi-accent" style="--kpi-color:var(--c-success)"><div class="kpi-label">สัญญามีผล</div><div class="kpi-value" style="color:var(--c-success)">${activeContracts}</div></div>
+      ${expiringContracts>0?'<div class="kpi kpi-accent" style="--kpi-color:var(--c-warning)"><div class="kpi-label">ใกล้หมดอายุ</div><div class="kpi-value" style="color:var(--c-warning)">'+expiringContracts+'</div></div>':''}
+      <div class="kpi kpi-accent" style="--kpi-color:var(--c-success)"><div class="kpi-label">รายได้รวม / เดือน</div><div class="kpi-value" style="color:var(--c-success);font-size:22px">${fmtBaht(totalRevMo,{sym:0})}</div></div>
     </div>
 
     <!-- Filters -->
@@ -18211,26 +18261,21 @@ function rptTabBarHTML(){
   const allowed = RPT_DEFS.filter(r=>hasPermission(r.perm));
   const opsTabs = allowed.filter(r=>r.section!=='acct');
   const acctTabs = allowed.filter(r=>r.section==='acct');
+  // Compact pill: ลด padding + ใช้ design tokens
   const renderTab = r => {
     const active = r.id===rptActive;
-    return `<button onclick="rptSetActive('${r.id}')" class="rpt-tab" style="
-      padding:8px 16px;border-radius:10px;border:none;cursor:pointer;font-family:Sarabun;font-size:13px;font-weight:600;
-      background:${active?'#4f46e5':'#f1f5f9'};color:${active?'#fff':'#475569'};
-      box-shadow:${active?'0 2px 8px rgba(79,70,229,.25)':'none'};
-    ">${r.label}</button>`;
+    return `<button onclick="rptSetActive('${r.id}')" class="rpt-tab${active?' rpt-tab-active':''}" style="padding:6px 13px;border-radius:8px;border:1px solid ${active?'var(--c-primary)':'transparent'};cursor:pointer;font-family:Sarabun;font-size:12.5px;font-weight:600;background:${active?'var(--c-primary)':'transparent'};color:${active?'#fff':'var(--c-text-subtle)'};transition:background-color .12s,color .12s,border-color .12s;line-height:1.4;white-space:nowrap">${r.label}</button>`;
   };
-  const sectionLabel = (txt, color) => `<div style="display:flex;align-items:center;gap:8px;margin:14px 4px 6px">
-    <div style="width:3px;height:14px;background:${color};border-radius:2px"></div>
-    <span style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;text-transform:uppercase">${txt}</span>
+  const sectionLabel = (txt, color) => `<div style="display:flex;align-items:center;gap:6px;margin:0 0 8px;padding:0 4px">
+    <div style="width:2px;height:12px;background:${color};border-radius:2px"></div>
+    <span style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.6px;text-transform:uppercase">${txt}</span>
   </div>`;
-  let html = `<div class="rpt-tabbar" style="background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.04);padding:12px">`;
+  let html = `<div class="rpt-tabbar" style="background:#fff;border-radius:12px;box-shadow:var(--sh-md);padding:14px;display:flex;flex-direction:column;gap:14px">`;
   if(opsTabs.length){
-    html += sectionLabel('Operational — งานประจำวัน', '#4f46e5');
-    html += `<div style="display:flex;gap:8px;flex-wrap:wrap">${opsTabs.map(renderTab).join('')}</div>`;
+    html += `<div>${sectionLabel('Operational — งานประจำวัน', '#4f46e5')}<div style="display:flex;gap:4px;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--c-border-subtle);border-radius:8px;padding:4px">${opsTabs.map(renderTab).join('')}</div></div>`;
   }
   if(acctTabs.length){
-    html += sectionLabel('บัญชี — ส่งสรรพากร/CPA', '#059669');
-    html += `<div style="display:flex;gap:8px;flex-wrap:wrap">${acctTabs.map(renderTab).join('')}</div>`;
+    html += `<div>${sectionLabel('บัญชี — ส่งสรรพากร / CPA', '#059669')}<div style="display:flex;gap:4px;flex-wrap:wrap;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:4px">${acctTabs.map(renderTab).join('')}</div></div>`;
   }
   html += `</div>`;
   return html;
