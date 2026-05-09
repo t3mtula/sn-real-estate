@@ -6738,31 +6738,63 @@ function renderSettingsContractForm(){
 
 function renderSettingsCompany(){
   const headers=DB.invoiceHeaders||[];
-  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="font-size:16px;font-weight:700;color:#1e293b">ข้อมูลผู้ให้เช่า / บริษัท</h3><button onclick="openInvoiceHeaderSettings()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่ม/แก้ไข</button></div>';
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="font-size:16px;font-weight:700;color:#1e293b">ข้อมูลผู้ให้เช่า / บริษัท</h3><button onclick="addInvoiceHeader()" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มผู้ให้เช่า</button></div>';
 
   if(headers.length===0){
     html+='<div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">🏢</div>ยังไม่มีข้อมูลผู้ให้เช่า/บริษัท<br><span style="font-size:12px">กดปุ่มด้านบนเพื่อเพิ่ม</span></div>';
   } else {
     headers.forEach(h=>{
-      html+=`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="display:flex;gap:16px;align-items:start">
-          ${h.logo?'<img src="'+esc(h.logo)+'" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb">':'<div style="width:60px;height:60px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:24px">🏢</div>'}
+      const isDef = h.id===DB.defaultInvHeader;
+      const hasVat = (h.vatMode && h.vatMode!=='none') || (h.vatRate && h.vatRate>0 && h.vatRegistered);
+      html+=`<div onclick="editInvoiceHeaderFromTab(${h.id})" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='#6366f1';this.style.background='#fafbff';this.style.boxShadow='0 2px 8px rgba(99,102,241,.08)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff';this.style.boxShadow='none'">
+        <div style="display:flex;gap:14px;align-items:start">
+          ${h.logo?'<img src="'+esc(h.logo)+'" style="width:56px;height:56px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0">':'<div style="width:56px;height:56px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:24px;flex-shrink:0">🏢</div>'}
           <div style="flex:1;min-width:0">
-            <div style="font-weight:700;color:#1e293b;font-size:15px">${esc(h.companyName||h.name)||'-'}</div>
-            <div style="font-size:11px;color:#64748b;margin-top:2px">${esc(h.address)||'-'}</div>
-            <div style="font-size:11px;color:#64748b">${h.phone?'Tel: '+esc(h.phone):''} ${h.taxId?'| Tax: '+esc(h.taxId):''}</div>
-            ${h.bankName?'<div style="font-size:11px;color:#0369a1;margin-top:4px">🏦 '+esc(h.bankName)+' '+esc(h.bankAccount)+' ('+esc(h.bankAccountName)+')</div>':''}
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+              <div style="font-weight:700;color:#1e293b;font-size:14px">${esc(h.companyName||h.name)||'-'}</div>
+              ${isDef?'<span style="font-size:10px;font-weight:600;color:#fff;background:#10b981;padding:2px 8px;border-radius:10px">✓ ค่าเริ่มต้น</span>':''}
+              ${hasVat?'<span style="font-size:10px;font-weight:600;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px">VAT '+(h.vatRate!=null?h.vatRate:7)+'%</span>':'<span style="font-size:10px;font-weight:600;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:10px">ไม่จด VAT</span>'}
+            </div>
+            <div style="font-size:11.5px;color:#475569;line-height:1.5">${esc(h.address)||'<span style="color:#cbd5e1">— ยังไม่กรอกที่อยู่ —</span>'}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${h.phone?'Tel: '+esc(h.phone):''}${h.phone&&h.taxId?' · ':''}${h.taxId?'Tax: '+esc(h.taxId):''}</div>
+            ${h.bankName?'<div style="font-size:11px;color:#0369a1;margin-top:4px">🏦 '+esc(h.bankName)+' '+esc(h.bankAccount)+(h.bankAccountName?' ('+esc(h.bankAccountName)+')':'')+'</div>':''}
+            ${h.promptPayId?'<div style="margin-top:3px;font-size:10.5px;color:#059669;font-weight:600">⚡ PromptPay: '+esc(h.promptPayId)+(h.promptPayName?' · '+esc(h.promptPayName):'')+'</div>':''}
             ${h.notes?'<div style="font-size:10px;color:#92400e;margin-top:4px;background:#fffbeb;padding:4px 8px;border-radius:4px">📝 '+esc(h.notes.substring(0,80))+(h.notes.length>80?'...':'')+'</div>':''}
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
-            ${h.id===DB.defaultInvHeader?'<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap">ค่าเริ่มต้น</span>':''}
-            <span style="font-size:10px;padding:3px 10px;border-radius:99px;font-weight:600;white-space:nowrap;${(h.vatRate||0)>0?'background:#fef3c7;color:#92400e':'background:#f1f5f9;color:#64748b'}">VAT ${h.vatRate!=null?h.vatRate:7}%</span>
-          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <button onclick="event.stopPropagation();editInvoiceHeaderFromTab(${h.id})" style="padding:5px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">✏️ แก้ไข</button>
+          <button onclick="event.stopPropagation();setDefaultInvoiceHeaderFromTab(${h.id})" style="padding:5px 12px;background:${isDef?'#10b981':'#f8fafc'};color:${isDef?'#fff':'#64748b'};border:1px solid ${isDef?'#10b981':'#e2e8f0'};border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">${isDef?'✓ ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button>
+          ${hasPermission('delete')?`<button onclick="event.stopPropagation();deleteInvoiceHeaderFromTab(${h.id})" style="padding:5px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;margin-left:auto">🗑️ ลบ</button>`:''}
         </div>
       </div>`;
     });
   }
   return html;
+}
+
+// ── Tab-aware wrappers (open modal from settings tab without breaking re-render flow) ──
+function editInvoiceHeaderFromTab(headerId){
+  // Open modal popup เพื่อแก้ไข — เมื่อปิดจะกลับไปที่ settings tab อยู่แล้ว
+  openInvoiceHeaderSettings();
+  setTimeout(()=>editInvoiceHeader(headerId),60);
+}
+function setDefaultInvoiceHeaderFromTab(headerId){
+  DB.defaultInvHeader=headerId;
+  save();
+  toast('ตั้งเป็นค่าเริ่มต้นแล้ว');
+  // Re-render settings page (อยู่ใน tab) — ไม่ต้องเปิด modal
+  if(typeof renderSettingsPage==='function') renderSettingsPage();
+}
+function deleteInvoiceHeaderFromTab(headerId){
+  if(!hasPermission('delete')){toast('คุณไม่มีสิทธิ์ลบ','error');return;}
+  customConfirm('ลบส่วนหัว','ลบส่วนหัวนี้?',function(){
+    if(!actionDeleteInvoiceHeader(headerId))return;
+    if(DB.defaultInvHeader===headerId){DB.defaultInvHeader=DB.invoiceHeaders[0]?.id||null;save();}
+    addActivityLog('delete_invoice_header','ลบส่วนหัวใบแจ้งหนี้');
+    toast('ลบแล้ว');
+    if(typeof renderSettingsPage==='function') renderSettingsPage();
+  },{icon:'🗑️',yesLabel:'ลบ',yesColor:'#dc2626'});
 }
 
 let _invPreviewMode='invoice'; // 'invoice' | 'receipt' | 'taxinvoice'
@@ -13295,18 +13327,31 @@ function renderInvoiceSettingsPage(tabHTML){
       <button onclick="openStaffSettings()" style="padding:8px 16px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">👤 จัดการพนักงาน (${(DB.staff||[]).length})</button>
       <button onclick="openInvoiceHeaderSettings()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่ม/แก้ไขหัวบิล</button>
     </div>`;
-    settingsHTML += headers.map(h => `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin-bottom:12px;display:flex;gap:16px;align-items:center">
-      ${h.logo?'<img src="'+esc(h.logo)+'" style="width:60px;height:60px;object-fit:contain;border-radius:8px;border:1px solid #e5e7eb">':'<div style="width:60px;height:60px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:24px">🏢</div>'}
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;color:#1e293b;font-size:14px">${esc(shortLandlordName(h.companyName||h.name||'-'))}</div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">${esc(h.address)||''}</div>
-        <div style="font-size:11px;color:#64748b">${h.phone?'Tel: '+esc(h.phone):''} ${h.taxId?'| Tax: '+esc(h.taxId):''}</div>
-        ${h.bankName?'<div style="font-size:11px;color:#0369a1;margin-top:4px">🏦 '+esc(h.bankName)+' '+esc(h.bankAccount)+' ('+esc(h.bankAccountName)+')</div>':''}
-        ${h.promptPayId?'<div style="margin-top:4px;font-size:10px;color:#059669;font-weight:600">⚡ PromptPay: '+esc(h.promptPayId)+(h.promptPayName?' · '+esc(h.promptPayName):'')+(h.promptPayBank?' ('+esc(h.promptPayBank)+')':'')+'</div>':(h.qrCode?'<div style="margin-top:6px"><img src="'+esc(h.qrCode)+'" style="width:48px;height:48px;border-radius:4px;border:1px solid #e5e7eb"></div>':'')}
-        ${h.notes?'<div style="font-size:10px;color:#92400e;margin-top:4px;background:#fffbeb;padding:4px 8px;border-radius:4px">📝 '+esc(h.notes.substring(0,60))+(h.notes.length>60?'...':'')+'</div>':''}
-      </div>
-      ${h.id===DB.defaultInvHeader?'<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:99px;font-weight:600">ค่าเริ่มต้น</span>':''}
-    </div>`).join('');
+    settingsHTML += headers.map(h => {
+      const isDef = h.id===DB.defaultInvHeader;
+      return `<div onclick="openInvoiceHeaderSettings();setTimeout(()=>editInvoiceHeader(${h.id}),60)" style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='#6366f1';this.style.background='#fafbff';this.style.boxShadow='0 2px 8px rgba(99,102,241,.08)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff';this.style.boxShadow='none'">
+        <div style="display:flex;gap:14px;align-items:start">
+          ${h.logo?'<img src="'+esc(h.logo)+'" style="width:56px;height:56px;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0">':'<div style="width:56px;height:56px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:24px;flex-shrink:0">🏢</div>'}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+              <div style="font-weight:700;color:#1e293b;font-size:14px">${esc(shortLandlordName(h.companyName||h.name||'-'))}</div>
+              ${isDef?'<span style="font-size:10px;font-weight:600;color:#fff;background:#10b981;padding:2px 8px;border-radius:10px">✓ ค่าเริ่มต้น</span>':''}
+              ${h.vatMode&&h.vatMode!=='none'?'<span style="font-size:10px;font-weight:600;color:#92400e;background:#fef3c7;padding:2px 8px;border-radius:10px">VAT '+(h.vatRate||7)+'%</span>':''}
+            </div>
+            <div style="font-size:11.5px;color:#475569;line-height:1.5">${esc(h.address)||'<span style="color:#cbd5e1">— ยังไม่กรอกที่อยู่ —</span>'}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${h.phone?'Tel: '+esc(h.phone):''}${h.phone&&h.taxId?' · ':''}${h.taxId?'Tax: '+esc(h.taxId):''}</div>
+            ${h.bankName?'<div style="font-size:11px;color:#0369a1;margin-top:4px">🏦 '+esc(h.bankName)+' '+esc(h.bankAccount)+' ('+esc(h.bankAccountName)+')</div>':''}
+            ${h.promptPayId?'<div style="margin-top:3px;font-size:10.5px;color:#059669;font-weight:600">⚡ PromptPay: '+esc(h.promptPayId)+(h.promptPayName?' · '+esc(h.promptPayName):'')+(h.promptPayBank?' ('+esc(h.promptPayBank)+')':'')+'</div>':''}
+            ${h.notes?'<div style="font-size:10px;color:#92400e;margin-top:4px;background:#fffbeb;padding:4px 8px;border-radius:4px">📝 '+esc(h.notes.substring(0,80))+(h.notes.length>80?'...':'')+'</div>':''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <button onclick="event.stopPropagation();openInvoiceHeaderSettings();setTimeout(()=>editInvoiceHeader(${h.id}),60)" style="padding:5px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">✏️ แก้ไข</button>
+          <button onclick="event.stopPropagation();setDefaultInvoiceHeader(${h.id});renderRoute&&renderRoute()" style="padding:5px 12px;background:${isDef?'#10b981':'#f8fafc'};color:${isDef?'#fff':'#64748b'};border:1px solid ${isDef?'#10b981':'#e2e8f0'};border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">${isDef?'✓ ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button>
+          ${hasPermission('delete')?`<button onclick="event.stopPropagation();deleteInvoiceHeader(${h.id})" style="padding:5px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;margin-left:auto">🗑️ ลบ</button>`:''}
+        </div>
+      </div>`;
+    }).join('');
   }
 
   $('content').innerHTML = `${tabHTML}${settingsHTML}`;
@@ -15672,7 +15717,14 @@ function submitInvoiceHeaderForm(headerId){
     save();
     toast('เพิ่มผู้ให้เช่า/บริษัทแล้ว');
   }
-  openInvoiceHeaderSettings();
+  // ถ้ามาจาก settings tab → ปิด modal + re-render tab. ถ้าไม่ใช่ → กลับ list ใน modal
+  _modalDirty = false;
+  if(typeof settingsTab !== 'undefined' && settingsTab === 'company'){
+    closeModal(true);
+    if(typeof renderSettingsPage === 'function') renderSettingsPage();
+  } else {
+    openInvoiceHeaderSettings();
+  }
 }
 
 // ── Backward-compat wrappers (เผื่อมี caller เก่าเรียกชื่อเดิม) ──
