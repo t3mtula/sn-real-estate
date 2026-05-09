@@ -8875,7 +8875,7 @@ function viewContract(id) {
         ${dSec('ทรัพย์สิน')}
         ${dRow('ทรัพย์สิน',p?esc(p.name)+(p.location?' · '+esc(p.location):''):'')}
         ${dRow('วัตถุประสงค์',esc(c.purpose)||'')}
-        ${dRow('พื้นที่',c.area?esc(c.area)+' ตร.ม.':'')}
+        ${dRow('พื้นที่',c.area?esc(c.area)+(/ไร่|งาน|ตารางวา|ตารางเมตร|ตร\.ม|ตร\.ว|ตรว|ตรม|sq|m²|ม\.²/i.test(c.area)?'':' ตร.ม.'):'')}
         ${p&&p.titleDeed?dRow('เอกสารสิทธิ์',esc(p.titleDeed)):''}
 
         ${dSec('ผู้เกี่ยวข้อง')}
