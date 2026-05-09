@@ -8928,18 +8928,31 @@ function viewContract(id) {
   };
 
   // ── Section 1: 👤 ผู้เช่า ──
+  // ลงนามโดย = c.tenant (ปกติผู้เช่า = ผู้ลงนามเอง). ถ้ามี tenantSignerName ในอนาคตจะดึงตรงนั้นแทน
+  const vcTenantSigner = c.tenantSignerName || c.tenant || '';
+  const vcTenantSignerTitle = c.tenantSignerTitle || '';
+  const tenantSignerDisplay = vcTenantSigner
+    ? esc(vcTenantSigner) + (vcTenantSignerTitle ? ' <span style="color:#94a3b8">·</span> <span style="color:#475569">' + esc(vcTenantSignerTitle) + '</span>' : '')
+    : '';
   const sec1Tenant = _vcSection('ผู้เช่า', '👤',
     _vcRow('ชื่อผู้เช่า', esc(c.tenant)) +
     _vcRow('เลขผู้เสียภาษี', esc(c.taxId)) +
     _vcRow('สาขา', vcBranch) +
     _vcRow('เบอร์โทร', esc(c.phone)) +
-    _vcRowFull('ที่อยู่ผู้เช่า', esc(c.tenantAddr))
+    _vcRowFull('ที่อยู่ผู้เช่า', esc(c.tenantAddr)) +
+    (tenantSignerDisplay ? _vcRow('ลงนามโดย', tenantSignerDisplay) : '')
   );
 
   // ── Section 2: 🏢 ผู้ให้เช่า ──
+  const vcLSign = c.landlordSignerName || '';
+  const vcLSignTitle = c.landlordSignerTitle || '';
+  const landlordSignerDisplay = vcLSign
+    ? esc(vcLSign) + (vcLSignTitle ? ' <span style="color:#94a3b8">·</span> <span style="color:#475569">' + esc(vcLSignTitle) + '</span>' : '')
+    : '';
   const sec2Landlord = _vcSection('ผู้ให้เช่า', '🏢',
     _vcRow('บริษัท / ชื่อ', esc(c.landlord)) +
     _vcRowFull('ที่อยู่ผู้ให้เช่า', esc(vcLandlordAddr)) +
+    (landlordSignerDisplay ? _vcRow('ลงนามโดย', landlordSignerDisplay) : '') +
     _vcRow('ทำที่', esc(c.madeAt)) +
     (vcBank ? _vcRow('ธนาคาร', esc(vcBank)) : '') +
     (vcAcctNo ? _vcRow('เลขบัญชี', esc(vcAcctNo)) : '') +
@@ -10711,6 +10724,8 @@ function validateSignerWitness(fd){
 
 // เก็บข้อมูลผู้เซ็น พยาน และลายเซ็น ลงในออบเจ็กต์สัญญา
 function applySignerFields(target,fd){
+  target.tenantSignerName=fd.get('tenantSignerName')||'';
+  target.tenantSignerTitle=fd.get('tenantSignerTitle')||'';
   target.landlordSignerName=fd.get('landlordSignerName')||'';
   target.landlordSignerTitle=fd.get('landlordSignerTitle')||'';
   target.witness1Name=fd.get('witness1Name')||'';
@@ -10936,8 +10951,17 @@ function contractFormHTML(mode, c, pid) {
     return '';
   };
 
+  // ── Helper: section card (gradient header + emoji icon — match contract view 4-section style) ──
+  const _cfSecOpen = (icon, title) => `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-top:10px">
+    <div style="padding:9px 14px;background:linear-gradient(to bottom,#fafbff,#f1f5f9);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">${icon}</span>
+      <span style="font-size:12px;font-weight:700;color:#1e293b;letter-spacing:.3px">${title}</span>
+    </div>
+    <div style="padding:12px 14px">`;
+  const _cfSecClose = `</div></div>`;
+
   return `
-    <form id="contractForm" class="space-y-3" style="max-height:70vh;overflow-y:auto;padding-right:4px">
+    <form id="contractForm" class="space-y-1" style="max-height:70vh;overflow-y:auto;padding-right:4px">
       <!-- Datalists for autocomplete -->
       <datalist id="dl_tenants">${tenants.map(t => '<option value="' + t + '">').join('')}</datalist>
       <datalist id="dl_purposes">${purposes.map(t => '<option value="' + t + '">').join('')}</datalist>
@@ -10950,51 +10974,13 @@ function contractFormHTML(mode, c, pid) {
       ${isCopy ? '<div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs text-purple-700 mb-2"><strong>คัดลอกจาก:</strong> ' + (c?.no || '') + ' — ' + (c?.tenant || '') + '<br>ข้อมูลทั้งหมดถูกเติมให้แล้ว กรุณาใส่เลขที่สัญญาใหม่ และแก้ไขข้อมูลที่ต้องเปลี่ยน</div>' : ''}
       ${prevContract ? '<div class="bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-700 mb-2">ดึงข้อมูลจากสัญญาเดิม: <strong>' + (prevContract.tenant || '') + '</strong> — ' + (prevContract.no || '') + '<br>ผู้เช่า ผู้ให้เช่า ธนาคาร ฯลฯ ถูกเติมให้แล้ว กรุณาใส่เลขสัญญา วันที่ และระยะเวลาใหม่</div>' : ''}
 
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2">
-          <label class="text-xs font-medium text-gray-600 mb-1 block">ทรัพย์สิน <span class="text-red-400">*</span></label>
-          ${(isRenew||isCopy) && p
-            ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px">
-                <svg style="width:16px;height:16px;color:#6366f1;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                <span style="font-size:14px;font-weight:600;color:#1e293b">${p.name} (${p.location})</span>
-                <span style="font-size:10px;color:#64748b;margin-left:auto">ล็อกไว้ — ไม่สามารถเปลี่ยนทรัพย์สินได้</span>
-              </div>
-              <input type="hidden" name="pid" value="${p.pid}">`
-            : `<select name="pid" required class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfAutoFillProp(this.value)">
-                <option value="">— เลือกทรัพย์สิน —</option>
-                ${DB.properties.map(pp => '<option value="' + pp.pid + '" ' + (pid === pp.pid ? 'selected' : '') + '>' + pp.name + ' (' + pp.location + ')' + '</option>').join('')}
-              </select>
-              ${isEdit && p ? `<div style="margin-top:6px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px">⚠️ เปลี่ยนทรัพย์สินใช้เฉพาะกรณีผูกผิด — ใบแจ้งหนี้/ใบเสร็จเก่าจะไม่ย้ายไปด้วย (เก็บ snapshot เดิม)</div>` : ''}`}
-        </div>
-
-        <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">เลขที่สัญญา</label>
-          <div class="flex gap-2">
-            <input type="text" name="no" value="${isRenew ? '' : v('no')}" class="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder="${isRenew ? 'เลขสัญญาใหม่' : ''}">
-            <button type="button" onclick="cfGenContractNo()" class="px-3 py-2 border rounded-lg text-xs text-indigo-600 hover:bg-indigo-50 flex-shrink-0 whitespace-nowrap">สร้างเลข</button>
-          </div>
-        </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">วันทำสัญญา</label>
-          <div style="position:relative"><input type="text" name="date" value="${v('date')}" class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy พ.ศ." onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#64748b" title="เลือกวันที่">📅</span></div>
-        </div>
-        <div class="col-span-2">
-          <label class="text-xs font-medium text-gray-600 mb-1 block">ทำที่ <span style="font-weight:400;color:#64748b">(ดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ)</span></label>
-          <input type="text" name="madeAt" id="cfMadeAt" value="${v('madeAt')}" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50" placeholder="จะดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ" readonly>
-        </div>
-      </div>
-
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:3px;height:18px;background:#6366f1;border-radius:2px"></div>
-          <span style="font-size:13px;font-weight:700;color:#1e293b">ข้อมูลผู้เช่า</span>
-        </div>
+      <!-- ═════ SECTION 1: 👤 ผู้เช่า ═════ -->
+      ${_cfSecOpen('👤','ผู้เช่า')}
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2">
             <label class="text-xs font-medium text-gray-600 mb-1 block">ชื่อผู้เช่า <span class="text-red-400">*</span></label>
             ${(()=>{
               const full=v('tenant');
-              // Parse existing name into prefix/first/last
               const prefixes=['นาย','นาง','นางสาว','บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ','น.ส.','ม.ร.ว.','ม.ล.','ศ.','ผศ.','รศ.','ดร.','พล.ท.','พล.ต.','พ.อ.','พ.ท.','ร.ต.','ว่าที่ ร.ต.'];
               let curPrefix='',curFirst='',curLast='';
               if(full){
@@ -11002,25 +10988,19 @@ function contractFormHTML(mode, c, pid) {
                 if(!curPrefix){const parts=full.split(/\s+/);if(parts.length>=2){curLast=parts.pop();curFirst=parts.join(' ');}else{curFirst=full;}}
               }
               return `<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px">
-                <div>
-                  <select name="tenantPrefix" class="w-full px-2 py-2 border rounded-lg text-sm">
-                    <option value="">คำนำหน้า</option>
-                    ${['นาย','นาง','นางสาว','บริษัท','ห้างหุ้นส่วนจำกัด'].map(pf=>'<option value="'+pf+'" '+(curPrefix===pf?'selected':'')+'>'+pf+'</option>').join('')}
-                  </select>
-                </div>
-                <div>
-                  <input type="text" name="tenantFirst" value="${(curFirst||'').replace(/"/g,'&quot;')}" required aria-autocomplete="list" list="dl_tenants" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ" onchange="cfAutoFillTenant(cfBuildTenantName())">
-                </div>
-                <div>
-                  <input type="text" name="tenantLast" value="${(curLast||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="นามสกุล / จำกัด">
-                </div>
+                <select name="tenantPrefix" class="px-2 py-2 border rounded-lg text-sm">
+                  <option value="">คำนำหน้า</option>
+                  ${['นาย','นาง','นางสาว','บริษัท','ห้างหุ้นส่วนจำกัด'].map(pf=>'<option value="'+pf+'" '+(curPrefix===pf?'selected':'')+'>'+pf+'</option>').join('')}
+                </select>
+                <input type="text" name="tenantFirst" value="${(curFirst||'').replace(/"/g,'&quot;')}" required aria-autocomplete="list" list="dl_tenants" class="px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ" onchange="cfAutoFillTenant(cfBuildTenantName())">
+                <input type="text" name="tenantLast" value="${(curLast||'').replace(/"/g,'&quot;')}" class="px-3 py-2 border rounded-lg text-sm" placeholder="นามสกุล / จำกัด">
               </div>
               <input type="hidden" name="tenant" value="${(full||'').replace(/"/g,'&quot;')}">`;
             })()}
           </div>
           <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">เลขบัตรประชาชน / เลขผู้เสียภาษี <span style="color:#dc2626">*</span> <span class="text-gray-400 font-normal">(จำเป็นสำหรับใบกำกับภาษี)</span></label>
-            <input type="text" name="taxId" value="${v('taxId')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="เช่น 1-2345-67890-12-3" maxlength="17" oninput="cfFormatThaiId(this)">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">เลขผู้เสียภาษี <span style="color:#dc2626">*</span> <span class="text-gray-400 font-normal">(ใบกำกับภาษี)</span></label>
+            <input type="text" name="taxId" value="${v('taxId')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="1-2345-67890-12-3" maxlength="17" oninput="cfFormatThaiId(this)">
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">สาขา <span class="text-gray-400 font-normal">(ใบกำกับภาษี)</span></label>
@@ -11040,11 +11020,23 @@ function contractFormHTML(mode, c, pid) {
           </div>
           <div class="col-span-2">
             <label class="text-xs font-medium text-gray-600 mb-1 block">โทรศัพท์</label>
-            <input type="text" name="phone" value="${v('phone')}" class="w-full px-3 py-2 border rounded-lg text-sm" id="cfPhone" placeholder="เช่น 081-234-5678">
+            <input type="text" name="phone" value="${v('phone')}" class="w-full px-3 py-2 border rounded-lg text-sm" id="cfPhone" placeholder="081-234-5678">
           </div>
           <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">ที่อยู่ผู้เช่า <span style="color:#dc2626">*</span> <span class="text-gray-400 font-normal">(จำเป็นสำหรับใบกำกับภาษี)</span></label>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">ที่อยู่ผู้เช่า <span style="color:#dc2626">*</span> <span class="text-gray-400 font-normal">(ใบกำกับภาษี)</span></label>
             ${buildAddrSubFields('ta', v('tenantAddr'))}
+          </div>
+          <!-- ✏️ ลงนามโดย (ผู้เช่า) -->
+          <div class="col-span-2" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:13px">✏️</span>
+              <span style="font-size:11px;font-weight:600;color:#475569">ลงนามโดย</span>
+              <span style="font-size:10px;color:#94a3b8">(ปล่อยว่าง = ผู้เช่าเป็นผู้ลงนามเอง)</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" name="tenantSignerName" value="${(v('tenantSignerName')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อผู้ลงนาม">
+              <input type="text" name="tenantSignerTitle" value="${(v('tenantSignerTitle')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ตำแหน่ง (ไม่บังคับ)">
+            </div>
           </div>
           <div class="col-span-2">
             <label class="text-xs font-medium text-gray-600 mb-1 block">โลโก้/รูปผู้เช่า <span style="font-weight:400;color:#64748b">(ไม่บังคับ — แสดงในใบแจ้งหนี้)</span></label>
@@ -11055,136 +11047,22 @@ function contractFormHTML(mode, c, pid) {
             </div>
           </div>
         </div>
-      </div>
+      ${_cfSecClose}
 
-      </div>
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:3px;height:18px;background:#0891b2;border-radius:2px"></div>
-          <span style="font-size:13px;font-weight:700;color:#1e293b">รายละเอียดสัญญา</span>
-        </div>
+      <!-- ═════ SECTION 2: 🏢 ผู้ให้เช่า ═════ -->
+      ${_cfSecOpen('🏢','ผู้ให้เช่า')}
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">วัตถุประสงค์ <span class="text-red-400">*</span></label>
-            <select name="purpose" required class="w-full px-3 py-2 border rounded-lg text-sm" onchange="if(this.value==='_custom'){this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.focus();}">
-              <option value="">— เลือก —</option>
-              ${purposes.map(p=>'<option value="'+p.replace(/"/g,'&quot;')+'" '+(v('purpose')===p?'selected':'')+'>'+p+'</option>').join('')}
-              <option value="_custom">+ พิมพ์เอง...</option>
-            </select>
-            <input type="text" style="display:none" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="พิมพ์วัตถุประสงค์" name="purposeCustom">
-          </div>
-          <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">อัตราค่าเช่า <span class="text-red-400">*</span></label>
-            <div style="display:flex;gap:6px;align-items:center">
-              <div style="display:flex;gap:1px;background:#e2e8f0;border-radius:8px;overflow:hidden;flex-shrink:0">
-                ${['วันละ','เดือนละ','ไตรมาสละ','ครึ่งปีละ','ปีละ','เหมาจ่าย'].map(opt=>{
-                  const isActive=v('rate').includes(opt)||(opt==='เดือนละ'&&!v('rate'));
-                  return '<label style="padding:7px 10px;font-size:12px;cursor:pointer;background:'+(isActive?'#4f46e5':'#fff')+';color:'+(isActive?'#fff':'#475569')+';display:flex;align-items:center;gap:3px;transition:all .15s"><input type="radio" name="ratePrefix" value="'+opt+'" '+(isActive?'checked':'')+' style="display:none" onchange="this.closest(\'div\').querySelectorAll(\'label\').forEach(l=>{l.style.background=\'#fff\';l.style.color=\'#475569\'});this.parentElement.style.background=\'#4f46e5\';this.parentElement.style.color=\'#fff\'">'+opt+'</label>';
-                }).join('')}
-              </div>
-              <input type="text" name="rateAmt" value="${(()=>{const m=v('rate').match(/([\d,]+(?:\.\d+)?)\s*(?:\.?-?\s*บาท|บาท)/);if(m)return m[1];const m2=v('rate').match(/(?:เดือนละ|ไตรมาสละ|ปีละ|วันละ|ครึ่งปีละ|เหมาจ่าย|งวดละ)\s*([\d,]+)/);return m2?m2[1]:'';})()}" required class="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder="จำนวนเงิน เช่น 114,000" style="min-width:120px" oninput="liveValidateField(this)">
-              <span style="flex-shrink:0;font-size:13px;color:#64748b">บาท</span>
-            </div>
-          </div>
-          <div class="col-span-2" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">
-            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">ระยะเวลาเช่า</div>
-            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:8px;align-items:end">
-              <div>
-                <label class="text-xs text-gray-500 mb-1 block">ระยะเวลา</label>
-                <div style="display:flex;gap:4px">
-                  <input type="number" name="durYears" value="${(()=>{const m=v('dur').match(/(\d+)\s*ปี/);return m?m[1]:'';})()}" min="0" class="px-2 py-2 border rounded-lg text-sm" style="width:52px" placeholder="0" onchange="cfCalcEndFromDur()">
-                  <span style="font-size:12px;color:#64748b;align-self:center">ปี</span>
-                  <input type="number" name="durMonths" value="${(()=>{const m=v('dur').match(/(\d+)\s*เดือน/);return m?m[1]:'';})()}" min="0" max="11" class="px-2 py-2 border rounded-lg text-sm" style="width:52px" placeholder="0" onchange="cfCalcEndFromDur()">
-                  <span style="font-size:12px;color:#64748b;align-self:center">เดือน</span>
-                </div>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500 mb-1 block">วันเริ่มต้น <span class="text-red-400">*</span></label>
-                <div style="position:relative"><input type="text" name="start" value="${isRenew ? cfTodayBE() : v('start')}" required class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy" onchange="cfCalcEndFromDur()" onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px;color:#64748b" title="เลือกวันที่">📅</span></div>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500 mb-1 block">วันสิ้นสุด <span class="text-red-400">*</span></label>
-                <div style="position:relative"><input type="text" name="end" value="${isRenew ? '' : v('end')}" required class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy" onchange="cfCalcDurFromEnd()" onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px;color:#64748b" title="เลือกวันที่">📅</span></div>
-              </div>
-              <div>
-                <div id="cfDurSummary" style="font-size:11px;color:#64748b;padding:8px 0"></div>
-              </div>
-            </div>
-            <input type="hidden" name="dur" value="${v('dur')}">
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">เงินประกัน</label>
-            <input type="text" name="deposit" value="${(()=>{const d=v('deposit');const n=parseFloat(String(d).replace(/[^\d.]/g,''));return !isNaN(n)&&n?fmtBaht(n,{sym:0}):d;})()}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="เช่น 50,000" onblur="cfFormatDeposit(this)" oninput="liveValidateField(this)">
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600 mb-1 block">พื้นที่ <span style="font-weight:400;color:#64748b">(ดึงจากทรัพย์สิน)</span></label>
-            <input type="text" name="area" value="${v('area') || (p ? p.area : '')}" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50" id="cfArea" readonly placeholder="เลือกทรัพย์สินด้านบนเพื่อดึงข้อมูล">
-          </div>
-          <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">จุด/ตำแหน่งบนทรัพย์ <span style="font-weight:400;color:#64748b">(ถ้าทรัพย์ปล่อยหลายจุด)</span></label>
-            <input type="text" name="spot" id="cfSpot" list="cfSpotList" value="${v('spot')||''}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="เช่น ล็อก A, ห้อง 1, ป้ายหน้า, ชั้น 2">
-            <datalist id="cfSpotList">
-              ${(() => {
-                const curPid = p ? p.pid : null;
-                if (!curPid) return '';
-                const spots = Array.from(new Set((DB.contracts||[]).filter(x => x.pid === curPid && x.spot).map(x => x.spot)));
-                return spots.map(s => '<option value="'+s.replace(/"/g,'&quot;')+'">').join('');
-              })()}
-            </datalist>
-          </div>
-        </div>
-      </div>
-
-      </div>
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:3px;height:18px;background:#059669;border-radius:2px"></div>
-          <span style="font-size:13px;font-weight:700;color:#1e293b">การชำระเงิน / ผู้ให้เช่า</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">วิธีชำระ</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-              <div>
-                <label class="text-xs text-gray-500 mb-1 block">กำหนดชำระ</label>
-                <select name="paySchedule" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfUpdatePayment()">
-                  ${['ล่วงหน้า','ทุกเดือน','รายไตรมาส','รายปี','ตามสัญญา'].map(opt=>{
-                    const isActive=v('payment').includes(opt);
-                    return '<option value="'+opt+'" '+(isActive?'selected':'')+'>'+opt+'</option>';
-                  }).join('')}
-                </select>
-              </div>
-              <div>
-                <label class="text-xs text-gray-500 mb-1 block">ช่องทาง</label>
-                <select name="payChannel" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfUpdatePayment()">
-                  ${['โอนเงิน','เงินสด','เช็ค','อื่นๆ'].map(opt=>{
-                    const isActive=v('payment').includes(opt);
-                    return '<option value="'+opt+'" '+(isActive?'selected':'')+'>'+opt+'</option>';
-                  }).join('')}
-                </select>
-              </div>
-            </div>
-            <input type="text" name="payNote" value="${(()=>{const p=v('payment');const kw=['ล่วงหน้า','ทุกเดือน','รายไตรมาส','รายปี','ตามสัญญา','โอนเงิน','เงินสด','เช็ค','อื่นๆ'];let r=p;kw.forEach(k=>{r=r.replace(k,'')});return r.replace(/[·,\s]+/g,' ').trim();})()}" class="w-full px-3 py-2 border rounded-lg text-sm mt-2" placeholder="รายละเอียดเพิ่มเติม เช่น ภายในวันที่ 5 ของทุกเดือน / ชำระทั้งหมดในวันเซ็นสัญญา">
-            <input type="hidden" name="payment" value="${v('payment')}">
-            <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
-              <label class="text-xs text-gray-500 whitespace-nowrap">📅 วันครบกำหนดใบแจ้งหนี้ วันที่</label>
-              <input type="number" name="dueDay" min="1" max="31" value="${v('dueDay')||5}" class="px-3 py-2 border rounded-lg text-sm" style="width:72px;text-align:center">
-              <span class="text-xs text-gray-400">ของทุกเดือน (1–31 · เดือนสั้นใช้วันสุดท้าย)</span>
-            </div>
-          </div>
-          <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">ผู้ให้เช่า / บริษัท <span style="font-weight:400;color:#6366f1">(ดึงข้อมูลอัตโนมัติจากตั้งค่า)</span></label>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">บริษัท / ผู้ให้เช่า <span style="font-weight:400;color:#6366f1">(ดึงข้อมูลจากตั้งค่าระบบ)</span></label>
             <select id="cfHeaderSelect" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfSelectHeader(this.value)" style="border-color:#6366f1;background:#faf5ff">
               <option value="">— เลือกผู้ให้เช่า/บริษัท —</option>
               ${(()=>{
                 const headers=DB.invoiceHeaders||[];
-                // นับจำนวนเดียวกันต่อชื่อบริษัท → ถ้าซ้ำ append เลขบัญชีเพื่อแยกแยะ
                 const companyCount={};
                 headers.forEach(h=>{ const k=h.companyName||h.name; companyCount[k]=(companyCount[k]||0)+1; });
                 return headers.map(h=>{
                   const sel=v('invHeaderId')==h.id||((!v('invHeaderId'))&&v('landlord')===h.companyName)?'selected':'';
                   const k=h.companyName||h.name;
-                  // ถ้ามีบริษัทเดียวกันหลายบัญชี → ใส่ข้อมูลบัญชี/ธนาคาร เพื่อให้แยกได้
                   let suffix='';
                   if(companyCount[k]>1){
                     const parts=[];
@@ -11219,6 +11097,36 @@ function contractFormHTML(mode, c, pid) {
               </div>
             </div>
           </div>
+
+          <!-- ✏️ ลงนามโดย (ผู้ให้เช่า) -->
+          ${(()=>{
+            const signers=(DB.sysConfig&&DB.sysConfig.signers)||[];
+            const llName=v('landlord')||'';
+            const isCompany=/บริษัท|ห้างหุ้นส่วน|หจก|บจก|จำกัด/i.test(llName);
+            const curLSign=v('landlordSignerName')||(isCompany?(signers[0]?.name||''):'');
+            const curLTitle=v('landlordSignerTitle')||(isCompany?(signers.find(s=>s.name===curLSign)?.title||''):'');
+            const signerOpts=signers.map(s=>'<option value="'+s.name+'" data-title="'+(s.title||'').replace(/"/g,'&quot;')+'" '+(curLSign===s.name?'selected':'')+'>'+s.name+(s.title?' ('+s.title+')':'')+'</option>').join('');
+            return `<div class="col-span-2" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <span style="font-size:13px">✏️</span>
+                <span style="font-size:11px;font-weight:600;color:#475569">ลงนามโดย</span>
+                <span style="font-size:10px;color:#94a3b8">(กรรมการ — ฝั่งบริษัทเรา)</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <select name="landlordSignerName" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="const t=this.options[this.selectedIndex].dataset.title||'';document.querySelector('[name=landlordSignerTitle]').value=t;">
+                  <option value="">— เลือกกรรมการ —</option>
+                  ${signerOpts}
+                </select>
+                <input type="text" name="landlordSignerTitle" value="${(curLTitle||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ตำแหน่ง เช่น กรรมการผู้จัดการ">
+              </div>
+            </div>`;
+          })()}
+
+          <div class="col-span-2">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">ทำที่ <span style="font-weight:400;color:#64748b">(ดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ)</span></label>
+            <input type="text" name="madeAt" id="cfMadeAt" value="${v('madeAt')}" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50" placeholder="จะดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ" readonly>
+          </div>
+
           <input type="hidden" name="bank" value="${v('bank')}">
           <input type="hidden" name="acctNo" value="${v('acctNo')}">
           <input type="hidden" name="accountName" value="${v('accountName')}">
@@ -11227,7 +11135,80 @@ function contractFormHTML(mode, c, pid) {
           <input type="hidden" name="la_dt" value="${(()=>{const ap=parseAddrParts(v('landlordAddr'));return ap.district||'';})()}">
           <input type="hidden" name="la_pv" value="${(()=>{const ap=parseAddrParts(v('landlordAddr'));return ap.province||'';})()}">
           <input type="hidden" name="la_zip" value="${(()=>{const ap=parseAddrParts(v('landlordAddr'));return ap.zip||'';})()}">
+        </div>
+      ${_cfSecClose}
+
+      <!-- ═════ SECTION 3: 📋 รายละเอียดการเช่า ═════ -->
+      ${_cfSecOpen('📋','รายละเอียดการเช่า')}
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">เลขที่สัญญา</label>
+            <div class="flex gap-2">
+              <input type="text" name="no" value="${isRenew ? '' : v('no')}" class="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder="${isRenew ? 'เลขสัญญาใหม่' : ''}">
+              <button type="button" onclick="cfGenContractNo()" class="px-3 py-2 border rounded-lg text-xs text-indigo-600 hover:bg-indigo-50 flex-shrink-0 whitespace-nowrap">สร้างเลข</button>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">วันทำสัญญา</label>
+            <div style="position:relative"><input type="text" name="date" value="${v('date')}" class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy พ.ศ." onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;color:#64748b" title="เลือกวันที่">📅</span></div>
+          </div>
+
           <div class="col-span-2">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">วัตถุประสงค์ <span class="text-red-400">*</span></label>
+            <select name="purpose" required class="w-full px-3 py-2 border rounded-lg text-sm" onchange="if(this.value==='_custom'){this.style.display='none';this.nextElementSibling.style.display='';this.nextElementSibling.focus();}">
+              <option value="">— เลือก —</option>
+              ${purposes.map(p=>'<option value="'+p.replace(/"/g,'&quot;')+'" '+(v('purpose')===p?'selected':'')+'>'+p+'</option>').join('')}
+              <option value="_custom">+ พิมพ์เอง...</option>
+            </select>
+            <input type="text" style="display:none" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="พิมพ์วัตถุประสงค์" name="purposeCustom">
+          </div>
+
+          <div class="col-span-2">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">อัตราค่าเช่า <span class="text-red-400">*</span></label>
+            <div style="display:flex;gap:6px;align-items:center">
+              <div style="display:flex;gap:1px;background:#e2e8f0;border-radius:8px;overflow:hidden;flex-shrink:0">
+                ${['วันละ','เดือนละ','ไตรมาสละ','ครึ่งปีละ','ปีละ','เหมาจ่าย'].map(opt=>{
+                  const isActive=v('rate').includes(opt)||(opt==='เดือนละ'&&!v('rate'));
+                  return '<label style="padding:7px 10px;font-size:12px;cursor:pointer;background:'+(isActive?'#4f46e5':'#fff')+';color:'+(isActive?'#fff':'#475569')+';display:flex;align-items:center;gap:3px;transition:all .15s"><input type="radio" name="ratePrefix" value="'+opt+'" '+(isActive?'checked':'')+' style="display:none" onchange="this.closest(\'div\').querySelectorAll(\'label\').forEach(l=>{l.style.background=\'#fff\';l.style.color=\'#475569\'});this.parentElement.style.background=\'#4f46e5\';this.parentElement.style.color=\'#fff\'">'+opt+'</label>';
+                }).join('')}
+              </div>
+              <input type="text" name="rateAmt" value="${(()=>{const m=v('rate').match(/([\d,]+(?:\.\d+)?)\s*(?:\.?-?\s*บาท|บาท)/);if(m)return m[1];const m2=v('rate').match(/(?:เดือนละ|ไตรมาสละ|ปีละ|วันละ|ครึ่งปีละ|เหมาจ่าย|งวดละ)\s*([\d,]+)/);return m2?m2[1]:'';})()}" required class="flex-1 px-3 py-2 border rounded-lg text-sm" placeholder="จำนวนเงิน เช่น 114,000" style="min-width:120px" oninput="liveValidateField(this)">
+              <span style="flex-shrink:0;font-size:13px;color:#64748b">บาท</span>
+            </div>
+          </div>
+
+          <div class="col-span-2" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:8px">ระยะเวลาเช่า</div>
+            <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:8px;align-items:end">
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">ระยะเวลา</label>
+                <div style="display:flex;gap:4px">
+                  <input type="number" name="durYears" value="${(()=>{const m=v('dur').match(/(\d+)\s*ปี/);return m?m[1]:'';})()}" min="0" class="px-2 py-2 border rounded-lg text-sm" style="width:52px" placeholder="0" onchange="cfCalcEndFromDur()">
+                  <span style="font-size:12px;color:#64748b;align-self:center">ปี</span>
+                  <input type="number" name="durMonths" value="${(()=>{const m=v('dur').match(/(\d+)\s*เดือน/);return m?m[1]:'';})()}" min="0" max="11" class="px-2 py-2 border rounded-lg text-sm" style="width:52px" placeholder="0" onchange="cfCalcEndFromDur()">
+                  <span style="font-size:12px;color:#64748b;align-self:center">เดือน</span>
+                </div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">วันเริ่มต้น <span class="text-red-400">*</span></label>
+                <div style="position:relative"><input type="text" name="start" value="${isRenew ? cfTodayBE() : v('start')}" required class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy" onchange="cfCalcEndFromDur()" onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px;color:#64748b" title="เลือกวันที่">📅</span></div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">วันสิ้นสุด <span class="text-red-400">*</span></label>
+                <div style="position:relative"><input type="text" name="end" value="${isRenew ? '' : v('end')}" required class="w-full px-3 py-2 pr-9 border rounded-lg text-sm" placeholder="dd/mm/yyyy" onchange="cfCalcDurFromEnd()" onblur="liveValidateField(this)"><span onclick="openThaiDP(this.previousElementSibling)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px;color:#64748b" title="เลือกวันที่">📅</span></div>
+              </div>
+              <div>
+                <div id="cfDurSummary" style="font-size:11px;color:#64748b;padding:8px 0"></div>
+              </div>
+            </div>
+            <input type="hidden" name="dur" value="${v('dur')}">
+          </div>
+
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">เงินประกัน</label>
+            <input type="text" name="deposit" value="${(()=>{const d=v('deposit');const n=parseFloat(String(d).replace(/[^\d.]/g,''));return !isNaN(n)&&n?fmtBaht(n,{sym:0}):d;})()}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="50,000" onblur="cfFormatDeposit(this)" oninput="liveValidateField(this)">
+          </div>
+          <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">การปรับค่าเช่า</label>
             ${(()=>{
               const cur=v('rateAdj');
@@ -11242,54 +11223,104 @@ function contractFormHTML(mode, c, pid) {
               <input type="hidden" name="rateAdj" value="${(cur||'').replace(/"/g,'&quot;')}">`;
             })()}
           </div>
-        </div>
-      </div>
 
-      </div>
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-top:4px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-          <div style="width:3px;height:18px;background:#7c3aed;border-radius:2px"></div>
-          <span style="font-size:13px;font-weight:700;color:#1e293b">ผู้เซ็น & พยาน</span>
+          <div class="col-span-2">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">วิธีชำระ</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">กำหนดชำระ</label>
+                <select name="paySchedule" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfUpdatePayment()">
+                  ${['ล่วงหน้า','ทุกเดือน','รายไตรมาส','รายปี','ตามสัญญา'].map(opt=>{
+                    const isActive=v('payment').includes(opt);
+                    return '<option value="'+opt+'" '+(isActive?'selected':'')+'>'+opt+'</option>';
+                  }).join('')}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-500 mb-1 block">ช่องทาง</label>
+                <select name="payChannel" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfUpdatePayment()">
+                  ${['โอนเงิน','เงินสด','เช็ค','อื่นๆ'].map(opt=>{
+                    const isActive=v('payment').includes(opt);
+                    return '<option value="'+opt+'" '+(isActive?'selected':'')+'>'+opt+'</option>';
+                  }).join('')}
+                </select>
+              </div>
+            </div>
+            <input type="text" name="payNote" value="${(()=>{const p=v('payment');const kw=['ล่วงหน้า','ทุกเดือน','รายไตรมาส','รายปี','ตามสัญญา','โอนเงิน','เงินสด','เช็ค','อื่นๆ'];let r=p;kw.forEach(k=>{r=r.replace(k,'')});return r.replace(/[·,\s]+/g,' ').trim();})()}" class="w-full px-3 py-2 border rounded-lg text-sm mt-2" placeholder="รายละเอียดเพิ่มเติม เช่น ภายในวันที่ 5 ของทุกเดือน">
+            <input type="hidden" name="payment" value="${v('payment')}">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+              <label class="text-xs text-gray-500 whitespace-nowrap">📅 วันครบกำหนดใบแจ้งหนี้ วันที่</label>
+              <input type="number" name="dueDay" min="1" max="31" value="${v('dueDay')||5}" class="px-3 py-2 border rounded-lg text-sm" style="width:72px;text-align:center">
+              <span class="text-xs text-gray-400">ของทุกเดือน (1–31)</span>
+            </div>
+          </div>
         </div>
+      ${_cfSecClose}
+
+      <!-- ═════ SECTION 4: 🏠 ทรัพย์สินที่เช่า ═════ -->
+      ${_cfSecOpen('🏠','ทรัพย์สินที่เช่า')}
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2">
+            <label class="text-xs font-medium text-gray-600 mb-1 block">ทรัพย์สิน <span class="text-red-400">*</span></label>
+            ${(isRenew||isCopy) && p
+              ? `<div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px">
+                  <svg style="width:16px;height:16px;color:#6366f1;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                  <span style="font-size:14px;font-weight:600;color:#1e293b">${p.name} (${p.location})</span>
+                  <span style="font-size:10px;color:#64748b;margin-left:auto">ล็อกไว้ — ไม่สามารถเปลี่ยนทรัพย์สินได้</span>
+                </div>
+                <input type="hidden" name="pid" value="${p.pid}">`
+              : `<select name="pid" required class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfAutoFillProp(this.value)">
+                  <option value="">— เลือกทรัพย์สิน —</option>
+                  ${DB.properties.map(pp => '<option value="' + pp.pid + '" ' + (pid === pp.pid ? 'selected' : '') + '>' + pp.name + ' (' + pp.location + ')' + '</option>').join('')}
+                </select>
+                ${isEdit && p ? `<div style="margin-top:6px;font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:6px 10px">⚠️ เปลี่ยนทรัพย์สินใช้เฉพาะกรณีผูกผิด — ใบแจ้งหนี้/ใบเสร็จเก่าจะไม่ย้ายไปด้วย (เก็บ snapshot เดิม)</div>` : ''}`}
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">พื้นที่ <span style="font-weight:400;color:#64748b">(ดึงจากทรัพย์สิน)</span></label>
+            <input type="text" name="area" value="${v('area') || (p ? p.area : '')}" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50" id="cfArea" readonly placeholder="เลือกทรัพย์สินด้านบนเพื่อดึงข้อมูล">
+          </div>
+          <div>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">จุด/ตำแหน่งบนทรัพย์ <span style="font-weight:400;color:#64748b">(ถ้าทรัพย์ปล่อยหลายจุด)</span></label>
+            <input type="text" name="spot" id="cfSpot" list="cfSpotList" value="${v('spot')||''}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="เช่น ล็อก A, ห้อง 1, ชั้น 2">
+            <datalist id="cfSpotList">
+              ${(() => {
+                const curPid = p ? p.pid : null;
+                if (!curPid) return '';
+                const spots = Array.from(new Set((DB.contracts||[]).filter(x => x.pid === curPid && x.spot).map(x => x.spot)));
+                return spots.map(s => '<option value="'+s.replace(/"/g,'&quot;')+'">').join('');
+              })()}
+            </datalist>
+          </div>
+        </div>
+      ${_cfSecClose}
+
+      <!-- ═════ SECTION 5: ✍️ ลายเซ็น & พยาน ═════ -->
+      ${_cfSecOpen('✍️','ลายเซ็น & พยาน')}
         ${(()=>{
           const signers=(DB.sysConfig&&DB.sysConfig.signers)||[];
           const staffList=(DB.staff||[]).map(s=>s.name).filter(Boolean);
           const allWitnessOpts=[...new Set([...signers.map(s=>s.name),...staffList])].filter(Boolean);
-          // ตรวจว่าผู้ให้เช่าเป็นนิติบุคคลหรือไม่
           const llName=v('landlord')||'';
           const isCompany=/บริษัท|ห้างหุ้นส่วน|หจก|บจก|จำกัด/i.test(llName);
           const curLSign=v('landlordSignerName')||(isCompany?(signers[0]?.name||''):'');
-          const curLTitle=v('landlordSignerTitle')||(isCompany?(signers.find(s=>s.name===curLSign)?.title||''):'');
-          // อยุทธ์ default = พยาน 1 ทุกสัญญา ยกเว้นเมื่อเขาเป็นคนเซ็นเอง
-          // ใช้ชื่อเต็มจาก signers/staff list ถ้าหาเจอ
           const dwSeed=(DB.sysConfig&&(DB.sysConfig.defaultWitness1||DB.sysConfig.defaultWitness2))||'อยุทธ์';
-          // ต้องเป็นชื่อเต็ม (มีนามสกุล = มี space) — หา full name จาก signers/staff
           const dwFull=allWitnessOpts.find(n=>/\s/.test(n)&&(n===dwSeed||n.split(/\s+/)[0]===dwSeed||n.indexOf(dwSeed)===0))||'';
           const w1=v('witness1Name')|| (dwFull&&dwFull!==curLSign?dwFull:'');
           const w2=v('witness2Name')||'';
           const w1t=v('witness1Title')||(signers.find(s=>s.name===w1)?.title||'');
           const w2t=v('witness2Title')||(signers.find(s=>s.name===w2)?.title||'');
           const dlOpts=allWitnessOpts.map(n=>'<option value="'+n+'">').join('');
-          const opt=(arr,cur)=>arr.map(n=>'<option value="'+n+'" '+(cur===n?'selected':'')+'>'+n+'</option>').join('');
-          const signerOpts=signers.map(s=>'<option value="'+s.name+'" data-title="'+(s.title||'').replace(/"/g,'&quot;')+'" '+(curLSign===s.name?'selected':'')+'>'+s.name+(s.title?' ('+s.title+')':'')+'</option>').join('');
-          return `<div class="grid grid-cols-2 gap-3 mb-3">
-            <div class="col-span-2">
-              <label class="text-xs font-medium text-gray-600 mb-1 block">กรรมการผู้เซ็น (ฝั่งผู้ให้เช่า — บริษัทเรา)</label>
-              <select name="landlordSignerName" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="const t=this.options[this.selectedIndex].dataset.title||'';document.querySelector('[name=landlordSignerTitle]').value=t;">
-                <option value="">— เลือกกรรมการ —</option>
-                ${signerOpts}
-              </select>
-              <input type="text" name="landlordSignerTitle" value="${(curLTitle||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ตำแหน่ง เช่น กรรมการผู้จัดการ">
-            </div>
-            <datalist id="dl_witnesses">${dlOpts}</datalist>
+          return `<datalist id="dl_witnesses">${dlOpts}</datalist>
+          <div class="text-xs font-semibold text-gray-500 mb-2">พยาน</div>
+          <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">พยานคนที่ 1</label>
-              <input type="text" name="witness1Name" aria-autocomplete="list" list="dl_witnesses" value="${(w1||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ หรือเลือกจากรายชื่อ">
+              <input type="text" name="witness1Name" aria-autocomplete="list" list="dl_witnesses" value="${(w1||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ">
               <input type="text" name="witness1Title" value="${(w1t||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ตำแหน่ง (ไม่บังคับ)">
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">พยานคนที่ 2</label>
-              <input type="text" name="witness2Name" aria-autocomplete="list" list="dl_witnesses" value="${(w2||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ หรือเลือกจากรายชื่อ">
+              <input type="text" name="witness2Name" aria-autocomplete="list" list="dl_witnesses" value="${(w2||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ">
               <input type="text" name="witness2Title" value="${(w2t||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ตำแหน่ง (ไม่บังคับ)">
             </div>
           </div>`;
@@ -11329,10 +11360,9 @@ function contractFormHTML(mode, c, pid) {
             <input type="hidden" name="witness2Sig" value="${v('witness2Sig')}">
           </div>
         </div>
-      </div>
+      ${_cfSecClose}
 
-      </div>
-      <div class="flex gap-3 pt-2">
+      <div class="flex gap-3 pt-3">
         <button type="submit" form="contractForm" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">${isRenew ? 'สร้างสัญญาต่อ' : 'บันทึก'}</button>
         <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">ยกเลิก</button>
       </div>
