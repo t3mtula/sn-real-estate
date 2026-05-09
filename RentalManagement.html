@@ -9159,19 +9159,21 @@ function viewContract(id) {
     return r ? r.replace('<div style="display:flex;', '<div style="grid-column:1/-1;display:flex;') : '';
   };
   // Inline edit row: label + input (default = single column, ใส่ full=true เพื่อ span 2 columns เหมือน address/textarea)
+  // padding 5px 0 ตรงกับ display row → row height equal → toggle ไม่ขยับ layout
   const _vcRowEdit = (label, inputHTML, full) => {
     const wrap = full === true ? 'grid-column:1/-1;' : '';
-    return `<div style="${wrap}display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:center">
+    return `<div style="${wrap}display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f8fafc;align-items:center">
       <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;font-weight:500">${esc(label)}</span>
       <span style="flex:1">${inputHTML}</span>
     </div>`;
   };
   const _vcEditBtn = (mode) => `<button onclick="vcEditSection(${c.id},'${mode}')" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">✏️ แก้ไข</button>`;
-  const _vcSaveCancel = (saveFn) => `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:6px">
-    <button onclick="vcCancelEdit(${c.id})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
-    <button onclick="${saveFn}(${c.id})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+  const _vcSaveCancel = (saveFn) => `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:8px;margin-top:4px">
+    <button onclick="vcCancelEdit(${c.id})" style="padding:5px 12px;background:#f1f5f9;color:#475569;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+    <button onclick="${saveFn}(${c.id})" style="padding:5px 14px;background:#10b981;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
   </div>`;
-  const inpCls = 'w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
+  // input style compact ให้ row height ใกล้เคียง display
+  const inpCls = 'w-full px-2 py-1 border border-gray-300 rounded text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
   const safeAttr = v => (v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 
   // ── Section 1: 👤 ผู้เช่า ──
@@ -10055,14 +10057,16 @@ function openPropertyDetail(pid) {
   };
   // Inline edit row — input control แทน display value
   // default = single column (เหมือน display layout); full=true → span 2 columns สำหรับ textarea/dropdown ยาว
+  // padding 5px 0 ตรงกับ display row → row height equal → toggle ไม่ขยับ
   const _pdRowEdit = (label, inputHTML, full) => {
     const wrap = full === true ? 'grid-column:1/-1;' : '';
-    return `<div style="${wrap}display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:center">
+    return `<div style="${wrap}display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f8fafc;align-items:center">
       <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;font-weight:500">${esc(label)}</span>
       <span style="flex:1">${inputHTML}</span>
     </div>`;
   };
-  const inpCls = 'w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
+  // input style — compact เทียบเท่า display text height
+  const inpCls = 'w-full px-2 py-1 border border-gray-300 rounded text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
 
   $('mtitle').textContent = p.name;
 
@@ -10082,9 +10086,9 @@ function openPropertyDetail(pid) {
       _pdRowEdit('หมวด (label)', `<select id="pdEdit_location" class="${inpCls}"><option value="">— ไม่ระบุ —</option>${catOpts}</select>`) +
       _pdRowEdit('เจ้าของ', `<input type="text" id="pdEdit_owner" value="${safeV(p.owner)}" class="${inpCls}">`, true) +
       _pdRowEdit('หลายผู้เช่า', `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="pdEdit_multi" ${isMulti?'checked':''} style="width:15px;height:15px;cursor:pointer">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</label>`, true) +
-      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:6px">
-        <button onclick="pdCancelEdit(${pid})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
-        <button onclick="pdSaveGeneral(${pid})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:8px;margin-top:4px">
+        <button onclick="pdCancelEdit(${pid})" style="padding:5px 12px;background:#f1f5f9;color:#475569;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button onclick="pdSaveGeneral(${pid})" style="padding:5px 14px;background:#10b981;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
       </div>`;
     sec1General = _pdSection('ข้อมูลทั่วไป (กำลังแก้ไข)', '✏️', editBody);
   } else {
@@ -10119,9 +10123,9 @@ function openPropertyDetail(pid) {
       _pdRowEdit('เลขที่/หมู่/ถนน', `<input type="text" id="pdEdit_addrLine" value="${safeV(addrLine)}" class="${inpCls}" placeholder="เช่น 99/1 หมู่ 5 ถ.เพชรเกษม">`, true) +
       _pdRowEdit('เนื้อที่', `<input type="text" id="pdEdit_area" value="${safeV(p.area)}" class="${inpCls}" placeholder="เช่น 2 ไร่ 1 งาน 50 ตร.วา">`) +
       _pdRowEdit('เลขโฉนด', `<input type="text" id="pdEdit_titleDeed" value="${safeV(p.titleDeed)}" class="${inpCls}">`, true) +
-      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:6px">
-        <button onclick="pdCancelEdit(${pid})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
-        <button onclick="pdSaveAddress(${pid})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:8px;margin-top:4px">
+        <button onclick="pdCancelEdit(${pid})" style="padding:5px 12px;background:#f1f5f9;color:#475569;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button onclick="pdSaveAddress(${pid})" style="padding:5px 14px;background:#10b981;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
       </div>`;
     sec2Address = `<div id="pdAddrEditWrap">` + _pdSection('ที่อยู่ + เอกสารสิทธิ์ (กำลังแก้ไข)', '✏️', editBody) + `</div>`;
   } else {
