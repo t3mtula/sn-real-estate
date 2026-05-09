@@ -9873,11 +9873,17 @@ function buildPropFormHTML(p, types, locs){
       <datalist id="dl_sd">${[...sdSet].sort().map(t=>'<option value="'+esc(t)+'">').join('')}</datalist>
       <datalist id="dl_dt">${[...dtSet].sort().map(t=>'<option value="'+esc(t)+'">').join('')}</datalist>
       <datalist id="dl_pv">${TH_PROVINCES.map(t=>'<option value="'+esc(t)+'">').join('')}</datalist>
-      <div>
-        <label class="text-xs font-medium text-gray-600 mb-1 block">ชื่อทรัพย์สิน <span class="text-red-400">*</span></label>
-        <input type="text" name="name" id="propNameInput" value="${safeV(v('name'))}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น ที่ดิน ต.ดอนกรวย" autocomplete="off">
-        <div id="propNameSuggest" class="hidden mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto text-sm"></div>
-        <div id="propDupWarn" class="hidden mt-1 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-700"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">ชื่อทรัพย์สิน <span class="text-red-400">*</span></label>
+          <input type="text" name="name" id="propNameInput" value="${safeV(v('name'))}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น ที่ดิน ต.ดอนกรวย" autocomplete="off">
+          <div id="propNameSuggest" class="hidden mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto text-sm"></div>
+          <div id="propDupWarn" class="hidden mt-1 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-700"></div>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ — ดูหลังบ้าน)</span></label>
+          <input type="text" name="location" value="${safeV(v('location'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"' autocomplete="off">
+        </div>
       </div>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px">
@@ -9929,10 +9935,6 @@ function buildPropFormHTML(p, types, locs){
           </select>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
-          <input type="text" name="owner" value="${safeV(v('owner'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น บริษัท สมบัตินภา จำกัด">
-        </div>
-        <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">สถานะ</label>
           <select name="status" class="w-full px-3 py-2 border rounded-lg text-sm">
             <option value="active" ${(!isEdit||!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
@@ -9940,9 +9942,9 @@ function buildPropFormHTML(p, types, locs){
             <option value="vacant" ${isEdit&&p.status==='vacant'?'selected':''}>ว่าง</option>
           </select>
         </div>
-        <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ — ดูหลังบ้าน)</span></label>
-          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"'>
+        <div class="col-span-2">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
+          <input type="text" name="owner" value="${safeV(v('owner'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น บริษัท สมบัตินภา จำกัด">
         </div>
       </div>
       <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
