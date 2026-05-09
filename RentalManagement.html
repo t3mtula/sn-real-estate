@@ -9812,9 +9812,13 @@ async function updateAddrDatalists(formSelector){
         && (!district || x.amphure.name_th === district));
       if(matches.length === 1){
         const m = matches[0];
-        if(zipInput && !zipInput.value) zipInput.value = String(m.zip_code).padStart(5,'0');
+        // overwrite zip ทุกครั้งที่ตำบล match unique (เผื่อ zip ค้างจากตำบลก่อน)
+        if(zipInput) zipInput.value = String(m.zip_code).padStart(5,'0');
         if(dtInput && !dtInput.value) dtInput.value = m.amphure.name_th;
         if(provInput && !provInput.value) provInput.value = m.amphure.province.name_th;
+      } else if(matches.length > 1 && zipInput){
+        // หลายอำเภอตำบลเดียวกัน → ขึ้น hint
+        zipInput.placeholder = 'เลือกอำเภอก่อน — มี ' + matches.length + ' อำเภอที่มีตำบลนี้';
       }
     }
   }
@@ -9840,10 +9844,12 @@ function bindThaiAddrAutoFill(formSelector){
     if(sdInput) sdInput.value = '';
     updateAddrDatalists(formSelector);
   });
-  // re-filter ตอน focus + blur (รองรับเคสกรอกตำบลก่อน → fill อำเภอ/จังหวัด ย้อนกลับ)
+  // re-filter ตอน focus + blur + input (รองรับเคสกรอกตำบลก่อน → fill zip/อำเภอ/จังหวัด ย้อนกลับ)
+  // 'input' event = fire ทันทีเมื่อพิมพ์/เลือกจาก datalist (datalist + change มัก buggy)
   [provInput, dtInput, sdInput].filter(Boolean).forEach(f => {
     f.addEventListener('focus', () => updateAddrDatalists(formSelector));
     f.addEventListener('blur', () => updateAddrDatalists(formSelector));
+    f.addEventListener('input', () => updateAddrDatalists(formSelector));
   });
   // โหลด full dataset ครั้งแรก + populate (ถ้า CDN ใช้งานได้)
   updateAddrDatalists(formSelector);
@@ -11924,13 +11930,21 @@ body { counter-reset: pagenum; }
 .page-footer-num::before { content: 'หน้า ' counter(pagenum); }
 
 @media print {
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { size: A4; margin: 16mm 20mm 20mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  /* Bug 6 fix: clause + sub-clause ห้าม split ระหว่างหน้า → ป้องกันข้อความล้นขอบ */
-  .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; }
-  /* page padding-bottom เผื่อพื้นที่ให้ footer (absolute positioned) ไม่ทับเนื้อหา */
-  .page { padding-bottom: 24mm; }
-  .c-body { padding-bottom: 6mm; }
+  /* ตอน print: .page ใช้ @page margin แทน padding — browser จะ paginate
+     content ที่ยาวเกิน 1 หน้าอัตโนมัติ + ทุกหน้าใหม่จะมี margin จาก @page */
+  .page { padding: 0 !important; min-height: auto !important; height: auto; margin: 0; box-shadow: none; }
+  /* clause sub-clause ห้าม split ระหว่างหน้า — ป้องกันข้อความขาด */
+  .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
+  /* footer absolute → ไม่ทำงานข้ามหน้า ปิดทิ้ง ใช้ @page footer แทน หรือไม่มี footer ก็ได้ */
+  .page-footer { position: static; margin-top: 12mm; }
+  /* ป้องกัน parties-table + signature box ถูกตัด */
+  .parties-table, .sig-grid, .sig-block, .detail-table { page-break-inside: avoid; break-inside: avoid; }
+  /* บังคับ page-break ก่อน Schedule (เอกสารแนบท้าย) */
+  .appendix-header { page-break-before: always; break-before: page; }
+  .c-body { padding-bottom: 0; }
 }
 @media screen {
   body { background: #e2e8f0; padding: 20px; }
