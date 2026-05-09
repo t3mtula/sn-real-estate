@@ -7992,8 +7992,8 @@ function getPropertyAddress(p){
 }
 
 // ========== PROPERTIES ==========
-let propFilter = { q: '', type: 'all', loc: 'all', status: 'all' };
-function clearPropFilter(){propFilter={q:'',type:'all',loc:'all',status:'all'};renderProperties();}
+let propFilter = { q: '', type: 'all', loc: 'all', prov: 'all', status: 'all' };
+function clearPropFilter(){propFilter={q:'',type:'all',loc:'all',prov:'all',status:'all'};renderProperties();}
 let propSort = { key: 'name', dir: 'asc' };  // key: name|rent|contracts|end|start|status
 function togglePropSort(key){if(propSort.key===key)propSort.dir=propSort.dir==='asc'?'desc':'asc';else{propSort.key=key;propSort.dir=(key==='rent'||key==='contracts')?'desc':'asc';}renderProperties();}
 
@@ -8045,7 +8045,8 @@ function propInfo(p) {
 
 function renderProperties(){
   const ps = DB.properties;
-  const locs = [...new Set(ps.map(p => p.location))].sort();
+  const locs = [...new Set(ps.map(p => p.location).filter(Boolean))].sort();
+  const provs = [...new Set(ps.map(p => p.addr_province||p.province||extractProvince(p.location||p.address)).filter(Boolean))].sort();
   const types = [...new Set(ps.map(p => p.type))].sort();
 
   let filtered = ps.map(p => ({ ...p, _info: propInfo(p) }));
@@ -8058,6 +8059,7 @@ function renderProperties(){
   }
   if (propFilter.type !== 'all') filtered = filtered.filter(p => p.type === propFilter.type);
   if (propFilter.loc !== 'all') filtered = filtered.filter(p => p.location === propFilter.loc);
+  if (propFilter.prov && propFilter.prov !== 'all') filtered = filtered.filter(p => (p.addr_province||p.province||extractProvince(p.location||p.address)) === propFilter.prov);
   if (propFilter.status === 'vacant') filtered = filtered.filter(p => p._info.isVacant);
   else if (propFilter.status === 'occupied') filtered = filtered.filter(p => !p._info.isVacant);
   else if (propFilter.status === 'expiring') filtered = filtered.filter(p => p._info.expiring.length > 0);
@@ -8166,8 +8168,11 @@ function renderProperties(){
       <select id="ptf" class="px-3 py-2 border rounded-lg text-sm bg-white">
         <option value="all">ทุกประเภท</option>${types.map(t => `<option value="${esc(t)}" ${propFilter.type===t?'selected':''}>${esc(propTypeLabel(t))}</option>`).join('')}
       </select>
-      <select id="plf" class="px-3 py-2 border rounded-lg text-sm bg-white">
-        <option value="all">ทุกจังหวัด</option>${locs.map(l => `<option value="${esc(l)}" ${propFilter.loc===l?'selected':''}>${esc(l)}</option>`).join('')}
+      <select id="pcatf" class="px-3 py-2 border rounded-lg text-sm bg-white" title="หมวด (ป้ายกำกับที่ลูกน้องตั้งเอง)">
+        <option value="all">ทุกหมวด</option>${locs.map(l => `<option value="${esc(l)}" ${propFilter.loc===l?'selected':''}>${esc(l)}</option>`).join('')}
+      </select>
+      <select id="ppvf" class="px-3 py-2 border rounded-lg text-sm bg-white" title="กรองตามจังหวัด (ที่ตั้งจริง)">
+        <option value="all">ทุกจังหวัด</option>${provs.map(p => `<option value="${esc(p)}" ${propFilter.prov===p?'selected':''}>${esc(p)}</option>`).join('')}
       </select>
       <select id="psf" class="px-3 py-2 border rounded-lg text-sm bg-white">
         <option value="all" ${propFilter.status==='all'?'selected':''}>ทั้งหมด</option>
@@ -8329,7 +8334,8 @@ function renderProperties(){
   let _pqTimer;
   $('pq').addEventListener('input', e => { propFilter.q = e.target.value; clearTimeout(_pqTimer); _pqTimer = setTimeout(() => { const v = propFilter.q; const el = $('pq'); renderProperties(); const ne = $('pq'); if(ne){ne.value=v;ne.focus();ne.setSelectionRange(v.length,v.length)} }, 300); });
   $('ptf').addEventListener('change', e => { propFilter.type = e.target.value; renderProperties(); });
-  $('plf').addEventListener('change', e => { propFilter.loc = e.target.value; renderProperties(); });
+  $('pcatf').addEventListener('change', e => { propFilter.loc = e.target.value; renderProperties(); });
+  $('ppvf').addEventListener('change', e => { propFilter.prov = e.target.value; renderProperties(); });
   $('psf').addEventListener('change', e => { propFilter.status = e.target.value; renderProperties(); });
   $('psort').addEventListener('change', e => { propSort.key=e.target.value; propSort.dir=e.target.value==='rent'||e.target.value==='contracts'?'desc':'asc'; renderProperties(); });
 }
@@ -8339,7 +8345,12 @@ function renderPropContracts(p, info) {
   const imgCount = (p.images||[]).length;
   // ที่อยู่สำหรับแสดงผล — fallback ไป titleDeed ถ้า address ว่าง/สั้นเกิน (เคสที่ดินเปล่า)
   const dispAddr = (typeof getPropertyAddress === 'function') ? getPropertyAddress(p) : (p.address||p.location||'');
-  const propDetailHTML = `<div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:12px">
+  const propDetailHTML = `<div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;font-size:12px">
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px">
+      <button onclick="event.stopPropagation();openEditPropertyDialog(${p.pid})" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium" title="แก้ไขข้อมูลทรัพย์สิน">✏️ แก้ไขทรัพย์สิน</button>
+      <button onclick="event.stopPropagation();openPropertyDetail(${p.pid})" class="text-xs px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-medium" title="ดูรายละเอียดเต็ม">📋 ดูรายละเอียด</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px">
     <div>
       <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">ที่อยู่</div>
       <div style="color:#334155;line-height:1.4">${esc(dispAddr)||'<span style=\"color:#ef4444\">ไม่ระบุ</span>'}</div>
@@ -8373,6 +8384,7 @@ function renderPropContracts(p, info) {
       </div>
       ${info.revYr>0?'<div><div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">รายได้/ปี</div><div style="font-weight:700;color:#2563eb;font-size:14px">'+fmtBaht(info.revYr,{sym:0})+' บาท</div></div>':''}
       ${imgCount>0?'<div style="margin-left:auto"><span style="font-size:10px;color:#6366f1;cursor:pointer" onclick="event.stopPropagation();openPropertyDetail('+p.pid+')">รูปภาพ ('+imgCount+')</span></div>':''}
+    </div>
     </div>
   </div>`;
 
@@ -8442,10 +8454,7 @@ function renderPropContracts(p, info) {
     ${propDetailHTML}
     <div style="padding:6px 16px 2px 16px;display:flex;align-items:center;justify-content:space-between">
       <span class="text-xs font-medium text-gray-500">สัญญาทั้งหมด ${info.total} รายการ${hasSpot?' · '+spotOrder.length+' จุด':''}</span>
-      <div class="flex gap-1">
-        <button onclick="event.stopPropagation();openAddContractDialog(${p.pid})" class="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 font-medium">+ สัญญาใหม่</button>
-        <button onclick="event.stopPropagation();openPropertyDetail(${p.pid})" class="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 font-medium">ดูรายละเอียด</button>
-      </div>
+      <button onclick="event.stopPropagation();openAddContractDialog(${p.pid})" class="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 font-medium">+ สัญญาใหม่</button>
     </div>
     ${contractsHTML}
   </div>`;
@@ -9881,8 +9890,8 @@ function buildPropFormHTML(p, types, locs){
           <div id="propDupWarn" class="hidden mt-1 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-700"></div>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ — ดูหลังบ้าน)</span></label>
-          <input type="text" name="location" value="${safeV(v('location'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"' autocomplete="off">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(หมวดหมู่ — พิมพ์ใหม่/เลือกซ้ำของเก่าได้)</span></label>
+          <input type="text" name="location" value="${safeV(v('location'))}" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"' autocomplete="off">
         </div>
       </div>
 
