@@ -6090,7 +6090,10 @@ let _modalDirty=false;
 function markModalDirty(){_modalDirty=true;}
 function closeModal(force){
   // Reset inline-edit state ของ property detail (กัน edit mode ค้างเมื่อเปิด property อื่น)
-  if(typeof window !== 'undefined') window._pdEditMode = null;
+  if(typeof window !== 'undefined'){
+    window._pdEditMode = null;
+    // Note: _staffEditIdx ไม่ต้อง reset ที่นี่ — เพราะ staff edit อยู่ใน settings tab ไม่ใช่ modal
+  }
   if(!force && _modalDirty){
     const mbody=document.getElementById('mbody');
     const form = mbody && mbody.querySelector('form');
@@ -7170,11 +7173,13 @@ function renderSettingsStaff(){
   const roleLabels={admin:'ผู้ดูแลระบบ',manager:'ผู้จัดการ',staff:'พนักงาน'};
   const roleColors={admin:'#6366f1',manager:'#f59e0b',staff:'#64748b'};
   const roleBg={admin:'#eef2ff',manager:'#fef3c7',staff:'#f1f5f9'};
+  const editIdx = (typeof window._staffEditIdx === 'number') ? window._staffEditIdx : null;
+  const isAdding = window._staffEditIdx === 'add';
 
   let html=`<div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 style="font-size:16px;font-weight:700;color:#1e293b">พนักงาน & สิทธิ์การใช้งาน</h3>
-      <button onclick="addStaffForm()" style="padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มพนักงาน</button>
+      ${isAdding?'':'<button onclick="staffStartAdd()" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มพนักงาน</button>'}
     </div>`;
 
   // Permission matrix
@@ -7198,23 +7203,131 @@ function renderSettingsStaff(){
     </div>
   </div>`;
 
+  // Helper: render inline edit form (สำหรับ row ที่กำลังแก้ หรือสำหรับเพิ่มใหม่)
+  const _staffEditForm = (s, idx) => {
+    const safeV = v => (v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const isAdd = idx === null || idx === undefined;
+    const cur = s || {name:'',role:'staff',email:'',signatureImg:''};
+    return `<div class="set-card" style="background:#fff;border:1px solid #6366f1;border-radius:10px;margin-bottom:8px;padding:14px;box-shadow:0 2px 8px rgba(99,102,241,.12)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:14px">✏️</span>
+        <span style="font-size:12px;font-weight:700;color:#4338ca">${isAdd?'เพิ่มพนักงานใหม่':'กำลังแก้ไข: '+esc(cur.name||'-')}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">ชื่อ-นามสกุล <span style="color:#dc2626">*</span></label>
+          <input type="text" id="staffName" value="${safeV(cur.name)}" placeholder="สมชาย ใจดี" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">บทบาท <span style="color:#dc2626">*</span></label>
+          <select id="staffRole" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun;background:#fff">
+            <option value="staff" ${(cur.role||'staff')==='staff'?'selected':''}>พนักงาน (Staff)</option>
+            <option value="manager" ${cur.role==='manager'?'selected':''}>ผู้จัดการ (Manager)</option>
+            <option value="admin" ${cur.role==='admin'?'selected':''}>ผู้ดูแลระบบ (Admin)</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">อีเมล Google Workspace <span style="color:#dc2626">*</span></label>
+          <input type="email" id="staffEmail" value="${safeV(cur.email)}" placeholder="user@yourdomain.com" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
+          <div style="font-size:10px;color:#64748b;margin-top:3px">ใช้สำหรับ login Google — ผู้ที่มีอีเมลนี้จะเข้าระบบในบทบาทที่กำหนด</div>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">ลายเซ็น (สำหรับใบแจ้งหนี้)</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="file" accept="image/*" onchange="uploadStaffSig(this)" style="flex:1;padding:6px;border:1px solid #e5e7eb;border-radius:8px;font-size:11px">
+            <div id="staffSigPreview" style="min-height:20px">${cur.signatureImg?'<img src="'+esc(cur.signatureImg)+'" style="max-height:36px;border-radius:4px;border:1px solid #e5e7eb;background:#f8fafc;padding:3px">':''}</div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-top:3px">${isAdd?'อัปโหลดรูปลายเซ็น':'อัปโหลดรูปใหม่เพื่อเปลี่ยน (เว้นว่างไว้ = คงของเดิม)'}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9">
+        <button type="button" onclick="staffCancelEdit()" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button type="button" onclick="staffSaveInline(${isAdd?'null':idx})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;margin-left:auto">💾 ${isAdd?'เพิ่มพนักงาน':'บันทึกการแก้ไข'}</button>
+      </div>
+    </div>`;
+  };
+
+  // Add-new form ที่ด้านบน list (ถ้า user กด "+ เพิ่มพนักงาน")
+  if(isAdding){
+    html += _staffEditForm(null, null);
+  }
+
   // Staff list
   if(staff.length>0){
-    html+=staff.map((s,i)=>`<div class="set-card" style="display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px">
-      <div style="width:44px;height:44px;border-radius:50%;background:${roleColors[s.role]||'#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">${s.name.charAt(0)}</div>
-      <div style="flex:1">
-        <div style="font-weight:600;font-size:14px;color:#1e293b">${s.name}</div>
-        <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${roleBg[s.role]||'#f1f5f9'};color:${roleColors[s.role]||'#64748b'};font-weight:600">${roleLabels[s.role]||s.role}</span>
-      </div>
-      <button onclick="editStaff(${i})" style="padding:6px 14px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun;font-weight:600">แก้ไข</button>
-      ${hasPermission('staff')?'<button onclick="deleteStaff('+i+')" style="padding:6px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun;font-weight:600">ลบ</button>':''}
-    </div>`).join('');
-  } else {
+    html+=staff.map((s,i)=>{
+      // ถ้า row นี้กำลังแก้ → แสดง edit form แทน display
+      if(editIdx === i) return _staffEditForm(s, i);
+      return `<div class="set-card" style="display:flex;align-items:center;gap:12px;padding:14px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px">
+        <div style="width:44px;height:44px;border-radius:50%;background:${roleColors[s.role]||'#64748b'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px">${s.name.charAt(0)}</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;color:#1e293b">${esc(s.name)}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:2px">
+            <span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${roleBg[s.role]||'#f1f5f9'};color:${roleColors[s.role]||'#64748b'};font-weight:600">${roleLabels[s.role]||s.role}</span>
+            ${s.email?'<span style="font-size:10px;color:#94a3b8">'+esc(s.email)+'</span>':''}
+          </div>
+        </div>
+        ${s.signatureImg?'<img src="'+esc(s.signatureImg)+'" style="max-height:32px;max-width:80px;border-radius:4px;border:1px solid #e5e7eb;background:#f8fafc;padding:3px" title="ลายเซ็น">':''}
+        <button onclick="staffStartEdit(${i})" style="padding:6px 14px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun;font-weight:600">✏️ แก้ไข</button>
+        ${hasPermission('staff')?'<button onclick="deleteStaff('+i+')" style="padding:6px 14px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun;font-weight:600">🗑️ ลบ</button>':''}
+      </div>`;
+    }).join('');
+  } else if(!isAdding) {
     html+='<div style="text-align:center;padding:30px;color:#64748b"><div style="font-size:32px;margin-bottom:8px">👤</div>ยังไม่มีพนักงาน</div>';
   }
 
   html+='</div>';
   return html;
+}
+
+// ── Inline edit helpers สำหรับ Staff ──
+function staffStartEdit(idx){
+  window._staffEditIdx = idx;
+  window._staffSigUrl = undefined;
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
+  setTimeout(()=>{
+    const inp = document.getElementById('staffName');
+    if(inp) inp.focus();
+  }, 50);
+}
+function staffStartAdd(){
+  window._staffEditIdx = 'add';
+  window._staffSigUrl = undefined;
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
+  setTimeout(()=>{
+    const inp = document.getElementById('staffName');
+    if(inp) inp.focus();
+  }, 50);
+}
+function staffCancelEdit(){
+  window._staffEditIdx = null;
+  window._staffSigUrl = undefined;
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
+}
+function staffSaveInline(editIdx){
+  const name=(document.getElementById('staffName')?.value||'').trim();
+  const role=(document.getElementById('staffRole')?.value||'').trim();
+  const email=((document.getElementById('staffEmail')?.value)||'').trim().toLowerCase();
+  if(!name){toast('กรุณากรอกชื่อ','error');return;}
+  if(!role){toast('กรุณาเลือกบทบาท','error');return;}
+  if(!email||!/.+@.+\..+/.test(email)){toast('กรุณากรอกอีเมลให้ถูกต้อง','error');return;}
+  if(!DB.staff)DB.staff=[];
+  const dup=DB.staff.find((s,i)=>s.email===email && i!==editIdx);
+  if(dup){toast('อีเมลนี้มีอยู่แล้ว','error');return;}
+  if(editIdx!==null && editIdx!==undefined){
+    DB.staff[editIdx].name=name;
+    DB.staff[editIdx].role=role;
+    DB.staff[editIdx].email=email;
+    if(window._staffSigUrl!==undefined) DB.staff[editIdx].signatureImg=window._staffSigUrl;
+    addActivityLog('staff','แก้ไขพนักงาน '+name);
+  } else {
+    DB.staff.push({name,role,email,signatureImg:window._staffSigUrl||'',createdAt:new Date().toISOString()});
+    addActivityLog('staff','เพิ่มพนักงาน '+name);
+  }
+  window._staffEditIdx = null;
+  window._staffSigUrl = undefined;
+  save();
+  toast('✓ บันทึกแล้ว','success');
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
 }
 
 function render(){
