@@ -9932,32 +9932,28 @@ function buildPropFormHTML(p, types, locs){
           <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
           <input type="text" name="owner" value="${safeV(v('owner'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น บริษัท สมบัตินภา จำกัด">
         </div>
-        <div class="col-span-2">
-          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ ให้พนักงาน category — ดูหลังบ้าน)</span></label>
-          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง", "อาคารพาณิชย์บ้านโป่ง"'>
-        </div>
-        ${isEdit ? `
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">สถานะ</label>
           <select name="status" class="w-full px-3 py-2 border rounded-lg text-sm">
-            <option value="active" ${(!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
-            <option value="occupied" ${p.status==='occupied'?'selected':''}>มีผู้เช่า</option>
-            <option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option>
+            <option value="active" ${(!isEdit||!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
+            <option value="occupied" ${isEdit&&p.status==='occupied'?'selected':''}>มีผู้เช่า</option>
+            <option value="vacant" ${isEdit&&p.status==='vacant'?'selected':''}>ว่าง</option>
           </select>
         </div>
-        ` : `
-        <input type="hidden" name="status" value="active">
-        `}
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(label สั้นๆ — ดูหลังบ้าน)</span></label>
+          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"'>
+        </div>
       </div>
-      ${isEdit ? `<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
+      <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-          <input type="checkbox" name="multiTenant" ${p.multiTenant?'checked':''} style="margin-top:3px;width:16px;height:16px;accent-color:#10b981">
+          <input type="checkbox" name="multiTenant" ${(isEdit&&p.multiTenant)?'checked':''} style="margin-top:3px;width:16px;height:16px;accent-color:#10b981">
           <div>
             <div style="font-size:13px;font-weight:700;color:#065f46">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</div>
             <div style="font-size:11px;color:#047857;margin-top:3px">เช่น ดาดฟ้าใส่เสาสัญญาณหลายเจ้า, ที่ดินใหญ่แบ่งล็อต — ติ๊กแล้วระบบจะไม่เตือน "สัญญาซ้อน"</div>
           </div>
         </label>
-      </div>` : ''}
+      </div>
       <div id="propFormErrors" class="hidden text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-2"></div>
       <div class="flex gap-3 pt-2">
         <button type="submit" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">${isEdit?'บันทึก':'เพิ่มทรัพย์สิน'}</button>
@@ -10026,10 +10022,12 @@ function openAddPropertyDialog() {
       pid, name, address: addr, area: fd.get('area'),
       titleDeed: deed, type: fd.get('type'),
       location: (fd.get('location')||'').trim(),
+      owner: (fd.get('owner')||'').trim(),
       addr_subdistrict: (fd.get('subDistrict')||'').trim(),
       addr_district: (fd.get('district')||'').trim(),
       addr_province: province,
-      status: 'active'
+      status: fd.get('status') || 'active',
+      multiTenant: !!fd.get('multiTenant')
     });
     addActivityLog('add_property','เพิ่มทรัพย์สิน '+name);
     save(); closeModal(true); toast('เพิ่มทรัพย์สินแล้ว'); renderProperties();
