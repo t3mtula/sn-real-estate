@@ -8533,13 +8533,13 @@ function renderProperties(){
           </div>
         </div>
       </div>
-      <!-- Stat cards (unified design) -->
-      <div style="flex:1;display:flex;gap:6px;flex-wrap:wrap;min-width:0">
-        <div class="kpi-box" style="flex:1;min-width:70px"><div class="kv" style="color:#6366f1">${totalProps}</div><div class="kl">ทรัพย์สิน</div></div>
-        <div class="kpi-box" style="flex:1;min-width:70px"><div class="kv" style="color:#059669">${totalContracts}</div><div class="kl">สัญญามีผล</div></div>
-        ${totalCancelled>0?'<div class="kpi-box" style="flex:1;min-width:70px"><div class="kv" style="color:#64748b">'+totalCancelled+'</div><div class="kl">ยกเลิก</div></div>':''}
-        <div class="kpi-box accent" style="flex:1;min-width:90px"><div class="kv" style="color:#059669;font-size:20px">${fmtBaht(totalRevMo,{sym:0})}</div><div class="kl">บ./เดือน</div></div>
-        ${totalRevYr>0?'<div class="kpi-box accent2" style="flex:1;min-width:90px"><div class="kv" style="color:#2563eb;font-size:20px">'+fmtBaht(totalRevYr,{sym:0})+'</div><div class="kl">บ./ปี</div></div>':''}
+      <!-- Stat cards — unified .kpi utility class -->
+      <div style="flex:1;display:flex;gap:8px;flex-wrap:wrap;min-width:0">
+        <div class="kpi kpi-accent" style="--kpi-color:var(--c-primary);flex:1;min-width:80px;padding:10px 12px"><div class="kpi-label">ทรัพย์สิน</div><div class="kpi-value" style="color:var(--c-primary);font-size:22px">${totalProps}</div></div>
+        <div class="kpi kpi-accent" style="--kpi-color:var(--c-success);flex:1;min-width:80px;padding:10px 12px"><div class="kpi-label">สัญญามีผล</div><div class="kpi-value" style="color:var(--c-success);font-size:22px">${totalContracts}</div></div>
+        ${totalCancelled>0?'<div class="kpi kpi-accent" style="--kpi-color:var(--c-neutral);flex:1;min-width:80px;padding:10px 12px"><div class="kpi-label">ยกเลิก</div><div class="kpi-value" style="color:var(--c-neutral);font-size:22px">'+totalCancelled+'</div></div>':''}
+        <div class="kpi kpi-accent" style="--kpi-color:var(--c-success);flex:1;min-width:100px;padding:10px 12px"><div class="kpi-label">รายได้ / เดือน</div><div class="kpi-value" style="color:var(--c-success);font-size:18px">${fmtBaht(totalRevMo,{sym:0})}</div></div>
+        ${totalRevYr>0?'<div class="kpi kpi-accent" style="--kpi-color:#2563eb;flex:1;min-width:100px;padding:10px 12px"><div class="kpi-label">รายได้ / ปี</div><div class="kpi-value" style="color:#2563eb;font-size:18px">'+fmtBaht(totalRevYr,{sym:0})+'</div></div>':''}
       </div>
       <!-- Type distribution mini bars -->
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;min-width:160px">
@@ -13277,8 +13277,20 @@ function renderInvoiceListPage(tabHTML){
 
     /* ── toolbar (compact single row) ── */
     .inv-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}
-    .inv-action-send{padding:3px 8px;border:none;background:#dbeafe;color:#1d4ed8;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:Sarabun;width:78px}
-    .inv-action-send:hover{background:#bfdbfe}
+    /* Action buttons — unified semantic colors:
+       - draft (need to send): info blue
+       - canPay normal: success filled
+       - canPay overdue: danger filled (urgent)
+       - paid: success ghost (less prominent — receipt is reference action)
+       - view-only: neutral ghost
+       all share padding 6px 12px, font-size 11px, weight 600, border-radius 6px, min-height 32px, min-width 88px */
+    .inv-act{padding:6px 12px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Sarabun;min-height:32px;min-width:88px;transition:filter .12s,background-color .12s}
+    .inv-act:hover{filter:brightness(.94)}
+    .inv-act-send{background:var(--c-info);color:#fff}
+    .inv-act-pay{background:var(--c-success);color:#fff}
+    .inv-act-pay-overdue{background:var(--c-danger);color:#fff}
+    .inv-act-receipt{background:var(--c-success-bg);color:var(--c-success-text);font-weight:600}
+    .inv-act-view{background:var(--c-neutral-bg);color:var(--c-neutral-text);font-weight:500}
 
     /* ── ⋯ เพิ่มเติม overflow menu (details/summary, no JS state) ── */
     .inv-more{position:relative;margin-left:auto}
@@ -13443,10 +13455,10 @@ function renderInvoiceListPage(tabHTML){
           ${fuHTML}
         </td>
         <td style="padding:6px 8px;text-align:center;white-space:nowrap" onclick="event.stopPropagation()">
-          ${isDraft?`<button class="inv-action-send" onclick="markInvoiceSent(${inv.id})" title="คลิกเพื่อบันทึกว่าใบนี้ส่งให้ผู้เช่าแล้ว">📤 บันทึกส่ง</button>`
-            :canPay?`<button onclick="openReceivePaymentModal(${inv.id})" style="padding:6px 12px;border:none;background:${ds==='overdue'?'#dc2626':'#059669'};color:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:Sarabun;min-height:32px;min-width:88px">💰 ${isPartial?'รับเพิ่ม':'รับเงิน'}</button>`
-            :isPaid?`<button onclick="printReceipt(${inv.id})" style="padding:6px 12px;border:none;background:#dcfce7;color:#15803d;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun;min-height:32px;min-width:88px">🧾 ใบเสร็จ</button>`
-            :`<button onclick="viewInvoiceDetail(${inv.id})" style="padding:6px 12px;border:none;background:#f1f5f9;color:#64748b;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;min-height:32px">ℹ️ ดู</button>`}
+          ${isDraft?`<button class="inv-act inv-act-send" onclick="markInvoiceSent(${inv.id})" title="คลิกเพื่อบันทึกว่าใบนี้ส่งให้ผู้เช่าแล้ว">📤 บันทึกส่ง</button>`
+            :canPay?`<button class="inv-act ${ds==='overdue'?'inv-act-pay-overdue':'inv-act-pay'}" onclick="openReceivePaymentModal(${inv.id})" title="${ds==='overdue'?'ใบนี้เกินกำหนด — รับเงินด่วน':'รับเงิน'}">💰 ${isPartial?'รับเพิ่ม':'รับเงิน'}</button>`
+            :isPaid?`<button class="inv-act inv-act-receipt" onclick="printReceipt(${inv.id})" title="พิมพ์ใบเสร็จ">🧾 ใบเสร็จ</button>`
+            :`<button class="inv-act inv-act-view" onclick="viewInvoiceDetail(${inv.id})" title="ดูรายละเอียด">ℹ️ ดู</button>`}
         </td>
       </tr>`;
     }).join('');
