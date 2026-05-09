@@ -9574,111 +9574,119 @@ function openPropertyDetail(pid) {
   if (!p) return;
   const cs = DB.contracts.filter(x => x.pid === pid).sort((a, b) => (parseBE(b.start) || 0) - (parseBE(a.start) || 0));
   const activeC = cs.find(x => {const s = status(x); return s === 'active' || s === 'upcoming';});
-
-  // ที่อยู่สำหรับแสดงผล — fallback ไป titleDeed ถ้า address ว่าง/สั้นเกิน (เคสที่ดินเปล่า)
   const dispAddr = (typeof getPropertyAddress === 'function') ? getPropertyAddress(p) : (p.address||p.location||'');
   const isMulti = (typeof isMultiTenantProperty === 'function') && isMultiTenantProperty(p);
+
+  // 3 sections มาตรฐาน — view + edit ใช้โครงสร้างเดียวกัน
+  const _pdSection = (title, icon, body, action = '') => `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden">
+    <div style="padding:9px 14px;background:linear-gradient(to bottom,#fafbff,#f1f5f9);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">${icon}</span>
+      <span style="font-size:12px;font-weight:700;color:#1e293b;letter-spacing:.3px">${title}</span>
+      ${action ? '<div style="margin-left:auto">' + action + '</div>' : ''}
+    </div>
+    <div style="padding:10px 14px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 22px">${body}</div></div>
+  </div>`;
+  const _pdRow = (label, val) => {
+    if (val === undefined || val === null || val === '' || val === '-') return '';
+    return `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f8fafc;align-items:flex-start">
+      <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;padding-top:1px;font-weight:500">${esc(label)}</span>
+      <span style="flex:1;font-size:12.5px;color:#1e293b;line-height:1.55;word-break:break-word">${val}</span>
+    </div>`;
+  };
+  const _pdRowFull = (label, val) => {
+    const r = _pdRow(label, val);
+    return r ? r.replace('<div style="display:flex;', '<div style="grid-column:1/-1;display:flex;') : '';
+  };
+
   $('mtitle').textContent = p.name;
+
+  // ── Section 1: ข้อมูลทั่วไป ──
+  const editBtn = `<button onclick="openEditPropertyDialog(${pid})" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'"><svg style="width:11px;height:11px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>แก้ไข</button>`;
+  const multiTenantBadge = isMulti ? ' <span style="display:inline-block;font-size:9px;color:#fff;background:#10b981;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน">หลายผู้เช่า</span>' : '';
+  const sec1General = _pdSection('ข้อมูลทั่วไป', '🏷️',
+    _pdRow('ชื่อทรัพย์สิน', esc(p.name) + multiTenantBadge) +
+    _pdRow('ประเภท', esc(propTypeLabel(p.type))) +
+    _pdRow('สถานะ', p.status === 'occupied' ? 'มีผู้เช่า' : p.status === 'vacant' ? 'ว่าง' : 'active') +
+    _pdRow('หมวด (label)', p.location ? '<span style="display:inline-block;padding:2px 9px;background:#eef2ff;color:#4338ca;border-radius:99px;font-size:11px;font-weight:600">' + esc(p.location) + '</span>' : '') +
+    _pdRow('เจ้าของ', esc(p.owner))
+  , editBtn);
+
+  // ── Section 2: ที่อยู่ + เอกสารสิทธิ์ ──
+  const addrBlock = isBadAddr(p)
+    ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>' + (dispAddr ? '<div style="font-size:11px;color:#64748b;margin-top:4px">ปัจจุบัน: ' + esc(dispAddr) + '</div>' : '')
+    : esc(dispAddr);
+  const sec2Address = _pdSection('ที่อยู่ + เอกสารสิทธิ์', '📍',
+    _pdRow('จังหวัด', esc(p.addr_province || p.province)) +
+    _pdRow('อำเภอ/เขต', esc(p.addr_district)) +
+    _pdRow('ตำบล/แขวง', esc(p.addr_subdistrict)) +
+    _pdRow('รหัสไปรษณีย์', esc(p.addr_zip)) +
+    _pdRowFull('ที่อยู่เต็ม', addrBlock) +
+    _pdRow('เนื้อที่', esc(p.area)) +
+    _pdRowFull('เลขโฉนด', esc(p.titleDeed))
+  );
+
   $('mbody').innerHTML = `
-    <div class="space-y-6">
-      <div class="bg-gray-50 rounded-lg p-4 space-y-3">
-        <div class="flex items-center justify-between">
-          <h4 class="font-semibold text-gray-900">ข้อมูลทรัพย์สิน</h4>
-          <button onclick="openEditPropertyDialog(${pid})" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-medium hover:bg-indigo-100" title="แก้ไขข้อมูลทรัพย์สิน">✏️ แก้ไข</button>
-        </div>
-        <div class="grid grid-cols-2 gap-4 text-sm">
-          <div><span class="text-gray-500">ประเภท:</span><div class="font-medium">${esc(propTypeLabel(p.type))}${isMulti?' <span style="font-size:9px;color:#fff;background:#10b981;padding:1px 6px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน — ระบบจะไม่เตือนเรื่องสัญญาซ้อน">หลายผู้เช่า</span>':''}</div></div>
-          <div><span class="text-gray-500">สถานที่:</span><div class="font-medium">${esc(p.location)}</div></div>
-          <div class="col-span-2"><span class="text-gray-500">ที่อยู่:</span>${isBadAddr(p)?'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-top:4px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>'+(dispAddr?'<div style="font-size:11px;color:#64748b;margin-top:2px">ปัจจุบัน: '+esc(dispAddr)+'</div>':''):'<div class="font-medium text-xs mt-1">'+esc(dispAddr)+'</div>'}</div>
-          <div><span class="text-gray-500">พื้นที่:</span><div class="font-medium">${esc(p.area) || '-'}</div></div>
-          <div><span class="text-gray-500">โฉนด:</span><div class="font-medium text-xs mt-1">${esc(p.titleDeed) || '-'}</div></div>
-        </div>
-      </div>
-
-      <!-- Property Images -->
-      <div class="bg-white rounded-lg border p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h4 class="font-semibold text-gray-900 text-sm">รูปภาพ (${(p.images||[]).length})</h4>
-          <label class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium cursor-pointer hover:bg-indigo-100">
-            + เพิ่มรูป
-            <input type="file" accept="image/*" multiple style="display:none" onchange="propAddImages(${pid},this.files)">
-          </label>
-        </div>
-        ${(p.images||[]).length>0?`
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${(p.images||[]).map((img,i)=>`
-              <div style="position:relative;width:100px;height:80px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;cursor:pointer" onclick="propViewImage(${pid},${i})">
-                <img src="${img}" style="width:100%;height:100%;object-fit:cover">
-                <button onclick="event.stopPropagation();propRemoveImage(${pid},${i})" style="position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="ลบ">×</button>
-              </div>
-            `).join('')}
-          </div>
-        `:'<div class="text-xs text-gray-400 text-center py-4">ยังไม่มีรูปภาพ · กดเพิ่มรูปเพื่อแนบรูปที่ดิน สัญญา หรืออื่นๆ</div>'}
-      </div>
-
-      ${activeC ? `
-      <div class="bg-blue-50 rounded-lg p-4 space-y-2">
-        <h4 class="font-semibold text-gray-900">ผู้เช่าปัจจุบัน</h4>
-        <div class="text-sm space-y-1">
-          <div><span class="text-gray-600">ชื่อ:</span> <span class="font-medium">${esc(activeC.tenant)}</span></div>
-          ${activeC.taxId&&activeC.taxId!=='-'?'<div><span class="text-gray-600">เลขประจำตัว:</span> <span class="font-medium">'+esc(activeC.taxId)+'</span></div>':''}
-          ${activeC.tenantAddr&&activeC.tenantAddr!=='-'?'<div><span class="text-gray-600">ที่อยู่:</span> <span class="font-medium text-xs">'+esc(activeC.tenantAddr)+'</span></div>':''}
-          <div><span class="text-gray-600">โทร:</span> <span class="font-medium">${esc(activeC.phone) || '-'}</span></div>
-          <div><span class="text-gray-600">เลขที่สัญญา:</span> <span class="font-medium">${esc(activeC.no) || '-'}</span></div>
-        </div>
-      </div>
-      ` : '<div class="bg-red-50 rounded-lg p-4"><div class="text-sm font-medium text-red-800">ว่าง (ไม่มีสัญญาที่ใช้งาน)</div></div>'}
+    <div style="font-family:Sarabun">
+      ${sec1General}
+      ${sec2Address}
 
       ${(()=>{
-        // Check for overlapping contracts on this property
-        // Skip ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน (ดาดฟ้า ฯลฯ)
-        if(typeof isMultiTenantProperty==='function' && isMultiTenantProperty(p))return'';
-        const activeCs=cs.filter(c=>!c.cancelled&&status(c)!=='cancelled');
-        const overlaps=[];
-        for(let i=0;i<activeCs.length;i++){
-          for(let j=i+1;j<activeCs.length;j++){
-            const a=activeCs[i],b=activeCs[j];
-            const as=parseBE(a.start),ae=parseBE(a.end),bs=parseBE(b.start),be=parseBE(b.end);
-            if(as&&ae&&bs&&be){const ov=Math.min(ae.getTime(),be.getTime())-Math.max(as.getTime(),bs.getTime());if(ov>=86400000)overlaps.push({a,b});}
+        // Section 3: ผู้เช่า/สัญญา
+        const imgCount = (p.images||[]).length;
+        const overlapWarn = (()=>{
+          if(typeof isMultiTenantProperty==='function' && isMultiTenantProperty(p)) return '';
+          const activeCs = cs.filter(c=>!c.cancelled && status(c)!=='cancelled');
+          const overlaps = [];
+          for(let i=0;i<activeCs.length;i++){
+            for(let j=i+1;j<activeCs.length;j++){
+              const a=activeCs[i], b=activeCs[j];
+              const as=parseBE(a.start),ae=parseBE(a.end),bs=parseBE(b.start),be=parseBE(b.end);
+              if(as&&ae&&bs&&be){const ov=Math.min(ae.getTime(),be.getTime())-Math.max(as.getTime(),bs.getTime()); if(ov>=86400000) overlaps.push({a,b});}
+            }
           }
-        }
-        if(overlaps.length===0)return'';
-        return'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:4px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><svg style="width:18px;height:18px;color:#dc2626;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg><span style="font-size:13px;font-weight:700;color:#dc2626">สัญญาซ้อนกัน — 1 แปลงควรมี 1 ผู้เช่า</span></div>'+overlaps.map(o=>'<div style="font-size:11px;color:#991b1b;padding:3px 0 3px 26px">• <b>'+esc(o.a.tenant)+'</b> ('+fmtBE(o.a.start)+'—'+fmtBE(o.a.end)+') ซ้อนกับ <b>'+esc(o.b.tenant)+'</b> ('+fmtBE(o.b.start)+'—'+fmtBE(o.b.end)+')</div>').join('')+'</div>';
-      })()}
-
-      <div class="space-y-3">
-        <h4 class="font-semibold text-gray-900">สัญญาทั้งหมด (${cs.length})</h4>
-        ${cs.length === 0 ? '<div class="text-sm text-gray-500">ไม่มีสัญญา</div>' : `
-          <div class="space-y-2">
-            ${cs.map(c => `
-              <div class="border rounded-lg p-3 hover:bg-gray-50 cursor-pointer" onclick="toggleContractExpand(this, ${c.id})">
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div class="font-medium text-gray-900">${esc(c.tenant)}</div>
-                    <div class="text-xs text-gray-500">${esc(c.no) || '-'} · ${fmtBE(c.start)} — ${fmtBE(c.end)}</div>
+          if(overlaps.length===0) return '';
+          return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#991b1b">⚠ <b>สัญญาซ้อนกัน</b> — '+overlaps.map(o=>esc(o.a.tenant)+' ↔ '+esc(o.b.tenant)).join(', ')+'</div>';
+        })();
+        const contractsList = cs.length === 0
+          ? '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:12px">ยังไม่มีสัญญา</div>'
+          : '<div style="display:flex;flex-direction:column;gap:6px">' + cs.map(c => `
+              <div onclick="closeModal();viewContract(${c.id})" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;cursor:pointer;transition:background .12s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:600;color:#1e293b">${esc(c.tenant)}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:2px">${esc(c.no)||'-'} · ${fmtBE(c.start)} — ${fmtBE(c.end)}</div>
                   </div>
                   <div>${badge(status(c))}</div>
                 </div>
-                <div id="contract-detail-${c.id}" class="hidden mt-3 pt-3 border-t space-y-2 text-sm">
-                  <div><span class="text-gray-600">อัตราเช่า:</span> <span>${esc(c.rate)}</span></div>
-                  <div><span class="text-gray-600">วันที่เริ่ม:</span> <span>${fmtBE(c.start)}</span></div>
-                  <div><span class="text-gray-600">วันที่สิ้นสุด:</span> <span>${fmtBE(c.end)}</span></div>
-                  <div><span class="text-gray-600">วัตถุประสงค์:</span> <span>${esc(c.purpose)}</span></div>
-                  <div class="pt-2 flex gap-2">
-                    <button onclick="editContract(${c.id})" class="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">แก้ไข</button>
-                    <button onclick="deleteContract(${c.id})" class="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">ลบ</button>
-                  </div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        `}
-      </div>
+              </div>`).join('') + '</div>';
+        const activeBlock = activeC
+          ? `<div style="background:#ecfdf5;border:1px solid #86efac;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px">
+              <div style="font-weight:700;color:#065f46;font-size:11px;margin-bottom:4px">ผู้เช่าปัจจุบัน</div>
+              <div style="color:#1e293b;font-weight:600">${esc(activeC.tenant)}${activeC.phone?' · <span style="color:#64748b;font-weight:400">โทร '+esc(activeC.phone)+'</span>':''}</div>
+              <div style="color:#64748b;font-size:11px;margin-top:2px">${esc(activeC.no)||'-'}</div>
+            </div>`
+          : '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#991b1b;font-weight:600">ว่าง — ไม่มีสัญญาที่ใช้งาน</div>';
+        const addContractBtn = `<button onclick="openAddContractDialog(${pid})" style="font-size:11px;color:#15803d;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#dcfce7;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#bbf7d0'" onmouseout="this.style.background='#dcfce7'">+ สัญญาใหม่</button>`;
+        return _pdSection('ผู้เช่า / สัญญา (' + cs.length + ')', '👥', activeBlock + overlapWarn + contractsList, addContractBtn).replace('grid-template-columns:1fr 1fr;gap:0 22px', 'grid-template-columns:1fr');
+      })()}
 
-      <div class="flex gap-2 pt-4">
-        <button onclick="openAddContractDialog(${pid})" class="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">เพิ่มสัญญาใหม่</button>
-        <button onclick="editProperty(${pid})" class="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">แก้ไข</button>
-        <button onclick="deleteProperty(${pid})" class="flex-1 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">ลบ</button>
+      ${(p.images||[]).length > 0 || true ? (()=>{
+        const imgCount = (p.images||[]).length;
+        const addImgBtn = `<label style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;font-family:Sarabun;display:inline-flex;align-items:center;gap:4px" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">+ เพิ่มรูป<input type="file" accept="image/*" multiple style="display:none" onchange="propAddImages(${pid},this.files)"></label>`;
+        const body = imgCount > 0
+          ? '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (p.images||[]).map((img,i)=>`
+              <div style="position:relative;width:100px;height:80px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;cursor:pointer" onclick="propViewImage(${pid},${i})">
+                <img src="${img}" style="width:100%;height:100%;object-fit:cover">
+                <button onclick="event.stopPropagation();propRemoveImage(${pid},${i})" style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="ลบ">×</button>
+              </div>`).join('') + '</div>'
+          : '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:11px">ยังไม่มีรูปภาพ — กด "+ เพิ่มรูป" เพื่อแนบ</div>';
+        return _pdSection('รูปภาพ (' + imgCount + ')', '📷', body, addImgBtn).replace('grid-template-columns:1fr 1fr;gap:0 22px', 'grid-template-columns:1fr');
+      })() : ''}
+
+      <div style="display:flex;gap:8px;padding-top:8px;border-top:1px solid #e2e8f0;margin-top:8px">
+        <button onclick="openAddContractDialog(${pid})" style="flex:1;padding:10px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">เพิ่มสัญญาใหม่</button>
+        <button onclick="openEditPropertyDialog(${pid})" style="flex:1;padding:10px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">แก้ไข</button>
+        <button onclick="deleteProperty(${pid})" style="flex:1;padding:10px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">ลบ</button>
       </div>
     </div>
   `;
