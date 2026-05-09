@@ -6089,6 +6089,8 @@ function toast(msg,type='success',ms){
 let _modalDirty=false;
 function markModalDirty(){_modalDirty=true;}
 function closeModal(force){
+  // Reset inline-edit state ของ property detail (กัน edit mode ค้างเมื่อเปิด property อื่น)
+  if(typeof window !== 'undefined') window._pdEditMode = null;
   if(!force && _modalDirty){
     const mbody=document.getElementById('mbody');
     const form = mbody && mbody.querySelector('form');
@@ -9682,6 +9684,7 @@ function openPropertyDetail(pid) {
   const activeC = cs.find(x => {const s = status(x); return s === 'active' || s === 'upcoming';});
   const dispAddr = (typeof getPropertyAddress === 'function') ? getPropertyAddress(p) : (p.address||p.location||'');
   const isMulti = (typeof isMultiTenantProperty === 'function') && isMultiTenantProperty(p);
+  const editMode = window._pdEditMode || null; // null | 'general' | 'address'
 
   // 3 sections มาตรฐาน — view + edit ใช้โครงสร้างเดียวกัน
   const _pdSection = (title, icon, body, action = '') => `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden">
@@ -9692,6 +9695,7 @@ function openPropertyDetail(pid) {
     </div>
     <div style="padding:10px 14px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:0 22px">${body}</div></div>
   </div>`;
+  const _pdSectionFull = (title, icon, body, action = '') => _pdSection(title, icon, body, action).replace('grid-template-columns:1fr 1fr;gap:0 22px', 'grid-template-columns:1fr');
   const _pdRow = (label, val) => {
     if (val === undefined || val === null || val === '' || val === '-') return '';
     return `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f8fafc;align-items:flex-start">
@@ -9703,33 +9707,91 @@ function openPropertyDetail(pid) {
     const r = _pdRow(label, val);
     return r ? r.replace('<div style="display:flex;', '<div style="grid-column:1/-1;display:flex;') : '';
   };
+  // Inline edit row — input control แทน display value
+  const _pdRowEdit = (label, inputHTML, full) => {
+    const wrap = full ? 'grid-column:1/-1;' : '';
+    return `<div style="${wrap}display:flex;gap:10px;padding:6px 0;border-bottom:1px solid #f8fafc;align-items:center">
+      <span style="width:118px;flex-shrink:0;font-size:11px;color:#64748b;font-weight:500">${esc(label)}</span>
+      <span style="flex:1">${inputHTML}</span>
+    </div>`;
+  };
+  const inpCls = 'w-full px-2.5 py-1.5 border border-gray-300 rounded-md text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
 
   $('mtitle').textContent = p.name;
 
   // ── Section 1: ข้อมูลทั่วไป ──
-  const editBtn = `<button onclick="openEditPropertyDialog(${pid})" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'"><svg style="width:11px;height:11px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>แก้ไข</button>`;
   const multiTenantBadge = isMulti ? ' <span style="display:inline-block;font-size:9px;color:#fff;background:#10b981;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน">หลายผู้เช่า</span>' : '';
-  const sec1General = _pdSection('ข้อมูลทั่วไป', '🏷️',
-    _pdRow('ชื่อทรัพย์สิน', esc(p.name) + multiTenantBadge) +
-    _pdRow('ประเภท', esc(propTypeLabel(p.type))) +
-    _pdRow('สถานะ', p.status === 'occupied' ? 'มีผู้เช่า' : p.status === 'vacant' ? 'ว่าง' : 'active') +
-    _pdRow('หมวด (label)', p.location ? '<span style="display:inline-block;padding:2px 9px;background:#eef2ff;color:#4338ca;border-radius:99px;font-size:11px;font-weight:600">' + esc(p.location) + '</span>' : '') +
-    _pdRow('เจ้าของ', esc(p.owner))
-  , editBtn);
+  let sec1General;
+  if(editMode === 'general'){
+    // edit form fields
+    const safeV = s => (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const cats = (DB.categories||[]).map(c => c.name);
+    const typeOpts = (typeof PROP_TYPES !== 'undefined' ? PROP_TYPES : []).map(t => `<option value="${t.v}" ${p.type===t.v?'selected':''}>${esc(t.l)}</option>`).join('');
+    const catOpts = cats.map(c => `<option value="${esc(c)}" ${p.location===c?'selected':''}>${esc(c)}</option>`).join('');
+    const editBody =
+      _pdRowEdit('ชื่อทรัพย์สิน', `<input type="text" id="pdEdit_name" value="${safeV(p.name)}" class="${inpCls}">`, true) +
+      _pdRowEdit('ประเภท', `<select id="pdEdit_type" class="${inpCls}"><option value="">— เลือก —</option>${typeOpts}</select>`) +
+      _pdRowEdit('สถานะ', `<select id="pdEdit_status" class="${inpCls}"><option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option><option value="occupied" ${p.status==='occupied'?'selected':''}>มีผู้เช่า</option><option value="active" ${(!p.status||p.status==='active')?'selected':''}>active</option></select>`) +
+      _pdRowEdit('หมวด (label)', `<select id="pdEdit_location" class="${inpCls}"><option value="">— ไม่ระบุ —</option>${catOpts}</select>`) +
+      _pdRowEdit('เจ้าของ', `<input type="text" id="pdEdit_owner" value="${safeV(p.owner)}" class="${inpCls}">`, true) +
+      _pdRowEdit('หลายผู้เช่า', `<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="pdEdit_multi" ${isMulti?'checked':''} style="width:15px;height:15px;cursor:pointer">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</label>`, true) +
+      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:6px">
+        <button onclick="pdCancelEdit(${pid})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button onclick="pdSaveGeneral(${pid})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+      </div>`;
+    sec1General = _pdSection('ข้อมูลทั่วไป (กำลังแก้ไข)', '✏️', editBody);
+  } else {
+    const editBtn = `<button onclick="pdEditSection(${pid},'general')" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'"><svg style="width:11px;height:11px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>แก้ไข</button>`;
+    sec1General = _pdSection('ข้อมูลทั่วไป', '🏷️',
+      _pdRow('ชื่อทรัพย์สิน', esc(p.name) + multiTenantBadge) +
+      _pdRow('ประเภท', esc(propTypeLabel(p.type))) +
+      _pdRow('สถานะ', p.status === 'occupied' ? 'มีผู้เช่า' : p.status === 'vacant' ? 'ว่าง' : 'active') +
+      _pdRow('หมวด (label)', p.location ? '<span style="display:inline-block;padding:2px 9px;background:#eef2ff;color:#4338ca;border-radius:99px;font-size:11px;font-weight:600">' + esc(p.location) + '</span>' : '') +
+      _pdRow('เจ้าของ', esc(p.owner))
+    , editBtn);
+  }
 
   // ── Section 2: ที่อยู่ + เอกสารสิทธิ์ ──
-  const addrBlock = isBadAddr(p)
-    ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>' + (dispAddr ? '<div style="font-size:11px;color:#64748b;margin-top:4px">ปัจจุบัน: ' + esc(dispAddr) + '</div>' : '')
-    : esc(dispAddr);
-  const sec2Address = _pdSection('ที่อยู่ + เอกสารสิทธิ์', '📍',
-    _pdRow('จังหวัด', esc(p.addr_province || p.province)) +
-    _pdRow('อำเภอ/เขต', esc(p.addr_district)) +
-    _pdRow('ตำบล/แขวง', esc(p.addr_subdistrict)) +
-    _pdRow('รหัสไปรษณีย์', esc(p.addr_zip)) +
-    _pdRowFull('ที่อยู่เต็ม', addrBlock) +
-    _pdRow('เนื้อที่', esc(p.area)) +
-    _pdRowFull('เลขโฉนด', esc(p.titleDeed))
-  );
+  let sec2Address;
+  if(editMode === 'address'){
+    const safeV = s => (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const ap = parseAddrParts ? parseAddrParts(p.address || dispAddr || '') : {addrLine:'',subDistrict:'',district:'',province:'',zip:''};
+    const province = p.addr_province || p.province || ap.province || '';
+    const district = p.addr_district || ap.district || '';
+    const subDistrict = p.addr_subdistrict || ap.subDistrict || '';
+    const zip = p.addr_zip || ap.zip || '';
+    const addrLine = p.addr_line || ap.addrLine || '';
+    const editBody =
+      `<datalist id="dl_pv_pd">${(typeof TH_PROVINCES!=='undefined'?TH_PROVINCES:[]).map(t=>'<option value="'+esc(t)+'">').join('')}</datalist>
+      <datalist id="dl_dt_pd"></datalist>
+      <datalist id="dl_sd_pd"></datalist>` +
+      _pdRowEdit('จังหวัด', `<input type="text" name="province" value="${safeV(province)}" aria-autocomplete="list" list="dl_pv_pd" class="${inpCls}">`) +
+      _pdRowEdit('อำเภอ/เขต', `<input type="text" name="district" value="${safeV(district)}" aria-autocomplete="list" list="dl_dt_pd" class="${inpCls}">`) +
+      _pdRowEdit('ตำบล/แขวง', `<input type="text" name="subDistrict" value="${safeV(subDistrict)}" aria-autocomplete="list" list="dl_sd_pd" class="${inpCls}">`) +
+      _pdRowEdit('รหัสไปรษณีย์', `<input type="text" name="zip" value="${safeV(zip)}" maxlength="5" class="${inpCls}" placeholder="auto-fill จากตำบล">`) +
+      _pdRowEdit('เลขที่/หมู่/ถนน', `<input type="text" id="pdEdit_addrLine" value="${safeV(addrLine)}" class="${inpCls}" placeholder="เช่น 99/1 หมู่ 5 ถ.เพชรเกษม">`, true) +
+      _pdRowEdit('เนื้อที่', `<input type="text" id="pdEdit_area" value="${safeV(p.area)}" class="${inpCls}" placeholder="เช่น 2 ไร่ 1 งาน 50 ตร.วา">`) +
+      _pdRowEdit('เลขโฉนด', `<input type="text" id="pdEdit_titleDeed" value="${safeV(p.titleDeed)}" class="${inpCls}">`) +
+      `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0;margin-top:6px">
+        <button onclick="pdCancelEdit(${pid})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button onclick="pdSaveAddress(${pid})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+      </div>`;
+    sec2Address = `<div id="pdAddrEditWrap">` + _pdSection('ที่อยู่ + เอกสารสิทธิ์ (กำลังแก้ไข)', '✏️', editBody) + `</div>`;
+  } else {
+    const addrBlock = isBadAddr(p)
+      ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>' + (dispAddr ? '<div style="font-size:11px;color:#64748b;margin-top:4px">ปัจจุบัน: ' + esc(dispAddr) + '</div>' : '')
+      : esc(dispAddr);
+    const editAddrBtn = `<button onclick="pdEditSection(${pid},'address')" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'"><svg style="width:11px;height:11px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>แก้ไข</button>`;
+    sec2Address = _pdSection('ที่อยู่ + เอกสารสิทธิ์', '📍',
+      _pdRow('จังหวัด', esc(p.addr_province || p.province)) +
+      _pdRow('อำเภอ/เขต', esc(p.addr_district)) +
+      _pdRow('ตำบล/แขวง', esc(p.addr_subdistrict)) +
+      _pdRow('รหัสไปรษณีย์', esc(p.addr_zip)) +
+      _pdRowFull('ที่อยู่เต็ม', addrBlock) +
+      _pdRow('เนื้อที่', esc(p.area)) +
+      _pdRowFull('เลขโฉนด', esc(p.titleDeed))
+    , editAddrBtn);
+  }
 
   $('mbody').innerHTML = `
     <div style="font-family:Sarabun">
@@ -9797,7 +9859,103 @@ function openPropertyDetail(pid) {
     </div>
   `;
   $('modal').classList.remove('hidden');
-  setTimeout(()=>enhanceDatalistInputs($('mbody')),50);
+  setTimeout(()=>{
+    enhanceDatalistInputs($('mbody'));
+    // ถ้าอยู่ใน edit mode ของ address → bind cascade auto-fill
+    if(window._pdEditMode === 'address' && typeof bindThaiAddrAutoFill === 'function'){
+      // Override the global dl_pv/dl_dt/dl_sd ids inside #pdAddrEditWrap by aliasing:
+      // bindThaiAddrAutoFill ใช้ querySelector('[name="province"]') ใน formSelector — ทำงานได้ปกติ
+      // แต่ datalist ids ของเราเป็น dl_pv_pd ฯลฯ — ต้อง bridge เพราะ updateAddrDatalists ใช้ #dl_sd / #dl_dt
+      // วิธีง่าย: copy sd_pd → sd, dt_pd → dt ก่อน bind
+      const root = document.getElementById('pdAddrEditWrap');
+      if(root){
+        const sdPd = root.querySelector('#dl_sd_pd');
+        const dtPd = root.querySelector('#dl_dt_pd');
+        if(sdPd) sdPd.id = 'dl_sd';
+        if(dtPd) dtPd.id = 'dl_dt';
+        // เปลี่ยน list attribute ของ inputs ให้ตรงกัน
+        const dtInp = root.querySelector('[name="district"]');
+        const sdInp = root.querySelector('[name="subDistrict"]');
+        if(dtInp) dtInp.setAttribute('list','dl_dt');
+        if(sdInp) sdInp.setAttribute('list','dl_sd');
+        bindThaiAddrAutoFill('#pdAddrEditWrap');
+      }
+    }
+    // Focus first input ใน edit mode
+    if(window._pdEditMode){
+      const firstInput = $('mbody').querySelector('[id^="pdEdit_"]') || $('mbody').querySelector('input[type="text"]');
+      if(firstInput) firstInput.focus();
+    }
+  },50);
+}
+
+// ── Inline edit helpers สำหรับ openPropertyDetail ──
+function pdEditSection(pid, mode){
+  window._pdEditMode = mode;
+  openPropertyDetail(pid);
+  // Reset dirty หลัง initial render — กันเคสที่ render input ค่าเริ่มต้นแล้ว fire input event
+  setTimeout(()=>{ _modalDirty = false; }, 200);
+}
+function pdCancelEdit(pid){
+  window._pdEditMode = null;
+  _modalDirty = false;
+  openPropertyDetail(pid);
+}
+function pdSaveGeneral(pid){
+  const p = DB.properties.find(x => x.pid === pid);
+  if(!p) return;
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  const newName = get('pdEdit_name');
+  if(!newName){ toast('กรุณากรอกชื่อทรัพย์สิน','error'); return; }
+  p.name = newName;
+  p.type = get('pdEdit_type');
+  p.status = get('pdEdit_status');
+  p.location = get('pdEdit_location');
+  p.owner = get('pdEdit_owner');
+  const multi = document.getElementById('pdEdit_multi')?.checked;
+  if(multi) p.multiTenant = true; else delete p.multiTenant;
+  addActivityLog('edit_property','แก้ไขทรัพย์สิน '+p.name);
+  save();
+  window._pdEditMode = null;
+  _modalDirty = false;
+  toast('✓ บันทึกแล้ว','success');
+  openPropertyDetail(pid);
+}
+function pdSaveAddress(pid){
+  const p = DB.properties.find(x => x.pid === pid);
+  if(!p) return;
+  const root = document.getElementById('pdAddrEditWrap');
+  if(!root){ toast('ไม่พบฟอร์ม','error'); return; }
+  const get = name => (root.querySelector('[name="'+name+'"]')?.value || '').trim();
+  const getId = id => (document.getElementById(id)?.value || '').trim();
+  const province = get('province');
+  const district = get('district');
+  const subDistrict = get('subDistrict');
+  const zip = get('zip');
+  const addrLine = getId('pdEdit_addrLine');
+  // Save structured fields
+  p.addr_province = province;
+  p.addr_district = district;
+  p.addr_subdistrict = subDistrict;
+  p.addr_zip = zip;
+  p.addr_line = addrLine;
+  // Backward-compat: เขียน p.address เป็น formatted string (ถ้า field มีอยู่)
+  const isBKK = /กรุงเทพ/.test(province);
+  const parts = [];
+  if(addrLine) parts.push(addrLine);
+  if(subDistrict) parts.push(isBKK?'แขวง'+subDistrict:'ต.'+subDistrict);
+  if(district) parts.push(isBKK?'เขต'+district:'อ.'+district);
+  if(province) parts.push('จ.'+province);
+  if(zip) parts.push(zip);
+  p.address = parts.join(' ');
+  p.area = getId('pdEdit_area');
+  p.titleDeed = getId('pdEdit_titleDeed');
+  addActivityLog('edit_property','แก้ไขที่อยู่ทรัพย์สิน '+p.name);
+  save();
+  window._pdEditMode = null;
+  _modalDirty = false;
+  toast('✓ บันทึกที่อยู่แล้ว','success');
+  openPropertyDetail(pid);
 }
 
 function propAddImages(pid,files){
