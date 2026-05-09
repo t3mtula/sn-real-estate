@@ -9111,76 +9111,28 @@ const PROP_TYPES = [
 function openEditPropertyDialog(pid){
   const p = DB.properties.find(x => x.pid === +pid);
   if(!p){ toast('ไม่พบทรัพย์สิน','error'); return; }
-  const isMulti = !!p.multiTenant;
-  const safeV = v => (v==null?'':String(v).replace(/"/g,'&quot;'));
+  // UNIFY: ใช้ buildPropFormHTML เดียวกับ openAddPropertyDialog (mode = edit)
+  const types = [...new Set(DB.properties.map(x=>x.type).filter(Boolean))].sort();
+  const locs = [...new Set(DB.properties.map(x=>x.location).filter(Boolean))].sort();
   $('mtitle').textContent = '✏️ แก้ไข ' + p.name;
-  $('mbody').innerHTML = `
-    <form id="propEditForm" class="space-y-4">
-      <div>
-        <label style="font-size:12px;color:#64748b;font-weight:600">ชื่อทรัพย์สิน *</label>
-        <input type="text" name="name" value="${safeV(p.name)}" required class="w-full px-3 py-2 border rounded-lg text-sm">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label style="font-size:12px;color:#64748b;font-weight:600">ประเภท</label>
-          <select name="type" class="w-full px-3 py-2 border rounded-lg text-sm">
-            ${PROP_TYPES.map(t=>`<option value="${t.v}" ${p.type===t.v?'selected':''}>${t.l}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="font-size:12px;color:#64748b;font-weight:600">สถานะ</label>
-          <select name="status" class="w-full px-3 py-2 border rounded-lg text-sm">
-            <option value="occupied" ${p.status==='occupied'?'selected':''}>มีผู้เช่า</option>
-            <option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option>
-            <option value="active" ${(!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <label style="font-size:12px;color:#64748b;font-weight:600">สถานที่ (location สั้นๆ เช่น "ดาดฟ้า ราชเทวี")</label>
-        <input type="text" name="location" value="${safeV(p.location)}" class="w-full px-3 py-2 border rounded-lg text-sm">
-      </div>
-      <div>
-        <label style="font-size:12px;color:#64748b;font-weight:600">ที่อยู่ (address ละเอียด)</label>
-        <textarea name="address" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm">${safeV(p.address)}</textarea>
-        <div style="font-size:11px;color:#64748b;margin-top:2px">ถ้าเป็นที่ดินเปล่า ปล่อยว่างได้ ระบบจะใช้ "เลขโฉนด" เป็นที่อยู่อัตโนมัติ</div>
-      </div>
-      <div>
-        <label style="font-size:12px;color:#64748b;font-weight:600">เลขโฉนด / titleDeed</label>
-        <input type="text" name="titleDeed" value="${safeV(p.titleDeed)}" class="w-full px-3 py-2 border rounded-lg text-sm">
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label style="font-size:12px;color:#64748b;font-weight:600">พื้นที่</label>
-          <input type="text" name="area" value="${safeV(p.area)}" class="w-full px-3 py-2 border rounded-lg text-sm">
-        </div>
-        <div>
-          <label style="font-size:12px;color:#64748b;font-weight:600">เจ้าของ (owner)</label>
-          <input type="text" name="owner" value="${safeV(p.owner)}" class="w-full px-3 py-2 border rounded-lg text-sm">
-        </div>
-      </div>
-      <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-          <input type="checkbox" name="multiTenant" ${isMulti?'checked':''} style="margin-top:3px;width:16px;height:16px;accent-color:#10b981">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:#065f46">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</div>
-            <div style="font-size:11px;color:#047857;margin-top:3px">เช่น ดาดฟ้าใส่เสาสัญญาณหลายเจ้า, ที่ดินใหญ่แบ่งล็อต — ติ๊กแล้วระบบจะไม่เตือน "สัญญาซ้อน"</div>
-          </div>
-        </label>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid #e5e7eb">
-        <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm">ยกเลิก</button>
-        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">บันทึก</button>
-      </div>
-    </form>`;
-  document.getElementById('propEditForm').addEventListener('submit', e => {
+  $('mbody').innerHTML = buildPropFormHTML(p, types, locs);
+  $('propForm').addEventListener('submit', e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    p.name = (fd.get('name')||'').toString().trim() || p.name;
-    p.type = fd.get('type') || p.type;
+    const rawName = (fd.get('name')||'').toString().trim();
+    if(!rawName){ const eb=$('propFormErrors'); eb.innerHTML='กรุณาระบุชื่อทรัพย์สิน'; eb.classList.remove('hidden'); return; }
+    const zp=(fd.get('zip')||'').trim();
+    if(zp && !/^\d{5}$/.test(zp)){ const eb=$('propFormErrors'); eb.innerHTML='รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก'; eb.classList.remove('hidden'); return; }
+    const addr = assemblePropAddr(fd);
+    p.name = rawName;
+    p.type = (fd.get('type')||'').toString().trim() || p.type;
     p.status = fd.get('status') || p.status;
     p.location = (fd.get('location')||'').toString().trim();
-    p.address = (fd.get('address')||'').toString().trim();
+    p.address = addr;
+    // Update structured address fields
+    p.addr_subdistrict = (fd.get('subDistrict')||'').toString().trim();
+    p.addr_district = (fd.get('district')||'').toString().trim();
+    p.addr_province = (fd.get('province')||'').toString().trim();
     p.titleDeed = (fd.get('titleDeed')||'').toString().trim();
     p.area = (fd.get('area')||'').toString().trim();
     p.owner = (fd.get('owner')||'').toString().trim();
@@ -9191,6 +9143,10 @@ function openEditPropertyDialog(pid){
     toast('บันทึกข้อมูลทรัพย์สินแล้ว','success');
     if(typeof openPropertyDetail === 'function') openPropertyDetail(+pid);
   });
+  $('modal').classList.remove('hidden');
+  setTimeout(()=>enhanceDatalistInputs($('mbody')),50);
+  setTimeout(()=>bindThaiAddrAutoFill('#propForm'),100);
+  setTimeout(()=>{ _modalDirty=false; },150);
 }
 
 
@@ -9959,10 +9915,35 @@ function buildPropFormHTML(p, types, locs){
           <input type="text" name="type" value="${safeV(v('type'))}" aria-autocomplete="list" list="dl_ptypes" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น เสาสัญญาณ, ที่ดินเปล่า">
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">จังหวัด (สถานที่) <span class="text-red-400">*</span></label>
-          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น ราชบุรี, กรุงเทพฯ">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
+          <input type="text" name="owner" value="${safeV(v('owner'))}" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น บริษัท สมบัตินภา จำกัด">
         </div>
+        ${isEdit ? `
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานะ</label>
+          <select name="status" class="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="active" ${(!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
+            <option value="occupied" ${p.status==='occupied'?'selected':''}>มีผู้เช่า</option>
+            <option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">ป้ายกำกับ (location label)</label>
+          <input type="text" name="location" value="${safeV(v('location'))}" aria-autocomplete="list" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น ดาดฟ้า ราชเทวี (ใส่ก็ได้ ไม่ใส่ก็ได้)">
+        </div>` : `
+        <input type="hidden" name="status" value="active">
+        <input type="hidden" name="location" value="">
+        `}
       </div>
+      ${isEdit ? `<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" name="multiTenant" ${p.multiTenant?'checked':''} style="margin-top:3px;width:16px;height:16px;accent-color:#10b981">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#065f46">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</div>
+            <div style="font-size:11px;color:#047857;margin-top:3px">เช่น ดาดฟ้าใส่เสาสัญญาณหลายเจ้า, ที่ดินใหญ่แบ่งล็อต — ติ๊กแล้วระบบจะไม่เตือน "สัญญาซ้อน"</div>
+          </div>
+        </label>
+      </div>` : ''}
       <div id="propFormErrors" class="hidden text-xs text-red-500 bg-red-50 border border-red-200 rounded-lg p-2"></div>
       <div class="flex gap-3 pt-2">
         <button type="submit" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">${isEdit?'บันทึก':'เพิ่มทรัพย์สิน'}</button>
@@ -10011,11 +9992,12 @@ function openAddPropertyDialog() {
     const rawName = fd.get('name').trim();
     const addr = assemblePropAddr(fd);
     const deed = (fd.get('titleDeed')||'').trim();
+    const province = (fd.get('province')||'').trim();
     // validation
     const errs=[];
     if(!rawName) errs.push('กรุณาระบุชื่อทรัพย์สิน');
     if(!(fd.get('type')||'').trim()) errs.push('กรุณาระบุประเภท');
-    if(!(fd.get('location')||'').trim()) errs.push('กรุณาระบุจังหวัด (สถานที่)');
+    if(!province) errs.push('กรุณาระบุจังหวัด');
     const zp=(fd.get('zip')||'').trim();
     if(zp && !/^\d{5}$/.test(zp)) errs.push('รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก');
     if(errs.length){
@@ -10024,11 +10006,16 @@ function openAddPropertyDialog() {
     }
     const name = autoEnrichPropName(rawName, addr, deed);
     const dup = DB.properties.find(p => p.name.toLowerCase() === name.toLowerCase());
-    if (dup && !confirm('ทรัพย์สินชื่อ "' + dup.name + '" มีอยู่แล้ว (' + dup.location + ')\nต้องการเพิ่มซ้ำหรือไม่?')) return;
+    if (dup && !confirm('ทรัพย์สินชื่อ "' + dup.name + '" มีอยู่แล้ว (' + (dup.addr_province||dup.location||'') + ')\nต้องการเพิ่มซ้ำหรือไม่?')) return;
     const pid = Math.max(...DB.properties.map(p => p.pid), 0) + 1;
     DB.properties.push({
       pid, name, address: addr, area: fd.get('area'),
-      titleDeed: deed, type: fd.get('type'), location: fd.get('location')
+      titleDeed: deed, type: fd.get('type'),
+      location: (fd.get('location')||'').trim(),
+      addr_subdistrict: (fd.get('subDistrict')||'').trim(),
+      addr_district: (fd.get('district')||'').trim(),
+      addr_province: province,
+      status: 'active'
     });
     addActivityLog('add_property','เพิ่มทรัพย์สิน '+name);
     save(); closeModal(true); toast('เพิ่มทรัพย์สินแล้ว'); renderProperties();
