@@ -9907,7 +9907,18 @@ function assembleAddrFromPrefix(fd, prefix){
 function buildPropFormHTML(p, types, locs){
   const isEdit=!!p;
   const v=k=>p?(p[k]||''):'';
-  const ap=parseAddrParts(v('address'));
+  // อ่านที่อยู่: structured fields ก่อน → fallback parse address text → fallback parse titleDeed
+  // (ตอน import เก่าใส่ addr_subdistrict/district/province ไว้ครบส่วนใหญ่
+  //  แต่ field 'address' บางทีเป็นแค่ description ไม่มี ต./อ./จ. → parseAddrParts ได้ว่าง)
+  const _apFromAddr = parseAddrParts(v('address'));
+  const _apFromDeed = parseAddrParts(v('titleDeed'));
+  const ap = {
+    addrLine: _apFromAddr.addrLine || '',
+    subDistrict: v('addr_subdistrict') || _apFromAddr.subDistrict || _apFromDeed.subDistrict || '',
+    district: v('addr_district') || _apFromAddr.district || _apFromDeed.district || '',
+    province: v('addr_province') || v('province') || _apFromAddr.province || _apFromDeed.province || '',
+    zip: v('addr_zip') || _apFromAddr.zip || _apFromDeed.zip || ''
+  };
   const safeV=s=>(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   // สร้าง datalist สำหรับตำบล อำเภอ จากข้อมูลที่มี
   const allAddr=DB.properties.map(x=>x.address).filter(Boolean);
