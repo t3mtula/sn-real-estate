@@ -6092,6 +6092,7 @@ function closeModal(force){
   // Reset inline-edit state ของ property detail (กัน edit mode ค้างเมื่อเปิด property อื่น)
   if(typeof window !== 'undefined'){
     window._pdEditMode = null;
+    window._invEditMode = null;
     // Note: _staffEditIdx ไม่ต้อง reset ที่นี่ — เพราะ staff edit อยู่ใน settings tab ไม่ใช่ modal
   }
   if(!force && _modalDirty){
@@ -14026,26 +14027,76 @@ function viewInvoiceDetail(invId){
   const isPaid=inv.status==='paid';
   const isPartial=inv.status==='partial';
   const isVoided=inv.status==='voided';
+  const isHeaderEdit = window._invEditMode === 'header';
   $('mtitle').textContent='ใบแจ้งหนี้ '+inv.invoiceNo;
   const pmts=inv.payments||[];
+
+  // Build summary card — display vs edit mode
+  let summaryCard;
+  if(isHeaderEdit){
+    const safeV = v => (v||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const headers = DB.invoiceHeaders || [];
+    summaryCard = `<div style="background:#f0f9ff;border:1px solid #6366f1;border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(99,102,241,.12)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:14px">✏️</span>
+        <span style="font-size:12px;font-weight:700;color:#4338ca">กำลังแก้ไขข้อมูลหัวบิล</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">เลขที่ใบแจ้งหนี้</label>
+          <input type="text" id="invEdit_invoiceNo" value="${safeV(inv.invoiceNo)}" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:Sarabun">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">สถานะ</label>
+          <select id="invEdit_status" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
+            <option value="draft" ${inv.status==='draft'?'selected':''}>แบบร่าง</option>
+            <option value="sent" ${inv.status==='sent'?'selected':''}>ส่งแล้ว / รอชำระ</option>
+            <option value="paid" ${inv.status==='paid'?'selected':''}>ชำระแล้ว</option>
+            <option value="partial" ${inv.status==='partial'?'selected':''}>ชำระบางส่วน</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">วันที่ออกใบ</label>
+          <input type="text" id="invEdit_date" value="${safeV(inv.date)}" placeholder="DD/MM/BBBB" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:Sarabun">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">วันครบกำหนด</label>
+          <input type="text" id="invEdit_dueDate" value="${safeV(inv.dueDate)}" placeholder="DD/MM/BBBB" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:Sarabun">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="font-size:10px;color:#64748b;font-weight:600;text-transform:uppercase">ผู้ให้เช่า (หัวบิล)</label>
+          <select id="invEdit_headerId" style="margin-top:3px;width:100%;padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
+            ${headers.map(h=>'<option value="'+h.id+'" '+(inv.headerId===h.id?'selected':'')+'>'+esc(h.companyName||h.name)+'</option>').join('')}
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:flex-end;padding-top:10px;border-top:1px solid #e2e8f0">
+        <button onclick="invCancelEdit(${inv.id})" style="padding:6px 14px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+        <button onclick="invSaveHeader(${inv.id})" style="padding:6px 16px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+      </div>
+    </div>`;
+  } else {
+    const editHeaderBtn = !isVoided ? `<button onclick="invEditHeader(${inv.id})" style="font-size:10px;color:#6366f1;font-weight:600;cursor:pointer;padding:3px 10px;border-radius:6px;background:#eef2ff;border:none;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">✏️ แก้ไขหัวบิล</button>` : '';
+    summaryCard = `<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px">${editHeaderBtn}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">เลขที่ใบแจ้งหนี้</span><div style="font-size:15px;font-weight:700;color:#1e293b;margin-top:3px">${esc(inv.invoiceNo)||'-'}</div></div>
+        <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">สถานะ</span><div style="margin-top:3px"><span style="font-size:11px;font-weight:700;color:${stC};background:${stC}18;padding:3px 10px;border-radius:99px">${stLabel}</span></div></div>
+        <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">ทรัพย์สิน</span><div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:3px">${esc(inv.property)||'-'}</div></div>
+        <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">ผู้เช่า</span><div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:3px">${esc(inv.tenant)||'-'}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding-top:10px;border-top:1px solid #e5e7eb">
+        <div><span style="font-size:10px;color:#64748b;font-weight:600">ยอดรวมใบแจ้งหนี้</span><div style="font-size:16px;font-weight:700;color:#1e293b;margin-top:3px">${fmtBaht(inv.total||0,{sym:0})} ฿</div></div>
+        <div><span style="font-size:10px;color:#059669;font-weight:600">ชำระแล้ว</span><div style="font-size:16px;font-weight:700;color:#059669;margin-top:3px">${fmtBaht(inv.paidAmount||0,{sym:0})} ฿</div></div>
+        <div><span style="font-size:10px;color:${((inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)))>0)?'#dc2626':'#64748b'};font-weight:600">ยังค้าง</span><div style="font-size:16px;font-weight:700;color:${((inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)))>0)?'#dc2626':'#64748b'};margin-top:3px">${fmtBaht(inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)),{sym:0})} ฿</div></div>
+      </div>
+      ${inv.receiptNo?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:11px;color:#059669;font-weight:600">🧾 เลขที่ใบเสร็จ: '+esc(inv.receiptNo)+'</div>':''}
+      ${daysOver>0&&!isPaid?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:11px;color:#dc2626;font-weight:700">⚠️ เลยกำหนดชำระ ${daysOver} วัน (กำหนด: ${esc(inv.dueDate)||'-'})</div>`:''}
+    </div>`;
+  }
   $('mbody').innerHTML=`
     <div>
-      <!-- Summary card -->
-      <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:12px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-          <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">เลขที่ใบแจ้งหนี้</span><div style="font-size:15px;font-weight:700;color:#1e293b;margin-top:3px">${esc(inv.invoiceNo)||'-'}</div></div>
-          <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">สถานะ</span><div style="margin-top:3px"><span style="font-size:11px;font-weight:700;color:${stC};background:${stC}18;padding:3px 10px;border-radius:99px">${stLabel}</span></div></div>
-          <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">ทรัพย์สิน</span><div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:3px">${esc(inv.property)||'-'}</div></div>
-          <div><span style="font-size:10px;color:#64748b;text-transform:uppercase;font-weight:600">ผู้เช่า</span><div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:3px">${esc(inv.tenant)||'-'}</div></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding-top:10px;border-top:1px solid #e5e7eb">
-          <div><span style="font-size:10px;color:#64748b;font-weight:600">ยอดรวมใบแจ้งหนี้</span><div style="font-size:16px;font-weight:700;color:#1e293b;margin-top:3px">${fmtBaht(inv.total||0,{sym:0})} ฿</div></div>
-          <div><span style="font-size:10px;color:#059669;font-weight:600">ชำระแล้ว</span><div style="font-size:16px;font-weight:700;color:#059669;margin-top:3px">${fmtBaht(inv.paidAmount||0,{sym:0})} ฿</div></div>
-          <div><span style="font-size:10px;color:${((inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)))>0)?'#dc2626':'#64748b'};font-weight:600">ยังค้าง</span><div style="font-size:16px;font-weight:700;color:${((inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)))>0)?'#dc2626':'#64748b'};margin-top:3px">${fmtBaht(inv.remainingAmount!=null?inv.remainingAmount:Math.max(0,(inv.total||0)-(inv.paidAmount||0)),{sym:0})} ฿</div></div>
-        </div>
-        ${inv.receiptNo?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:11px;color:#059669;font-weight:600">🧾 เลขที่ใบเสร็จ: '+esc(inv.receiptNo)+'</div>':''}
-        ${daysOver>0&&!isPaid?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;font-size:11px;color:#dc2626;font-weight:700">⚠️ เลยกำหนดชำระ ${daysOver} วัน (กำหนด: ${esc(inv.dueDate)||'-'})</div>`:''}
-      </div>
+      ${summaryCard}
 
       <!-- Payment history -->
       ${pmts.length>0?`<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:12px">
@@ -14076,7 +14127,7 @@ function viewInvoiceDetail(invId){
       <!-- Actions -->
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button onclick="printInvoice(${inv.id})" style="padding:9px 14px;background:#eef2ff;color:#4338ca;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ใบแจ้งหนี้</button>
-        ${!isVoided?'<button onclick="closeModal();openInvoiceForm('+inv.id+')" style="padding:9px 14px;background:#fef3c7;color:#92400e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">✏️ แก้ไข</button>':''}
+        ${!isVoided?'<button onclick="openInvoiceForm('+inv.id+')" style="padding:9px 14px;background:#fef3c7;color:#92400e;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" title="แก้ไขรายการ (items list)">✏️ แก้รายการ</button>':''}
         ${(isPaid||isPartial)&&inv.slipImage?'<button onclick="viewSlipImage('+inv.id+')" style="padding:9px 14px;background:#dbeafe;color:#1e40af;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">🖼️ ดู slip</button>':''}
         ${!isPaid&&!isVoided?'<button onclick="closeModal();openReceivePaymentModal('+inv.id+')" style="padding:9px 18px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Sarabun">💰 '+(isPartial?'รับเงินเพิ่ม':'บันทึกรับเงิน')+'</button>':''}
         ${isPaid?'<button onclick="printReceipt('+inv.id+')" style="padding:9px 14px;background:#dcfce7;color:#15803d;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">🧾 พิมพ์ใบเสร็จ</button>':''}
@@ -14087,6 +14138,49 @@ function viewInvoiceDetail(invId){
     </div>
   `;
   $('modal').classList.remove('hidden');
+}
+
+// ── Inline edit helpers สำหรับ viewInvoiceDetail (summary card) ──
+function invEditHeader(invId){
+  window._invEditMode = 'header';
+  viewInvoiceDetail(invId);
+  setTimeout(()=>{
+    const inp = document.getElementById('invEdit_invoiceNo');
+    if(inp) inp.focus();
+    _modalDirty = false;
+  }, 50);
+}
+function invCancelEdit(invId){
+  window._invEditMode = null;
+  _modalDirty = false;
+  viewInvoiceDetail(invId);
+}
+function invSaveHeader(invId){
+  const inv = DB.invoices.find(x=>x.id===invId);
+  if(!inv) return;
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  const newNo = get('invEdit_invoiceNo');
+  const newStatus = get('invEdit_status');
+  const newDate = get('invEdit_date');
+  const newDueDate = get('invEdit_dueDate');
+  const newHeaderId = parseInt(get('invEdit_headerId')) || null;
+  if(!newNo){ toast('กรุณากรอกเลขที่ใบแจ้งหนี้','error'); return; }
+  // Validation วันที่ถ้ากรอก
+  if(newDate && !parseBE(newDate)){ toast('วันที่ออกใบไม่ถูกต้อง (DD/MM/BBBB)','error'); return; }
+  if(newDueDate && !parseBE(newDueDate)){ toast('วันครบกำหนดไม่ถูกต้อง (DD/MM/BBBB)','error'); return; }
+  // Audit snapshot ก่อนบันทึก
+  const snapshot = {invoiceNo:inv.invoiceNo, status:inv.status, date:inv.date, dueDate:inv.dueDate, headerId:inv.headerId};
+  inv.invoiceNo = newNo;
+  inv.status = newStatus;
+  inv.date = newDate;
+  inv.dueDate = newDueDate;
+  inv.headerId = newHeaderId;
+  if(typeof addInvoiceAudit === 'function') addInvoiceAudit(invId, 'edited', 'แก้ไขข้อมูลหัวบิล (inline)', snapshot);
+  window._invEditMode = null;
+  _modalDirty = false;
+  save();
+  toast('✓ บันทึกแล้ว','success');
+  viewInvoiceDetail(invId);
 }
 
 function viewInvoiceAudit(invId){
