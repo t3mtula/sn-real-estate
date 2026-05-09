@@ -12098,6 +12098,40 @@ function openPrintOverlay(contracts,title,rawHTML){
   document.getElementById('printOverlay').style.display='block';
   const frame=document.getElementById('printFrame');
   frame.srcdoc=html;
+  // หลัง iframe โหลดเสร็จ → วาดเส้นแบ่งหน้าให้ preview ตรงกับ print จริง
+  frame.onload = () => {
+    try { showPageBreakIndicators(frame.contentDocument); } catch(e) { /* iframe ยังไม่พร้อม */ }
+  };
+}
+
+// วาดเส้น dashed สีแดง + label "✂️ ตัดหน้า N" ที่ทุก 297mm ใน .page ที่ยาวเกิน
+// → preview แสดงตำแหน่งที่ browser จะ paginate ตอน print จริง
+function showPageBreakIndicators(doc){
+  if(!doc) return;
+  // A4 height = 297mm. 1mm ≈ 3.7795px ที่ 96dpi (default screen)
+  const A4_PX = 297 * 3.7795;
+  doc.querySelectorAll('.page').forEach(page => {
+    const h = page.offsetHeight;
+    if(h <= A4_PX + 5) return; // เผื่อ rounding
+    const breaks = Math.floor(h / A4_PX);
+    page.style.position = page.style.position || 'relative';
+    for(let i = 1; i <= breaks; i++){
+      const y = i * A4_PX;
+      const line = doc.createElement('div');
+      line.className = 'page-break-indicator';
+      line.style.cssText = 'position:absolute;left:-20mm;right:-20mm;top:'+y+'px;height:0;border-top:2px dashed #ef4444;z-index:50;pointer-events:none';
+      const label = doc.createElement('div');
+      label.className = 'page-break-indicator';
+      label.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:'+(y-11)+'px;background:#ef4444;color:#fff;padding:2px 12px;border-radius:99px;font-size:10px;font-weight:700;z-index:51;font-family:Sarabun;white-space:nowrap;box-shadow:0 2px 6px rgba(239,68,68,.4)';
+      label.textContent = '✂️ ตัดหน้า ' + (i+1) + ' ตอน print';
+      page.appendChild(line);
+      page.appendChild(label);
+    }
+  });
+  // ตอน print → ซ่อน indicators (browser paginate เอง)
+  const style = doc.createElement('style');
+  style.textContent = '@media print { .page-break-indicator { display: none !important; } }';
+  doc.head.appendChild(style);
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
