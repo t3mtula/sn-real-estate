@@ -6773,17 +6773,15 @@ function renderSettingsCompany(){
   return html;
 }
 
-// ── Tab-aware wrappers (open modal from settings tab without breaking re-render flow) ──
+// ── Tab-aware wrappers (callbacks ที่ไม่ต้องเปิด modal list) ──
+// เรียก editInvoiceHeader ตรง ๆ — ฟังก์ชันนั้นเปิด modal เองได้
 function editInvoiceHeaderFromTab(headerId){
-  // Open modal popup เพื่อแก้ไข — เมื่อปิดจะกลับไปที่ settings tab อยู่แล้ว
-  openInvoiceHeaderSettings();
-  setTimeout(()=>editInvoiceHeader(headerId),60);
+  editInvoiceHeader(headerId);
 }
 function setDefaultInvoiceHeaderFromTab(headerId){
   DB.defaultInvHeader=headerId;
   save();
   toast('ตั้งเป็นค่าเริ่มต้นแล้ว');
-  // Re-render settings page (อยู่ใน tab) — ไม่ต้องเปิด modal
   if(typeof renderSettingsPage==='function') renderSettingsPage();
 }
 function deleteInvoiceHeaderFromTab(headerId){
@@ -15602,7 +15600,7 @@ function buildInvoiceHeaderFormHTML(h){
     `)}
 
     <div style="display:flex;gap:8px;margin-top:8px;position:sticky;bottom:0;background:#fff;padding-top:10px">
-      <button type="button" onclick="${isEdit?'openInvoiceHeaderSettings()':'closeModal()'}" style="flex:1;padding:11px;background:#f3f4f6;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">ยกเลิก</button>
+      <button type="button" onclick="_modalDirty=false;closeModal(true)" style="flex:1;padding:11px;background:#f3f4f6;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">ยกเลิก</button>
       <button type="submit" style="flex:1;padding:11px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">${isEdit?'บันทึกการแก้ไข':'เพิ่มผู้ให้เช่า'}</button>
     </div>
   </form>`;
@@ -15610,9 +15608,13 @@ function buildInvoiceHeaderFormHTML(h){
 
 function addInvoiceHeader(){
   window._logoDataUrl=null;
-  $('mtitle').textContent='เพิ่มผู้ให้เช่า / บริษัท';
+  $('mtitle').textContent='+ เพิ่มผู้ให้เช่า / บริษัท';
   $('mbody').innerHTML=buildInvoiceHeaderFormHTML(null);
-  setTimeout(()=>bindThaiAddrAutoFill('#headerForm'),100);
+  document.getElementById('modal').classList.remove('hidden');
+  setTimeout(()=>{
+    _modalDirty = false;
+    bindThaiAddrAutoFill('#headerForm');
+  },100);
 }
 
 function uploadLogo(input){
@@ -15642,9 +15644,12 @@ function editInvoiceHeader(headerId){
   const h=DB.invoiceHeaders.find(x=>x.id===headerId);
   if(!h)return;
   window._logoDataUrl=null;
-  $('mtitle').textContent='✏️ แก้ไขผู้ให้เช่า / บริษัท';
+  $('mtitle').textContent='✏️ แก้ไข '+(h.companyName||h.name||'ผู้ให้เช่า');
   $('mbody').innerHTML=buildInvoiceHeaderFormHTML(h);
+  // เปิด modal เอง (กรณีถูกเรียกจาก tab settings โดยไม่ต้องผ่าน modal list)
+  document.getElementById('modal').classList.remove('hidden');
   setTimeout(()=>{
+    _modalDirty = false;  // reset เพื่อกัน "ยังไม่ได้บันทึก" ตอนปิด
     bindThaiAddrAutoFill('#headerForm');
     if(h.promptPayId)_ppPreview();
   },100);
@@ -15717,13 +15722,12 @@ function submitInvoiceHeaderForm(headerId){
     save();
     toast('เพิ่มผู้ให้เช่า/บริษัทแล้ว');
   }
-  // ถ้ามาจาก settings tab → ปิด modal + re-render tab. ถ้าไม่ใช่ → กลับ list ใน modal
+  // ปิด modal + re-render หน้าที่ user อยู่ (consistent กับ flow ของทรัพย์สิน)
   _modalDirty = false;
-  if(typeof settingsTab !== 'undefined' && settingsTab === 'company'){
-    closeModal(true);
-    if(typeof renderSettingsPage === 'function') renderSettingsPage();
-  } else {
-    openInvoiceHeaderSettings();
+  closeModal(true);
+  // ถ้าอยู่ใน settings tab → re-render tab. ถ้าอยู่ที่อื่น → ค่อยใหม่
+  if(typeof settingsTab !== 'undefined' && settingsTab === 'company' && typeof renderSettingsPage === 'function'){
+    renderSettingsPage();
   }
 }
 
@@ -15735,18 +15739,22 @@ function setDefaultInvoiceHeader(headerId){
   DB.defaultInvHeader=headerId;
   save();
   toast('ตั้งเป็นค่าเริ่มต้นแล้ว');
-  openInvoiceHeaderSettings();
+  // re-render context: ถ้า modal list เปิดอยู่ → refresh list, ถ้าอยู่ใน tab → re-render tab
+  const modalOpen = !document.getElementById('modal').classList.contains('hidden');
+  if(modalOpen) openInvoiceHeaderSettings();
+  else if(typeof renderSettingsPage === 'function' && typeof settingsTab !== 'undefined' && settingsTab === 'company') renderSettingsPage();
 }
 
 function deleteInvoiceHeader(headerId){
   if(!hasPermission('delete')){toast('คุณไม่มีสิทธิ์ลบส่วนหัว','error');return;}
   customConfirm('ลบส่วนหัว','ลบส่วนหัวนี้?',function(){
     if(!actionDeleteInvoiceHeader(headerId))return;
-    // Re-home default pointer if we deleted the default (action layer doesn't touch this pointer)
     if(DB.defaultInvHeader===headerId){DB.defaultInvHeader=DB.invoiceHeaders[0]?.id||null;save();}
     addActivityLog('delete_invoice_header','ลบส่วนหัวใบแจ้งหนี้');
     toast('ลบแล้ว');
-    openInvoiceHeaderSettings();
+    const modalOpen = !document.getElementById('modal').classList.contains('hidden');
+    if(modalOpen) openInvoiceHeaderSettings();
+    else if(typeof renderSettingsPage === 'function' && typeof settingsTab !== 'undefined' && settingsTab === 'company') renderSettingsPage();
   },{icon:'🗑️',yesLabel:'ลบ',yesColor:'#dc2626'});
 }
 
