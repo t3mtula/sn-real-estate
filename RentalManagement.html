@@ -20211,12 +20211,13 @@ function openCategoryManager(){
             cats.map(c => {
               const n = counts[c.name] || 0;
               const canDelete = n === 0;
+              // ใช้ data-name + addEventListener แทน inline onclick กัน quote escape break HTML
               return `<div style="padding:10px 14px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:1fr 80px 120px;gap:10px;align-items:center;font-size:13px">
                 <span style="font-weight:600;color:#1e293b">${esc(c.name)}</span>
                 <span style="text-align:center;color:${n>0?'#0891b2':'#94a3b8'};font-weight:600">${n}</span>
                 <div style="display:flex;gap:4px;justify-content:flex-end">
-                  <button onclick="(async()=>{const newN=prompt('แก้ชื่อหมวด:',${JSON.stringify(c.name)});if(newN){const ok=await renamePropertyCategory(${JSON.stringify(c.name)},newN.trim());if(ok)openCategoryManager();}})()" class="px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs hover:bg-amber-100" title="แก้ชื่อ">✏️</button>
-                  <button onclick="(async()=>{await deletePropertyCategory(${JSON.stringify(c.name)});openCategoryManager();})()" ${canDelete?'':'disabled'} class="px-2 py-1 ${canDelete?'bg-red-50 text-red-700 hover:bg-red-100':'bg-gray-100 text-gray-400 cursor-not-allowed'} rounded text-xs" title="${canDelete?'ลบหมวด':'ลบไม่ได้ — ยังมีทรัพย์ผูกอยู่ '+n+' รายการ ย้ายออกก่อน'}">🗑️ ลบ</button>
+                  <button data-cat-rename="${esc(c.name)}" class="px-2 py-1 bg-amber-50 text-amber-700 rounded text-xs hover:bg-amber-100" title="แก้ชื่อ">✏️</button>
+                  <button data-cat-delete="${esc(c.name)}" ${canDelete?'':'disabled'} class="px-2 py-1 ${canDelete?'bg-red-50 text-red-700 hover:bg-red-100':'bg-gray-100 text-gray-400 cursor-not-allowed'} rounded text-xs" title="${canDelete?'ลบหมวด':'ลบไม่ได้ — ยังมีทรัพย์ผูกอยู่ '+n+' รายการ ย้ายออกก่อน'}">🗑️ ลบ</button>
                 </div>
               </div>`;
             }).join('')
@@ -20235,6 +20236,23 @@ function openCategoryManager(){
   };
   $('mbody').innerHTML = renderBody();
   $('modal').classList.remove('hidden');
+  // bind delete + rename buttons (ใช้ data-attr แทน inline onclick กัน quote break)
+  $('mbody').querySelectorAll('[data-cat-delete]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.getAttribute('data-cat-delete');
+      await deletePropertyCategory(name);
+      openCategoryManager();
+    });
+  });
+  $('mbody').querySelectorAll('[data-cat-rename]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const name = btn.getAttribute('data-cat-rename');
+      const newN = prompt('แก้ชื่อหมวด:', name);
+      if(!newN) return;
+      const ok = await renamePropertyCategory(name, newN.trim());
+      if(ok) openCategoryManager();
+    });
+  });
   setTimeout(()=>{ const i=document.getElementById('catManagerNewName'); if(i)i.focus(); }, 100);
 }
 
