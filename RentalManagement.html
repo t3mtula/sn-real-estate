@@ -8142,8 +8142,10 @@ function renderProperties(){
   const groupByLoc = propSort.key === 'name';
   if (groupByLoc) {
     filtered.forEach(p => {
-      if (!grouped[p.location]) grouped[p.location] = [];
-      grouped[p.location].push(p);
+      // Group ตาม "จังหวัด" จริง (addr_province) ไม่ใช่ location label สั้น ๆ
+      const prov = p.addr_province || p.province || extractProvince(p.location||p.address) || 'ไม่ระบุจังหวัด';
+      if (!grouped[prov]) grouped[prov] = [];
+      grouped[prov].push(p);
     });
   } else {
     grouped['__all__'] = filtered;
@@ -8357,7 +8359,7 @@ function renderPropContracts(p, info) {
       </div>
       <div>
         <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">จังหวัด</div>
-        <div style="color:#334155">${esc(p.location)||'-'}</div>
+        <div style="color:#334155">${esc(p.addr_province||p.province||extractProvince(p.location||p.address))||'-'}</div>
       </div>
     </div>
     <div style="display:flex;gap:20px;align-items:end">
