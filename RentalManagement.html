@@ -8045,8 +8045,9 @@ function propInfo(p) {
 
 function renderProperties(){
   const ps = DB.properties;
-  const locs = [...new Set(ps.map(p => p.location).filter(Boolean))].sort();
-  const provs = [...new Set(ps.map(p => p.addr_province||p.province||extractProvince(p.location||p.address)).filter(Boolean))].sort();
+  // Categories ดึงจาก DB.categories (ตาราง property_categories) — ไม่ใช่จาก p.location ที่อาจมี ค่ามั่ว
+  const locs = (DB.categories||[]).map(c => c.name).filter(Boolean).sort();
+  const provs = [...new Set(ps.map(p => p.addr_province||p.province||extractProvince(p.address)).filter(Boolean))].sort();
   const types = [...new Set(ps.map(p => p.type))].sort();
 
   let filtered = ps.map(p => ({ ...p, _info: propInfo(p) }));
@@ -9890,8 +9891,14 @@ function buildPropFormHTML(p, types, locs){
           <div id="propDupWarn" class="hidden mt-1 bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-700"></div>
         </div>
         <div>
-          <label class="text-xs font-medium text-gray-600 mb-1 block">สถานที่ / ป้ายกำกับ <span style="font-weight:400;color:#94a3b8">(หมวดหมู่ — พิมพ์ใหม่/เลือกซ้ำของเก่าได้)</span></label>
-          <input type="text" name="location" value="${safeV(v('location'))}" list="dl_plocs" class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder='เช่น "ดาดฟ้า ราชเทวี", "ที่ดินค่ายหลวง"' autocomplete="off">
+          <label class="text-xs font-medium text-gray-600 mb-1 block">หมวด (category) <span style="font-weight:400;color:#94a3b8">— ดูหลังบ้าน</span></label>
+          <div style="display:flex;gap:6px">
+            <select name="location" id="propCatSelect" class="flex-1 px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none">
+              <option value="">— ไม่ระบุหมวด —</option>
+              ${(DB.categories||[]).map(c => '<option value="'+esc(c.name)+'" '+(v('location')===c.name?'selected':'')+'>'+esc(c.name)+'</option>').join('')}
+            </select>
+            <button type="button" onclick="promptAddCategoryAndSelect('propCatSelect')" class="px-3 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-100 whitespace-nowrap" title="เพิ่มหมวดใหม่">+ เพิ่มหมวด</button>
+          </div>
         </div>
       </div>
 
@@ -19962,7 +19969,7 @@ async function loadFromSupabase() {
   if(!token) throw new Error('ไม่มี session — กรุณา login ใหม่');
 
   const [properties, contracts, invoices, depositLedger,
-         staffRows, invoiceHeaders, templates, inspections, config] = await Promise.all([
+         staffRows, invoiceHeaders, templates, inspections, config, categories] = await Promise.all([
     _fetchTable('properties',    token),
     _fetchTable('contracts',     token),
     _fetchTable('invoices',      token),
@@ -19971,7 +19978,8 @@ async function loadFromSupabase() {
     _fetchTable('invoice_headers',token),
     _fetchTable('re_templates',  token),
     _fetchTable('inspections',   token),
-    _fetchTable('re_config',     token)
+    _fetchTable('re_config',     token),
+    _fetchTable('property_categories', token).catch(()=>[]) // graceful: ตารางอาจยังไม่ถูก deploy ทุก env
   ]);
 
   DB.properties     = properties.map(r => r.data || {});
@@ -19982,6 +19990,7 @@ async function loadFromSupabase() {
   DB.templates      = templates.map(r => r.data || {});
   DB.inspections    = inspections.map(r => r.data || {});
   DB.staff          = staffRows.map(r => ({ ...(r.data||{}), name:r.name, role:r.role, email:r.email, id:r.id }));
+  DB.categories     = (categories||[]).map(r => ({ id:r.id, name:r.name, created_at:r.created_at })).sort((a,b)=>a.name.localeCompare(b.name,'th'));
 
   const cfg = {};
   config.forEach(c => { cfg[c.key] = c.value; });
@@ -19999,6 +20008,90 @@ async function loadFromSupabase() {
   DB.slipOk           = cfg.slipOk      || { branchId:'', apiKey:'', enabled:false };
   if(!DB.payments)    DB.payments    = {};
   if(!DB.activityLog) DB.activityLog = [];
+  if(!DB.categories)  DB.categories  = [];
+}
+
+// ── PROPERTY CATEGORIES — custom หมวดทรัพย์สิน ────────────────────────────
+async function addPropertyCategory(name){
+  name = (name||'').trim();
+  if(!name){ toast('กรุณาใส่ชื่อหมวด','warning'); return null; }
+  if(!DB.categories) DB.categories = [];
+  const dup = DB.categories.find(c => (c.name||'').trim().toLowerCase() === name.toLowerCase());
+  if(dup){ toast('หมวดนี้มีอยู่แล้ว','warning'); return dup; }
+  const token = await _getToken();
+  if(!token){ toast('ไม่มี session','error'); return null; }
+  try {
+    const r = await fetch(`${SUPA_REST}/property_categories`, {
+      method:'POST',
+      headers: { ..._authHeaders(token), 'Prefer':'return=representation' },
+      body: JSON.stringify({ name, created_by: (currentUser&&currentUser.name)||'' })
+    });
+    if(!r.ok){
+      const err = await r.text();
+      toast('เพิ่มหมวดไม่สำเร็จ: '+err.slice(0,80),'error');
+      return null;
+    }
+    const created = await r.json();
+    const row = Array.isArray(created) ? created[0] : created;
+    DB.categories.push({ id:row.id, name:row.name, created_at:row.created_at });
+    DB.categories.sort((a,b)=>a.name.localeCompare(b.name,'th'));
+    addActivityLog && addActivityLog('add_category','เพิ่มหมวดทรัพย์ใหม่: '+name);
+    toast('เพิ่มหมวด "'+name+'" สำเร็จ','success');
+    return row;
+  } catch(e){
+    toast('เพิ่มหมวดผิดพลาด: '+e.message,'error');
+    return null;
+  }
+}
+
+async function deletePropertyCategory(name){
+  name = (name||'').trim();
+  if(!name) return;
+  // Check ว่ามีทรัพย์ใช้หมวดนี้อยู่มั้ย
+  const used = (DB.properties||[]).filter(p => (p.location||'').trim() === name);
+  if(used.length > 0){
+    customConfirm('ลบหมวดไม่ได้',
+      'ยังมี '+used.length+' ทรัพย์สินใช้หมวด "'+name+'" อยู่:\n\n'+
+      used.slice(0,5).map(p=>'• '+(p.name||'?')).join('\n')+
+      (used.length>5?'\n• ... อีก '+(used.length-5)+' รายการ':'')+
+      '\n\nย้ายทรัพย์เหล่านี้ออกจากหมวดก่อนค่อยลบ',
+      null, {icon:'⚠️', type:'alert'});
+    return;
+  }
+  const cat = (DB.categories||[]).find(c => c.name === name);
+  if(!cat){ toast('ไม่พบหมวด','error'); return; }
+  const token = await _getToken();
+  if(!token){ toast('ไม่มี session','error'); return; }
+  try {
+    const r = await fetch(`${SUPA_REST}/property_categories?id=eq.${cat.id}`, {
+      method:'DELETE',
+      headers: _authHeaders(token)
+    });
+    if(!r.ok){ toast('ลบหมวดไม่สำเร็จ','error'); return; }
+    DB.categories = DB.categories.filter(c => c.id !== cat.id);
+    addActivityLog && addActivityLog('delete_category','ลบหมวดทรัพย์: '+name);
+    toast('ลบหมวด "'+name+'" สำเร็จ','success');
+    if(typeof renderProperties === 'function') renderProperties();
+  } catch(e){
+    toast('ลบหมวดผิดพลาด: '+e.message,'error');
+  }
+}
+
+// Prompt UI: ถามชื่อหมวด → call addPropertyCategory → callback ใส่ค่าใน select target
+async function promptAddCategoryAndSelect(targetSelectId){
+  const name = prompt('ชื่อหมวดใหม่ (เช่น "ค่ายหลวง", "ดาดฟ้า ราชเทวี"):');
+  if(!name) return;
+  const created = await addPropertyCategory(name.trim());
+  if(created && targetSelectId){
+    const sel = document.getElementById(targetSelectId);
+    if(sel){
+      // Re-build options
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">— ไม่ระบุหมวด —</option>' +
+        DB.categories.map(c => '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>').join('');
+      sel.value = created.name;
+    }
+  }
 }
 
 // ── SAVE ──────────────────────────────────────────────────────────────────
