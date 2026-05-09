@@ -7522,7 +7522,7 @@ function renderDash(){
               <div style="width:3px;height:28px;border-radius:1px;background:${isVacant?'#ef4444':'#10b981'};flex-shrink:0;opacity:0.8"></div>
               <div style="min-width:0;flex:1">
                 <div class="font-medium text-gray-900" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div>
-                <div class="text-xs text-gray-400">${esc(p.type)} · ${pAct.length} สัญญา</div>
+                <div class="text-xs text-gray-400">${esc(propTypeLabel(p.type))} · ${pAct.length} สัญญา</div>
               </div>
               <div class="text-right flex-shrink-0">
                 <div class="text-sm font-bold" style="color:${selColor}">${pRev>0?fmtBaht(pRev,{sym:0}):'-'}</div>
@@ -8164,7 +8164,7 @@ function renderProperties(){
         <input id="pq" type="text" placeholder="ค้นหาทรัพย์สิน หรือ ชื่อผู้เช่า..." value="${esc(propFilter.q)}" class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm">
       </div>
       <select id="ptf" class="px-3 py-2 border rounded-lg text-sm bg-white">
-        <option value="all">ทุกประเภท</option>${types.map(t => `<option value="${esc(t)}" ${propFilter.type===t?'selected':''}>${esc(t)}</option>`).join('')}
+        <option value="all">ทุกประเภท</option>${types.map(t => `<option value="${esc(t)}" ${propFilter.type===t?'selected':''}>${esc(propTypeLabel(t))}</option>`).join('')}
       </select>
       <select id="plf" class="px-3 py-2 border rounded-lg text-sm bg-white">
         <option value="all">ทุกจังหวัด</option>${locs.map(l => `<option value="${esc(l)}" ${propFilter.loc===l?'selected':''}>${esc(l)}</option>`).join('')}
@@ -8228,7 +8228,7 @@ function renderProperties(){
           const tMax=Math.max(...tEntries.map(e=>e[1]),1);
           const tColors=['#6366f1','#f59e0b','#10b981','#ef4444','#06b6d4'];
           return tEntries.map(([t,n],i)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            <span style="font-size:10px;color:#475569;width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t)}</span>
+            <span style="font-size:10px;color:#475569;width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(propTypeLabel(t))}">${esc(propTypeLabel(t))}</span>
             <div style="flex:1;height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(n/tMax*100)}%;background:${tColors[i%5]};border-radius:3px"></div></div>
             <span style="font-size:10px;font-weight:700;color:${tColors[i%5]};min-width:16px;text-align:right">${n}</span>
           </div>`).join('');
@@ -8304,7 +8304,7 @@ function renderProperties(){
             ${isFirst ? `<svg style="width:12px;height:12px" class="text-gray-400 transition-transform ${expanded?'transform rotate-90':''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>` : '<span></span>'}
             <div style="min-width:0;overflow:hidden;display:flex;align-items:center;gap:5px">
               ${isFirst ? `<span style="font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">${esc(p.name)}</span>
-              ${p.type?'<span class="type-badge '+typeColor(p.type)+'" style="font-size:9px;padding:1px 4px;white-space:nowrap;flex-shrink:0">'+esc(p.type)+'</span>':''}
+              ${p.type?'<span class="type-badge '+typeColor(p.type)+'" style="font-size:9px;padding:1px 4px;white-space:nowrap;flex-shrink:0">'+esc(propTypeLabel(p.type))+'</span>':''}
               ${info.hasOverlap?'<span onclick="event.stopPropagation();showOverlapDetail('+p.pid+')" style="font-size:10px;color:#fff;background:#dc2626;padding:1px 6px;border-radius:99px;font-weight:700;flex-shrink:0;cursor:pointer" title="คลิกดูรายละเอียด">ซ้อน!</span>':''}
               ${isBadAddr(p)?'<span style="font-size:10px;color:#ef4444;flex-shrink:0">⚠</span>':''}
               ${_pDepBadge?'<span style="font-size:9px;color:#0891b2;background:#ecfeff;border:1px solid #a5f3fc;padding:1px 5px;border-radius:99px;font-weight:600;flex-shrink:0;white-space:nowrap">💰 ค้างประกัน</span>':''}` : '<span style="color:#cbd5e1;font-size:10px;margin-left:14px">↳</span>'}
@@ -8355,7 +8355,7 @@ function renderPropContracts(p, info) {
       </div>
       <div>
         <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">ประเภท</div>
-        <div style="color:#334155">${esc(p.type)||'-'}</div>
+        <div style="color:#334155">${esc(propTypeLabel(p.type))||'-'}</div>
       </div>
       <div>
         <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">จังหวัด</div>
@@ -9111,6 +9111,13 @@ const PROP_TYPES = [
   {v:'apartment', l:'อพาร์ตเมนต์ / ห้องเช่า'},
   {v:'other', l:'อื่นๆ'}
 ];
+// Helper: คืน label ภาษาไทย ของ property type code (เช่น 'vacant_land' → 'ที่ดินเปล่า')
+// ถ้า value ไม่ใช่ English code (เป็น Thai label อยู่แล้ว) → คืนเดิม
+function propTypeLabel(v){
+  if(!v) return '-';
+  const m = PROP_TYPES.find(t => t.v === v);
+  return m ? m.l : v;
+}
 
 function openEditPropertyDialog(pid){
   const p = DB.properties.find(x => x.pid === +pid);
@@ -9496,7 +9503,7 @@ function openPropertyDetail(pid) {
           <button onclick="openEditPropertyDialog(${pid})" class="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg font-medium hover:bg-indigo-100" title="แก้ไขข้อมูลทรัพย์สิน">✏️ แก้ไข</button>
         </div>
         <div class="grid grid-cols-2 gap-4 text-sm">
-          <div><span class="text-gray-500">ประเภท:</span><div class="font-medium">${esc(p.type)}${isMulti?' <span style="font-size:9px;color:#fff;background:#10b981;padding:1px 6px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน — ระบบจะไม่เตือนเรื่องสัญญาซ้อน">หลายผู้เช่า</span>':''}</div></div>
+          <div><span class="text-gray-500">ประเภท:</span><div class="font-medium">${esc(propTypeLabel(p.type))}${isMulti?' <span style="font-size:9px;color:#fff;background:#10b981;padding:1px 6px;border-radius:99px;font-weight:700;margin-left:4px" title="ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน — ระบบจะไม่เตือนเรื่องสัญญาซ้อน">หลายผู้เช่า</span>':''}</div></div>
           <div><span class="text-gray-500">สถานที่:</span><div class="font-medium">${esc(p.location)}</div></div>
           <div class="col-span-2"><span class="text-gray-500">ที่อยู่:</span>${isBadAddr(p)?'<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin-top:4px;font-size:12px;color:#dc2626;font-weight:600">⚠ ที่อยู่ไม่ถูกต้อง กรุณาแก้ไข</div>'+(dispAddr?'<div style="font-size:11px;color:#64748b;margin-top:2px">ปัจจุบัน: '+esc(dispAddr)+'</div>':''):'<div class="font-medium text-xs mt-1">'+esc(dispAddr)+'</div>'}</div>
           <div><span class="text-gray-500">พื้นที่:</span><div class="font-medium">${esc(p.area) || '-'}</div></div>
@@ -9916,7 +9923,10 @@ function buildPropFormHTML(p, types, locs){
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">ประเภท <span class="text-red-400">*</span></label>
-          <input type="text" name="type" value="${safeV(v('type'))}" aria-autocomplete="list" list="dl_ptypes" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none" placeholder="เช่น เสาสัญญาณ, ที่ดินเปล่า">
+          <select name="type" required class="w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none">
+            <option value="">— เลือกประเภท —</option>
+            ${PROP_TYPES.map(t => '<option value="'+t.v+'" '+(v('type')===t.v?'selected':'')+'>'+t.l+'</option>').join('')}
+          </select>
         </div>
         <div>
           <label class="text-xs font-medium text-gray-600 mb-1 block">เจ้าของ (owner)</label>
@@ -9982,7 +9992,7 @@ function openAddPropertyDialog() {
         sugBox.innerHTML = matches.slice(0, 8).map(p =>
           '<div class="px-3 py-2 hover:bg-gray-50 cursor-pointer border-b last:border-0 flex justify-between" onclick="$(\'propNameInput\').value=\'' + esc(p.name.replace(/'/g,"\\'")) + '\';$(\'propNameSuggest\').classList.add(\'hidden\');propCheckDup(\'' + esc(p.name.replace(/'/g,"\\'")) + '\')">' +
           '<span class="text-gray-900">' + esc(p.name) + '</span>' +
-          '<span class="text-xs text-gray-400">' + esc(p.location) + ' · ' + esc(p.type) + '</span></div>'
+          '<span class="text-xs text-gray-400">' + esc(p.location) + ' · ' + esc(propTypeLabel(p.type)) + '</span></div>'
         ).join('');
         sugBox.classList.remove('hidden');
       } else { sugBox.classList.add('hidden'); }
