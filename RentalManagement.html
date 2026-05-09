@@ -15382,116 +15382,192 @@ function openInvoiceHeaderSettings(){
     </div>`;
   }else{
     DB.invoiceHeaders.forEach((h,idx)=>{
-      html+=`<div style="border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px">
-        <div style="display:flex;justify-content:space-between;align-items:start">
-          <div style="flex:1">
-            <div style="font-weight:600;margin-bottom:4px">${esc(h.name)}</div>
-            <div style="font-size:11px;color:#64748b;margin-bottom:8px">${esc(h.companyName)}<br>${esc(h.address)}<br>Tel: ${esc(h.phone)} | Tax ID: ${esc(h.taxId)}</div>
-            ${h.logo?`<img src="${esc(h.logo)}" style="max-width:80px;max-height:60px;margin-bottom:8px">`:''}<br>
-            <button onclick="editInvoiceHeader(${h.id})" style="padding:4px 12px;background:#3b82f6;color:#fff;border:none;border-radius:4px;font-size:11px;cursor:pointer">แก้ไข</button>
-            <button onclick="setDefaultInvoiceHeader(${h.id})" style="padding:4px 12px;background:${DB.defaultInvHeader===h.id?'#10b981':'#f3f4f6'};color:${DB.defaultInvHeader===h.id?'#fff':'#475569'};border:none;border-radius:4px;font-size:11px;cursor:pointer;margin-left:4px">${DB.defaultInvHeader===h.id?'✓ ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button>
-            ${hasPermission('delete')?`<button onclick="deleteInvoiceHeader(${h.id})" style="padding:4px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;font-size:11px;cursor:pointer;margin-left:4px">ลบ</button>`:''}
+      const isDef=DB.defaultInvHeader===h.id;
+      html+=`<div onclick="editInvoiceHeader(${h.id})" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;background:#fff;transition:all .12s" onmouseover="this.style.borderColor='#6366f1';this.style.background='#fafbff'" onmouseout="this.style.borderColor='#e2e8f0';this.style.background='#fff'">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <div style="font-weight:700;font-size:13.5px;color:#1e293b">${esc(h.name)}</div>
+              ${isDef?'<span style="font-size:10px;font-weight:600;color:#fff;background:#10b981;padding:2px 8px;border-radius:10px">✓ ค่าเริ่มต้น</span>':''}
+            </div>
+            <div style="font-size:12px;color:#475569;margin-bottom:3px">${esc(h.companyName)}</div>
+            <div style="font-size:11px;color:#64748b;line-height:1.5">${esc(h.address||'-')}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:3px">Tel: ${esc(h.phone||'-')} · Tax ID: ${esc(h.taxId||'-')}</div>
           </div>
+          ${h.logo?`<img src="${esc(h.logo)}" style="max-width:64px;max-height:48px;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">`:''}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <button onclick="event.stopPropagation();editInvoiceHeader(${h.id})" style="padding:5px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">✏️ แก้ไข</button>
+          <button onclick="event.stopPropagation();setDefaultInvoiceHeader(${h.id})" style="padding:5px 12px;background:${isDef?'#10b981':'#f8fafc'};color:${isDef?'#fff':'#64748b'};border:1px solid ${isDef?'#10b981':'#e2e8f0'};border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">${isDef?'✓ ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button>
+          ${hasPermission('delete')?`<button onclick="event.stopPropagation();deleteInvoiceHeader(${h.id})" style="padding:5px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;margin-left:auto">🗑️ ลบ</button>`:''}
         </div>
       </div>`;
     });
   }
 
-  html+=`<div style="margin-top:16px"><button onclick="addInvoiceHeader()" style="padding:10px 20px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ เพิ่มผู้ให้เช่า/บริษัท</button></div></div>`;
+  html+=`<div style="margin-top:16px"><button onclick="addInvoiceHeader()" style="padding:10px 20px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;width:100%">+ เพิ่มผู้ให้เช่า/บริษัท</button></div></div>`;
 
   $('mbody').innerHTML=html;
   document.getElementById('modal').classList.remove('hidden');
 }
 
-function addInvoiceHeader(){
-  window._logoDataUrl=null;
-  $('mtitle').textContent='เพิ่มผู้ให้เช่า / บริษัท';
-  $('mbody').innerHTML=`<form id="headerForm" style="display:flex;flex-direction:column;gap:12px">
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อย่อ (สำหรับเลือก)</label>
-      <input type="text" id="hdrName" placeholder="เช่น สำนักงานหลัก, บจก.ABC" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+// ── Unified form HTML for add/edit invoice header ──
+// h = null  → add mode
+// h = object → edit mode (pre-filled values)
+function buildInvoiceHeaderFormHTML(h){
+  const isEdit = !!h;
+  const safeV = s => (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const ap = isEdit ? parseAddrParts(h.address||'') : { addrLine:'', subDistrict:'', district:'', province:'', zip:'' };
+  const vatMode = isEdit ? (h.vatMode || (h.vatRegistered ? 'inclusive' : 'none')) : 'none';
+  const vatRate = isEdit && h.vatRate != null ? h.vatRate : 7;
+  // Section card style — match contract view 4-section style
+  const _hsec = (icon, title, body) => `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:12px">
+    <div style="padding:9px 14px;background:linear-gradient(to bottom,#fafbff,#f1f5f9);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">${icon}</span>
+      <span style="font-size:12px;font-weight:700;color:#1e293b;letter-spacing:.3px">${title}</span>
     </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อผู้ให้เช่า / บริษัท</label>
-      <input type="text" id="hdrCompany" placeholder="บริษัท สมบัตินภา จำกัด" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ที่อยู่</label>
-      <textarea id="hdrAddress" placeholder="ที่อยู่..." style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun;height:60px"></textarea>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">เบอรโทร</label>
-        <input type="text" id="hdrPhone" placeholder="02-1234-5678" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+    <div style="padding:12px 14px">${body}</div>
+  </div>`;
+  const lbl = 'display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px';
+  const inp = 'w-full px-3 py-2 border rounded-lg text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
+
+  return `<form id="headerForm" style="max-height:70vh;overflow-y:auto;padding-right:4px" onsubmit="event.preventDefault();submitInvoiceHeaderForm(${isEdit?h.id:'null'})">
+    <!-- ═════ ข้อมูลทั่วไป ═════ -->
+    ${_hsec('🏢', 'ข้อมูลบริษัท / ผู้ให้เช่า', `
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label style="${lbl}">ชื่อย่อ (สำหรับเลือก) <span style="color:#dc2626">*</span></label>
+          <input type="text" name="name" id="hdrName" value="${isEdit?safeV(h.name):''}" required placeholder="สำนักงานหลัก / บจก.ABC" class="${inp}">
+        </div>
+        <div>
+          <label style="${lbl}">ชื่อบริษัทเต็ม <span style="color:#dc2626">*</span></label>
+          <input type="text" name="companyName" id="hdrCompany" value="${isEdit?safeV(h.companyName):''}" required placeholder="บริษัท สมบัตินภา จำกัด" class="${inp}">
+        </div>
+        <div>
+          <label style="${lbl}">เบอร์โทร</label>
+          <input type="text" name="phone" id="hdrPhone" value="${isEdit?safeV(h.phone):''}" placeholder="02-1234-5678" class="${inp}">
+        </div>
+        <div>
+          <label style="${lbl}">เลขประจำตัวผู้เสียภาษี</label>
+          <input type="text" name="taxId" id="hdrTaxId" value="${isEdit?safeV(h.taxId):''}" placeholder="0123456789012" class="${inp}">
+        </div>
       </div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">หมายเลขประจำตัวผู้เสียภาษี</label>
-        <input type="text" id="hdrTaxId" placeholder="0123456789012" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+    `)}
+
+    <!-- ═════ ที่อยู่ (cascade) ═════ -->
+    ${_hsec('📍', 'ที่อยู่', `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">เลือกจังหวัด → อำเภอ → ตำบล (รหัสไปรษณีย์ auto-fill)</div>
+        <datalist id="dl_pv">${TH_PROVINCES.map(t=>'<option value="'+esc(t)+'">').join('')}</datalist>
+        <datalist id="dl_dt"></datalist>
+        <datalist id="dl_sd"></datalist>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="${lbl}">จังหวัด <span style="color:#dc2626">*</span></label>
+            <input type="text" name="province" value="${safeV(ap.province)}" aria-autocomplete="list" list="dl_pv" required class="${inp}" placeholder="เช่น ราชบุรี">
+          </div>
+          <div>
+            <label style="${lbl}">อำเภอ/เขต</label>
+            <input type="text" name="district" value="${safeV(ap.district)}" aria-autocomplete="list" list="dl_dt" class="${inp}" placeholder="เลือกจังหวัดก่อน">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div>
+            <label style="${lbl}">ตำบล/แขวง</label>
+            <input type="text" name="subDistrict" value="${safeV(ap.subDistrict)}" aria-autocomplete="list" list="dl_sd" class="${inp}" placeholder="เลือกอำเภอก่อน">
+          </div>
+          <div>
+            <label style="${lbl}">รหัสไปรษณีย์</label>
+            <input type="text" name="zip" value="${safeV(ap.zip)}" maxlength="5" class="${inp}" placeholder="auto-fill จากตำบล">
+          </div>
+        </div>
+        <div>
+          <label style="${lbl}">เลขที่ / หมู่ / ซอย / ถนน</label>
+          <input type="text" name="addrLine" value="${safeV(ap.addrLine)}" class="${inp}" placeholder="เช่น 99/1 หมู่ 5 ถ.เพชรเกษม">
+        </div>
       </div>
-    </div>
-    <div style="border:1px solid #fde68a;border-radius:8px;padding:12px;background:#fffbeb">
-      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px">🧾 ภาษีมูลค่าเพิ่ม (VAT)</div>
-      <select id="hdrVatMode" onchange="document.getElementById('hdrVatRateBox').style.display=this.value==='none'?'none':'block'" style="width:100%;padding:8px;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
-        <option value="none">ไม่จด VAT</option>
-        <option value="inclusive">จด VAT — ราคารวม VAT แล้ว (Inclusive)</option>
-        <option value="exclusive">จด VAT — บวก VAT เพิ่ม (Exclusive)</option>
+    `)}
+
+    <!-- ═════ ภาษี VAT ═════ -->
+    ${_hsec('🧾', 'ภาษีมูลค่าเพิ่ม (VAT)', `
+      <select name="vatMode" id="hdrVatMode" onchange="document.getElementById('hdrVatRateBox').style.display=this.value==='none'?'none':'block'" class="${inp}" style="background:#fff">
+        <option value="none" ${vatMode==='none'?'selected':''}>ไม่จด VAT</option>
+        <option value="inclusive" ${vatMode==='inclusive'?'selected':''}>จด VAT — ราคารวม VAT แล้ว (Inclusive)</option>
+        <option value="exclusive" ${vatMode==='exclusive'?'selected':''}>จด VAT — บวก VAT เพิ่ม (Exclusive)</option>
       </select>
-      <div id="hdrVatRateBox" style="display:none;margin-top:10px">
+      <div id="hdrVatRateBox" style="display:${vatMode==='none'?'none':'block'};margin-top:10px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px">
         <label style="display:block;font-size:11px;font-weight:600;color:#92400e;margin-bottom:4px">อัตรา VAT (%)</label>
-        <input type="number" id="hdrVatRate" value="7" min="0" max="100" step="0.1" style="width:120px;padding:6px 8px;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
+        <input type="number" name="vatRate" id="hdrVatRate" value="${vatRate}" min="0" max="100" step="0.1" style="width:120px;padding:6px 8px;border:1px solid #fde68a;border-radius:6px;font-size:13px;background:#fff">
         <div style="font-size:10px;color:#a16207;margin-top:6px">Inclusive = ค่าเช่า 10,700 = 10,000 + VAT 700 / Exclusive = ค่าเช่า 10,000 + VAT 700 = 10,700</div>
       </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ธนาคาร</label>
-        <input type="text" id="hdrBank" placeholder="ธ.กสิกรไทย" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">เลขบัญชี</label>
-        <input type="text" id="hdrAccount" placeholder="123-4-56789-0" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อบัญชี</label>
-      <input type="text" id="hdrAccountName" placeholder="บจก. สมบัตินภา" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-    </div>
-    <div style="border:1px solid #bfdbfe;border-radius:8px;padding:12px;background:#f0f9ff">
-      <div style="font-weight:700;font-size:12px;color:#1e40af;margin-bottom:8px">⚡ PromptPay (สร้าง QR อัตโนมัติในใบแจ้งหนี้)</div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">PromptPay ID <span style="font-size:10px;color:#64748b;font-weight:400">(เบอร์ 10 หลัก / นิติบุคคล หรือบัตรประชาชน 13 หลัก / e-Wallet 15 หลัก)</span></label>
-        <input type="text" id="hdrPromptPayId" placeholder="เช่น 0812345678 หรือ 0105556789012" oninput="_ppPreview()" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+    `)}
+
+    <!-- ═════ ธนาคาร ═════ -->
+    ${_hsec('🏦', 'บัญชีธนาคาร', `
+      <div class="grid grid-cols-2 gap-3">
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อบัญชี PromptPay</label>
-          <input type="text" id="hdrPromptPayName" placeholder="บจ. สมบัตินภา" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+          <label style="${lbl}">ธนาคาร</label>
+          <input type="text" name="bankName" id="hdrBank" value="${isEdit?safeV(h.bankName):''}" placeholder="ธ.กสิกรไทย" class="${inp}">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ธนาคาร PromptPay</label>
-          <input type="text" id="hdrPromptPayBank" placeholder="กสิกรไทย" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+          <label style="${lbl}">เลขบัญชี</label>
+          <input type="text" name="bankAccount" id="hdrAccount" value="${isEdit?safeV(h.bankAccount):''}" placeholder="123-4-56789-0" class="${inp}">
+        </div>
+        <div class="col-span-2">
+          <label style="${lbl}">ชื่อบัญชี</label>
+          <input type="text" name="bankAccountName" id="hdrAccountName" value="${isEdit?safeV(h.bankAccountName):''}" placeholder="บจก. สมบัตินภา" class="${inp}">
         </div>
       </div>
-      <div id="ppPreviewBox" style="margin-top:10px;display:none;padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px;text-align:center">
+    `)}
+
+    <!-- ═════ PromptPay ═════ -->
+    ${_hsec('⚡', 'PromptPay (สร้าง QR อัตโนมัติในใบแจ้งหนี้)', `
+      <div>
+        <label style="${lbl}">PromptPay ID <span style="font-weight:400;color:#94a3b8">(เบอร์ 10 หลัก / นิติบุคคล หรือบัตรประชาชน 13 หลัก / e-Wallet 15 หลัก)</span></label>
+        <input type="text" name="promptPayId" id="hdrPromptPayId" value="${isEdit?safeV(h.promptPayId):''}" placeholder="เช่น 0812345678 หรือ 0105556789012" oninput="_ppPreview()" class="${inp}">
+      </div>
+      <div class="grid grid-cols-2 gap-3" style="margin-top:8px">
+        <div>
+          <label style="${lbl}">ชื่อบัญชี PromptPay</label>
+          <input type="text" name="promptPayName" id="hdrPromptPayName" value="${isEdit?safeV(h.promptPayName):''}" placeholder="บจ. สมบัตินภา" class="${inp}">
+        </div>
+        <div>
+          <label style="${lbl}">ธนาคาร PromptPay</label>
+          <input type="text" name="promptPayBank" id="hdrPromptPayBank" value="${isEdit?safeV(h.promptPayBank):''}" placeholder="กสิกรไทย" class="${inp}">
+        </div>
+      </div>
+      <div id="ppPreviewBox" style="margin-top:10px;display:${isEdit&&h.promptPayId?'block':'none'};padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px;text-align:center">
         <div style="font-size:10px;color:#64748b;margin-bottom:6px">ตัวอย่าง QR (ยอด 100 บาท)</div>
         <div id="ppPreviewImg"></div>
       </div>
       <div style="font-size:10px;color:#059669;margin-top:6px">⚡ ระบบจะสร้าง QR พร้อมยอดเงินอัตโนมัติในทุกใบแจ้งหนี้</div>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">หมายเหตุ (แสดงท้ายใบแจ้งหนี้)</label>
-      <textarea id="hdrNotes" placeholder="เช่น กรุณาชำระภายในกำหนด / กรุณาแจ้งหลักฐานการโอนเงิน" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun;height:60px"></textarea>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">โลโก้ (ขนาดไฟล์สูงสุด 200KB)</label>
-      <input type="file" id="hdrLogo" accept="image/*" onchange="uploadLogo(this)" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px">
-      <div id="logoPreview" style="margin-top:8px"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button type="button" onclick="closeModal()" style="flex:1;padding:10px;background:#f3f4f6;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
-      <button type="button" onclick="saveInvoiceHeader()" style="flex:1;padding:10px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">บันทึก</button>
+    `)}
+
+    <!-- ═════ หมายเหตุ + โลโก้ ═════ -->
+    ${_hsec('📝', 'อื่น ๆ', `
+      <div>
+        <label style="${lbl}">หมายเหตุ (แสดงท้ายใบแจ้งหนี้)</label>
+        <textarea name="notes" id="hdrNotes" placeholder="เช่น กรุณาชำระภายในกำหนด / กรุณาแจ้งหลักฐานการโอนเงิน" class="${inp}" style="height:60px">${isEdit?esc(h.notes||''):''}</textarea>
+      </div>
+      <div style="margin-top:10px">
+        <label style="${lbl}">โลโก้ (สูงสุด 200KB)</label>
+        <input type="file" id="hdrLogo" accept="image/*" onchange="uploadLogo(this)" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px">
+        <div id="logoPreview" style="margin-top:8px">${isEdit&&h.logo?`<img src="${esc(h.logo)}" style="max-width:100px;max-height:80px;border-radius:6px;border:1px solid #e5e7eb">`:''}</div>
+      </div>
+    `)}
+
+    <div style="display:flex;gap:8px;margin-top:8px;position:sticky;bottom:0;background:#fff;padding-top:10px">
+      <button type="button" onclick="${isEdit?'openInvoiceHeaderSettings()':'closeModal()'}" style="flex:1;padding:11px;background:#f3f4f6;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">ยกเลิก</button>
+      <button type="submit" style="flex:1;padding:11px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">${isEdit?'บันทึกการแก้ไข':'เพิ่มผู้ให้เช่า'}</button>
     </div>
   </form>`;
+}
+
+function addInvoiceHeader(){
+  window._logoDataUrl=null;
+  $('mtitle').textContent='เพิ่มผู้ให้เช่า / บริษัท';
+  $('mbody').innerHTML=buildInvoiceHeaderFormHTML(null);
+  setTimeout(()=>bindThaiAddrAutoFill('#headerForm'),100);
 }
 
 function uploadLogo(input){
@@ -15517,168 +15593,91 @@ function uploadQR(input){
   });
 }
 
-function saveInvoiceHeader(){
-  const name=$('hdrName').value.trim();
-  const company=$('hdrCompany').value.trim();
-  const address=$('hdrAddress').value.trim();
-  const phone=$('hdrPhone').value.trim();
-  const taxId=$('hdrTaxId').value.trim();
-  const bank=$('hdrBank').value.trim();
-  const account=$('hdrAccount').value.trim();
-  const accountName=$('hdrAccountName').value.trim();
-  const notes=document.getElementById('hdrNotes')?.value?.trim()||'';
-
-  if(!name||!company){toast('กรุณากรอกชื่อและบริษัท','error');return;}
-
-  const header={
-    id:Date.now(),
-    name:name,
-    companyName:shortLandlordName(company),
-    address:address,
-    phone:phone,
-    taxId:taxId,
-    vatMode:document.getElementById('hdrVatMode')?.value||'none',
-    vatRegistered:(document.getElementById('hdrVatMode')?.value||'none')!=='none',
-    vatRate:parseFloat(document.getElementById('hdrVatRate')?.value)||7,
-    bankName:bank,
-    bankAccount:account,
-    bankAccountName:accountName,
-    logo:window._logoDataUrl||null,
-    promptPayId:document.getElementById('hdrPromptPayId')?.value?.trim()||'',
-    promptPayName:document.getElementById('hdrPromptPayName')?.value?.trim()||'',
-    promptPayBank:document.getElementById('hdrPromptPayBank')?.value?.trim()||'',
-    notes:notes
-  };
-
-  DB.invoiceHeaders.push(header);
-  if(DB.invoiceHeaders.length===1)DB.defaultInvHeader=header.id;
-  addActivityLog('add_invoice_header',`เพิ่มส่วนหัวใบแจ้งหนี้ "${name}"`);
-  save();
-  toast('เพิ่มผู้ให้เช่า/บริษัทแล้ว');
-  openInvoiceHeaderSettings();
-}
-
 function editInvoiceHeader(headerId){
   const h=DB.invoiceHeaders.find(x=>x.id===headerId);
   if(!h)return;
   window._logoDataUrl=null;
-  $('mtitle').textContent='แก้ไขผู้ให้เช่า / บริษัท';
-  $('mbody').innerHTML=`<form id="headerForm" style="display:flex;flex-direction:column;gap:12px">
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อย่อ (สำหรับเลือก)</label>
-      <input type="text" id="hdrName" value="${esc(h.name)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อผู้ให้เช่า / บริษัท</label>
-      <input type="text" id="hdrCompany" value="${esc(h.companyName)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ที่อยู่</label>
-      <textarea id="hdrAddress" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun;height:60px">${esc(h.address)}</textarea>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">เบอรโทร</label>
-        <input type="text" id="hdrPhone" value="${esc(h.phone)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">หมายเลขประจำตัวผู้เสียภาษี</label>
-        <input type="text" id="hdrTaxId" value="${esc(h.taxId)||''}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-    </div>
-    <div style="border:1px solid #fde68a;border-radius:8px;padding:12px;background:#fffbeb">
-      <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px">🧾 ภาษีมูลค่าเพิ่ม (VAT)</div>
-      ${(()=>{const _m=h.vatMode||(h.vatRegistered?'inclusive':'none');return `
-      <select id="hdrVatMode" onchange="document.getElementById('hdrVatRateBox').style.display=this.value==='none'?'none':'block'" style="width:100%;padding:8px;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
-        <option value="none" ${_m==='none'?'selected':''}>ไม่จด VAT</option>
-        <option value="inclusive" ${_m==='inclusive'?'selected':''}>จด VAT — ราคารวม VAT แล้ว (Inclusive)</option>
-        <option value="exclusive" ${_m==='exclusive'?'selected':''}>จด VAT — บวก VAT เพิ่ม (Exclusive)</option>
-      </select>
-      <div id="hdrVatRateBox" style="display:${_m==='none'?'none':'block'};margin-top:10px">
-        <label style="display:block;font-size:11px;font-weight:600;color:#92400e;margin-bottom:4px">อัตรา VAT (%)</label>
-        <input type="number" id="hdrVatRate" value="${h.vatRate!=null?h.vatRate:7}" min="0" max="100" step="0.1" style="width:120px;padding:6px 8px;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-family:Sarabun;background:#fff">
-        <div style="font-size:10px;color:#a16207;margin-top:6px">Inclusive = ค่าเช่า 10,700 = 10,000 + VAT 700 / Exclusive = ค่าเช่า 10,000 + VAT 700 = 10,700</div>
-      </div>`;})()}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ธนาคาร</label>
-        <input type="text" id="hdrBank" value="${esc(h.bankName)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">เลขบัญชี</label>
-        <input type="text" id="hdrAccount" value="${esc(h.bankAccount)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อบัญชี</label>
-      <input type="text" id="hdrAccountName" value="${esc(h.bankAccountName)}" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-    </div>
-    <div>
-    <div style="border:1px solid #bfdbfe;border-radius:8px;padding:12px;background:#f0f9ff">
-      <div style="font-weight:700;font-size:12px;color:#1e40af;margin-bottom:8px">⚡ PromptPay (สร้าง QR อัตโนมัติในใบแจ้งหนี้)</div>
-      <div>
-        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">PromptPay ID <span style="font-size:10px;color:#64748b;font-weight:400">(เบอร์ 10 หลัก / นิติบุคคล หรือบัตรประชาชน 13 หลัก / e-Wallet 15 หลัก)</span></label>
-        <input type="text" id="hdrPromptPayId" value="${esc(h.promptPayId)||''}" placeholder="เช่น 0812345678 หรือ 0105556789012" oninput="_ppPreview()" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ชื่อบัญชี PromptPay</label>
-          <input type="text" id="hdrPromptPayName" value="${esc(h.promptPayName)||''}" placeholder="บจ. สมบัตินภา" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-        </div>
-        <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">ธนาคาร PromptPay</label>
-          <input type="text" id="hdrPromptPayBank" value="${esc(h.promptPayBank)||''}" placeholder="กสิกรไทย" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-        </div>
-      </div>
-      <div id="ppPreviewBox" style="margin-top:10px;${h.promptPayId?'':'display:none;'}padding:10px;background:#fff;border:1px solid #bfdbfe;border-radius:8px;text-align:center">
-        <div style="font-size:10px;color:#64748b;margin-bottom:6px">ตัวอย่าง QR (ยอด 100 บาท)</div>
-        <div id="ppPreviewImg"></div>
-      </div>
-      <div style="font-size:10px;color:#059669;margin-top:6px">⚡ ระบบจะสร้าง QR พร้อมยอดเงินอัตโนมัติในทุกใบแจ้งหนี้</div>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">หมายเหตุ (แสดงท้ายใบแจ้งหนี้)</label>
-      <textarea id="hdrNotes" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun;height:60px">${esc(h.notes)||''}</textarea>
-    </div>
-    <div>
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:4px">โลโก้ (ขนาดไฟล์สูงสุด 200KB)</label>
-      <input type="file" id="hdrLogo" accept="image/*" onchange="uploadLogo(this)" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px">
-      <div id="logoPreview" style="margin-top:8px">${h.logo?`<img src="${esc(h.logo)}" style="max-width:100px;max-height:80px;border-radius:6px;border:1px solid #e5e7eb">`:''}</div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:16px">
-      <button type="button" onclick="openInvoiceHeaderSettings()" style="flex:1;padding:10px;background:#f3f4f6;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
-      <button type="button" onclick="updateInvoiceHeader(${headerId})" style="flex:1;padding:10px;background:#10b981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">บันทึก</button>
-    </div>
-  </form>`;
-  // Auto-show QR preview if promptPayId exists
-  if(h.promptPayId)setTimeout(()=>_ppPreview(),100);
+  $('mtitle').textContent='✏️ แก้ไขผู้ให้เช่า / บริษัท';
+  $('mbody').innerHTML=buildInvoiceHeaderFormHTML(h);
+  setTimeout(()=>{
+    bindThaiAddrAutoFill('#headerForm');
+    if(h.promptPayId)_ppPreview();
+  },100);
 }
 
-function updateInvoiceHeader(headerId){
-  const h=DB.invoiceHeaders.find(x=>x.id===headerId);
-  if(!h)return;
-  h.name=$('hdrName').value.trim();
-  h.companyName=shortLandlordName($('hdrCompany').value.trim());
-  h.address=$('hdrAddress').value.trim();
-  h.phone=$('hdrPhone').value.trim();
-  h.taxId=$('hdrTaxId').value.trim();
-  h.vatMode=document.getElementById('hdrVatMode')?.value||'none';
-  h.vatRegistered=h.vatMode!=='none';
-  h.vatRate=parseFloat(document.getElementById('hdrVatRate')?.value)||7;
-  h.bankName=$('hdrBank').value.trim();
-  h.bankAccount=$('hdrAccount').value.trim();
-  h.bankAccountName=$('hdrAccountName').value.trim();
-  if(window._logoDataUrl)h.logo=window._logoDataUrl;
-  h.promptPayId=document.getElementById('hdrPromptPayId')?.value?.trim()||h.promptPayId||'';
-  h.promptPayName=document.getElementById('hdrPromptPayName')?.value?.trim()||'';
-  h.promptPayBank=document.getElementById('hdrPromptPayBank')?.value?.trim()||'';
-  h.notes=document.getElementById('hdrNotes')?.value?.trim()||'';
-  addActivityLog('edit_invoice_header',`แก้ไขส่วนหัวใบแจ้งหนี้ "${h.name}"`);
-  save();
-  toast('อัปเดตแล้ว');
+// ── Unified save handler for both add + edit (form-based, FormData) ──
+// headerId = null → add new
+// headerId = number → update existing
+function submitInvoiceHeaderForm(headerId){
+  const form = document.getElementById('headerForm');
+  if(!form) return;
+  const fd = new FormData(form);
+  const name = (fd.get('name')||'').trim();
+  const companyName = (fd.get('companyName')||'').trim();
+  if(!name || !companyName){
+    toast('กรุณากรอกชื่อย่อและชื่อบริษัท','error');
+    return;
+  }
+  // Assemble address from cascade fields
+  const ap = {
+    addrLine: (fd.get('addrLine')||'').trim(),
+    subDistrict: (fd.get('subDistrict')||'').trim(),
+    district: (fd.get('district')||'').trim(),
+    province: (fd.get('province')||'').trim(),
+    zip: (fd.get('zip')||'').trim()
+  };
+  const isBKK = /กรุงเทพ/.test(ap.province);
+  const addrParts = [];
+  if(ap.addrLine) addrParts.push(ap.addrLine);
+  if(ap.subDistrict) addrParts.push(isBKK?'แขวง'+ap.subDistrict:'ต.'+ap.subDistrict);
+  if(ap.district) addrParts.push(isBKK?'เขต'+ap.district:'อ.'+ap.district);
+  if(ap.province) addrParts.push('จ.'+ap.province);
+  if(ap.zip) addrParts.push(ap.zip);
+  const address = addrParts.join(' ');
+
+  const vatMode = (fd.get('vatMode')||'none');
+  const data = {
+    name: name,
+    companyName: shortLandlordName(companyName),
+    address: address,
+    phone: (fd.get('phone')||'').trim(),
+    taxId: (fd.get('taxId')||'').trim(),
+    vatMode: vatMode,
+    vatRegistered: vatMode !== 'none',
+    vatRate: parseFloat(fd.get('vatRate')) || 7,
+    bankName: (fd.get('bankName')||'').trim(),
+    bankAccount: (fd.get('bankAccount')||'').trim(),
+    bankAccountName: (fd.get('bankAccountName')||'').trim(),
+    promptPayId: (fd.get('promptPayId')||'').trim(),
+    promptPayName: (fd.get('promptPayName')||'').trim(),
+    promptPayBank: (fd.get('promptPayBank')||'').trim(),
+    notes: (fd.get('notes')||'').trim()
+  };
+
+  if(headerId){
+    // Edit mode
+    const h = DB.invoiceHeaders.find(x=>x.id===headerId);
+    if(!h) return;
+    Object.assign(h, data);
+    if(window._logoDataUrl) h.logo = window._logoDataUrl;
+    addActivityLog('edit_invoice_header',`แก้ไขส่วนหัวใบแจ้งหนี้ "${name}"`);
+    save();
+    toast('อัปเดตแล้ว');
+  } else {
+    // Add mode
+    const header = Object.assign({ id: Date.now() }, data, { logo: window._logoDataUrl || null });
+    DB.invoiceHeaders.push(header);
+    if(DB.invoiceHeaders.length===1) DB.defaultInvHeader = header.id;
+    addActivityLog('add_invoice_header',`เพิ่มส่วนหัวใบแจ้งหนี้ "${name}"`);
+    save();
+    toast('เพิ่มผู้ให้เช่า/บริษัทแล้ว');
+  }
   openInvoiceHeaderSettings();
 }
+
+// ── Backward-compat wrappers (เผื่อมี caller เก่าเรียกชื่อเดิม) ──
+function saveInvoiceHeader(){ submitInvoiceHeaderForm(null); }
+function updateInvoiceHeader(headerId){ submitInvoiceHeaderForm(headerId); }
 
 function setDefaultInvoiceHeader(headerId){
   DB.defaultInvHeader=headerId;
