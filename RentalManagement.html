@@ -5218,6 +5218,10 @@ function doImportDBReady(){
               if(c.landlord && landlordMap[c.landlord] && !c.invHeaderId) c.invHeaderId = landlordMap[c.landlord];
             });
           }
+          // Preventive measure: ทุกครั้งหลัง import → sync ที่อยู่/ธนาคาร ใน invoiceHeaders ที่ยังว่าง
+          // จาก contract.landlordAddr ของบริษัทเดียวกัน (ใช้ mode = ที่อยู่ที่พบบ่อยสุด)
+          // (ป้องกัน bug header ค้างที่อยู่ว่าง — เพราะ header เก่าอาจถูก generate ตอน contract ยังไม่มี landlordAddr)
+          syncInvoiceHeaderAddresses();
           save();
           addActivityLog('import_db_ready', `Import DB_Ready: +${addedProps} ทรัพย์สิน, +${addedCons} สัญญา, +${addedHeaders} ผู้ให้เช่า`);
           closeModal(true);
@@ -6738,7 +6742,12 @@ function renderSettingsContractForm(){
 
 function renderSettingsCompany(){
   const headers=DB.invoiceHeaders||[];
-  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="font-size:16px;font-weight:700;color:#1e293b">ข้อมูลผู้ให้เช่า / บริษัท</h3><button onclick="addInvoiceHeader()" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มผู้ให้เช่า</button></div>';
+  // นับ headers ที่ขาดที่อยู่ → แสดงแถบเตือน + ปุ่ม sync ถ้ามี
+  const missingAddr = headers.filter(h => !h.address || !h.address.trim()).length;
+  let html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap"><h3 style="font-size:16px;font-weight:700;color:#1e293b">ข้อมูลผู้ให้เช่า / บริษัท</h3><div style="display:flex;gap:8px"><button onclick="syncInvoiceHeadersFromUI()" style="padding:8px 14px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" title="ดึงที่อยู่/ธนาคารจากสัญญาที่มีอยู่ (เฉพาะช่องที่ว่าง)">🔄 ซิงค์จากสัญญา</button><button onclick="addInvoiceHeader()" style="padding:8px 16px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มผู้ให้เช่า</button></div></div>';
+  if(missingAddr > 0){
+    html += `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:8px"><span>⚠️</span><span>มี ${missingAddr} บริษัทยังไม่มีที่อยู่ — กดปุ่ม <strong>🔄 ซิงค์จากสัญญา</strong> เพื่อดึงจากสัญญาที่มีอยู่ หรือคลิก row ใดก็ได้เพื่อกรอกเอง</span></div>`;
+  }
 
   if(headers.length===0){
     html+='<div style="text-align:center;padding:40px;color:#64748b"><div style="font-size:48px;margin-bottom:12px">🏢</div>ยังไม่มีข้อมูลผู้ให้เช่า/บริษัท<br><span style="font-size:12px">กดปุ่มด้านบนเพื่อเพิ่ม</span></div>';
@@ -6771,6 +6780,60 @@ function renderSettingsCompany(){
     });
   }
   return html;
+}
+
+// ── Sync ที่อยู่/ธนาคาร ใน invoiceHeaders จาก contract.landlordAddr (mode = ที่ใช้บ่อยสุด) ──
+// ใช้: เรียกอัตโนมัติหลัง import + manual จากปุ่มในตั้งค่า
+// Strategy: เฉพาะ header ที่ field ว่าง — ไม่เขียนทับของที่ user กรอกแล้ว
+function syncInvoiceHeaderAddresses(opts){
+  const force = !!(opts && opts.force);
+  let updated = 0;
+  (DB.invoiceHeaders||[]).forEach(h => {
+    const company = h.companyName || h.name || '';
+    if(!company) return;
+    const matched = (DB.contracts||[]).filter(c => {
+      if(!c.landlord) return false;
+      return c.landlord===company || c.landlord.includes(company) || company.includes(c.landlord);
+    });
+    if(matched.length === 0) return;
+    // Helper: pick mode value across matched contracts
+    const pickMode = (field, predicate) => {
+      const counts = {};
+      matched.forEach(c => {
+        const v = (c[field]||'').trim();
+        if(!v) return;
+        if(predicate && !predicate(v)) return;
+        counts[v] = (counts[v]||0) + 1;
+      });
+      const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+      return sorted.length ? sorted[0][0] : '';
+    };
+    // address
+    if(force || !h.address || !h.address.trim()){
+      const v = pickMode('landlordAddr');
+      if(v && v !== h.address){ h.address = v; updated++; }
+    }
+    // bank info — เฉพาะถ้าว่าง
+    if(!h.bankName){ const v = pickMode('bank'); if(v) h.bankName = v; }
+    if(!h.bankAccount){ const v = pickMode('acctNo'); if(v) h.bankAccount = v; }
+    if(!h.bankAccountName){ const v = pickMode('accountName'); if(v) h.bankAccountName = v; }
+  });
+  return updated;
+}
+
+// ── Manual sync trigger จากปุ่มในตั้งค่า ──
+function syncInvoiceHeadersFromUI(){
+  const before = (DB.invoiceHeaders||[]).filter(h => !h.address || !h.address.trim()).length;
+  const updated = syncInvoiceHeaderAddresses();
+  save();
+  if(updated > 0){
+    toast(`ซิงค์เสร็จ — อัปเดต ${updated} บริษัท`,'success');
+  } else if(before > 0){
+    toast(`ไม่พบสัญญาที่มีที่อยู่สำหรับ ${before} บริษัท — กรุณากรอกเอง`,'info');
+  } else {
+    toast('ทุกบริษัทมีที่อยู่ครบแล้ว','success');
+  }
+  if(typeof renderSettingsPage === 'function') renderSettingsPage();
 }
 
 // ── Tab-aware wrappers (callbacks ที่ไม่ต้องเปิด modal list) ──
