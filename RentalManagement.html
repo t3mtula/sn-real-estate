@@ -12860,12 +12860,12 @@ ${contracts.map(c=>{
     '<div class="sig-section">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
-        sigBox('ผู้ให้เช่า (Lessor)',c.landlordSignerName||c.landlord,c.landlordSig,c.landlordSignerTitle)+
-        sigBox('ผู้เช่า (Lessee)',c.tenant,c.tenantSig)+
+        sigBox('ผู้ให้เช่า (Lessor)',withPrefix(c.landlordSignerName||c.landlord),c.landlordSig,c.landlordSignerTitle)+
+        sigBox('ผู้เช่า (Lessee)',withPrefix(c.tenantSignerName||c.tenant),c.tenantSig,c.tenantSignerTitle)+
       '</div>'+
       '<div class="sig-grid">'+
-        sigBox('พยาน / Witness 1',c.witness1Name||'',c.witness1Sig,c.witness1Title)+
-        sigBox('พยาน / Witness 2',c.witness2Name||'',c.witness2Sig,c.witness2Title)+
+        sigBox('พยาน / Witness 1',withPrefix(c.witness1Name||''),c.witness1Sig,c.witness1Title)+
+        sigBox('พยาน / Witness 2',withPrefix(c.witness2Name||''),c.witness2Sig,c.witness2Title)+
       '</div>'+
     '</div>'+
     '<div class="page-footer"><span class="page-footer-contract">สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
@@ -12906,8 +12906,8 @@ ${contracts.map(c=>{
     '<div class="sig-section">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญา / Signatures</div>'+
       '<div class="sig-grid">'+
-        sigBox('ผู้ให้เช่า (Lessor)',c.landlordSignerName||c.landlord,c.landlordSig,c.landlordSignerTitle)+
-        sigBox('ผู้เช่า (Lessee)',c.tenant,c.tenantSig)+
+        sigBox('ผู้ให้เช่า (Lessor)',withPrefix(c.landlordSignerName||c.landlord),c.landlordSig,c.landlordSignerTitle)+
+        sigBox('ผู้เช่า (Lessee)',withPrefix(c.tenantSignerName||c.tenant),c.tenantSig,c.tenantSignerTitle)+
       '</div>'+
     '</div>'+
     '<div class="page-footer"><span class="page-footer-contract">เอกสารแนบท้าย — สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
