@@ -21,12 +21,16 @@
    - 2 contracts witness1 (เพิ่ม "นาย")
    - 1 tenantSignerName strip "โดย" (สช.7149/2569)
 6. **Audit + cleanup** (post-session): ลบ `partyDisplay` ที่เป็น dead code · click-verify บน live URL ผ่าน (badge + warning + label swap ทำงานครบ)
+7. **Backfill 3 company contracts** (SQL migration ครั้งเดียว, Tem approve case-by-case) — strip "โดย…" ออกจาก tenant + set tenantSignerName:
+   - SN.005-2569 → นางสุเนตรา จินตนาธัญชาติ
+   - SN.006-2569 → นายวรัญญู พักตร์ฉวี
+   - EV-68-001 → นางสาวนฤมล กมลพันธ์ทิพย์
 
 ## 📋 Decisions สำคัญในรอบนี้ (เพิ่มจาก project_app_core.md)
 - (ครอบคลุมแล้วใน project_app_core.md "Decisions ที่ตัดสินใจแล้ว")
 
 ## 🐛 Known issues / data quality
-- **24 ใน 25 active company contracts ขาด `tenantSignerName`** — UI แสดง ⚠ warning row ทุกอัน, print fallback แสดงแค่ชื่อบริษัทไม่มี "โดย กรรมการ" · ไม่มี migration backfill · ต้องค่อยๆ กรอกผ่าน UI ตอน renewal หรือ batch backfill
+- **21 ใน 25 active company contracts ยังขาด `tenantSignerName`** (จาก 24 — backfill 3 รายที่ Excel มีข้อมูล: SN.005-2569, SN.006-2569, EV-68-001) · UI ยังแสดง ⚠ warning ใน 21 ใบที่เหลือ · ต้องรอ paper / โทรถาม หรือกรอกตอน renewal
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (ALL_NAME_PREFIXES vs tenant form local vs signer pfxOpts) — preexisting ขัด lesson `unify_forms`
 
 ## 📍 Latest commits (branch `claude/sharp-curie-eaa567` push main)
