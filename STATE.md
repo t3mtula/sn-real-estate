@@ -11,23 +11,26 @@
 ## ✅ งานที่จบในรอบล่าสุด (2026-05-17 session)
 1. **Passport support** — taxId field รับตัวอักษรได้ (auto-detect mode Thai ID vs passport)
 2. **Prefix dropdown** ใน 3 fields: signers config, tenantSigner, witness 1+2
-3. **Helpers**: `isCompanyName` / `withPrefix` / `hasPrefix(includes-based)` / `splitPrefix` / `_combineName` / `partyDisplay` / `sigBoxParty`
+3. **Helpers**: `isCompanyName` / `withPrefix` / `hasPrefix(includes-based)` / `splitPrefix` / `_combineName` / `sigBoxParty`
 4. **นิติบุคคล + ผู้ลงนาม support end-to-end**:
    - Contract form: prefix dropdown มี optgroup บุคคล/นิติบุคคล + JS toggle hint
    - viewContract: badge "🏢 นิติบุคคล" / "👤 บุคคลธรรมดา" + warning ถ้าขาด signer
    - Print sigBox: multiline สำหรับนิติบุคคล (บริษัท / โดย กรรมการ / ตำแหน่ง)
-5. **DB cleanup**: 4 entries
+5. **DB cleanup**: 4 entries (verify จริงผ่าน SQL: 141 contracts, 0 ขาด prefix, 0 ขึ้น "โดย")
    - 2 signers ใน sysConfig (เพิ่ม "นาย")
    - 2 contracts witness1 (เพิ่ม "นาย")
    - 1 tenantSignerName strip "โดย" (สช.7149/2569)
+6. **Audit + cleanup** (post-session): ลบ `partyDisplay` ที่เป็น dead code · click-verify บน live URL ผ่าน (badge + warning + label swap ทำงานครบ)
 
 ## 📋 Decisions สำคัญในรอบนี้ (เพิ่มจาก project_app_core.md)
 - (ครอบคลุมแล้วใน project_app_core.md "Decisions ที่ตัดสินใจแล้ว")
 
 ## 🐛 Known issues / data quality
-- (ไม่มี — ปัจจุบัน clean)
+- **24 ใน 25 active company contracts ขาด `tenantSignerName`** — UI แสดง ⚠ warning row ทุกอัน, print fallback แสดงแค่ชื่อบริษัทไม่มี "โดย กรรมการ" · ไม่มี migration backfill · ต้องค่อยๆ กรอกผ่าน UI ตอน renewal หรือ batch backfill
+- 3 hardcoded prefix lists ใน html ยังไม่ unified (ALL_NAME_PREFIXES vs tenant form local vs signer pfxOpts) — preexisting ขัด lesson `unify_forms`
 
 ## 📍 Latest commits (branch `claude/sharp-curie-eaa567` push main)
+- `chore(cleanup): ลบ partyDisplay helper ที่ไม่ถูกเรียกใช้`
 - `feat(juristic): support นิติบุคคล + ผู้ลงนาม ครบ end-to-end`
 - `fix(prefix): revert staff prefix UI + hasPrefix ใช้ includes`
 - `feat(print): apply withPrefix() ใน sigBox ทุกที่`
