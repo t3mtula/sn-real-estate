@@ -6246,6 +6246,42 @@ function shortLandlordName(name){
   return idx!==-1?name.substring(0,idx).trim():name;
 }
 
+// ── Prefix helpers — ทุกชื่อคนต้องมีคำนำหน้า ──
+// withPrefix(name, fallback='นาย') — ถ้าชื่อมี prefix แล้ว return ตามเดิม, ถ้าไม่มี prepend fallback
+// ใช้เป็น safety net ใน print template (กัน data เก่าที่ยังไม่ได้ backfill)
+const NAME_PREFIXES_TH = ['นาย','นาง','นางสาว','น.ส.','ด.ช.','ด.ญ.','พล.ต.','พล.ท.','พล.อ.','พ.ต.','พ.ต.อ.','พ.ต.ต.','ร.ต.','ร.ต.อ.','ร.ต.ท.','ร.ต.ต.','พ.อ.','พ.ท.','พ.ต.','ม.ร.ว.','ม.ล.','ศ.','ผศ.','รศ.','ดร.','นพ.','พญ.','ทพ.','ทพญ.','คุณ'];
+const NAME_PREFIXES_EN = ['Mr.','Mrs.','Ms.','Miss','Dr.','Prof.'];
+const NAME_PREFIXES_ORG = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ','บจก.','บมจ.','หจก.','หสน.'];
+const ALL_NAME_PREFIXES = [...NAME_PREFIXES_TH, ...NAME_PREFIXES_EN, ...NAME_PREFIXES_ORG];
+// hasPrefix(name) → true ถ้าขึ้นต้นด้วย prefix ที่รู้จัก
+function hasPrefix(name){
+  if(!name) return false;
+  const trimmed = String(name).trim();
+  return ALL_NAME_PREFIXES.some(p => trimmed.startsWith(p));
+}
+function withPrefix(name, fallback){
+  if(!name) return '';
+  const trimmed = String(name).trim();
+  if(hasPrefix(trimmed)) return trimmed;
+  // Auto-detect: Latin → 'Mr.', Thai → 'นาย' (เป็น default — ลูกน้องสามารถ override ในตอนกรอกได้)
+  const fb = fallback || (/^[A-Za-z]/.test(trimmed) ? 'Mr.' : 'นาย');
+  return fb + (fb.endsWith('.') ? ' ' : '') + trimmed;
+}
+// renderPrefixSelect(name, opts) — HTML select dropdown สำหรับ prefix
+//   opts = { id, idPrefix, required, includeEN, includeOrg }
+//   return { selectHTML, restName }  — restName = ชื่อหลังลบ prefix ออก
+function splitPrefix(fullName){
+  if(!fullName) return { prefix:'', rest:'' };
+  const t = String(fullName).trim();
+  for(const p of ALL_NAME_PREFIXES){
+    if(t.startsWith(p)){
+      const rest = t.slice(p.length).trim();
+      return { prefix:p, rest };
+    }
+  }
+  return { prefix:'', rest:t };
+}
+
 
 // ===== 09-notifications.js =====
 // ========== NOTIFICATION ENGINE ==========
@@ -6633,11 +6669,19 @@ function renderSettingsDisplay(){
         <button onclick="addSignerRow()" style="padding:6px 14px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มคน</button>
       </div>
       <div id="signerList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
-        ${signers.map((s,i)=>`<div style="display:flex;gap:8px;align-items:center">
-          <input type="text" value="${(s.name||'').replace(/"/g,'&quot;')}" placeholder="ชื่อ" onchange="DB.sysConfig.signers[${i}].name=this.value.trim();save()" style="flex:1;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
-          <input type="text" value="${(s.title||'').replace(/"/g,'&quot;')}" placeholder="ตำแหน่ง (เช่น กรรมการผู้จัดการ)" onchange="DB.sysConfig.signers[${i}].title=this.value.trim();save()" style="flex:1.3;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+        ${signers.map((s,i)=>{
+          const sp = splitPrefix(s.name||'');
+          const pfxOpts = ['นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
+          return `<div style="display:flex;gap:6px;align-items:center">
+          <select onchange="(function(el,i){const r=document.querySelector('[data-signer-name=&quot;'+i+'&quot;]'); const newName=(el.value+(/\\.$/.test(el.value)?' ':'')+(r.value||'')).trim(); DB.sysConfig.signers[i].name=newName; save();})(this,${i})" style="width:95px;padding:7px 6px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:Sarabun;background:#fff">
+            <option value="">— คำนำหน้า —</option>
+            ${pfxOpts.map(p=>`<option value="${p}" ${sp.prefix===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+          <input type="text" data-signer-name="${i}" value="${(sp.rest||'').replace(/"/g,'&quot;')}" placeholder="ชื่อ-นามสกุล" onchange="(function(el,i){const ps=el.previousElementSibling; const pfx=ps.value||'นาย'; const newName=(pfx+(/\\.$/.test(pfx)?' ':'')+(el.value||'')).trim(); DB.sysConfig.signers[i].name=newName; save();})(this,${i})" style="flex:1;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
+          <input type="text" value="${(s.title||'').replace(/"/g,'&quot;')}" placeholder="ตำแหน่ง" onchange="DB.sysConfig.signers[${i}].title=this.value.trim();save()" style="flex:1.2;padding:7px 10px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:Sarabun">
           <button onclick="removeSignerRow(${i})" style="padding:6px 10px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">ลบ</button>
-        </div>`).join('')}
+        </div>`;
+        }).join('')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:12px;border-top:1px solid #f1f5f9">
         <div>
@@ -7268,7 +7312,17 @@ function renderSettingsStaff(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">ชื่อ-นามสกุล <span style="color:#dc2626">*</span></label>
-          <input type="text" id="staffName" value="${safeV(cur.name)}" placeholder="สมชาย ใจดี" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
+          ${(()=>{
+            const sp = splitPrefix(cur.name||'');
+            const pfxOpts = ['นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
+            return `<div style="display:flex;gap:6px">
+              <select id="staffPrefix" style="width:90px;padding:8px 6px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:Sarabun;background:#fff">
+                <option value="">— คำนำหน้า —</option>
+                ${pfxOpts.map(p=>`<option value="${p}" ${sp.prefix===p?'selected':''}>${p}</option>`).join('')}
+              </select>
+              <input type="text" id="staffName" value="${safeV(sp.rest||cur.name||'').replace(/"/g,'&quot;')}" placeholder="ชื่อ-นามสกุล" style="flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
+            </div>`;
+          })()}
         </div>
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">บทบาท <span style="color:#dc2626">*</span></label>
@@ -7356,10 +7410,14 @@ function staffCancelEdit(){
   if(typeof renderSettingsPage === 'function') renderSettingsPage();
 }
 function staffSaveInline(editIdx){
-  const name=(document.getElementById('staffName')?.value||'').trim();
+  const prefix=(document.getElementById('staffPrefix')?.value||'').trim();
+  const restName=(document.getElementById('staffName')?.value||'').trim();
+  // Combine prefix + name (เว้นวรรคถ้า prefix ลงท้ายด้วย '.')
+  const name = restName ? (prefix ? prefix + (/\.$/.test(prefix)?' ':'') + restName : restName) : '';
   const role=(document.getElementById('staffRole')?.value||'').trim();
   const email=((document.getElementById('staffEmail')?.value)||'').trim().toLowerCase();
-  if(!name){toast('กรุณากรอกชื่อ','error');return;}
+  if(!restName){toast('กรุณากรอกชื่อ-นามสกุล','error');return;}
+  if(!prefix){toast('กรุณาเลือกคำนำหน้า','error');return;}
   if(!role){toast('กรุณาเลือกบทบาท','error');return;}
   if(!email||!/.+@.+\..+/.test(email)){toast('กรุณากรอกอีเมลให้ถูกต้อง','error');return;}
   if(!DB.staff)DB.staff=[];
@@ -11380,14 +11438,22 @@ function validateSignerWitness(fd){
 }
 
 // เก็บข้อมูลผู้เซ็น พยาน และลายเซ็น ลงในออบเจ็กต์สัญญา
+// Helper: combine prefix + name (เว้นวรรคถ้า prefix ลงท้าย '.')
+function _combineName(prefix, name){
+  const p = (prefix||'').trim();
+  const n = (name||'').trim();
+  if(!n) return '';
+  if(!p) return n;
+  return p + (/\.$/.test(p) ? ' ' : '') + n;
+}
 function applySignerFields(target,fd){
-  target.tenantSignerName=fd.get('tenantSignerName')||'';
+  target.tenantSignerName=_combineName(fd.get('tenantSignerPrefix'), fd.get('tenantSignerName'));
   target.tenantSignerTitle=fd.get('tenantSignerTitle')||'';
-  target.landlordSignerName=fd.get('landlordSignerName')||'';
+  target.landlordSignerName=fd.get('landlordSignerName')||'';  // จาก dropdown — ใส่ prefix แล้วใน sysConfig
   target.landlordSignerTitle=fd.get('landlordSignerTitle')||'';
-  target.witness1Name=fd.get('witness1Name')||'';
+  target.witness1Name=_combineName(fd.get('witness1Prefix'), fd.get('witness1Name'));
   target.witness1Title=fd.get('witness1Title')||'';
-  target.witness2Name=fd.get('witness2Name')||'';
+  target.witness2Name=_combineName(fd.get('witness2Prefix'), fd.get('witness2Name'));
   target.witness2Title=fd.get('witness2Title')||'';
   target.landlordSig=fd.get('landlordSig')||'';
   target.tenantSig=fd.get('tenantSig')||'';
@@ -11657,7 +11723,7 @@ function contractFormHTML(mode, c, pid) {
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">เลขผู้เสียภาษี <span style="color:#dc2626">*</span> <span class="text-gray-400 font-normal">(ใบกำกับภาษี)</span></label>
-            <input type="text" name="taxId" value="${v('taxId')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="1-2345-67890-12-3" maxlength="17" oninput="cfFormatThaiId(this)">
+            <input type="text" name="taxId" value="${v('taxId')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ไทย: 1-2345-67890-12-3 · ต่างชาติ: passport เช่น M12345678" maxlength="22" oninput="cfFormatThaiId(this)" title="กรอกได้ทั้งบัตรประชาชน 13 หลัก หรือ passport (ตัวอักษร+ตัวเลข)">
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">สาขา <span class="text-gray-400 font-normal">(ใบกำกับภาษี)</span></label>
@@ -11690,10 +11756,18 @@ function contractFormHTML(mode, c, pid) {
               <span style="font-size:11px;font-weight:600;color:#475569">ลงนามโดย</span>
               <span style="font-size:10px;color:#94a3b8">(ปล่อยว่าง = ผู้เช่าเป็นผู้ลงนามเอง)</span>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <input type="text" name="tenantSignerName" value="${(v('tenantSignerName')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อผู้ลงนาม">
-              <input type="text" name="tenantSignerTitle" value="${(v('tenantSignerTitle')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ตำแหน่ง (ไม่บังคับ)">
-            </div>
+            ${(()=>{
+              const sp = splitPrefix(v('tenantSignerName')||'');
+              const pfxOpts = ['นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
+              return `<div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:6px">
+                <select name="tenantSignerPrefix" class="px-2 py-2 border rounded-lg text-sm">
+                  <option value="">— คำนำหน้า —</option>
+                  ${pfxOpts.map(p=>`<option value="${p}" ${sp.prefix===p?'selected':''}>${p}</option>`).join('')}
+                </select>
+                <input type="text" name="tenantSignerName" value="${(sp.rest||v('tenantSignerName')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ-นามสกุล">
+                <input type="text" name="tenantSignerTitle" value="${(v('tenantSignerTitle')||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ตำแหน่ง (ไม่บังคับ)">
+              </div>`;
+            })()}
           </div>
           <div class="col-span-2">
             <label class="text-xs font-medium text-gray-600 mb-1 block">โลโก้/รูปผู้เช่า <span style="font-weight:400;color:#64748b">(ไม่บังคับ — แสดงในใบแจ้งหนี้)</span></label>
@@ -11967,17 +12041,27 @@ function contractFormHTML(mode, c, pid) {
           const w1t=v('witness1Title')||(signers.find(s=>s.name===w1)?.title||'');
           const w2t=v('witness2Title')||(signers.find(s=>s.name===w2)?.title||'');
           const dlOpts=allWitnessOpts.map(n=>'<option value="'+n+'">').join('');
+          const pfxOpts = ['นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
+          const w1sp = splitPrefix(w1||'');
+          const w2sp = splitPrefix(w2||'');
+          const pfxSel = (sel) => `<select class="w-full px-2 py-2 border rounded-lg text-sm" name="__no_submit__"><option value="">— คำนำหน้า —</option>${pfxOpts.map(p=>`<option value="${p}" ${sel===p?'selected':''}>${p}</option>`).join('')}</select>`;
           return `<datalist id="dl_witnesses">${dlOpts}</datalist>
           <div class="text-xs font-semibold text-gray-500 mb-2">พยาน</div>
           <div class="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">พยานคนที่ 1</label>
-              <input type="text" name="witness1Name" aria-autocomplete="list" list="dl_witnesses" value="${(w1||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ">
+              <div style="display:grid;grid-template-columns:100px 1fr;gap:6px">
+                <select name="witness1Prefix" class="px-2 py-2 border rounded-lg text-sm"><option value="">— คำนำหน้า —</option>${pfxOpts.map(p=>`<option value="${p}" ${w1sp.prefix===p?'selected':''}>${p}</option>`).join('')}</select>
+                <input type="text" name="witness1Name" aria-autocomplete="list" list="dl_witnesses" value="${(w1sp.rest||w1||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ-นามสกุล">
+              </div>
               <input type="text" name="witness1Title" value="${(w1t||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ตำแหน่ง (ไม่บังคับ)">
             </div>
             <div>
               <label class="text-xs font-medium text-gray-600 mb-1 block">พยานคนที่ 2</label>
-              <input type="text" name="witness2Name" aria-autocomplete="list" list="dl_witnesses" value="${(w2||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="พิมพ์ชื่อ">
+              <div style="display:grid;grid-template-columns:100px 1fr;gap:6px">
+                <select name="witness2Prefix" class="px-2 py-2 border rounded-lg text-sm"><option value="">— คำนำหน้า —</option>${pfxOpts.map(p=>`<option value="${p}" ${w2sp.prefix===p?'selected':''}>${p}</option>`).join('')}</select>
+                <input type="text" name="witness2Name" aria-autocomplete="list" list="dl_witnesses" value="${(w2sp.rest||w2||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ-นามสกุล">
+              </div>
               <input type="text" name="witness2Title" value="${(w2t||'').replace(/"/g,'&quot;')}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="ตำแหน่ง (ไม่บังคับ)">
             </div>
           </div>`;
@@ -12112,7 +12196,24 @@ function isValidThaiId(digits){
 
 // Format Thai national ID: X-XXXX-XXXXX-XX-X
 function cfFormatThaiId(input){
-  let v=input.value.replace(/[^\d]/g,'');
+  const raw = input.value || '';
+  // Detect mode: ถ้ามีตัวอักษร (a-z, A-Z) → passport mode (รับตัวอักษร + ตัวเลข)
+  // ถ้าเป็นเลขล้วน → Thai ID mode (format X-XXXX-XXXXX-XX-X)
+  const hasLetter = /[a-zA-Z]/.test(raw);
+  if(hasLetter){
+    // Passport mode: เก็บ alphanumeric เท่านั้น, uppercase, max 20 chars
+    let v = raw.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
+    if(v.length>20) v = v.slice(0,20);
+    input.value = v;
+    const hidden=document.querySelector('[name=taxId]');
+    if(hidden&&hidden!==input) hidden.value=v;
+    input.style.borderColor='';
+    input.style.background='';
+    input.title='Passport — ' + v.length + ' ตัว';
+    return;
+  }
+  // Thai ID mode (เดิม)
+  let v=raw.replace(/[^\d]/g,'');
   if(v.length>13) v=v.slice(0,13);
   let formatted='';
   for(let i=0;i<v.length;i++){
@@ -12120,10 +12221,8 @@ function cfFormatThaiId(input){
     formatted+=v[i];
   }
   input.value=formatted;
-  // Also update hidden field if exists
   const hidden=document.querySelector('[name=taxId]');
   if(hidden&&hidden!==input) hidden.value=formatted;
-  // Validate only when full 13 digits entered
   if(v.length===13){
     if(!isValidThaiId(v)){
       input.style.borderColor='#dc2626';
@@ -12135,7 +12234,6 @@ function cfFormatThaiId(input){
       input.title='';
     }
   } else {
-    // Clear warning while user still typing
     input.style.borderColor='';
     input.style.background='';
     input.title='';
