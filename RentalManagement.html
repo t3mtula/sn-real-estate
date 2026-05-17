@@ -6283,6 +6283,36 @@ function splitPrefix(fullName){
   return { prefix:'', rest:t };
 }
 
+// ── นิติบุคคล / บุคคลธรรมดา detection ──
+// detect บริษัท/หจก./บจก./Co./Ltd. ฯลฯ ในชื่อ → ถือว่าเป็นนิติบุคคล
+const COMPANY_PREFIXES = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ','บมจ.','บจก.','หจก.','หสน.','Co.','Ltd.','Inc.','LLC','Co.,Ltd.'];
+function isCompanyName(name){
+  if(!name) return false;
+  return COMPANY_PREFIXES.some(p => String(name).includes(p));
+}
+// partyDisplay(name, signerName, signerTitle)
+// → { line1, line2, line3, isCompany }
+// ใช้ใน view + print เพื่อแสดง multiline สำหรับนิติบุคคล
+// นิติบุคคล: line1=ชื่อบริษัท · line2='โดย <ผู้ลงนาม>' · line3=ตำแหน่ง
+// บุคคลธรรมดา: line1=ชื่อ (มี prefix) · line2='' · line3=''
+function partyDisplay(name, signerName, signerTitle){
+  const company = isCompanyName(name);
+  if(company && signerName){
+    return {
+      isCompany: true,
+      line1: name,
+      line2: 'โดย ' + withPrefix(signerName),
+      line3: signerTitle || ''
+    };
+  }
+  return {
+    isCompany: false,
+    line1: withPrefix(signerName || name),
+    line2: '',
+    line3: signerTitle || ''
+  };
+}
+
 
 // ===== 09-notifications.js =====
 // ========== NOTIFICATION ENGINE ==========
@@ -9294,13 +9324,26 @@ function viewContract(id) {
       _vcSaveCancel('vcSaveTenant')
     );
   } else {
+    const tIsCompany = isCompanyName(c.tenant);
+    const tTypeBadge = tIsCompany
+      ? ' <span style="display:inline-block;font-size:9px;color:#fff;background:#6366f1;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px">🏢 นิติบุคคล</span>'
+      : ' <span style="display:inline-block;font-size:9px;color:#fff;background:#0ea5e9;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px">👤 บุคคลธรรมดา</span>';
+    // นิติบุคคล + ไม่มีผู้ลงนาม → warning
+    const needSignerWarn = tIsCompany && !c.tenantSignerName
+      ? _vcRowFull('⚠ ผู้ลงนาม', '<span style="color:#dc2626;font-weight:600">ยังไม่ระบุผู้ลงนาม (กรรมการ) — กดแก้ไขเพื่อเพิ่ม</span>')
+      : '';
+    // นิติบุคคล + มี signer → แสดง "โดย <ชื่อ>" ชัดเจน
+    const signerRow = c.tenantSignerName
+      ? _vcRow(tIsCompany ? 'ลงนามโดย (กรรมการ)' : 'ลงนามโดย', tenantSignerDisplay)
+      : '';
     sec1Tenant = _vcSection('ผู้เช่า', '👤',
-      _vcRow('ชื่อผู้เช่า', esc(c.tenant)) +
+      _vcRow(tIsCompany ? 'ชื่อบริษัท' : 'ชื่อผู้เช่า', esc(c.tenant) + tTypeBadge) +
       _vcRow('เลขผู้เสียภาษี', esc(c.taxId)) +
       _vcRow('สาขา', vcBranch) +
       _vcRow('เบอร์โทร', esc(c.phone)) +
       _vcRowFull('ที่อยู่ผู้เช่า', esc(c.tenantAddr)) +
-      (tenantSignerDisplay ? _vcRow('ลงนามโดย', tenantSignerDisplay) : '')
+      signerRow +
+      needSignerWarn
     , _vcEditBtn('tenant'));
   }
 
@@ -9334,10 +9377,18 @@ function viewContract(id) {
       _vcSaveCancel('vcSaveLandlord')
     );
   } else {
+    const lIsCompany = isCompanyName(c.landlord);
+    const lTypeBadge = lIsCompany
+      ? ' <span style="display:inline-block;font-size:9px;color:#fff;background:#6366f1;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px">🏢 นิติบุคคล</span>'
+      : ' <span style="display:inline-block;font-size:9px;color:#fff;background:#0ea5e9;padding:1px 7px;border-radius:99px;font-weight:700;margin-left:4px">👤 บุคคลธรรมดา</span>';
+    const lNeedSignerWarn = lIsCompany && !vcLSign
+      ? _vcRowFull('⚠ ผู้ลงนาม', '<span style="color:#dc2626;font-weight:600">ยังไม่ระบุกรรมการลงนาม — กดแก้ไขเพื่อเพิ่ม</span>')
+      : '';
     sec2Landlord = _vcSection('ผู้ให้เช่า', '🏢',
-      _vcRow('บริษัท / ชื่อ', esc(c.landlord)) +
+      _vcRow(lIsCompany ? 'ชื่อบริษัท' : 'ชื่อผู้ให้เช่า', esc(c.landlord) + lTypeBadge) +
       _vcRowFull('ที่อยู่ผู้ให้เช่า', esc(vcLandlordAddr)) +
-      (landlordSignerDisplay ? _vcRow('ลงนามโดย', landlordSignerDisplay) : '') +
+      (landlordSignerDisplay ? _vcRow(lIsCompany ? 'ลงนามโดย (กรรมการ)' : 'ลงนามโดย', landlordSignerDisplay) : '') +
+      lNeedSignerWarn +
       _vcRow('ทำที่', esc(c.madeAt)) +
       (vcBank ? _vcRow('ธนาคาร', esc(vcBank)) : '') +
       (vcAcctNo ? _vcRow('เลขบัญชี', esc(vcAcctNo)) : '') +
@@ -11697,14 +11748,21 @@ function contractFormHTML(mode, c, pid) {
                 for(const pf of prefixes){if(full.startsWith(pf)){curPrefix=pf;let rest=full.slice(pf.length).trim();const parts=rest.split(/\s+/);if(parts.length>=2){curLast=parts.pop();curFirst=parts.join(' ');}else{curFirst=rest;}break;}}
                 if(!curPrefix){const parts=full.split(/\s+/);if(parts.length>=2){curLast=parts.pop();curFirst=parts.join(' ');}else{curFirst=full;}}
               }
-              return `<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:6px">
-                <select name="tenantPrefix" class="px-2 py-2 border rounded-lg text-sm">
+              const isCompany = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].includes(curPrefix);
+              return `<div style="display:grid;grid-template-columns:140px 1fr 1fr;gap:6px">
+                <select name="tenantPrefix" class="px-2 py-2 border rounded-lg text-sm" onchange="cfTenantTypeToggle()">
                   <option value="">คำนำหน้า</option>
-                  ${['นาย','นาง','นางสาว','บริษัท','ห้างหุ้นส่วนจำกัด'].map(pf=>'<option value="'+pf+'" '+(curPrefix===pf?'selected':'')+'>'+pf+'</option>').join('')}
+                  <optgroup label="บุคคล">
+                    ${['นาย','นาง','นางสาว'].map(pf=>'<option value="'+pf+'" '+(curPrefix===pf?'selected':'')+'>'+pf+'</option>').join('')}
+                  </optgroup>
+                  <optgroup label="นิติบุคคล">
+                    ${['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].map(pf=>'<option value="'+pf+'" '+(curPrefix===pf?'selected':'')+'>'+pf+'</option>').join('')}
+                  </optgroup>
                 </select>
-                <input type="text" name="tenantFirst" value="${(curFirst||'').replace(/"/g,'&quot;')}" required aria-autocomplete="list" list="dl_tenants" class="px-3 py-2 border rounded-lg text-sm" placeholder="ชื่อ" onchange="cfAutoFillTenant(cfBuildTenantName())">
-                <input type="text" name="tenantLast" value="${(curLast||'').replace(/"/g,'&quot;')}" class="px-3 py-2 border rounded-lg text-sm" placeholder="นามสกุล / จำกัด">
+                <input type="text" name="tenantFirst" value="${(curFirst||'').replace(/"/g,'&quot;')}" required aria-autocomplete="list" list="dl_tenants" class="px-3 py-2 border rounded-lg text-sm" placeholder="${isCompany?'ชื่อบริษัท/ห้างฯ':'ชื่อ'}" onchange="cfAutoFillTenant(cfBuildTenantName())">
+                <input type="text" name="tenantLast" value="${(curLast||'').replace(/"/g,'&quot;')}" class="px-3 py-2 border rounded-lg text-sm" placeholder="${isCompany?'จำกัด':'นามสกุล'}">
               </div>
+              ${isCompany?'<div id="cfTenantCompanyHint" style="margin-top:6px;padding:6px 10px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;font-size:11px;color:#4338ca">🏢 <b>นิติบุคคล</b> — กรุณาระบุผู้ลงนาม (กรรมการ) ในส่วน "ลงนามโดย" ด้านล่าง</div>':'<div id="cfTenantCompanyHint" style="display:none"></div>'}
               <input type="hidden" name="tenant" value="${(full||'').replace(/"/g,'&quot;')}">`;
             })()}
           </div>
@@ -12168,6 +12226,30 @@ function cfBuildTenantName(){
   const hidden=document.querySelector('[name=tenant]');
   if(hidden) hidden.value=full;
   return full;
+}
+
+// Toggle UI เมื่อ user เปลี่ยน prefix → detect บริษัท/บุคคล
+// เปลี่ยน placeholder + แสดง/ซ่อน hint นิติบุคคล
+function cfTenantTypeToggle(){
+  const prefix=document.querySelector('[name=tenantPrefix]')?.value||'';
+  const isCompany = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].includes(prefix);
+  const firstInp=document.querySelector('[name=tenantFirst]');
+  const lastInp=document.querySelector('[name=tenantLast]');
+  if(firstInp) firstInp.placeholder = isCompany ? 'ชื่อบริษัท/ห้างฯ' : 'ชื่อ';
+  if(lastInp) lastInp.placeholder = isCompany ? 'จำกัด' : 'นามสกุล';
+  // Show/hide company hint
+  const hint=document.getElementById('cfTenantCompanyHint');
+  if(hint){
+    if(isCompany){
+      hint.style.display='';
+      hint.innerHTML='🏢 <b>นิติบุคคล</b> — กรุณาระบุผู้ลงนาม (กรรมการ) ในส่วน "ลงนามโดย" ด้านล่าง';
+      hint.style.cssText='margin-top:6px;padding:6px 10px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;font-size:11px;color:#4338ca';
+    } else {
+      hint.style.display='none';
+    }
+  }
+  // Update hidden tenant name
+  cfBuildTenantName();
 }
 
 // Validate Thai National ID checksum
@@ -12786,7 +12868,23 @@ body { counter-reset: pagenum; }
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
 ${contracts.map(c=>{
   const p=DB.properties.find(x=>x.pid===c.pid);
+  // sigBox: single-line สำหรับบุคคลธรรมดา
   const sigBox=(label,name,imgSrc,title)=>'<div class="sig-block"><div class="sig-img-area">'+(imgSrc?'<img src="'+imgSrc+'" style="max-height:48px;max-width:140px;object-fit:contain">':'<div style="width:160px"></div>')+'</div><div class="sig-line-rule"></div><div class="sig-name">'+(name||'...................................')+'</div>'+(title?'<div class="sig-role">('+title+')</div>':'')+'<div class="sig-role">'+label+'</div><div class="sig-date">(......../......../........)</div></div>';
+  // sigBoxParty: นิติบุคคล → multiline (บริษัท / โดย ผู้ลงนาม / ตำแหน่ง / ผู้เช่า/ผู้ให้เช่า)
+  //   ถ้าบุคคลธรรมดา → fallback ไปใช้ sigBox เดิม
+  const sigBoxParty=(label,partyName,signerName,signerTitle,imgSrc)=>{
+    if(isCompanyName(partyName) && signerName){
+      const safe=v=>String(v||'').replace(/</g,'&lt;');
+      return '<div class="sig-block"><div class="sig-img-area">'+(imgSrc?'<img src="'+imgSrc+'" style="max-height:48px;max-width:140px;object-fit:contain">':'<div style="width:160px"></div>')+'</div><div class="sig-line-rule"></div>'
+        +'<div class="sig-name" style="font-weight:600">'+safe(partyName)+'</div>'
+        +'<div class="sig-name" style="font-size:11px">โดย '+safe(withPrefix(signerName))+'</div>'
+        +(signerTitle?'<div class="sig-role">('+safe(signerTitle)+')</div>':'')
+        +'<div class="sig-role">'+label+'</div>'
+        +'<div class="sig-date">(......../......../........)</div></div>';
+    }
+    // บุคคลธรรมดา → fallback (signer หรือ party name)
+    return sigBox(label, withPrefix(signerName||partyName), imgSrc, signerTitle);
+  };
   return'<div class="page">'+
     // ── Header ──
     '<div class="c-header">'+
@@ -12847,8 +12945,8 @@ ${contracts.map(c=>{
     '<div class="sig-section">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
-        sigBox('ผู้ให้เช่า (Lessor)',withPrefix(c.landlordSignerName||c.landlord),c.landlordSig,c.landlordSignerTitle)+
-        sigBox('ผู้เช่า (Lessee)',withPrefix(c.tenantSignerName||c.tenant),c.tenantSig,c.tenantSignerTitle)+
+        sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
+        sigBoxParty('ผู้เช่า (Lessee)',c.tenant,c.tenantSignerName,c.tenantSignerTitle,c.tenantSig)+
       '</div>'+
       '<div class="sig-grid">'+
         sigBox('พยาน / Witness 1',withPrefix(c.witness1Name||''),c.witness1Sig,c.witness1Title)+
@@ -12893,8 +12991,8 @@ ${contracts.map(c=>{
     '<div class="sig-section">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญา / Signatures</div>'+
       '<div class="sig-grid">'+
-        sigBox('ผู้ให้เช่า (Lessor)',withPrefix(c.landlordSignerName||c.landlord),c.landlordSig,c.landlordSignerTitle)+
-        sigBox('ผู้เช่า (Lessee)',withPrefix(c.tenantSignerName||c.tenant),c.tenantSig,c.tenantSignerTitle)+
+        sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
+        sigBoxParty('ผู้เช่า (Lessee)',c.tenant,c.tenantSignerName,c.tenantSignerTitle,c.tenantSig)+
       '</div>'+
     '</div>'+
     '<div class="page-footer"><span class="page-footer-contract">เอกสารแนบท้าย — สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
