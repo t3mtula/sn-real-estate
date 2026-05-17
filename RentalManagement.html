@@ -6290,30 +6290,6 @@ function isCompanyName(name){
   if(!name) return false;
   return COMPANY_PREFIXES.some(p => String(name).includes(p));
 }
-// partyDisplay(name, signerName, signerTitle)
-// → { line1, line2, line3, isCompany }
-// ใช้ใน view + print เพื่อแสดง multiline สำหรับนิติบุคคล
-// นิติบุคคล: line1=ชื่อบริษัท · line2='โดย <ผู้ลงนาม>' · line3=ตำแหน่ง
-// บุคคลธรรมดา: line1=ชื่อ (มี prefix) · line2='' · line3=''
-function partyDisplay(name, signerName, signerTitle){
-  const company = isCompanyName(name);
-  if(company && signerName){
-    return {
-      isCompany: true,
-      line1: name,
-      line2: 'โดย ' + withPrefix(signerName),
-      line3: signerTitle || ''
-    };
-  }
-  return {
-    isCompany: false,
-    line1: withPrefix(signerName || name),
-    line2: '',
-    line3: signerTitle || ''
-  };
-}
-
-
 // ===== 09-notifications.js =====
 // ========== NOTIFICATION ENGINE ==========
 function getNotifications(){
