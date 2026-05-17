@@ -6253,11 +6253,12 @@ const NAME_PREFIXES_TH = ['นาย','นาง','นางสาว','น.ส.
 const NAME_PREFIXES_EN = ['Mr.','Mrs.','Ms.','Miss','Dr.','Prof.'];
 const NAME_PREFIXES_ORG = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ','บจก.','บมจ.','หจก.','หสน.'];
 const ALL_NAME_PREFIXES = [...NAME_PREFIXES_TH, ...NAME_PREFIXES_EN, ...NAME_PREFIXES_ORG];
-// hasPrefix(name) → true ถ้าขึ้นต้นด้วย prefix ที่รู้จัก
+// hasPrefix(name) → true ถ้ามี prefix ที่รู้จักอยู่ที่ไหนก็ได้ในชื่อ
+// (ใช้ includes แทน startsWith — รองรับเคส 'โดยนายชนินทร์...' / 'บริษัท X โดยนาย Y')
 function hasPrefix(name){
   if(!name) return false;
   const trimmed = String(name).trim();
-  return ALL_NAME_PREFIXES.some(p => trimmed.startsWith(p));
+  return ALL_NAME_PREFIXES.some(p => trimmed.includes(p));
 }
 function withPrefix(name, fallback){
   if(!name) return '';
@@ -7312,17 +7313,7 @@ function renderSettingsStaff(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">ชื่อ-นามสกุล <span style="color:#dc2626">*</span></label>
-          ${(()=>{
-            const sp = splitPrefix(cur.name||'');
-            const pfxOpts = ['นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
-            return `<div style="display:flex;gap:6px">
-              <select id="staffPrefix" style="width:90px;padding:8px 6px;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-family:Sarabun;background:#fff">
-                <option value="">— คำนำหน้า —</option>
-                ${pfxOpts.map(p=>`<option value="${p}" ${sp.prefix===p?'selected':''}>${p}</option>`).join('')}
-              </select>
-              <input type="text" id="staffName" value="${safeV(sp.rest||cur.name||'').replace(/"/g,'&quot;')}" placeholder="ชื่อ-นามสกุล" style="flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
-            </div>`;
-          })()}
+          <input type="text" id="staffName" value="${safeV(cur.name)}" placeholder="สมชาย ใจดี" style="width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun">
         </div>
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:4px">บทบาท <span style="color:#dc2626">*</span></label>
@@ -7410,14 +7401,10 @@ function staffCancelEdit(){
   if(typeof renderSettingsPage === 'function') renderSettingsPage();
 }
 function staffSaveInline(editIdx){
-  const prefix=(document.getElementById('staffPrefix')?.value||'').trim();
-  const restName=(document.getElementById('staffName')?.value||'').trim();
-  // Combine prefix + name (เว้นวรรคถ้า prefix ลงท้ายด้วย '.')
-  const name = restName ? (prefix ? prefix + (/\.$/.test(prefix)?' ':'') + restName : restName) : '';
+  const name=(document.getElementById('staffName')?.value||'').trim();
   const role=(document.getElementById('staffRole')?.value||'').trim();
   const email=((document.getElementById('staffEmail')?.value)||'').trim().toLowerCase();
-  if(!restName){toast('กรุณากรอกชื่อ-นามสกุล','error');return;}
-  if(!prefix){toast('กรุณาเลือกคำนำหน้า','error');return;}
+  if(!name){toast('กรุณากรอกชื่อ','error');return;}
   if(!role){toast('กรุณาเลือกบทบาท','error');return;}
   if(!email||!/.+@.+\..+/.test(email)){toast('กรุณากรอกอีเมลให้ถูกต้อง','error');return;}
   if(!DB.staff)DB.staff=[];
