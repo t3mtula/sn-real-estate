@@ -3504,7 +3504,7 @@ function logout() {
 // ===== 04-storage.js =====
 // ========== STORAGE ==========
 // ========== DATA VERSION & MIGRATIONS ==========
-const DATA_VERSION = 35;
+const DATA_VERSION = 36;
 const MIGRATIONS = [
   // {fromVersion: 15, toVersion: 16, migrate: (data) => { ... return data; }}
   { fromVersion: 15, toVersion: 16, migrate: function(data) {
@@ -4005,6 +4005,58 @@ const MIGRATIONS = [
     });
 
     data.nextBankAccountId = nextId;
+    return data;
+  }},
+  { fromVersion: 35, toVersion: 36, migrate: function(data) {
+    // v36: dedup bank accounts ที่ accountNo เดียวกัน (typo bankName / format ต่าง)
+    // canonical = entry ที่มี usage มากสุด (contracts + landlordDefaults) · ของซ้ำ → re-point + archive
+    if(!Array.isArray(data.bankAccounts) || data.bankAccounts.length === 0) return data;
+    var norm = function(s){ return String(s||'').replace(/[\s\-]/g,''); };
+    var groups = {};
+    data.bankAccounts.forEach(function(a){
+      if(a.archived) return; // archived ไม่นับ
+      var k = norm(a.accountNo);
+      if(!k) return;
+      if(!groups[k]) groups[k] = [];
+      groups[k].push(a);
+    });
+    var mergeCount = 0;
+    Object.keys(groups).forEach(function(k){
+      var entries = groups[k];
+      if(entries.length < 2) return;
+      // นับ usage แต่ละ entry
+      entries.forEach(function(e){
+        e._cu = (data.contracts||[]).filter(function(c){return c.bankAccountId === e.id;}).length;
+        e._lu = Object.values(data.landlordDefaults||{}).filter(function(d){return d && d.defaultBankAccountId === e.id;}).length;
+        e._total = e._cu + e._lu;
+      });
+      // canonical = max usage · tie-break by smallest id
+      entries.sort(function(a,b){ return b._total - a._total || a.id - b.id; });
+      var canonical = entries[0];
+      var dupes = entries.slice(1);
+      dupes.forEach(function(dup){
+        // re-point contracts
+        (data.contracts||[]).forEach(function(c){
+          if(c.bankAccountId === dup.id) c.bankAccountId = canonical.id;
+        });
+        // re-point landlord defaults
+        Object.entries(data.landlordDefaults||{}).forEach(function(pair){
+          var ll = pair[0], def = pair[1];
+          if(def && def.defaultBankAccountId === dup.id){
+            data.landlordDefaults[ll].defaultBankAccountId = canonical.id;
+          }
+        });
+        // archive duplicate (เก็บไว้ trace · ไม่ลบ)
+        dup.archived = true;
+        dup.note = (dup.note||'') + ' [auto-merged → #' + canonical.id + ' (v36 dedup)]';
+        mergeCount++;
+      });
+      // cleanup temp fields
+      entries.forEach(function(e){ delete e._cu; delete e._lu; delete e._total; });
+    });
+    if(mergeCount > 0){
+      console.log('[v36 dedup] merged ' + mergeCount + ' duplicate bank accounts');
+    }
     return data;
   }}
 ];
@@ -7602,6 +7654,29 @@ function deleteBankAccount(id){
     toast('ลบแล้ว ✓','success');
     renderSettingsPage();
   }, {icon:'🗑️',yesLabel:'ลบ',yesColor:'#dc2626'});
+}
+
+// Phase 2c: ตั้ง default bank account ของผู้ให้เช่า
+function setLandlordDefaultBank(landlordName, accountIdStr){
+  if(!landlordName) return;
+  if(!DB.landlordDefaults || typeof DB.landlordDefaults!=='object' || Array.isArray(DB.landlordDefaults)) DB.landlordDefaults = {};
+  const accountId = accountIdStr ? +accountIdStr : 0;
+  if(!accountId){
+    // ลบ default
+    if(DB.landlordDefaults[landlordName]){
+      delete DB.landlordDefaults[landlordName];
+      addActivityLog('unset_landlord_default_bank','ลบ default บัญชีของผู้ให้เช่า — '+landlordName);
+    }
+  } else {
+    const ba = (DB.bankAccounts||[]).find(b=>b.id===accountId);
+    if(!ba){ toast('ไม่พบบัญชี','error'); return; }
+    DB.landlordDefaults[landlordName] = { defaultBankAccountId: accountId };
+    addActivityLog('set_landlord_default_bank','ตั้ง default บัญชีของ '+landlordName+' → '+(ba.label||ba.accountName));
+  }
+  save();
+  toast('บันทึก default แล้ว ✓','success');
+  // re-render หน้า landlord ถ้าอยู่หน้านั้น
+  if(typeof renderLandlords === 'function' && page === 'landlords') renderLandlords();
 }
 
 function renderSettingsSystem(){
@@ -18930,19 +19005,43 @@ function renderLandlords(){
       </div>
 
       <div class="hidden" style="border-top:1px solid #f3f4f6;padding:16px 20px;background:#fafbfc">
-        <!-- Bank accounts -->
-        <div style="margin-bottom:14px">
-          <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-            <svg style="width:14px;height:14px;color:#6366f1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-            บัญชีธนาคาร (${bankArr.length})
-          </div>
-          ${bankArr.length ? bankArr.map(b => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:4px">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:600;color:#111827">${esc(b.accountName) || '-'}</div>
-              <div style="font-size:12px;color:#6b7280">${esc(b.bank)} · ${esc(b.acctNo)}</div>
+        <!-- Phase 2c: บัญชีรับโอน default ของผู้ให้เช่า + เลือก/แก้ได้ -->
+        ${(()=>{
+          const llDef = (DB.landlordDefaults && DB.landlordDefaults[l.name]) || null;
+          const defAcct = llDef ? getBankAccountById(llDef.defaultBankAccountId) : null;
+          const activeAccts = (DB.bankAccounts||[]).filter(b => !b.archived);
+          const escLL = l.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+          // collect accounts ที่ landlord นี้เคยใช้ในสัญญา + active accounts
+          const usedIds = new Set();
+          l.contracts.forEach(c => { if(c.bankAccountId) usedIds.add(c.bankAccountId); });
+          const sortedAccts = activeAccts.slice().sort((a,b)=>{
+            const au = usedIds.has(a.id) ? 0 : 1;
+            const bu = usedIds.has(b.id) ? 0 : 1;
+            return au-bu || (a.label||'').localeCompare(b.label||'','th');
+          });
+          const opts = sortedAccts.map(b=>'<option value="'+b.id+'" '+(defAcct&&defAcct.id===b.id?'selected':'')+'>'+esc(b.label||b.accountName||'(no label)')+(usedIds.has(b.id)?' ✓':'')+'</option>').join('');
+          return `<div style="margin-bottom:14px">
+            <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <svg style="width:14px;height:14px;color:#6366f1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+              บัญชีรับโอน <span style="font-weight:400;color:#64748b">(default ของผู้ให้เช่า — ใช้ตอนเปิดสัญญาใหม่)</span>
             </div>
-          </div>`).join('') : '<div style="font-size:12px;color:#64748b;padding:4px 0">ไม่มีข้อมูลบัญชี</div>'}
-        </div>
+            <div style="display:flex;gap:8px;align-items:center;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;margin-bottom:8px">
+              <select onclick="event.stopPropagation()" onchange="event.stopPropagation();setLandlordDefaultBank('${escLL}',this.value)" style="flex:1;font-size:12px;padding:6px 10px;border:1px solid #d1d5db;border-radius:6px;background:#fff;font-family:Sarabun;cursor:pointer">
+                <option value="">— ไม่ตั้ง default —</option>
+                ${opts}
+              </select>
+              ${defAcct?'<span style="font-size:10px;color:#059669;font-weight:600">✓ ตั้งแล้ว</span>':'<span style="font-size:10px;color:#64748b">ยังไม่ตั้ง</span>'}
+            </div>
+            ${defAcct?`<div style="font-size:11px;color:#475569;padding:6px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;margin-bottom:4px">
+              📌 <b>${esc(defAcct.bankName)}</b> · เลขที่ ${esc(defAcct.accountNo)} <span style="color:#64748b">(${esc(defAcct.accountName||'-')})</span>
+            </div>`:''}
+            ${(()=>{
+              // ของเก่า: list contract banks ใน landlord (legacy display ที่ยังเก็บไว้เผื่อ context)
+              if(!bankArr.length) return '';
+              return '<div style="font-size:10px;color:#94a3b8;margin-top:6px">เคยใช้ในสัญญา: ' + bankArr.map(b=>esc(b.accountName||b.bank||'-')+' '+esc(b.acctNo||'')).join(' · ') + '</div>';
+            })()}
+          </div>`;
+        })()}
 
         <!-- Properties & contracts -->
         <div>
