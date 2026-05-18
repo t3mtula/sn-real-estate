@@ -9067,6 +9067,7 @@ function renderProperties(){
         <option value="tenant" ${propSort.key==='tenant'?'selected':''}>ผู้เช่า ก-ฮ</option>
         <option value="landlord" ${propSort.key==='landlord'?'selected':''}>ผู้ให้เช่า ก-ฮ</option>
       </select>
+      <button onclick="openMeterSetupModal()" title="ตั้งค่ามิเตอร์น้ำ/ไฟ หลายทรัพย์สินพร้อมกัน" class="px-3 py-2 bg-white text-indigo-700 border border-indigo-300 rounded-lg text-sm font-medium hover:bg-indigo-50 flex items-center gap-1.5">⚙️ ตั้งค่ามิเตอร์</button>
       <button onclick="openAddPropertyDialog()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-1.5">+ เพิ่มทรัพย์สิน</button>
     </div>
 
