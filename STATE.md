@@ -3,10 +3,11 @@
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- (ว่าง — เพิ่งจบ perf fix + backfill รอ Tem สั่งต่อ)
+- (ว่าง — เพิ่งจบ Dashboard alerts ครบ + Excel backfill ครบทุก field รอ Tem สั่งต่อ)
 
 ## ⏳ งานค้าง / Next
-- 21 company contracts ยังขาด tenantSignerName (Excel ไม่มี · รอ paper / renewal)
+- 21 company tenants + 5 company landlords ยังขาดกรรมการลงนาม (Excel ไม่มี · ลูกน้องกรอกผ่าน UI / Dashboard แสดงเตือนแล้ว)
+- 12 contracts ยังไม่มี dur/payment (Excel ก็ไม่มี — สัญญาใหม่ที่เพิ่มหลัง import)
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (preexisting)
 - ถ้าอยากเร็วกว่านี้: แยก backups ออกจาก re_config เป็น table แยก (Phase 3)
 
@@ -36,6 +37,7 @@
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (ALL_NAME_PREFIXES vs tenant form local vs signer pfxOpts) — preexisting ขัด lesson `unify_forms`
 
 ## 📍 Latest commits (branch `claude/sharp-curie-eaa567` push main)
+- `feat(dashboard+form): เพิ่ม 3 data alerts + deposit checkbox + madeAt auto-fill`
 - `perf(load): กรอง backup snapshots ออกจาก re_config fetch + cleanup เก่า`
 - `docs(state): backfill 3 company contracts จาก Excel`
 - `chore(cleanup): ลบ partyDisplay helper ที่ไม่ถูกเรียกใช้`
