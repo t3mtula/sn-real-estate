@@ -19468,60 +19468,105 @@ function renderMetersPage(){
   const consumedMonth = meterPageMonth;
   const billMonth = monthKeyAdd(consumedMonth, 1);
 
-  // Collect properties + utilities ที่ enabled
-  const rowsRaw = [];
+  // Decide which utility types to display as columns (intersection of: type filter + has ≥1 enabled property)
+  const utilHasEnabled = {};
+  (DB.properties||[]).forEach(p => {
+    (p.utilities||[]).forEach(u => { if(u.enabled) utilHasEnabled[u.key] = true; });
+  });
+  const shownUtilTypes = utilTypes.filter(ut => {
+    if(meterPageUtilityFilter !== 'all' && ut.key !== meterPageUtilityFilter) return false;
+    return !!utilHasEnabled[ut.key];
+  });
+
+  // Collect properties (1 row per property) with utility cells
+  // groupByProp: pid -> { p, activeC, cells: {utilityKey -> {u, ut, existing, prev}} }
+  const propRows = [];
   (DB.properties||[]).forEach(p => {
     if(!Array.isArray(p.utilities)) return;
-    p.utilities.filter(u => u.enabled).forEach(u => {
-      if(meterPageUtilityFilter !== 'all' && u.key !== meterPageUtilityFilter) return;
-      if(meterPagePropFilter && !p.name.toLowerCase().includes(meterPagePropFilter.toLowerCase())) return;
-      // หาผู้เช่าปัจจุบัน
-      const activeC = (DB.contracts||[]).find(c => c.pid===p.pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
-      // หา reading เดือนนี้
+    const enabledUtils = p.utilities.filter(u => u.enabled);
+    if(enabledUtils.length === 0) return;
+    // type filter
+    const matchedUtils = enabledUtils.filter(u => meterPageUtilityFilter === 'all' || u.key === meterPageUtilityFilter);
+    if(matchedUtils.length === 0) return;
+    // search filter
+    if(meterPagePropFilter && !p.name.toLowerCase().includes(meterPagePropFilter.toLowerCase())) return;
+    const activeC = (DB.contracts||[]).find(c => c.pid===p.pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+    const cells = {};
+    matchedUtils.forEach(u => {
       const existing = DB.meterReadings.find(r => r.pid===p.pid && r.utilityKey===u.key && r.consumedMonth===consumedMonth);
       const prev = getPrevReadingValue(p.pid, u.key, activeC?.id);
-      rowsRaw.push({
-        p, u, ut: getUtilityType(u.key) || {label:u.key, unit:'หน่วย', icon:'🔌'},
-        activeC,
+      cells[u.key] = {
+        u, ut: getUtilityType(u.key) || {label:u.key, unit:'หน่วย', icon:'🔌'},
         existing,
         prev,
         now: existing ? existing.now : null
-      });
+      };
+    });
+    propRows.push({ p, activeC, cells });
+  });
+  propRows.sort((a,b)=> (a.p.name||'').localeCompare(b.p.name||'','th'));
+
+  // KPI: count cells (property × utility) instead of properties
+  let totalCells = 0, filledCells = 0, totalAmount = 0;
+  propRows.forEach(r => {
+    Object.values(r.cells).forEach(cell => {
+      totalCells++;
+      if(cell.existing){ filledCells++; totalAmount += (+cell.existing.amount||0); }
     });
   });
-  rowsRaw.sort((a,b)=> (a.p.name||'').localeCompare(b.p.name||'','th') || a.u.key.localeCompare(b.u.key));
-
-  // KPI
-  const totalRows = rowsRaw.length;
-  const filledRows = rowsRaw.filter(r => r.existing).length;
-  const totalAmount = rowsRaw.filter(r => r.existing).reduce((s,r)=>s+(+r.existing.amount||0), 0);
 
   // Filter options
   const utilFilterOpts = '<option value="all">ทุกประเภท</option>' + utilTypes.map(ut => `<option value="${ut.key}" ${meterPageUtilityFilter===ut.key?'selected':''}>${esc(ut.icon||'🔌')} ${esc(ut.label)}</option>`).join('');
 
-  // Body rows
-  const bodyRows = rowsRaw.length === 0
-    ? `<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">ไม่มีทรัพย์สินเปิดเก็บค่ามิเตอร์ในเดือนนี้ — เปิดในหน้าทรัพย์สิน → "ตั้งค่ามิเตอร์"</td></tr>`
-    : rowsRaw.map((r, i) => {
+  // Build column headers (utility groups)
+  const utilColHeaders = shownUtilTypes.map(ut => `
+    <th colspan="3" style="padding:8px 10px;text-align:center;font-size:11px;color:#475569;font-weight:700;border-left:1px solid #e2e8f0;background:${ut.key==='water'?'#f0f9ff':ut.key==='elec'?'#fef3c7':'#f1f5f9'}">
+      <span style="font-size:14px">${ut.icon||'🔌'}</span> ${esc(ut.label)}
+      <div style="font-size:9px;color:#94a3b8;font-weight:500;margin-top:1px">rate ${ut.defaultRate||0} บ./${esc(ut.unit||'หน่วย')}</div>
+    </th>
+  `).join('');
+  const utilSubHeaders = shownUtilTypes.map(ut => `
+    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600;border-left:1px solid #e2e8f0">ก่อน</th>
+    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600">ปัจจุบัน</th>
+    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600">ยอด</th>
+  `).join('');
+
+  // Body rows (1 per property)
+  const bodyRows = propRows.length === 0
+    ? `<tr><td colspan="${1+shownUtilTypes.length*3+3}" style="padding:30px;text-align:center;color:#94a3b8;font-size:13px">ไม่มีทรัพย์สินเปิดเก็บค่ามิเตอร์ในเดือนนี้ — กดปุ่ม "⚙️ ตั้งค่ามิเตอร์" ด้านบน</td></tr>`
+    : propRows.map(r => {
       const escAttr = s => String(s||'').replace(/"/g,'&quot;');
-      const id = 'mtrNow_'+r.p.pid+'_'+r.u.key;
-      const units = (r.now!=null) ? (r.now - r.prev) : null;
-      const amount = (units!=null) ? units * (r.u.rate||0) : null;
-      const statusBadge = r.existing
-        ? '<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-weight:600">✓ บันทึกแล้ว</span>'
-        : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-weight:600">⌛ ยังไม่จด</span>';
+      let totalAmt = 0, allFilled = true, anyFilled = false;
+      const utilCells = shownUtilTypes.map(ut => {
+        const cell = r.cells[ut.key];
+        if(!cell){
+          // ทรัพย์สินนี้ไม่ได้เปิด utility นี้
+          return `<td colspan="3" style="padding:8px;text-align:center;color:#cbd5e1;font-size:11px;background:#fafafa;border-left:1px solid #e2e8f0">—</td>`;
+        }
+        const inputId = 'mtrNow_'+r.p.pid+'_'+cell.u.key;
+        const units = (cell.now!=null) ? (cell.now - cell.prev) : null;
+        const amount = (units!=null) ? units * (cell.u.rate||0) : null;
+        if(cell.existing){ totalAmt += (+cell.existing.amount||0); anyFilled = true; }
+        else { allFilled = false; }
+        if(!cell.existing) allFilled = false;
+        return `<td style="padding:6px 8px;text-align:right;color:#64748b;font-variant-numeric:tabular-nums;font-size:11.5px;border-left:1px solid #e2e8f0">${esc(String(cell.prev))}</td>
+        <td style="padding:6px 8px;text-align:right">
+          <input type="number" id="${inputId}" data-pid="${r.p.pid}" data-utility="${cell.u.key}" data-prev="${cell.prev}" data-rate="${cell.u.rate||0}" value="${cell.now!=null?escAttr(String(cell.now)):''}" placeholder="—" min="${cell.prev}" style="width:88px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;font-family:Sarabun" oninput="mtrCalc('${inputId}')">
+        </td>
+        <td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:600;color:${cell.existing?'#059669':'#0891b2'}" id="${inputId}_amount">${amount!=null?fmtBaht(amount,{sym:0,dec:0}):'-'}</td>`;
+      }).join('');
+
+      const statusBadge = allFilled
+        ? '<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-weight:600">✓ ครบ</span>'
+        : anyFilled
+          ? '<span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:99px;font-weight:600">บางส่วน</span>'
+          : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-weight:600">⌛ ยังไม่จด</span>';
       return `<tr style="border-bottom:1px solid #f1f5f9">
-        <td style="padding:10px 12px"><div style="font-size:12.5px;font-weight:600;color:#1e293b">${esc(r.p.name)}</div>${r.activeC?'<div style="font-size:10.5px;color:#64748b">'+esc(r.activeC.tenant||'-')+' · '+esc(r.activeC.no||'')+'</div>':'<div style="font-size:10.5px;color:#dc2626">ว่าง — ไม่มีสัญญา</div>'}</td>
-        <td style="padding:10px 12px;font-size:12px"><span style="font-size:14px">${r.ut.icon||'🔌'}</span> ${esc(r.ut.label)}</td>
-        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#64748b">${esc(String(r.prev))}</td>
-        <td style="padding:10px 12px;text-align:right"><input type="number" id="${id}" data-pid="${r.p.pid}" data-utility="${r.u.key}" data-prev="${r.prev}" data-rate="${r.u.rate||0}" value="${r.now!=null?escAttr(String(r.now)):''}" placeholder="ใส่เลขล่าสุด" min="${r.prev}" style="width:110px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums" oninput="mtrCalc('${id}')"></td>
-        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#0891b2;font-weight:600" id="${id}_units">${units!=null?units:'-'}</td>
-        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#64748b">${esc(String(r.u.rate||0))}</td>
-        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#059669" id="${id}_amount">${amount!=null?fmtBaht(amount,{sym:0,dec:2}):'-'}</td>
-        <td style="padding:10px 12px;text-align:center">${statusBadge}</td>
-        <td style="padding:10px 12px;text-align:center">
-          <button onclick="saveMeterReading('${r.p.pid}','${r.u.key}','${consumedMonth}')" style="padding:5px 12px;background:#4338ca;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
-          ${r.existing?'<button onclick="deleteMeterReading('+r.existing.id+')" style="margin-left:4px;padding:5px 8px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun" title="ลบ">🗑</button>':''}
+        <td style="padding:10px 12px;min-width:200px"><div style="font-size:12.5px;font-weight:600;color:#1e293b">${esc(r.p.name)}</div>${r.activeC?'<div style="font-size:10.5px;color:#64748b">'+esc(r.activeC.tenant||'-')+' · '+esc(r.activeC.no||'')+'</div>':'<div style="font-size:10.5px;color:#dc2626">ว่าง — ไม่มีสัญญา</div>'}</td>
+        ${utilCells}
+        <td style="padding:10px 12px;text-align:center;border-left:1px solid #e2e8f0">${statusBadge}</td>
+        <td style="padding:10px 8px;text-align:center">
+          <button onclick="saveMeterRowAll('${r.p.pid}','${consumedMonth}')" style="padding:6px 12px;background:#4338ca;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
         </td>
       </tr>`;
     }).join('');
@@ -19554,6 +19599,7 @@ function renderMetersPage(){
       </div>
       <span style="font-size:11px;color:#64748b">จดมิเตอร์ของ <b>${monthLabel}</b> → ออกใบบิลเดือน <b>${billMonthLabel}</b> (lag 1 รอบ)</span>
       <div style="margin-left:auto;display:flex;gap:8px">
+        <button onclick="openMeterSetupModal()" style="padding:8px 14px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">⚙️ ตั้งค่ามิเตอร์</button>
         <button onclick="mtrPasteFromExcel()" style="padding:8px 14px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">📋 วาง Excel</button>
         <button onclick="mtrExportExcel('${consumedMonth}')" style="padding:8px 14px;background:#fff;color:#0369a1;border:1px solid #bae6fd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">📥 Export</button>
       </div>
@@ -19561,9 +19607,9 @@ function renderMetersPage(){
 
     <!-- KPI -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px">
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ที่ต้องจด</div><div style="font-size:22px;font-weight:800;color:#4338ca">${totalRows}</div></div>
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">จดแล้ว</div><div style="font-size:22px;font-weight:800;color:#059669">${filledRows}/${totalRows}</div></div>
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ยังไม่จด</div><div style="font-size:22px;font-weight:800;color:#d97706">${totalRows-filledRows}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ที่ต้องจด</div><div style="font-size:22px;font-weight:800;color:#4338ca">${totalCells}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">จดแล้ว</div><div style="font-size:22px;font-weight:800;color:#059669">${filledCells}/${totalCells}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ยังไม่จด</div><div style="font-size:22px;font-weight:800;color:#d97706">${totalCells-filledCells}</div></div>
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ค่าน้ำ/ไฟรวม</div><div style="font-size:20px;font-weight:800;color:#059669">${fmtBaht(totalAmount,{sym:0,dec:0})} บาท</div></div>
     </div>
 
@@ -19575,20 +19621,18 @@ function renderMetersPage(){
       <input type="text" id="mtrSearchInput" value="${esc(meterPagePropFilter)}" oninput="meterPagePropFilter=this.value;clearTimeout(window._mtrSearchT);window._mtrSearchT=setTimeout(()=>render(),250)" placeholder="ค้นหาทรัพย์สิน..." style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun;flex:1;max-width:300px">
     </div>
 
-    <!-- Table -->
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
-      <table style="width:100%;border-collapse:collapse;font-family:Sarabun">
+    <!-- Table — 1 row per property · utility columns เรียงต่อกัน -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-family:Sarabun;min-width:${500 + shownUtilTypes.length*260}px">
         <thead>
+          <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <th rowspan="2" style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700;border-right:1px solid #e2e8f0">ทรัพย์สิน / ผู้เช่า</th>
+            ${utilColHeaders}
+            <th rowspan="2" style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700;border-left:1px solid #e2e8f0">สถานะ</th>
+            <th rowspan="2" style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">Action</th>
+          </tr>
           <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
-            <th style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700">ทรัพย์สิน / ผู้เช่า</th>
-            <th style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700">ประเภท</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">เลขก่อน</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">เลขปัจจุบัน</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">หน่วย</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">rate</th>
-            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">ยอด</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">สถานะ</th>
-            <th style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">Action</th>
+            ${utilSubHeaders}
           </tr>
         </thead>
         <tbody>${bodyRows}</tbody>
@@ -19614,7 +19658,68 @@ function mtrCalc(inputId){
   const units = now - prev;
   const amount = units * rate;
   if(unitsEl) unitsEl.textContent = units;
-  if(amountEl) amountEl.textContent = fmtBaht(amount, {sym:0,dec:2});
+  if(amountEl) amountEl.textContent = fmtBaht(amount, {sym:0,dec:0});
+}
+
+// Save all utility readings ใน row เดียวกัน (1 property หลาย utility)
+function saveMeterRowAll(pidStr, consumedMonth){
+  const pid = +pidStr;
+  const p = (DB.properties||[]).find(pp => pp.pid === pid);
+  if(!p) return;
+  const enabledUtils = (p.utilities||[]).filter(u => u.enabled);
+  if(enabledUtils.length === 0){ toast('ทรัพย์สินนี้ไม่มี utility เปิด','error'); return; }
+  let savedCount = 0;
+  let skippedCount = 0;
+  const errors = [];
+  enabledUtils.forEach(u => {
+    const inputId = 'mtrNow_'+pid+'_'+u.key;
+    const inp = document.getElementById(inputId);
+    if(!inp) return;
+    const raw = (inp.value||'').trim();
+    if(raw === ''){ skippedCount++; return; } // ปล่อยว่าง = ไม่ save
+    const now = parseFloat(raw);
+    if(isNaN(now)){ errors.push((getUtilityType(u.key)?.label||u.key)+': เลขไม่ถูกต้อง'); return; }
+    const prev = parseFloat(inp.dataset.prev) || 0;
+    if(now < prev){ errors.push((getUtilityType(u.key)?.label||u.key)+': เลขใหม่ ('+now+') < เลขก่อน ('+prev+')'); return; }
+    const rate = parseFloat(inp.dataset.rate) || u.rate || 0;
+    const units = now - prev;
+    const amount = +(units * rate).toFixed(2);
+    const billMonth = monthKeyAdd(consumedMonth, 1);
+    const activeC = (DB.contracts||[]).find(c => c.pid===pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+    if(!Array.isArray(DB.meterReadings)) DB.meterReadings = [];
+    let entry = DB.meterReadings.find(r => r.pid===pid && r.utilityKey===u.key && r.consumedMonth===consumedMonth);
+    if(entry){
+      entry.prev = prev; entry.now = now; entry.units = units; entry.rate = rate; entry.amount = amount;
+      entry.updatedAt = new Date().toISOString();
+      entry.by = (currentUser&&currentUser.name) || entry.by || '';
+    } else {
+      if(!DB.nextMeterReadingId) DB.nextMeterReadingId = 1;
+      DB.meterReadings.push({
+        id: DB.nextMeterReadingId++,
+        pid, cid: activeC?.id || null,
+        utilityKey: u.key, consumedMonth, billMonth,
+        prev, now, units, rate, amount,
+        recordedAt: typeof todayBE==='function' ? todayBE() : new Date().toLocaleDateString('th-TH'),
+        note: '',
+        by: (currentUser&&currentUser.name) || '',
+        createdAt: new Date().toISOString()
+      });
+    }
+    mirrorLastReadingToProperty(pid, u.key, now, consumedMonth);
+    savedCount++;
+  });
+  if(savedCount > 0){
+    addActivityLog('save_meter_row','บันทึกมิเตอร์ '+p.name+' · '+savedCount+' รายการ');
+    save();
+  }
+  if(errors.length > 0){
+    toast(errors.join(' · '),'error');
+  } else if(savedCount > 0){
+    toast('✓ บันทึก '+savedCount+' รายการ'+(skippedCount>0?' (ข้าม '+skippedCount+' ที่ว่าง)':''),'success');
+  } else {
+    toast('ยังไม่มีข้อมูล — กรอกเลขก่อนกดบันทึก','warning');
+  }
+  render();
 }
 
 // บันทึก meter reading 1 row
@@ -19763,6 +19868,209 @@ function mtrExportExcel(month){
   XLSX.writeFile(wb, fname);
   addActivityLog('export_meter','Export มิเตอร์ — '+rows.length+' รายการ ('+(month||'all')+')');
   toast('Export สำเร็จ · '+rows.length+' รายการ','success');
+}
+
+// ===== Phase 3+: Bulk meter setup modal — set ทรัพย์สินหลายตัวพร้อมกัน =====
+var meterSetupFilter = 'all'; // 'all' | 'with-tenant' | 'has-meter' | 'no-meter'
+var meterSetupSearch = '';
+
+function openMeterSetupModal(){
+  $('mtitle').textContent = 'ตั้งค่ามิเตอร์รวม';
+  renderMeterSetupBody();
+  $('modal').classList.remove('hidden');
+}
+
+function renderMeterSetupBody(){
+  if(!Array.isArray(DB.utilityTypes)) DB.utilityTypes = [];
+  const utilTypes = DB.utilityTypes.slice();
+  if(utilTypes.length === 0){
+    $('mbody').innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">ยังไม่มี utility types · เพิ่มใน Settings ก่อน</div>';
+    return;
+  }
+  // Filter properties
+  const allProps = (DB.properties||[]);
+  let props = allProps.slice();
+  if(meterSetupSearch){
+    const q = meterSetupSearch.toLowerCase();
+    props = props.filter(p => p.name.toLowerCase().includes(q));
+  }
+  if(meterSetupFilter === 'with-tenant'){
+    const activeContractPids = new Set((DB.contracts||[]).filter(c => !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})()).map(c => c.pid));
+    props = props.filter(p => activeContractPids.has(p.pid));
+  } else if(meterSetupFilter === 'has-meter'){
+    props = props.filter(p => (p.utilities||[]).some(u => u.enabled));
+  } else if(meterSetupFilter === 'no-meter'){
+    props = props.filter(p => !(p.utilities||[]).some(u => u.enabled));
+  }
+  props.sort((a,b)=> (a.name||'').localeCompare(b.name||'','th'));
+
+  const utilCols = utilTypes.map(ut => `<th colspan="2" style="padding:8px 6px;text-align:center;font-size:11px;color:#475569;font-weight:700;background:${ut.key==='water'?'#f0f9ff':ut.key==='elec'?'#fef3c7':'#f1f5f9'};border-left:1px solid #e2e8f0">
+    ${ut.icon||'🔌'} ${esc(ut.label)}
+  </th>`).join('');
+  const utilSubCols = utilTypes.map(ut => `
+    <th style="padding:5px 4px;text-align:center;font-size:9px;color:#64748b;font-weight:600;border-left:1px solid #e2e8f0">เปิด</th>
+    <th style="padding:5px 4px;text-align:center;font-size:9px;color:#64748b;font-weight:600">rate (บ./${esc(ut.unit||'หน่วย')})</th>
+  `).join('');
+
+  const activeContractMap = {};
+  (DB.contracts||[]).forEach(c => { if(!c.cancelled){ const st=status(c); if(st==='active'||st==='upcoming') activeContractMap[c.pid] = c; }});
+
+  const propRows = props.length === 0
+    ? `<tr><td colspan="${2+utilTypes.length*2}" style="padding:30px;text-align:center;color:#94a3b8;font-size:12px">ไม่พบทรัพย์สิน</td></tr>`
+    : props.map(p => {
+      const activeC = activeContractMap[p.pid];
+      const utilCells = utilTypes.map(ut => {
+        const pu = (p.utilities||[]).find(u => u.key === ut.key);
+        const enabled = !!(pu && pu.enabled);
+        const rate = pu ? (pu.rate||0) : (ut.defaultRate||0);
+        const chkId = 'msEn_'+p.pid+'_'+ut.key;
+        const rtId = 'msRate_'+p.pid+'_'+ut.key;
+        return `<td style="padding:6px 4px;text-align:center;border-left:1px solid #e2e8f0"><input type="checkbox" id="${chkId}" data-pid="${p.pid}" data-key="${ut.key}" ${enabled?'checked':''} style="width:16px;height:16px;cursor:pointer"></td>
+        <td style="padding:6px 4px;text-align:center"><input type="number" id="${rtId}" data-pid="${p.pid}" data-key="${ut.key}" value="${rate}" min="0" step="0.5" style="width:70px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;text-align:right;font-variant-numeric:tabular-nums"></td>`;
+      }).join('');
+      return `<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:8px 10px;font-size:11.5px;color:#1e293b">
+          <div style="font-weight:600">${esc(p.name)}</div>
+          ${activeC?'<div style="font-size:10px;color:#64748b">'+esc(activeC.tenant||'-')+'</div>':'<div style="font-size:10px;color:#94a3b8">ว่าง</div>'}
+        </td>
+        ${utilCells}
+      </tr>`;
+    }).join('');
+
+  // Filter chips
+  const filterOpts = [
+    {v:'all', l:'ทั้งหมด ('+allProps.length+')'},
+    {v:'with-tenant', l:'มีผู้เช่า'},
+    {v:'has-meter', l:'เปิดมิเตอร์แล้ว'},
+    {v:'no-meter', l:'ยังไม่เปิด'}
+  ];
+  const filterChips = filterOpts.map(o => `<button onclick="meterSetupFilter='${o.v}';renderMeterSetupBody()" style="padding:6px 12px;background:${meterSetupFilter===o.v?'#4338ca':'#fff'};color:${meterSetupFilter===o.v?'#fff':'#475569'};border:1px solid ${meterSetupFilter===o.v?'#4338ca':'#cbd5e1'};border-radius:6px;font-size:11px;font-weight:${meterSetupFilter===o.v?'700':'500'};cursor:pointer;font-family:Sarabun">${o.l}</button>`).join('');
+
+  // Bulk apply
+  const bulkActions = utilTypes.map(ut => `<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:${ut.key==='water'?'#f0f9ff':'#fef3c7'};border-radius:6px;border:1px solid ${ut.key==='water'?'#bfdbfe':'#fde68a'}">
+    <span style="font-size:13px">${ut.icon||'🔌'}</span>
+    <span style="font-size:11px;color:#475569;font-weight:600">${esc(ut.label)}</span>
+    <input type="number" id="bulkRate_${ut.key}" value="${ut.defaultRate||0}" min="0" step="0.5" style="width:60px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:5px;font-size:11px;text-align:right">
+    <button onclick="msApplyBulk('${ut.key}', 'check')" style="padding:4px 8px;background:#fff;border:1px solid #cbd5e1;border-radius:5px;font-size:10px;cursor:pointer;font-family:Sarabun" title="ติ๊กเปิดทุกแถวที่เห็น + ใส่ rate ตามนี้">✓ ติ๊กหมด+ใส่ rate</button>
+    <button onclick="msApplyBulk('${ut.key}', 'rate-only')" style="padding:4px 8px;background:#fff;border:1px solid #cbd5e1;border-radius:5px;font-size:10px;cursor:pointer;font-family:Sarabun" title="ใส่ rate ตามนี้กับทุกแถวที่ติ๊กไว้แล้ว">✎ rate เฉพาะที่ติ๊ก</button>
+    <button onclick="msApplyBulk('${ut.key}', 'uncheck')" style="padding:4px 8px;background:#fff;border:1px solid #cbd5e1;border-radius:5px;font-size:10px;cursor:pointer;font-family:Sarabun" title="เอาเครื่องหมายติ๊กทุกแถวออก">✕ ปิดหมด</button>
+  </div>`).join('');
+
+  $('mbody').innerHTML = `<div style="font-family:Sarabun">
+    <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:11.5px;color:#3730a3;line-height:1.6">
+      💡 ตั้งค่ามิเตอร์หลายทรัพย์พร้อมกัน · ติ๊กว่าเก็บค่าน้ำ/ค่าไฟตัวไหน + ใส่ rate · กดบันทึกครั้งเดียวจบ
+    </div>
+
+    <!-- Bulk apply ribbon -->
+    <div style="background:#fafbff;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:12px">
+      <div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:6px">⚡ ใช้กับทุกแถวที่เห็นในตาราง:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${bulkActions}</div>
+    </div>
+
+    <!-- Filters + search -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <div style="display:flex;gap:4px">${filterChips}</div>
+      <input type="text" id="msSearch" value="${esc(meterSetupSearch)}" oninput="meterSetupSearch=this.value;clearTimeout(window._msT);window._msT=setTimeout(renderMeterSetupBody,200)" placeholder="ค้นหาทรัพย์สิน..." style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:Sarabun;flex:1;max-width:260px">
+      <span style="font-size:11px;color:#64748b;margin-left:auto">${props.length} ทรัพย์สิน</span>
+    </div>
+
+    <!-- Properties table -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:auto;max-height:50vh">
+      <table style="width:100%;border-collapse:collapse;font-family:Sarabun">
+        <thead style="position:sticky;top:0;z-index:1">
+          <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+            <th rowspan="2" style="padding:8px 10px;text-align:left;font-size:11px;color:#475569;font-weight:700;background:#f8fafc;border-right:1px solid #e2e8f0">ทรัพย์สิน / ผู้เช่า</th>
+            ${utilCols}
+          </tr>
+          <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">${utilSubCols}</tr>
+        </thead>
+        <tbody>${propRows}</tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0">
+      <button type="button" onclick="closeModal()" style="padding:10px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+      <button type="button" onclick="msSaveAll()" style="padding:10px 28px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Sarabun">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>`;
+}
+
+// Apply bulk action กับทุก property ที่เห็นในตาราง
+function msApplyBulk(utilityKey, action){
+  const root = $('mbody');
+  const rateInp = root.querySelector('#bulkRate_'+utilityKey);
+  const bulkRate = rateInp ? parseFloat(rateInp.value) : null;
+  const checks = root.querySelectorAll('[id^="msEn_"][data-key="'+utilityKey+'"]');
+  let count = 0;
+  checks.forEach(chk => {
+    const pid = chk.dataset.pid;
+    const rateField = root.querySelector('#msRate_'+pid+'_'+utilityKey);
+    if(action === 'check'){
+      chk.checked = true;
+      if(rateField && bulkRate!=null && !isNaN(bulkRate)) rateField.value = bulkRate;
+      count++;
+    } else if(action === 'uncheck'){
+      chk.checked = false;
+      count++;
+    } else if(action === 'rate-only'){
+      if(chk.checked && rateField && bulkRate!=null && !isNaN(bulkRate)){
+        rateField.value = bulkRate;
+        count++;
+      }
+    }
+  });
+  toast('Applied: '+count+' แถว','success');
+}
+
+// Save bulk setup → update DB.properties
+function msSaveAll(){
+  const root = $('mbody');
+  const checks = root.querySelectorAll('[id^="msEn_"]');
+  // Build update map: pid -> {key -> {enabled, rate}}
+  const updates = {};
+  checks.forEach(chk => {
+    const pid = +chk.dataset.pid;
+    const key = chk.dataset.key;
+    if(!updates[pid]) updates[pid] = {};
+    const rateField = root.querySelector('#msRate_'+pid+'_'+key);
+    const rate = rateField ? (parseFloat(rateField.value)||0) : 0;
+    updates[pid][key] = { enabled: !!chk.checked, rate };
+  });
+  // Apply
+  let changedProps = 0, changedCells = 0;
+  Object.entries(updates).forEach(([pidStr, byKey]) => {
+    const pid = +pidStr;
+    const p = (DB.properties||[]).find(pp => pp.pid === pid);
+    if(!p) return;
+    if(!Array.isArray(p.utilities)) p.utilities = [];
+    let propChanged = false;
+    Object.entries(byKey).forEach(([k, settings]) => {
+      let pu = p.utilities.find(u => u.key === k);
+      const ut = getUtilityType(k);
+      if(!pu){
+        // Create entry only if enabling (skip creating disabled-with-default)
+        if(!settings.enabled && (!ut || settings.rate === ut.defaultRate)) return;
+        pu = { key: k, enabled: false, rate: ut?ut.defaultRate:0, unit: ut?ut.unit:'หน่วย', lastReading: 0, lastConsumedMonth: '' };
+        p.utilities.push(pu);
+      }
+      if(pu.enabled !== settings.enabled || pu.rate !== settings.rate){
+        pu.enabled = settings.enabled;
+        pu.rate = settings.rate;
+        propChanged = true;
+        changedCells++;
+      }
+    });
+    if(propChanged) changedProps++;
+  });
+  if(changedProps > 0){
+    addActivityLog('bulk_meter_setup','ตั้งค่ามิเตอร์รวม — '+changedProps+' ทรัพย์สิน · '+changedCells+' เปลี่ยน');
+    save();
+    toast('✓ บันทึก '+changedProps+' ทรัพย์สิน ('+changedCells+' เปลี่ยน)','success');
+  } else {
+    toast('ไม่มีการเปลี่ยนแปลง','warning');
+  }
+  closeModal();
+  if(typeof render === 'function') render();
 }
 
 // ----- Render layer (read-only) -----
