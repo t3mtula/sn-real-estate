@@ -19877,6 +19877,7 @@ var meterSetupSearch = '';
 var meterSetupType = 'all'; // ประเภททรัพย์สิน (PROP_TYPES.v)
 var meterSetupProvince = 'all'; // จังหวัด
 var meterSetupLandlord = 'all'; // ผู้ให้เช่า (active contract → landlord)
+var meterSetupCategory = 'all'; // หมวด (label/DB.categories)
 
 function openMeterSetupModal(){
   $('mtitle').textContent = 'ตั้งค่ามิเตอร์รวม';
@@ -19899,6 +19900,10 @@ function renderMeterSetupBody(){
   const allProps = (DB.properties||[]);
   const distinctProvinces = [...new Set(allProps.map(p => p.addr_province || p.province || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
   const distinctLandlords = [...new Set(Object.values(activeContractMap).map(c => c.landlord).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  // หมวด (label) — มาจาก DB.categories ก่อน · ถ้าไม่มี fallback จาก p.location distinct
+  const distinctCategories = (DB.categories && DB.categories.length>0)
+    ? DB.categories.map(c => c.name).filter(Boolean).sort((a,b)=>a.localeCompare(b,'th'))
+    : [...new Set(allProps.map(p => p.location || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
 
   // Filter properties
   let props = allProps.slice();
@@ -19908,6 +19913,9 @@ function renderMeterSetupBody(){
   }
   if(meterSetupType !== 'all'){
     props = props.filter(p => (p.type||'') === meterSetupType);
+  }
+  if(meterSetupCategory !== 'all'){
+    props = props.filter(p => (p.location||'') === meterSetupCategory);
   }
   if(meterSetupProvince !== 'all'){
     props = props.filter(p => (p.addr_province||p.province||'') === meterSetupProvince);
@@ -19995,6 +20003,10 @@ function renderMeterSetupBody(){
           <option value="all" ${meterSetupType==='all'?'selected':''}>ทุกประเภท</option>
           ${(typeof PROP_TYPES!=='undefined'?PROP_TYPES:[]).map(t=>`<option value="${esc(t.v)}" ${meterSetupType===t.v?'selected':''}>${esc(t.l)}</option>`).join('')}
         </select>
+        <select onchange="meterSetupCategory=this.value;renderMeterSetupBody()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;background:#fff;max-width:200px">
+          <option value="all" ${meterSetupCategory==='all'?'selected':''}>ทุกหมวด</option>
+          ${distinctCategories.map(cat=>`<option value="${esc(cat)}" ${meterSetupCategory===cat?'selected':''}>${esc(cat)}</option>`).join('')}
+        </select>
         <select onchange="meterSetupProvince=this.value;renderMeterSetupBody()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;background:#fff">
           <option value="all" ${meterSetupProvince==='all'?'selected':''}>ทุกจังหวัด</option>
           ${distinctProvinces.map(pv=>`<option value="${esc(pv)}" ${meterSetupProvince===pv?'selected':''}>${esc(pv)}</option>`).join('')}
@@ -20004,7 +20016,7 @@ function renderMeterSetupBody(){
           ${distinctLandlords.map(ll=>`<option value="${esc(ll)}" ${meterSetupLandlord===ll?'selected':''}>${esc(shortLandlordName?shortLandlordName(ll):ll)}</option>`).join('')}
         </select>
         <input type="text" id="msSearch" value="${esc(meterSetupSearch)}" oninput="meterSetupSearch=this.value;clearTimeout(window._msT);window._msT=setTimeout(renderMeterSetupBody,200)" placeholder="ค้นหาทรัพย์สิน / ผู้เช่า..." style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;flex:1;min-width:200px">
-        ${(meterSetupType!=='all'||meterSetupProvince!=='all'||meterSetupLandlord!=='all'||meterSetupSearch||meterSetupFilter!=='all')?'<button onclick="meterSetupType=\'all\';meterSetupProvince=\'all\';meterSetupLandlord=\'all\';meterSetupSearch=\'\';meterSetupFilter=\'all\';renderMeterSetupBody()" style="padding:6px 12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;font-weight:600">✕ ล้างทั้งหมด</button>':''}
+        ${(meterSetupType!=='all'||meterSetupCategory!=='all'||meterSetupProvince!=='all'||meterSetupLandlord!=='all'||meterSetupSearch||meterSetupFilter!=='all')?'<button onclick="meterSetupType=\'all\';meterSetupCategory=\'all\';meterSetupProvince=\'all\';meterSetupLandlord=\'all\';meterSetupSearch=\'\';meterSetupFilter=\'all\';renderMeterSetupBody()" style="padding:6px 12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;font-weight:600">✕ ล้างทั้งหมด</button>':''}
       </div>
     </div>
 
