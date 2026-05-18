@@ -4085,6 +4085,9 @@ function updateSaveStatus(text) {
 function createDepositInvoice(cid) {
   const c = DB.contracts.find(x => x.id === cid);
   if(!c) return;
+  // Phase 1: gate ด้วย hasDeposit checkbox ก่อนทำใบรับเงินประกัน
+  // ไม่ติ๊ก → ไม่ออกใบ แม้ deposit field มีค่าตกค้าง
+  if(c.hasDeposit === false) return;
   const raw = String(c.deposit||'').replace(/[^0-9.]/g,'');
   const depositAmt = Number(raw)||0;
   if(depositAmt <= 0) return;
@@ -8165,9 +8168,9 @@ function renderDash(){
     <span class="btn2 btn2-ghost btn2-sm" style="pointer-events:none">ดูทั้งหมด →</span>
   </div>`:'';
 
-  // Pending deposits alert
-  const _pendDep=cs.filter(c=>{const s=status(c);if(s!=='expired'&&s!=='cancelled')return false;const dep=c.deposit?parseFloat(String(c.deposit).replace(/[^\d.]/g,''))||0:0;if(dep<=0)return false;return !(DB.deposits||[]).some(d=>d.cid===c.id);});
-  const _pendDepSum=_pendDep.reduce((s,c)=>s+(parseFloat(String(c.deposit).replace(/[^\d.]/g,''))||0),0);
+  // Pending deposits alert — Phase 1: cascade ผ่าน getContractDeposit เคารพ hasDeposit
+  const _pendDep=cs.filter(c=>{const s=status(c);if(s!=='expired'&&s!=='cancelled')return false;const dep=getContractDeposit(c);if(dep<=0)return false;return !(DB.deposits||[]).some(d=>d.cid===c.id);});
+  const _pendDepSum=_pendDep.reduce((s,c)=>s+getContractDeposit(c),0);
   const _pendDepAlertHTML=_pendDep.length>0?`<div class="alert-strip warn" onclick="showPendingDeposits()" style="cursor:pointer">
     <svg class="alert-strip-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
     <div class="alert-strip-body">
@@ -9187,7 +9190,8 @@ function buildContractTimeline(c, cInvoices){
 
 // ─── Workflow progress strip for viewContract ────────────────────────────
 function _vcWorkflowStrip(c, st){
-  const depositAmt=c.deposit?parseFloat(String(c.deposit).replace(/[^\d.]/g,''))||0:0;
+  // Phase 1: cascade ผ่าน getContractDeposit → respects c.hasDeposit ครบ
+  const depositAmt=getContractDeposit(c);
   const hasDeposit=depositAmt>0;
   const _depInv=(DB.invoices||[]).find(i=>i.cid===c.id&&i.category==='deposit');
   const depositRecvd=_depInv?_depInv.status==='paid':!!c.depositReceivedAt;
@@ -9297,7 +9301,8 @@ function viewContract(id) {
   </div>`:'';
 
   // Buttons — grouped into action bar
-  const _bDepAmt=c.deposit?parseFloat(String(c.deposit).replace(/[^\d.]/g,''))||0:0;
+  // Phase 1: cascade ผ่าน getContractDeposit → respects c.hasDeposit
+  const _bDepAmt=getContractDeposit(c);
   const _bDepInv=(DB.invoices||[]).find(i=>i.cid===c.id&&i.category==='deposit')||null;
   const _depBtnHtml=(_bDepAmt>0&&_bDepInv)?('<div style="display:flex;gap:1px;background:#e2e8f0;border-radius:8px;overflow:hidden;flex-shrink:0"><button onclick="'+(_bDepInv.status==='paid'?'printReceipt('+_bDepInv.id+')':'openReceivePaymentModal('+_bDepInv.id+')')+'" style="padding:8px 12px;background:'+(_bDepInv.status==='paid'?'#f0fdf4':'#fff')+';font-size:12px;color:#0369a1;border:none;cursor:pointer;font-weight:600" title="'+(_bDepInv.status==='paid'?'พิมพ์ใบรับเงินประกัน':'รับเงินประกัน')+'">'+(_bDepInv.status==='paid'?'📄':'💳')+' ใบรับเงินประกัน</button></div>'):'';
   const btnRow=`<div style="margin-top:16px;padding:12px 0;border-top:1px solid #e2e8f0;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
@@ -22396,6 +22401,9 @@ function _setPropProvince(pid, province, sel) {
 // Scenario C: เงินพอดี (breakeven)
 
 function getContractDeposit(c){
+  // Phase 1: ถ้า hasDeposit ถูกตั้ง false ชัดเจน → 0 เสมอ (single point of truth)
+  // cascade ผ่านทุก caller: workflow strip, move-out, settlement, depositLedger, etc.
+  if(c && c.hasDeposit === false) return 0;
   const raw = String(c.deposit||'').replace(/[^0-9.]/g,'');
   return Number(raw)||0;
 }
