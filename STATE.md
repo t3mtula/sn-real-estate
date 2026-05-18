@@ -37,6 +37,7 @@
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (ALL_NAME_PREFIXES vs tenant form local vs signer pfxOpts) — preexisting ขัด lesson `unify_forms`
 
 ## 📍 Latest commits (branch `claude/sharp-curie-eaa567` push main)
+- `feat(template-editor): collapsible clauses + TOC nav + preview toggle + history`
 - `feat(template-editor): UX upgrade — sticky footer, dirty guard, tooltips, confirms`
 - `feat(dashboard+form): เพิ่ม 3 data alerts + deposit checkbox + madeAt auto-fill`
 - `perf(load): กรอง backup snapshots ออกจาก re_config fetch + cleanup เก่า`
