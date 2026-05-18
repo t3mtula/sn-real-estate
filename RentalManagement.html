@@ -21067,12 +21067,18 @@ async function _refreshToken() {
   } catch(e) { console.warn('[supabase] refresh error', e); return null; }
 }
 
-async function _fetchTable(table, token) {
+async function _fetchTable(table, token, extraQuery) {
+  // table can contain query already; extraQuery (optional) is appended with &
+  // BUGFIX perf: re_config มี backup snapshots ~17MB ที่ไม่จำเป็นต่อ runtime
+  //   → caller สามารถส่ง extraQuery เช่น 'key=not.like.backup_*' กรองทิ้ง
+  const sep = table.includes('?') ? '&' : '?';
+  const qs  = 'select=*' + (extraQuery ? '&' + extraQuery : '');
+  const url = `${SUPA_REST}/${table}${sep}${qs}`;
   try {
-    let r = await fetch(`${SUPA_REST}/${table}?select=*`, { headers: _authHeaders(token) });
+    let r = await fetch(url, { headers: _authHeaders(token) });
     if(r.status === 401) {
       const newToken = await _refreshToken();
-      if(newToken) r = await fetch(`${SUPA_REST}/${table}?select=*`, { headers: _authHeaders(newToken) });
+      if(newToken) r = await fetch(url, { headers: _authHeaders(newToken) });
     }
     if(!r.ok) { console.warn('fetchTable', table, r.status); return []; }
     return await r.json();
@@ -21094,7 +21100,7 @@ async function loadFromSupabase() {
     _fetchTable('invoice_headers',token),
     _fetchTable('re_templates',  token),
     _fetchTable('inspections',   token),
-    _fetchTable('re_config',     token),
+    _fetchTable('re_config',     token, 'key=not.like.backup_*'),  // perf: ตัด ~17MB backup snapshots ที่ runtime ไม่ใช้
     _fetchTable('property_categories', token).catch(()=>[]) // graceful: ตารางอาจยังไม่ถูก deploy ทุก env
   ]);
 
@@ -21627,19 +21633,37 @@ document.addEventListener('visibilitychange', async function() {
 
 // ── CLOUD BACKUP (Supabase) ───────────────────────────────────────────────
 // บันทึก snapshot เต็ม DB ลง re_config (key='backup_YYYY-MM-DD')
+// BUGFIX perf: เดิม backup ทุก cold load → re_config บวม ~17MB · ตอนนี้:
+//   1) skip ถ้าวันนี้ backup ไปแล้ว (track ผ่าน localStorage)
+//   2) cleanup snapshot ที่เก่ากว่า 7 วันออก (best effort)
 async function createCloudBackup() {
   try {
+    const today = new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('re_lastBackupDate') === today) {
+      console.log('[backup] skipped (already saved today)');
+      return;
+    }
     const token = await _getToken();
     if(!token) return;
-    const today = new Date().toISOString().slice(0,10);
     const snapshot = JSON.parse(JSON.stringify(DB));
     snapshot._backupAt = new Date().toISOString();
-    await fetch(`${SUPA_REST}/re_config`, {
+    const r = await fetch(`${SUPA_REST}/re_config`, {
       method: 'POST',
       headers: { ..._authHeaders(token), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({ key: 'backup_' + today, value: snapshot, updated_at: new Date().toISOString() })
     });
+    if(!r.ok) { console.warn('[backup] save failed', r.status); return; }
+    localStorage.setItem('re_lastBackupDate', today);
     console.log('[backup] cloud backup saved:', today);
+
+    // cleanup: ลบ backup ที่เก่ากว่า 7 วัน (เก็บ 7 ล่าสุดเท่านั้น)
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7);
+    const cutoffKey = 'backup_' + cutoff.toISOString().slice(0,10);
+    fetch(`${SUPA_REST}/re_config?key=like.backup_*&key=lt.${cutoffKey}`, {
+      method: 'DELETE',
+      headers: _authHeaders(token)
+    }).then(r => { if(r.ok) console.log('[backup] cleaned old (<', cutoffKey, ')'); })
+      .catch(e => console.warn('[backup] cleanup failed', e.message));
   } catch(e) { console.warn('[backup] cloud backup failed', e); }
 }
 
