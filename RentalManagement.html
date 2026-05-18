@@ -5995,6 +5995,68 @@ const CONTRACT_RULES = [
       }
     },
     apply(c, values){ c.tenantAddr=(values.tenantAddr||'').trim(); }
+  },
+  // ── NEW: บริษัทผู้เช่าต้องระบุกรรมการลงนาม ──
+  {
+    id: 'tenant_signer_missing',
+    field: 'tenantSignerName',
+    severity: 'warn',
+    label: 'ผู้ลงนาม (กรรมการ) ของบริษัทผู้เช่า',
+    detect(c){
+      if(c.cancelled) return null;
+      if(!isCompanyName(c.tenant||'')) return null;
+      if((c.tenantSignerName||'').trim()) return null;
+      return {msg:'ผู้เช่าเป็นบริษัทแต่ไม่ระบุกรรมการลงนาม'};
+    },
+    fix: {
+      type:'text', field:'tenantSignerName', label:'ชื่อกรรมการลงนาม', placeholder:'เช่น นายสมชาย ใจดี',
+      initial: c => c.tenantSignerName||'',
+      validate(v){ if(!(v||'').trim()) return 'กรอกชื่อกรรมการ'; return null; }
+    },
+    apply(c, values){ c.tenantSignerName=(values.tenantSignerName||'').trim(); }
+  },
+  // ── NEW: บริษัทผู้ให้เช่าต้องระบุกรรมการลงนาม ──
+  {
+    id: 'landlord_signer_missing',
+    field: 'landlordSignerName',
+    severity: 'warn',
+    label: 'ผู้ลงนาม (กรรมการ) ของบริษัทผู้ให้เช่า',
+    detect(c){
+      if(c.cancelled) return null;
+      if(!isCompanyName(c.landlord||'')) return null;
+      if((c.landlordSignerName||'').trim()) return null;
+      return {msg:'ผู้ให้เช่าเป็นบริษัทแต่ไม่ระบุกรรมการลงนาม'};
+    },
+    fix: {
+      type:'text', field:'landlordSignerName', label:'ชื่อกรรมการลงนาม (ผู้ให้เช่า)', placeholder:'เช่น นายสมบัติ พิษณุไวศยวาท',
+      initial: c => c.landlordSignerName||'',
+      validate(v){ if(!(v||'').trim()) return 'กรอกชื่อกรรมการ'; return null; }
+    },
+    apply(c, values){ c.landlordSignerName=(values.landlordSignerName||'').trim(); }
+  },
+  // ── NEW: ติ๊กว่ามีเงินประกันแต่ไม่ระบุจำนวน ──
+  {
+    id: 'deposit_required_but_missing',
+    field: 'deposit',
+    severity: 'warn',
+    label: 'จำนวนเงินประกัน',
+    detect(c){
+      if(c.cancelled) return null;
+      if(c.hasDeposit !== true) return null; // เฉพาะที่ติ๊กว่ามี
+      const d = String(c.deposit||'').replace(/[^\d.]/g,'');
+      if(d && parseFloat(d) > 0) return null;
+      return {msg:'ติ๊กว่ามีเงินประกันแต่ไม่ระบุจำนวน'};
+    },
+    fix: {
+      type:'text', field:'deposit', label:'จำนวนเงินประกัน (บาท)', placeholder:'เช่น 50000',
+      initial: c => c.deposit||'',
+      validate(v){
+        const d=String(v||'').replace(/[^\d.]/g,'');
+        if(!d || parseFloat(d)<=0) return 'กรอกจำนวนเงิน > 0';
+        return null;
+      }
+    },
+    apply(c, values){ c.deposit=String(values.deposit||'').replace(/[^\d.]/g,''); }
   }
 ];
 
@@ -9225,7 +9287,22 @@ function viewContract(id) {
   // (ตรงกับ openEditContract() — view + edit ใช้ structure เดียวกัน)
 
   const depositAmt = c.deposit ? parseFloat(String(c.deposit).replace(/[^\d.]/g, '')) : 0;
-  const depositDisplay = depositAmt && !isNaN(depositAmt) ? fmtBaht(depositAmt, {sym: 0}) + ' บาท' : '';
+  // depositDisplay logic:
+  //   hasDeposit=true + มีจำนวน  → "50,000 บาท"
+  //   hasDeposit=true + ไม่มี    → ⚠ warning (rule จะ catch ใน Dashboard)
+  //   hasDeposit=false           → "ไม่มีเงินประกัน" (สีเทา)
+  //   hasDeposit=undefined       → fallback: ถ้ามี value แสดง · ไม่มีก็ซ่อน (legacy)
+  const _depHas = c.hasDeposit;
+  let depositDisplay;
+  if(_depHas === false){
+    depositDisplay = '<span style="color:#94a3b8;font-style:italic">ไม่มีเงินประกัน</span>';
+  } else if(_depHas === true){
+    depositDisplay = depositAmt && !isNaN(depositAmt)
+      ? fmtBaht(depositAmt, {sym: 0}) + ' บาท'
+      : '<span style="color:#dc2626;font-weight:600">⚠ ติ๊กว่ามีแต่ยังไม่ระบุจำนวน</span>';
+  } else {
+    depositDisplay = depositAmt && !isNaN(depositAmt) ? fmtBaht(depositAmt, {sym: 0}) + ' บาท' : '';
+  }
   // Bank details: contract first, header fallback
   const vcBank = c.bank || vcHdr.bankName || '';
   const vcAcctNo = c.acctNo || vcHdr.bankAccount || '';
@@ -9384,7 +9461,7 @@ function viewContract(id) {
       _vcRowEdit('ระยะเวลา', `<input type="text" id="vcEdit_dur" value="${safeAttr(c.dur)}" placeholder="เช่น 3 ปี" class="${inpCls}">`) +
       _vcRowEdit('ค่าเช่า', `<input type="text" id="vcEdit_rate" value="${safeAttr(c.rate)}" placeholder="เดือนละ 10,000 บาท" class="${inpCls}">`) +
       _vcRowEdit('วิธีชำระ', `<input type="text" id="vcEdit_payment" value="${safeAttr(c.payment)}" placeholder="ทุกเดือน · โอนเงิน" class="${inpCls}">`) +
-      _vcRowEdit('เงินประกัน', `<input type="text" id="vcEdit_deposit" value="${safeAttr(c.deposit)}" placeholder="50000" class="${inpCls}">`) +
+      _vcRowEdit('เงินประกัน', `<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-right:8px"><input type="checkbox" id="vcEdit_hasDeposit" ${c.hasDeposit===true||(c.hasDeposit!==false && parseFloat(String(c.deposit||0).replace(/[^\d.]/g,''))>0)?'checked':''} onchange="document.getElementById('vcEdit_deposit').style.display=this.checked?'':'none';if(!this.checked)document.getElementById('vcEdit_deposit').value='';">มีเงินประกัน</label><input type="text" id="vcEdit_deposit" value="${safeAttr(c.deposit)}" placeholder="50000" class="${inpCls}" style="${(c.hasDeposit===false)?'display:none':''}">`) +
       _vcRowEdit('การปรับค่าเช่า', `<input type="text" id="vcEdit_rateAdj" value="${safeAttr(c.rateAdj)}" placeholder="ไม่ปรับ / ปรับเพิ่ม 5% ทุกปี" class="${inpCls}">`, true) +
       _vcRowEdit('วัตถุประสงค์', `<textarea id="vcEdit_purpose" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.purpose||'')}</textarea>`, true) +
       _vcSaveCancel('vcSaveLease')
@@ -9398,7 +9475,7 @@ function viewContract(id) {
       _vcRow('ระยะเวลา', esc(c.dur)) +
       _vcRow('ค่าเช่า', esc(c.rate)) +
       _vcRow('วิธีชำระ', esc(c.payment)) +
-      (depositDisplay ? _vcRow('เงินประกัน', depositDisplay) : '') +
+      (depositDisplay ? _vcRow('เงินประกัน', depositDisplay) : '') +  /* always shows when hasDeposit set (true/false) */
       (c.rateAdj ? _vcRowFull('การปรับค่าเช่า', esc(c.rateAdj)) : '') +
       _vcRowFull('วัตถุประสงค์', esc(c.purpose))
     , _vcEditBtn('lease'));
@@ -9570,7 +9647,10 @@ function vcSaveLease(cid){
   c.dur = get('vcEdit_dur');
   c.rate = get('vcEdit_rate');
   c.payment = get('vcEdit_payment');
-  c.deposit = (get('vcEdit_deposit')||'').replace(/[^\d.]/g,'');
+  // hasDeposit checkbox: ติ๊ก → เก็บ deposit value · ไม่ติ๊ก → ไม่มีเงินประกัน clear value
+  const _hasDepEl = document.getElementById('vcEdit_hasDeposit');
+  c.hasDeposit = _hasDepEl ? _hasDepEl.checked : (parseFloat(String(c.deposit||0).replace(/[^\d.]/g,''))>0);
+  c.deposit = c.hasDeposit ? (get('vcEdit_deposit')||'').replace(/[^\d.]/g,'') : '';
   c.rateAdj = get('vcEdit_rateAdj');
   c.purpose = get('vcEdit_purpose');
   addActivityLog('edit_contract','แก้ไขรายละเอียดการเช่า — '+(c.no||'#'+cid));
@@ -9642,6 +9722,7 @@ function openEditContract(id){
           c.end=fd.get('end')||c.end;
           c.dur=fd.get('dur')||'';
           c.deposit=(fd.get('deposit')||'').replace(/[^\d.]/g,'');
+          c.hasDeposit=fd.get('hasDeposit')==='true';
           c.payment=fd.get('payment')||'';
           c.bank=fd.get('bank')||'';
           c.acctNo=fd.get('acctNo')||'';
@@ -11504,7 +11585,7 @@ function openAddContractDialog(pid){
         tenant: fd.get('tenant'), phone: fd.get('phone'), purpose: fd.get('purpose'),
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
-        dur: fd.get('dur'), deposit: fd.get('deposit'), payment: fd.get('payment'),
+        dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
@@ -11553,7 +11634,7 @@ function renewContract(cid) {
         tenant: fd.get('tenant'), phone: fd.get('phone'), purpose: fd.get('purpose'),
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
-        dur: fd.get('dur'), deposit: fd.get('deposit'), payment: fd.get('payment'),
+        dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
@@ -11599,7 +11680,7 @@ function copyContract(cid) {
         tenant: fd.get('tenant'), phone: fd.get('phone'), purpose: fd.get('purpose'),
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
-        dur: fd.get('dur'), deposit: fd.get('deposit'), payment: fd.get('payment'),
+        dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
@@ -11875,8 +11956,8 @@ function contractFormHTML(mode, c, pid) {
           })()}
 
           <div class="col-span-2">
-            <label class="text-xs font-medium text-gray-600 mb-1 block">ทำที่ <span style="font-weight:400;color:#64748b">(ดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ)</span></label>
-            <input type="text" name="madeAt" id="cfMadeAt" value="${v('madeAt')}" class="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50" placeholder="จะดึงจากที่อยู่ผู้ให้เช่าอัตโนมัติ" readonly>
+            <label class="text-xs font-medium text-gray-600 mb-1 block">ทำที่ <span style="font-weight:400;color:#64748b">(default = ที่อยู่ผู้ให้เช่า · แก้ได้)</span></label>
+            <input type="text" name="madeAt" id="cfMadeAt" value="${v('madeAt')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ดึงอัตโนมัติจากที่อยู่ผู้ให้เช่าเมื่อเลือก · แก้ได้">
           </div>
 
           <input type="hidden" name="bank" value="${v('bank')}">
@@ -11958,7 +12039,22 @@ function contractFormHTML(mode, c, pid) {
 
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">เงินประกัน</label>
-            <input type="text" name="deposit" value="${(()=>{const d=v('deposit');const n=parseFloat(String(d).replace(/[^\d.]/g,''));return !isNaN(n)&&n?fmtBaht(n,{sym:0}):d;})()}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="50,000" onblur="cfFormatDeposit(this)" oninput="liveValidateField(this)">
+            ${(()=>{
+              // hasDeposit: ติ๊ก = มี → ช่องจำนวนโผล่ · ไม่ติ๊ก = ไม่มี → ช่องซ่อน
+              // default: ติ๊กถ้ามีค่า initial > 0, หรือถ้า hasDeposit===true · ไม่ติ๊กถ้า hasDeposit===false หรือ deposit=0/empty
+              const dRaw=v('deposit');
+              const dNum=parseFloat(String(dRaw).replace(/[^\d.]/g,''));
+              const hasFlag=v('hasDeposit');
+              // hasFlag: 'true'/'false'/'' (undefined = legacy data)
+              const isChecked = hasFlag==='true' || hasFlag===true ||
+                                (hasFlag!=='false' && hasFlag!==false && !isNaN(dNum) && dNum>0);
+              const depVal = !isNaN(dNum)&&dNum?fmtBaht(dNum,{sym:0}):(dRaw||'');
+              return `<label style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:13px;cursor:pointer;color:#374151">
+                <input type="checkbox" name="hasDeposit" ${isChecked?'checked':''} onchange="cfToggleDeposit(this)" style="cursor:pointer">
+                <span>มีเงินประกัน</span>
+              </label>
+              <input type="text" name="deposit" id="cfDepositInput" value="${depVal}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="50,000" onblur="cfFormatDeposit(this)" oninput="liveValidateField(this)" style="${isChecked?'':'display:none'}">`;
+            })()}
           </div>
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">การปรับค่าเช่า</label>
@@ -12405,9 +12501,19 @@ function cfSelectHeader(val){
     fill('la_line',ap.addrLine);fill('la_sd',ap.subDistrict);fill('la_dt',ap.district);fill('la_pv',ap.province);fill('la_zip',ap.zip);
   }
 
-  // Auto-fill madeAt
+  // Auto-fill madeAt — เฉพาะถ้า field ว่าง หรือ user ยังไม่เคยแก้เอง (กัน overwrite)
+  // mark _userEdited flag เมื่อ user พิมพ์เอง → ครั้งหน้าเลือก header ใหม่ก็ไม่ทับ
   const madeAtEl=document.getElementById('cfMadeAt');
-  if(madeAtEl)madeAtEl.value=h.address||'';
+  if(madeAtEl){
+    if(!madeAtEl.dataset.userEdited){
+      madeAtEl.value=h.address||'';
+    }
+    // listen for user edit (once)
+    if(!madeAtEl.dataset.listenerAttached){
+      madeAtEl.dataset.listenerAttached='1';
+      madeAtEl.addEventListener('input', ()=>{ madeAtEl.dataset.userEdited='1'; });
+    }
+  }
 
   // Show preview card
   if(preview){
@@ -12515,9 +12621,18 @@ function resolveFormDropdowns(fd){
   // Landlord
   const landlord=fd.get('landlord');
   if(landlord==='_custom'){const custom=fd.get('landlordCustom');if(custom)fd.set('landlord',custom);}
-  // Deposit: strip to number only
-  const dep=fd.get('deposit');
-  if(dep){fd.set('deposit',dep.replace(/[^\d.]/g,''));}
+  // Deposit checkbox: hasDeposit ติ๊ก/ไม่ติ๊ก → set boolean + clean deposit value
+  const hasDepRaw=fd.get('hasDeposit');
+  const hasDep = hasDepRaw==='on' || hasDepRaw==='true' || hasDepRaw===true;
+  fd.set('hasDeposit', hasDep ? 'true' : 'false');
+  if(hasDep){
+    // ติ๊ก = มี → strip deposit to number
+    const dep=fd.get('deposit');
+    if(dep){fd.set('deposit',dep.replace(/[^\d.]/g,''));}
+  } else {
+    // ไม่ติ๊ก = ไม่มีเงินประกัน → เคลียร์จำนวน
+    fd.set('deposit','');
+  }
 }
 
 function cfTodayBE(){const d=new Date();return d.getDate()+'/'+(d.getMonth()+1)+'/'+(d.getFullYear()+543)}
@@ -12565,6 +12680,19 @@ function cfFormatDeposit(input){
 }
 
 // parseBE defined at top of script — do not duplicate
+
+// Deposit checkbox toggle — ติ๊ก "มีเงินประกัน" → ช่องจำนวนโผล่
+function cfToggleDeposit(checkbox){
+  const inp=document.getElementById('cfDepositInput');
+  if(!inp) return;
+  if(checkbox.checked){
+    inp.style.display='';
+    inp.focus();
+  } else {
+    inp.style.display='none';
+    inp.value=''; // เคลียร์จำนวน เมื่อบอกว่าไม่มี
+  }
+}
 
 function cfCalcEnd(){cfCalcEndFromDur();}
 
