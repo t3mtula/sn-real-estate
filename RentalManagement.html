@@ -21957,9 +21957,24 @@ async function loadFromSupabase() {
   DB.formConfig       = cfg.formConfig  || {};
   DB.sysConfig        = cfg.sysConfig   || { expiringDays: 90 };
   DB.slipOk           = cfg.slipOk      || { branchId:'', apiKey:'', enabled:false };
+  // Phase 2: bank accounts entity (persisted in re_config)
+  DB.bankAccounts     = Array.isArray(cfg.bankAccounts) ? cfg.bankAccounts : [];
+  DB.landlordDefaults = (cfg.landlordDefaults && typeof cfg.landlordDefaults==='object' && !Array.isArray(cfg.landlordDefaults)) ? cfg.landlordDefaults : {};
+  DB.nextBankAccountId= Number(cfg.nextBankAccountId)|| 1;
+  // Data version + migration trigger
+  DB._v = Number(cfg._v) || (DB.contracts && DB.contracts.length ? 15 : DATA_VERSION); // legacy data without _v → assume v15
   if(!DB.payments)    DB.payments    = {};
   if(!DB.activityLog) DB.activityLog = [];
   if(!DB.categories)  DB.categories  = [];
+
+  // Run migrations ถ้า _v < DATA_VERSION (e.g. v34 → v35 seeds bankAccounts)
+  if(DB._v < DATA_VERSION){
+    console.log('[migration] running from v'+DB._v+' to v'+DATA_VERSION);
+    DB = runMigrations(DB);
+    // ดัน _v ขึ้นจริง + persist ใน config (ครั้งถัดไปจะข้าม migrate)
+    DB._v = DATA_VERSION;
+    if(typeof save === 'function') save();
+  }
 }
 
 // ── PROPERTY CATEGORIES — custom หมวดทรัพย์สิน ────────────────────────────
@@ -22243,7 +22258,12 @@ async function saveToSupabase() {
     { key:'defaultInvHeader', value:DB.defaultInvHeader||null,updated_at:now },
     { key:'formConfig',       value:DB.formConfig||{},      updated_at:now },
     { key:'sysConfig',        value:DB.sysConfig||{},       updated_at:now },
-    { key:'slipOk',           value:DB.slipOk||{},          updated_at:now }
+    { key:'slipOk',           value:DB.slipOk||{},          updated_at:now },
+    // Phase 2: bank accounts entity (lives in config since not a big table)
+    { key:'bankAccounts',     value:DB.bankAccounts||[],    updated_at:now },
+    { key:'landlordDefaults', value:DB.landlordDefaults||{},updated_at:now },
+    { key:'nextBankAccountId',value:DB.nextBankAccountId||1,updated_at:now },
+    { key:'_v',               value:DB._v||DATA_VERSION,    updated_at:now }
   ]));
 
   await Promise.allSettled(ops);
