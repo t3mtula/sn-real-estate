@@ -6845,16 +6845,16 @@ function renderSettingsContractForm(){
         <!-- Version bar — sticky inside left panel -->
         <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <select id="cfTplSelect" onchange="cfSwitchTemplate(+this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:Sarabun;background:#fff;color:#1e293b;font-weight:600;min-width:160px">
+            <select id="cfTplSelect" onchange="cfSwitchTemplate(+this.value)" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12px;font-family:Sarabun;background:#fff;color:#1e293b;font-weight:600;min-width:160px" title="เลือก template สัญญาที่ต้องการแก้ไข">
               ${templates.map(t=>`<option value="${t.id}" ${t.id===tpl.id?'selected':''}>${t.name}${t.id===tpl.id?' ✓':''}</option>`).join('')}
             </select>
-            <button onclick="cfNewVersion()" style="padding:6px 12px;border:1px solid #16a34a;color:#16a34a;background:#f0fdf4;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap">+ สร้างใหม่</button>
-            <button onclick="cfDuplicateVersion()" style="padding:6px 12px;border:1px solid #e2e8f0;color:#475569;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap">คัดลอก</button>
-            ${templates.length>1?`<button onclick="cfDeleteVersion()" style="padding:6px 12px;border:1px solid #fca5a5;color:#dc2626;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap">ลบ</button>`:''}
+            <button onclick="cfNewVersion()" style="padding:6px 12px;border:1px solid #16a34a;color:#16a34a;background:#f0fdf4;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="สร้าง template ใหม่ทั้งเซ็ตจากข้อสัญญามาตรฐาน (ของเดิมไม่หาย)">+ สร้างใหม่</button>
+            <button onclick="cfDuplicateVersion()" style="padding:6px 12px;border:1px solid #e2e8f0;color:#475569;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="ทำสำเนา template ปัจจุบัน — แก้ไขสำเนาต่อโดยของเดิมไม่กระทบ">ทำสำเนา</button>
+            ${templates.length>1?`<button onclick="cfDeleteVersion()" style="padding:6px 12px;border:1px solid #fca5a5;color:#dc2626;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="ลบ template นี้ทิ้งทั้งหมด (ต้องเหลืออย่างน้อย 1)">ลบ</button>`:''}
             <div style="margin-left:auto">
               ${tpl.id!==DB.activeTemplate
-                ?`<button onclick="cfSetActive(${tpl.id})" style="padding:6px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap">ตั้งเป็นค่าเริ่มต้น</button>`
-                :`<span style="font-size:11px;color:#16a34a;font-weight:600;background:#f0fdf4;padding:4px 10px;border-radius:99px;border:1px solid #bbf7d0">✓ ค่าเริ่มต้น</span>`}
+                ?`<button onclick="cfSetActive(${tpl.id})" style="padding:6px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="เลือก template นี้เป็นค่าเริ่มต้น — สัญญาใหม่ทุกใบจะใช้ template นี้">ตั้งเป็นค่าเริ่มต้น</button>`
+                :`<span style="font-size:11px;color:#16a34a;font-weight:600;background:#f0fdf4;padding:4px 10px;border-radius:99px;border:1px solid #bbf7d0" title="Template นี้ถูกใช้เป็นค่าเริ่มต้น">✓ ค่าเริ่มต้น</span>`}
             </div>
           </div>
         </div>
@@ -6862,6 +6862,14 @@ function renderSettingsContractForm(){
         <!-- Editor — scrollable -->
         <div style="flex:1;overflow-y:auto;padding:16px">
           <div id="cfEditor"></div>
+        </div>
+
+        <!-- Sticky footer: บันทึก + dirty indicator -->
+        <div style="padding:10px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-shrink:0;display:flex;align-items:center;gap:10px">
+          <button onclick="cfSaveTemplate()" style="padding:9px 24px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Sarabun" title="บันทึก template ถาวร">💾 บันทึก</button>
+          <button onclick="cfResetTemplate()" style="padding:9px 18px;border:1px solid #d1d5db;color:#374151;background:#fff;border-radius:8px;font-size:13px;cursor:pointer;font-family:Sarabun" title="ทิ้งการแก้ไขล่าสุด · คืนกลับเป็นค่าที่บันทึกไว้">↺ คืนค่าเดิม</button>
+          <span id="cfDirtyBadge" style="display:none;font-size:12px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fde68a;padding:3px 10px;border-radius:99px">● มีการแก้ไขที่ยังไม่บันทึก</span>
+          <span id="cfSaveMsg" style="font-size:12px;color:#059669;font-weight:600;display:none">✓ บันทึกแล้ว</span>
         </div>
       </div>
 
@@ -17701,7 +17709,11 @@ function _cfInitQuills(){
     if(htmlContent)q.clipboard.dangerouslyPasteHTML(htmlContent);
     el.addEventListener('click',()=>{window._cfActiveQuill=q;});
     el.addEventListener('focus',()=>{window._cfActiveQuill=q;},true);
-    q.on('text-change',debounce(()=>{cfSyncFromQuills();updateCfPreview();},400));
+    const debouncedSync=debounce(()=>{cfSyncFromQuills();updateCfPreview();},400);
+    q.on('text-change',(delta,oldDelta,source)=>{
+      if(source==='user') cfMarkDirty();
+      debouncedSync();
+    });
     return q;
   }
 
@@ -17715,7 +17727,10 @@ function _cfInitQuills(){
   });
 
   const nameEl=document.getElementById('cfName');
-  if(nameEl)nameEl.addEventListener('input',debounce(()=>{cfEditTpl.name=nameEl.value;updateCfPreview();},300));
+  if(nameEl){
+    const debouncedName=debounce(()=>{cfEditTpl.name=nameEl.value;updateCfPreview();},300);
+    nameEl.addEventListener('input',()=>{cfMarkDirty();debouncedName();});
+  }
   _cfSetupDragDrop();
 }
 
@@ -17778,23 +17793,23 @@ function renderCfEditor(){
   const tpl=cfEditTpl;
   $('cfEditor').innerHTML=`
     <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:14px">
-      <span style="font-size:11px;color:#64748b;align-self:center;margin-right:4px;flex-shrink:0">แทรกตัวแปร:</span>
-      ${CF_VARS.map(v=>`<button onclick="cfInsertVar('${v.val}')" style="padding:3px 10px;background:#fff;border:1px solid #c7d2fe;border-radius:99px;font-size:11px;color:#4338ca;cursor:pointer;font-weight:500" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">${v.label}</button>`).join('')}
+      <span style="font-size:11px;color:#64748b;align-self:center;margin-right:4px;flex-shrink:0" title="คลิกที่ตำแหน่งในข้อสัญญา → กด chip นี้เพื่อแทรกตัวแปร — ตอนพิมพ์จริงจะถูกแทนที่ด้วยข้อมูลจากสัญญานั้น">แทรกตัวแปร: <span style="color:#94a3b8;font-size:10px">(คลิก cursor ในข้อก่อน → กดเลือก)</span></span>
+      ${CF_VARS.map(v=>`<button onclick="cfInsertVar('${v.val}')" title="แทรก ${v.val} ที่ตำแหน่ง cursor · ตอนพิมพ์จะถูกแทนที่ด้วยข้อมูลจริงจากสัญญา" style="padding:3px 10px;background:#fff;border:1px solid #c7d2fe;border-radius:99px;font-size:11px;color:#4338ca;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:4px" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">${v.label} <code style="font-size:9px;color:#94a3b8;background:#f1f5f9;padding:1px 4px;border-radius:3px;font-family:monospace">${v.val}</code></button>`).join('')}
     </div>
 
     <div style="margin-bottom:14px">
-      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">ชื่อเวอร์ชัน</label>
-      <input id="cfName" value="${tpl.name}" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box" placeholder="เช่น แบบมาตรฐาน, แบบเสาสัญญาณ...">
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:2px">ชื่อ template <span style="font-weight:400;color:#94a3b8;font-size:11px">(แสดงใน dropdown สำหรับเลือก template เวลาเปิดสัญญาใหม่)</span></label>
+      <input id="cfName" value="${tpl.name}" style="width:100%;padding:7px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;box-sizing:border-box" placeholder="เช่น แบบมาตรฐาน, แบบเสาสัญญาณ, แบบที่ดิน...">
     </div>
 
     <div style="margin-bottom:16px">
-      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px">ข้อความนำ (ย่อหน้าเปิด)</label>
+      <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:2px">ข้อความนำ <span style="font-weight:400;color:#94a3b8;font-size:11px">(ข้อความหลังหัวคู่สัญญา ก่อนเริ่มข้อ 1)</span></label>
       <div id="cfqIntro" class="cf-quill-wrap"></div>
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <label style="font-size:12px;font-weight:600;color:#374151">ข้อสัญญา (${tpl.clauses.length} ข้อหลัก)</label>
-      <button onclick="cfAddClause()" style="font-size:12px;color:#4338ca;background:none;border:none;cursor:pointer;font-weight:600;padding:2px 6px">+ เพิ่มข้อใหญ่</button>
+      <label style="font-size:12px;font-weight:600;color:#374151">ข้อสัญญา (${tpl.clauses.length} ข้อหลัก) <span style="font-weight:400;color:#94a3b8;font-size:11px">· ลากไอคอน ⠿ เพื่อจัดลำดับ</span></label>
+      <button onclick="cfAddClause()" style="font-size:12px;color:#4338ca;background:none;border:none;cursor:pointer;font-weight:600;padding:2px 6px" title="เพิ่มข้อใหม่ต่อท้าย — เลขจะ auto">+ เพิ่มข้อใหญ่</button>
     </div>
     <div id="cfClauseList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
       ${tpl.clauses.map((cl,i)=>{
@@ -17820,15 +17835,35 @@ function renderCfEditor(){
       }).join('')}
     </div>
 
-    <div style="display:flex;align-items:center;gap:10px;padding-top:14px;border-top:1px solid #e2e8f0">
-      <button onclick="cfSaveTemplate()" style="padding:8px 20px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">บันทึก</button>
-      <button onclick="cfResetTemplate()" style="padding:8px 16px;border:1px solid #d1d5db;color:#374151;background:#fff;border-radius:8px;font-size:13px;cursor:pointer">คืนค่าเดิม</button>
-      <span id="cfSaveMsg" style="font-size:12px;color:#059669;display:none">✓ บันทึกแล้ว</span>
-    </div>
   `;
 
   setTimeout(_cfInitQuills,0);
 }
+
+// ── Dirty state tracking ───────────────────────────────────────────────
+// cfDirty = true เมื่อ user แก้ไข template แต่ยังไม่ save · false หลัง save / reset
+let cfDirty = false;
+function cfMarkDirty(){
+  if(cfDirty) return; // already dirty, no-op
+  cfDirty = true;
+  const b=document.getElementById('cfDirtyBadge');
+  if(b) b.style.display='';
+}
+function cfClearDirty(){
+  cfDirty = false;
+  const b=document.getElementById('cfDirtyBadge');
+  if(b) b.style.display='none';
+}
+
+// beforeunload warning — กัน user navigate ออกแล้วงานหาย
+window.addEventListener('beforeunload', function(e){
+  // เตือนเฉพาะเมื่อกำลังแก้ template editor + มี dirty
+  if(cfDirty && page==='settings' && settingsTab==='contractform'){
+    e.preventDefault();
+    e.returnValue = ''; // browser will show its standard warning
+    return '';
+  }
+});
 
 function renderCfPreview(){
   const cs=DB.contracts;
@@ -17876,6 +17911,7 @@ function cfSyncFromInputs(){
 function cfAddClause(){
   cfSyncFromQuills();
   cfEditTpl.clauses.push({text:'',sub:[]});
+  cfMarkDirty();
   renderCfEditor();
   setTimeout(()=>{const idx=cfEditTpl.clauses.length-1;const q=window._cfQuills&&window._cfQuills['clause_'+idx];if(q)q.focus();},100);
 }
@@ -17883,8 +17919,17 @@ function cfAddClause(){
 function cfRemoveClause(i){
   cfSyncFromInputs();
   if(cfEditTpl.clauses.length<=1){toast('ต้องมีอย่างน้อย 1 ข้อ','error');return;}
-  cfEditTpl.clauses.splice(i,1);
-  renderCfEditor();
+  const cl=cfEditTpl.clauses[i];
+  const subCount=(cl&&cl.sub)?cl.sub.length:0;
+  const detail=subCount?' พร้อมข้อย่อย '+subCount+' ข้อ':'';
+  customConfirm('ลบข้อ '+(i+1)+'?',
+    'ลบข้อนี้'+detail+' ออกจาก template ทันที\n(เปลี่ยนใจกด "คืนค่าเดิม" ก่อนบันทึก = ยังย้อนได้)',
+    function(){
+      cfEditTpl.clauses.splice(i,1);
+      cfMarkDirty();
+      renderCfEditor();
+    },
+    {icon:'🗑️',yesLabel:'ลบเลย',yesColor:'#dc2626'});
 }
 
 function cfMoveClause(i,dir){
@@ -17892,6 +17937,7 @@ function cfMoveClause(i,dir){
   const j=i+dir;
   if(j<0||j>=cfEditTpl.clauses.length)return;
   [cfEditTpl.clauses[i],cfEditTpl.clauses[j]]=[cfEditTpl.clauses[j],cfEditTpl.clauses[i]];
+  cfMarkDirty();
   renderCfEditor();
 }
 
@@ -17899,13 +17945,20 @@ function cfAddSub(i){
   cfSyncFromInputs();
   if(!cfEditTpl.clauses[i].sub)cfEditTpl.clauses[i].sub=[];
   cfEditTpl.clauses[i].sub.push('');
+  cfMarkDirty();
   renderCfEditor();
 }
 
 function cfRemoveSub(i,j){
   cfSyncFromInputs();
-  cfEditTpl.clauses[i].sub.splice(j,1);
-  renderCfEditor();
+  customConfirm('ลบข้อย่อย '+(i+1)+'.'+(j+1)+'?',
+    'ลบข้อย่อยนี้ออกจาก template ทันที\n(เปลี่ยนใจกด "คืนค่าเดิม" ก่อนบันทึก = ยังย้อนได้)',
+    function(){
+      cfEditTpl.clauses[i].sub.splice(j,1);
+      cfMarkDirty();
+      renderCfEditor();
+    },
+    {icon:'🗑️',yesLabel:'ลบเลย',yesColor:'#dc2626'});
 }
 
 function cfSaveTemplate(){
@@ -17918,58 +17971,88 @@ function cfSaveTemplate(){
     tpl.updated=new Date().toLocaleDateString('th-TH');
     save();
     toast('บันทึกฟอร์มสำเร็จ');
+    cfClearDirty();
     const msg=document.getElementById('cfSaveMsg');
-    if(msg){msg.classList.remove('hidden');setTimeout(()=>msg.classList.add('hidden'),2000);}
+    if(msg){msg.style.display='';setTimeout(()=>{if(msg)msg.style.display='none';},2500);}
   }
 }
 
 function cfResetTemplate(){
-  const tpl=DB.templates.find(t=>t.id===cfEditTpl._tplId);
-  if(tpl){cfEditTpl={_tplId:tpl.id,name:tpl.name,intro:tpl.intro,clauses:[...tpl.clauses]};}
-  else{cfEditTpl={_tplId:1,name:'แบบมาตรฐาน',intro:getActiveTemplate().intro,clauses:[...DEFAULT_CLAUSES]};}
-  renderCfEditor();
-  toast('คืนค่าเดิมแล้ว');
+  if(!cfDirty){toast('ยังไม่มีการแก้ไขให้คืนค่า','info');return;}
+  customConfirm('คืนค่าเดิม?',
+    'ทิ้งการแก้ไขทั้งหมดที่ยังไม่บันทึก\n— กลับไปเป็น template ที่บันทึกไว้ก่อนหน้า',
+    function(){
+      const tpl=DB.templates.find(t=>t.id===cfEditTpl._tplId);
+      if(tpl){cfEditTpl={_tplId:tpl.id,name:tpl.name,intro:tpl.intro,clauses:[...tpl.clauses]};}
+      else{cfEditTpl={_tplId:1,name:'แบบมาตรฐาน',intro:getActiveTemplate().intro,clauses:[...DEFAULT_CLAUSES]};}
+      cfClearDirty();
+      renderCfEditor();
+      toast('คืนค่าเดิมแล้ว');
+    },
+    {icon:'↺',yesLabel:'คืนค่า',yesColor:'#dc2626'});
+}
+
+// Helper: warn ถ้ามี dirty + ทำ action ที่จะทิ้งงาน (switch/new/duplicate/delete template)
+function _cfConfirmDirtyOr(action, msg){
+  if(!cfDirty){ action(); return; }
+  customConfirm('ทิ้งการแก้ไขที่ยังไม่บันทึก?',
+    (msg||'มีการแก้ไข template ที่ยังไม่บันทึก')+'\nถ้าทำต่อ การแก้ไขจะหายไป',
+    function(){ cfClearDirty(); action(); },
+    {icon:'⚠️',yesLabel:'ทิ้ง · ทำต่อ',yesColor:'#dc2626'});
 }
 
 function cfSwitchTemplate(tid){
-  const tpl=DB.templates.find(t=>t.id===tid);
-  if(!tpl)return;
-  cfEditTpl={_tplId:tpl.id,name:tpl.name,intro:tpl.intro,clauses:[...tpl.clauses]};
-  renderContractForm();
+  _cfConfirmDirtyOr(function(){
+    const tpl=DB.templates.find(t=>t.id===tid);
+    if(!tpl)return;
+    cfEditTpl={_tplId:tpl.id,name:tpl.name,intro:tpl.intro,clauses:[...tpl.clauses]};
+    cfClearDirty();
+    renderContractForm();
+  },'การเปลี่ยน template จะทิ้งการแก้ไขที่ยังไม่บันทึก');
 }
 
 function cfNewVersion(){
-  const maxId=DB.templates.reduce((m,t)=>Math.max(m,t.id),0);
-  const nid=maxId+1;
-  DB.templates.push({id:nid,name:'เวอร์ชันใหม่ '+(DB.templates.length+1),intro:getActiveTemplate().intro,clauses:[...DEFAULT_CLAUSES],created:new Date().toLocaleDateString('th-TH'),active:false});
-  save();
-  cfEditTpl={_tplId:nid,name:DB.templates.find(t=>t.id===nid).name,intro:DB.templates.find(t=>t.id===nid).intro,clauses:[...DEFAULT_CLAUSES]};
-  renderContractForm();
-  toast('สร้างเวอร์ชันใหม่แล้ว');
+  _cfConfirmDirtyOr(function(){
+    const maxId=DB.templates.reduce((m,t)=>Math.max(m,t.id),0);
+    const nid=maxId+1;
+    DB.templates.push({id:nid,name:'เวอร์ชันใหม่ '+(DB.templates.length+1),intro:getActiveTemplate().intro,clauses:[...DEFAULT_CLAUSES],created:new Date().toLocaleDateString('th-TH'),active:false});
+    save();
+    cfEditTpl={_tplId:nid,name:DB.templates.find(t=>t.id===nid).name,intro:DB.templates.find(t=>t.id===nid).intro,clauses:[...DEFAULT_CLAUSES]};
+    cfClearDirty();
+    renderContractForm();
+    toast('สร้างเวอร์ชันใหม่แล้ว — แก้ไขชื่อ + ข้อสัญญาได้ทันที');
+  },'มีการแก้ไข template ก่อนหน้าที่ยังไม่บันทึก');
 }
 
 function cfDuplicateVersion(){
   cfSyncFromInputs();
   const maxId=DB.templates.reduce((m,t)=>Math.max(m,t.id),0);
   const nid=maxId+1;
-  DB.templates.push({id:nid,name:cfEditTpl.name+' (สำเนา)',intro:cfEditTpl.intro,clauses:[...cfEditTpl.clauses],created:new Date().toLocaleDateString('th-TH'),active:false});
+  // duplicate ใช้ data ปัจจุบัน (รวมแก้ไขที่ยัง dirty ก็ได้ — เพราะมัน copy ออกมาเป็น template ใหม่)
+  DB.templates.push({id:nid,name:cfEditTpl.name+' (สำเนา)',intro:cfEditTpl.intro,clauses:JSON.parse(JSON.stringify(cfEditTpl.clauses)),created:new Date().toLocaleDateString('th-TH'),active:false});
   save();
-  cfEditTpl={_tplId:nid,name:DB.templates.find(t=>t.id===nid).name,intro:DB.templates.find(t=>t.id===nid).intro,clauses:[...DB.templates.find(t=>t.id===nid).clauses]};
+  cfEditTpl={_tplId:nid,name:DB.templates.find(t=>t.id===nid).name,intro:DB.templates.find(t=>t.id===nid).intro,clauses:JSON.parse(JSON.stringify(DB.templates.find(t=>t.id===nid).clauses))};
+  cfClearDirty();
   renderContractForm();
-  toast('คัดลอกเวอร์ชันแล้ว');
+  toast('ทำสำเนาแล้ว — แก้ไขสำเนาต่อโดยของเดิมไม่กระทบ');
 }
 
 function cfDeleteVersion(){
-  if(DB.templates.length<=1){toast('ลบไม่ได้ ต้องมีอย่างน้อย 1 เวอร์ชัน','error');return;}
+  if(DB.templates.length<=1){toast('ลบไม่ได้ ต้องมีอย่างน้อย 1 template','error');return;}
   const tid=cfEditTpl._tplId;
-  const tname=DB.templates.find(t=>t.id===tid)?.name||'เวอร์ชันนี้';
-  if(!confirm(`ลบเวอร์ชัน "${tname}" ?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้`))return;
-  DB.templates=DB.templates.filter(t=>t.id!==tid);
-  if(DB.activeTemplate===tid)DB.activeTemplate=DB.templates[0]?.id;
-  save();
-  cfEditTpl=null;
-  renderContractForm();
-  toast('ลบเวอร์ชันแล้ว');
+  const tname=DB.templates.find(t=>t.id===tid)?.name||'template นี้';
+  customConfirm('ลบ template "'+tname+'"?',
+    'ลบ template นี้ออกถาวร · ใช้ไม่ได้อีก\n(สัญญาที่ใช้ template นี้อยู่จะ fallback ไป template อื่น)',
+    function(){
+      DB.templates=DB.templates.filter(t=>t.id!==tid);
+      if(DB.activeTemplate===tid)DB.activeTemplate=DB.templates[0]?.id;
+      save();
+      cfEditTpl=null;
+      cfClearDirty();
+      renderContractForm();
+      toast('ลบ template แล้ว');
+    },
+    {icon:'🗑️',yesLabel:'ลบทิ้ง',yesColor:'#dc2626'});
 }
 
 function cfSetActive(tid){
