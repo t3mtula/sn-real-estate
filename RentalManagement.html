@@ -6851,6 +6851,7 @@ function renderSettingsContractForm(){
             <button onclick="cfNewVersion()" style="padding:6px 12px;border:1px solid #16a34a;color:#16a34a;background:#f0fdf4;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="สร้าง template ใหม่ทั้งเซ็ตจากข้อสัญญามาตรฐาน (ของเดิมไม่หาย)">+ สร้างใหม่</button>
             <button onclick="cfDuplicateVersion()" style="padding:6px 12px;border:1px solid #e2e8f0;color:#475569;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="ทำสำเนา template ปัจจุบัน — แก้ไขสำเนาต่อโดยของเดิมไม่กระทบ">ทำสำเนา</button>
             ${templates.length>1?`<button onclick="cfDeleteVersion()" style="padding:6px 12px;border:1px solid #fca5a5;color:#dc2626;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="ลบ template นี้ทิ้งทั้งหมด (ต้องเหลืออย่างน้อย 1)">ลบ</button>`:''}
+            <button onclick="cfShowHistory()" style="padding:6px 12px;border:1px solid #e2e8f0;color:#475569;background:#fff;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="กู้คืน snapshot ก่อนการบันทึกครั้งก่อนหน้า (เก็บ 5 ล่าสุด · ถ้าแก้ผิดย้อนได้)">↶ ประวัติ</button>
             <div style="margin-left:auto">
               ${tpl.id!==DB.activeTemplate
                 ?`<button onclick="cfSetActive(${tpl.id})" style="padding:6px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun;white-space:nowrap" title="เลือก template นี้เป็นค่าเริ่มต้น — สัญญาใหม่ทุกใบจะใช้ template นี้">ตั้งเป็นค่าเริ่มต้น</button>`
@@ -6875,8 +6876,12 @@ function renderSettingsContractForm(){
 
       <!-- Right panel: A4 Preview -->
       <div style="flex:0 0 48%;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;overflow:hidden;display:flex;flex-direction:column">
-        <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-          <span style="font-size:12px;font-weight:600;color:#475569">🖨️ A4 Preview</span>
+        <div style="padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px">
+          <span style="font-size:12px;font-weight:600;color:#475569;flex-shrink:0">🖨️ A4 Preview</span>
+          <label style="font-size:11px;color:#475569;display:flex;align-items:center;gap:5px;cursor:pointer;margin-left:auto" title="แสดงตัวแปร 《ผู้เช่า》《ค่าเช่า》... เห็นโครงสร้าง template ชัด · ไม่ใช้ข้อมูลจริง">
+            <input type="checkbox" ${cfPreviewMode==='placeholder'?'checked':''} onchange="cfTogglePreviewMode(this.checked)" style="cursor:pointer">
+            ดู placeholder
+          </label>
           <button onclick="cfPrintPreview()" style="display:flex;align-items:center;gap:5px;padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'"><svg style="width:13px;height:13px" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>ตัวอย่างพิมพ์</button>
         </div>
         <iframe id="cfPreviewFrame" style="flex:1;border:none;background:#fff" srcdoc=""></iframe>
@@ -17654,20 +17659,50 @@ function debounce(func,wait){
   };
 }
 
+// Preview mode: 'sample' (real contract) | 'placeholder' (show {{var}} markers)
+let cfPreviewMode = 'sample';
+
+function cfTogglePreviewMode(checked){
+  cfPreviewMode = checked ? 'placeholder' : 'sample';
+  updateCfPreview();
+}
+
+function _cfPlaceholderContract(){
+  // synthetic contract — fields = readable Thai labels in brackets
+  // ใช้สำหรับโหมด preview แบบ "ดูตำแหน่งตัวแปร" ไม่ดูข้อมูลจริง
+  return {
+    id:0, no:'《เลขสัญญา》', tenant:'《ผู้เช่า》', landlord:'《ผู้ให้เช่า》',
+    tenantAddr:'《ที่อยู่ผู้เช่า》', landlordAddr:'《ที่อยู่ผู้ให้เช่า》',
+    taxId:'《เลขผู้เสียภาษี》', phone:'《เบอร์โทร》', madeAt:'《ทำที่》',
+    property:'《ทรัพย์สิน》', area:'《พื้นที่》',
+    date:'《วันทำสัญญา》', start:'《วันเริ่ม》', end:'《วันสิ้นสุด》',
+    dur:'《ระยะเวลา》', rate:'《ค่าเช่า》', payment:'《วิธีชำระ》',
+    deposit:'《เงินประกัน》', rateAdj:'《การปรับค่าเช่า》',
+    purpose:'《วัตถุประสงค์》',
+    bank:'《ธนาคาร》', acctNo:'《เลขบัญชี》', accountName:'《ชื่อบัญชี》',
+    branch:'00000', cancelled:false,
+  };
+}
+
 function updateCfPreview(){
   cfSyncFromQuills();
   const tpl=cfEditTpl||getActiveTemplate();
-  const cs=DB.contracts;
-  const activeCs=cs.filter(c=>{const s=status(c);return s==='active'||s==='expiring'||s==='upcoming'});
-  const defaultC=activeCs.length?activeCs[0]:cs[0];
+  let useC;
+  if(cfPreviewMode==='placeholder'){
+    useC = _cfPlaceholderContract();
+  } else {
+    const cs=DB.contracts;
+    const activeCs=cs.filter(c=>{const s=status(c);return s==='active'||s==='expiring'||s==='upcoming'});
+    useC=activeCs.length?activeCs[0]:cs[0];
+  }
 
-  if(!defaultC){
+  if(!useC){
     const frame=$('cfPreviewFrame');
     if(frame) frame.srcdoc='<html><body style="text-align:center;padding:40px;color:#64748b">เลือกสัญญาเพื่อดูตัวอย่างสัญญาเช่า</body></html>';
     return;
   }
 
-  const html=contractHTML([defaultC],tpl,true).replace('<body>','<body class="embed">');
+  const html=contractHTML([useC],tpl,true).replace('<body>','<body class="embed">');
   const frame=$('cfPreviewFrame');
   if(frame) frame.srcdoc=html;
 }
@@ -17809,28 +17844,48 @@ function renderCfEditor(){
 
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <label style="font-size:12px;font-weight:600;color:#374151">ข้อสัญญา (${tpl.clauses.length} ข้อหลัก) <span style="font-weight:400;color:#94a3b8;font-size:11px">· ลากไอคอน ⠿ เพื่อจัดลำดับ</span></label>
-      <button onclick="cfAddClause()" style="font-size:12px;color:#4338ca;background:none;border:none;cursor:pointer;font-weight:600;padding:2px 6px" title="เพิ่มข้อใหม่ต่อท้าย — เลขจะ auto">+ เพิ่มข้อใหญ่</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="cfCollapseAll()" style="font-size:11px;color:#64748b;background:none;border:1px solid #e2e8f0;border-radius:6px;padding:3px 9px;cursor:pointer;font-weight:500" title="ยุบทุกข้อให้เห็นแค่หัวข้อ — สแกนโครงสร้างง่าย">▸ ยุบทั้งหมด</button>
+        <button onclick="cfExpandAll()" style="font-size:11px;color:#64748b;background:none;border:1px solid #e2e8f0;border-radius:6px;padding:3px 9px;cursor:pointer;font-weight:500" title="ขยายทุกข้อเพื่อแก้ไข">▾ ขยายทั้งหมด</button>
+        <button onclick="cfAddClause()" style="font-size:12px;color:#4338ca;background:none;border:none;cursor:pointer;font-weight:600;padding:2px 6px" title="เพิ่มข้อใหม่ต่อท้าย — เลขจะ auto">+ เพิ่มข้อใหญ่</button>
+      </div>
     </div>
+
+    <!-- TOC nav: quick jump ไปที่ข้อใดข้อหนึ่ง -->
+    <div style="display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;align-items:center">
+      <span style="font-size:10px;color:#64748b;font-weight:600;margin-right:4px">ไปที่ข้อ:</span>
+      ${tpl.clauses.map((cl,i)=>`<button onclick="cfScrollToClause(${i})" title="กระโดดไปข้อ ${i+1}" style="min-width:24px;height:24px;padding:0 6px;border:1px solid #c7d2fe;background:#fff;color:#4338ca;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">${i+1}</button>`).join('')}
+    </div>
+
     <div id="cfClauseList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
       ${tpl.clauses.map((cl,i)=>{
         const obj=typeof cl==='string'?{text:cl,sub:[]}:cl;
-        return`<div class="cf-clause-row" data-idx="${i}" draggable="true" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fafafa">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        const isCollapsed=cfCollapsedSet.has(i);
+        // strip HTML + truncate for preview when collapsed
+        const _stripHtml=s=>(s||'').replace(/<[^>]*>/g,'').trim();
+        const previewText=_stripHtml(obj.text).slice(0,120);
+        const subCount=(obj.sub||[]).length;
+        return`<div class="cf-clause-row" id="cfClauseRow_${i}" data-idx="${i}" draggable="true" style="border:1px solid #e2e8f0;border-radius:10px;padding:12px;background:#fafafa">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:${isCollapsed?'0':'8px'}">
             <span style="cursor:grab;color:#64748b;font-size:18px;user-select:none;flex-shrink:0;line-height:1" title="ลากเพื่อเรียง">⠿</span>
-            <span style="font-size:12px;font-weight:700;color:#374151;flex:1">ข้อ ${i+1}</span>
+            <button onclick="cfToggleCollapse(${i})" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:13px;padding:2px 4px;line-height:1;flex-shrink:0" title="${isCollapsed?'ขยาย':'ยุบ'}ข้อนี้">${isCollapsed?'▸':'▾'}</button>
+            <span style="font-size:12px;font-weight:700;color:#374151;flex-shrink:0">ข้อ ${i+1}</span>
+            ${isCollapsed?`<span style="font-size:11px;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400">${esc(previewText)}${previewText.length>=120?'…':''}${subCount?` <span style="color:#94a3b8">· ${subCount} ข้อย่อย</span>`:''}</span>`:'<span style="flex:1"></span>'}
             <button onclick="cfRemoveClause(${i})" style="font-size:11px;color:#dc2626;background:none;border:none;cursor:pointer;padding:2px 8px;border-radius:6px" onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='none'" title="ลบข้อนี้">✕ ลบ</button>
           </div>
-          <div id="cfqClause_${i}" class="cf-quill-wrap" style="margin-bottom:8px"></div>
-          <div id="cfSubList_${i}" style="display:flex;flex-direction:column;gap:6px;margin-left:20px">
-            ${(obj.sub||[]).map((s,j)=>`
-              <div style="display:flex;align-items:flex-start;gap:6px">
-                <span style="font-size:11px;color:#64748b;padding-top:8px;flex-shrink:0;min-width:28px;font-weight:500">${i+1}.${j+1}</span>
-                <div id="cfqSub_${i}_${j}" class="cf-quill-wrap" style="flex:1"></div>
-                <button onclick="cfRemoveSub(${i},${j})" style="font-size:11px;color:#dc2626;background:none;border:none;cursor:pointer;padding:8px 6px 0;flex-shrink:0" title="ลบ">✕</button>
-              </div>
-            `).join('')}
+          <div style="display:${isCollapsed?'none':'block'}">
+            <div id="cfqClause_${i}" class="cf-quill-wrap" style="margin-bottom:8px"></div>
+            <div id="cfSubList_${i}" style="display:flex;flex-direction:column;gap:6px;margin-left:20px">
+              ${(obj.sub||[]).map((s,j)=>`
+                <div style="display:flex;align-items:flex-start;gap:6px">
+                  <span style="font-size:11px;color:#64748b;padding-top:8px;flex-shrink:0;min-width:28px;font-weight:500">${i+1}.${j+1}</span>
+                  <div id="cfqSub_${i}_${j}" class="cf-quill-wrap" style="flex:1"></div>
+                  <button onclick="cfRemoveSub(${i},${j})" style="font-size:11px;color:#dc2626;background:none;border:none;cursor:pointer;padding:8px 6px 0;flex-shrink:0" title="ลบ">✕</button>
+                </div>
+              `).join('')}
+            </div>
+            <button onclick="cfAddSub(${i})" style="font-size:11px;color:#4338ca;background:none;border:none;cursor:pointer;margin-top:8px;margin-left:20px;font-weight:500" title="เพิ่มข้อย่อย — เลขจะ auto">+ เพิ่มข้อย่อย ${i+1}.${(obj.sub||[]).length+1}</button>
           </div>
-          <button onclick="cfAddSub(${i})" style="font-size:11px;color:#4338ca;background:none;border:none;cursor:pointer;margin-top:8px;margin-left:20px;font-weight:500">+ เพิ่มข้อย่อย ${i+1}.${(obj.sub||[]).length+1}</button>
         </div>`;
       }).join('')}
     </div>
@@ -17838,6 +17893,44 @@ function renderCfEditor(){
   `;
 
   setTimeout(_cfInitQuills,0);
+}
+
+// ── Collapsible clauses state ──────────────────────────────────────────
+// cfCollapsedSet เก็บ clause indices ที่ถูกยุบ (Set of int)
+let cfCollapsedSet = new Set();
+
+function cfToggleCollapse(i){
+  cfSyncFromQuills();
+  if(cfCollapsedSet.has(i)) cfCollapsedSet.delete(i);
+  else cfCollapsedSet.add(i);
+  renderCfEditor();
+}
+function cfCollapseAll(){
+  cfSyncFromQuills();
+  for(let i=0;i<(cfEditTpl&&cfEditTpl.clauses||[]).length;i++) cfCollapsedSet.add(i);
+  renderCfEditor();
+}
+function cfExpandAll(){
+  cfCollapsedSet.clear();
+  renderCfEditor();
+}
+
+// Scroll editor pane ไปที่ข้อ i + expand ถ้ายุบอยู่ + flash highlight
+function cfScrollToClause(i){
+  if(cfCollapsedSet.has(i)){
+    cfCollapsedSet.delete(i);
+    renderCfEditor();
+    setTimeout(()=>cfScrollToClause(i),120); // wait re-render
+    return;
+  }
+  const el=document.getElementById('cfClauseRow_'+i);
+  if(!el)return;
+  el.scrollIntoView({behavior:'smooth',block:'start'});
+  // flash highlight
+  const old=el.style.boxShadow;
+  el.style.transition='box-shadow .3s';
+  el.style.boxShadow='0 0 0 3px #c7d2fe';
+  setTimeout(()=>{el.style.boxShadow=old||'';},1200);
 }
 
 // ── Dirty state tracking ───────────────────────────────────────────────
@@ -17961,20 +18054,80 @@ function cfRemoveSub(i,j){
     {icon:'🗑️',yesLabel:'ลบเลย',yesColor:'#dc2626'});
 }
 
+// ── Template history (snapshot ก่อน save · เก็บ 5 ล่าสุดต่อ template) ──
+function _cfHistoryKey(tid){ return 're_tpl_history_'+tid; }
+function _cfPushHistory(tid, snapshot){
+  try{
+    const k=_cfHistoryKey(tid);
+    const arr=JSON.parse(localStorage.getItem(k)||'[]');
+    arr.unshift(snapshot);
+    while(arr.length>5) arr.pop();
+    localStorage.setItem(k, JSON.stringify(arr));
+  }catch(e){ console.warn('history save failed',e); }
+}
+function _cfReadHistory(tid){
+  try{ return JSON.parse(localStorage.getItem(_cfHistoryKey(tid))||'[]'); }
+  catch(e){ return []; }
+}
+
 function cfSaveTemplate(){
   cfSyncFromInputs();
   const tpl=DB.templates.find(t=>t.id===cfEditTpl._tplId);
   if(tpl){
+    // snapshot ก่อนบันทึก — กัน user แก้พลาดแล้วย้อนได้
+    _cfPushHistory(tpl.id, {
+      ts: new Date().toISOString(),
+      name: tpl.name,
+      intro: tpl.intro||'',
+      clauses: JSON.parse(JSON.stringify(tpl.clauses||[]))
+    });
     tpl.name=cfEditTpl.name;
     tpl.intro=cfEditTpl.intro;
     tpl.clauses=JSON.parse(JSON.stringify(cfEditTpl.clauses));
     tpl.updated=new Date().toLocaleDateString('th-TH');
     save();
-    toast('บันทึกฟอร์มสำเร็จ');
+    toast('บันทึกฟอร์มสำเร็จ · เก็บ snapshot ย้อนได้');
     cfClearDirty();
     const msg=document.getElementById('cfSaveMsg');
     if(msg){msg.style.display='';setTimeout(()=>{if(msg)msg.style.display='none';},2500);}
   }
+}
+
+// Show history dropdown — restore snapshot ก่อนการบันทึกครั้งใดครั้งหนึ่ง
+function cfShowHistory(){
+  if(!cfEditTpl){return;}
+  const hist=_cfReadHistory(cfEditTpl._tplId);
+  if(!hist.length){toast('ยังไม่มีประวัติ — กดบันทึกก่อนเพื่อเริ่มเก็บ snapshot','info');return;}
+  // build picker html
+  let html='<div style="font-size:13px;color:#64748b;margin-bottom:8px">เลือก snapshot ที่จะกู้กลับมา (สูงสุด 5 ล่าสุด):</div>';
+  hist.forEach((s,i)=>{
+    const d=new Date(s.ts);
+    const tStr=d.toLocaleString('th-TH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const stripHtml=t=>(t||'').replace(/<[^>]*>/g,'').slice(0,60);
+    const preview=stripHtml(s.intro)||((s.clauses[0]&&s.clauses[0].text)?stripHtml(s.clauses[0].text):'');
+    html+=`<button onclick="cfRestoreHistory(${i});closeModal(true)" style="display:block;width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'"><div style="font-size:12px;font-weight:700;color:#1e293b">${tStr}</div><div style="font-size:11px;color:#64748b;margin-top:2px">${esc(s.name)} · ${s.clauses.length} ข้อ</div><div style="font-size:10px;color:#94a3b8;margin-top:4px;font-style:italic">"${esc(preview)}…"</div></button>`;
+  });
+  // ใช้ openSimpleModal pattern — สร้าง mbody content
+  $('mtitle').textContent='↶ ประวัติการบันทึก (snapshot ย้อนได้)';
+  $('mbody').innerHTML=html+'<div style="font-size:11px;color:#94a3b8;margin-top:8px;text-align:center">snapshot เก็บอัตโนมัติทุกครั้งที่กด "บันทึก"</div>';
+  $('modal').classList.remove('hidden');
+}
+
+function cfRestoreHistory(i){
+  const hist=_cfReadHistory(cfEditTpl._tplId);
+  const s=hist[i]; if(!s) return;
+  _cfConfirmDirtyOr(function(){
+    cfEditTpl={
+      _tplId: cfEditTpl._tplId,
+      name: s.name,
+      intro: s.intro||'',
+      clauses: JSON.parse(JSON.stringify(s.clauses||[]))
+    };
+    cfMarkDirty(); // restored state ≠ saved state → ต้องกดบันทึกอีกครั้ง
+    renderCfEditor();
+    setTimeout(()=>{if(typeof updateCfPreview==='function')updateCfPreview();},100);
+    toast('กู้กลับเรียบร้อย — กดบันทึกถ้าต้องการใช้จริง');
+  },'มีการแก้ไขที่ยังไม่บันทึก · ถ้ากู้ snapshot การแก้ไขนี้จะหายไป');
 }
 
 function cfResetTemplate(){
