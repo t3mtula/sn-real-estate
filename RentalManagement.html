@@ -3193,7 +3193,7 @@ function closeConfirmOverlay(){
 
 // ===== 02-state.js =====
 // ========== STATE ==========
-let DB = { properties: [], contracts: [], payments: {}, invoices: [], nextPId: 200, nextCId: 200, nextInvId: 1000, nextReceiptId: 1, templates: [], activeTemplate: null, invoiceHeaders: [], defaultInvHeader: null, activityLog: [], staff: [], formConfig: {}, sysConfig: {expiringDays: 90}, deposits: [], depositLedger: [], nextDepLedgerId: 1, inspections: [], nextInspId: 1, slipOk: {branchId:'', apiKey:'', enabled:false} };
+let DB = { properties: [], contracts: [], payments: {}, invoices: [], nextPId: 200, nextCId: 200, nextInvId: 1000, nextReceiptId: 1, templates: [], activeTemplate: null, invoiceHeaders: [], defaultInvHeader: null, bankAccounts: [], landlordDefaults: {}, nextBankAccountId: 1, activityLog: [], staff: [], formConfig: {}, sysConfig: {expiringDays: 90}, deposits: [], depositLedger: [], nextDepLedgerId: 1, inspections: [], nextInspId: 1, slipOk: {branchId:'', apiKey:'', enabled:false} };
 
 let page = 'dashboard', cPage = 0, cFilter = {q:'',st:'all',cat:'all',signed:'all'};
 let currentUser = null; // {name, role, pin, createdAt}
@@ -3504,7 +3504,7 @@ function logout() {
 // ===== 04-storage.js =====
 // ========== STORAGE ==========
 // ========== DATA VERSION & MIGRATIONS ==========
-const DATA_VERSION = 34;
+const DATA_VERSION = 35;
 const MIGRATIONS = [
   // {fromVersion: 15, toVersion: 16, migrate: (data) => { ... return data; }}
   { fromVersion: 15, toVersion: 16, migrate: function(data) {
@@ -3942,6 +3942,70 @@ const MIGRATIONS = [
       }
     });
     return data;
+  }},
+  { fromVersion: 34, toVersion: 35, migrate: function(data) {
+    // v35: แยก bank accounts ออกจาก invoice_headers
+    // - DB.bankAccounts[]: standalone entity (id, label, bankName, accountNo, accountName, promptPayId, note, archived)
+    // - DB.landlordDefaults[landlordName] = { defaultBankAccountId }
+    // - contract.bankAccountId override (fallback chain: c.bankAccountId → landlordDefaults → legacy fields)
+    if(!Array.isArray(data.bankAccounts)) data.bankAccounts = [];
+    if(!data.landlordDefaults || typeof data.landlordDefaults !== 'object' || Array.isArray(data.landlordDefaults)) data.landlordDefaults = {};
+    if(!data.nextBankAccountId) data.nextBankAccountId = 1;
+    // Skip if already migrated (idempotent)
+    if(data.bankAccounts.length > 0) return data;
+
+    var nextId = data.nextBankAccountId || 1;
+    var accountMap = {}; // key "bankName|accountNo|accountName" → bankAccountId
+    var stripBank = function(s){ return String(s||'').replace(/^ธนาคาร\s*/,'').replace(/\s+จำกัด.*$/,''); };
+    var keyFor = function(bn, an, anm){ return (bn||'').trim() + '|' + (an||'').trim() + '|' + (anm||'').trim(); };
+    var addAccount = function(bankName, accountNo, accountName, promptPayId){
+      if(!bankName && !accountNo) return null;
+      var k = keyFor(bankName, accountNo, accountName);
+      if(accountMap[k]) return accountMap[k];
+      var id = nextId++;
+      accountMap[k] = id;
+      var parts = [];
+      if(accountName) parts.push(accountName);
+      if(bankName) parts.push(stripBank(bankName));
+      if(accountNo) parts.push(accountNo);
+      data.bankAccounts.push({
+        id: id,
+        label: parts.join(' · '),
+        bankName: bankName||'',
+        accountNo: accountNo||'',
+        accountName: accountName||'',
+        promptPayId: promptPayId||'',
+        note: '',
+        archived: false
+      });
+      return id;
+    };
+
+    // Step 1: seed จาก invoiceHeaders เดิม + map landlord defaults
+    (data.invoiceHeaders||[]).forEach(function(h){
+      var id = addAccount(h.bankName, h.bankAccount, h.bankAccountName, h.promptPayId);
+      if(id && h.companyName){
+        if(!data.landlordDefaults[h.companyName]){
+          data.landlordDefaults[h.companyName] = { defaultBankAccountId: id };
+        }
+      }
+    });
+
+    // Step 2: backfill c.bankAccountId จาก existing c.bank/c.acctNo/c.accountName
+    (data.contracts||[]).forEach(function(c){
+      if(c.bankAccountId) return; // already set
+      if(!c.bank && !c.acctNo) return; // no bank info
+      var k = keyFor(c.bank, c.acctNo, c.accountName);
+      if(accountMap[k]){
+        c.bankAccountId = accountMap[k];
+      } else {
+        // contract bank doesn't match any header → create new bankAccount + bind
+        c.bankAccountId = addAccount(c.bank, c.acctNo, c.accountName, '');
+      }
+    });
+
+    data.nextBankAccountId = nextId;
+    return data;
   }}
 ];
 
@@ -4145,6 +4209,9 @@ function importData(e) {
         if(!DB.staff)DB.staff=[];
         if(!DB.formConfig)DB.formConfig={};
         if(!DB.sysConfig)DB.sysConfig={};
+        if(!Array.isArray(DB.bankAccounts))DB.bankAccounts=[];
+        if(!DB.landlordDefaults||typeof DB.landlordDefaults!=='object'||Array.isArray(DB.landlordDefaults))DB.landlordDefaults={};
+        if(!DB.nextBankAccountId)DB.nextBankAccountId=1;
         if(!DB.nextPId)DB.nextPId=200;
         if(!DB.nextCId)DB.nextCId=200;
         if(!DB.nextInvId)DB.nextInvId=1000;
@@ -6774,6 +6841,7 @@ function renderSettingsPage(){
   const tabs=[
     {id:'company',label:'ข้อมูลบริษัท',icon:'🏢'},
     {id:'invoice',label:'ใบแจ้งหนี้',icon:'📄'},
+    {id:'bankaccounts',label:'บัญชีรับโอน',icon:'🏦'},
     {id:'contractform',label:'ฟอร์มสัญญา',icon:'📝'},
     {id:'display',label:'การแสดงผล',icon:'🎨'},
     {id:'system',label:'ระบบ',icon:'⚙️'},
@@ -6793,6 +6861,8 @@ function renderSettingsPage(){
     bodyHTML=renderSettingsCompany();
   } else if(settingsTab==='invoice'){
     bodyHTML=renderSettingsInvoice();
+  } else if(settingsTab==='bankaccounts'){
+    bodyHTML=renderSettingsBankAccounts();
   } else if(settingsTab==='contractform'){
     bodyHTML=renderSettingsContractForm();
   } else if(settingsTab==='display'){
@@ -7366,6 +7436,172 @@ function saveInvoiceNote(invId){
   inv.note=val;
   save();
   toast('บันทึกหมายเหตุแล้ว ✓');
+}
+
+// ===== Phase 2: Settings → บัญชีรับโอน (Bank Accounts) =====
+function renderSettingsBankAccounts(){
+  if(!Array.isArray(DB.bankAccounts)) DB.bankAccounts = [];
+  const accounts = DB.bankAccounts.slice().sort((a,b)=> (a.archived?1:0)-(b.archived?1:0) || (a.label||'').localeCompare(b.label||'','th'));
+  const active = accounts.filter(a=>!a.archived);
+  const archived = accounts.filter(a=>a.archived);
+
+  // Build usage count: how many contracts + how many landlords default to each account
+  const cUseCount = {}, lUseCount = {};
+  (DB.contracts||[]).forEach(c=>{
+    if(c.bankAccountId) cUseCount[c.bankAccountId] = (cUseCount[c.bankAccountId]||0) + 1;
+  });
+  Object.entries(DB.landlordDefaults||{}).forEach(([ll, def])=>{
+    if(def?.defaultBankAccountId) lUseCount[def.defaultBankAccountId] = (lUseCount[def.defaultBankAccountId]||0) + 1;
+  });
+
+  const card = (a)=>{
+    const cu = cUseCount[a.id]||0, lu = lUseCount[a.id]||0;
+    const isArc = a.archived;
+    return `<div style="background:${isArc?'#f8fafc':'#fff'};border:1px solid ${isArc?'#e2e8f0':'#cbd5e1'};border-radius:10px;padding:14px;margin-bottom:8px;display:flex;gap:14px;align-items:flex-start;${isArc?'opacity:.65':''}">
+      <div style="flex-shrink:0;width:42px;height:42px;background:${isArc?'#e2e8f0':'#dbeafe'};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">🏦</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:3px">
+          <span style="font-size:14px;font-weight:700;color:#1e293b">${esc(a.accountName||'(ไม่มีชื่อบัญชี)')}</span>
+          ${isArc?'<span style="font-size:10px;font-weight:600;color:#fff;background:#94a3b8;padding:2px 7px;border-radius:10px">📦 เก็บถาวร</span>':''}
+        </div>
+        <div style="font-size:12px;color:#475569;line-height:1.55">
+          <b>${esc(a.bankName||'-')}</b> · เลขที่ <span style="font-variant-numeric:tabular-nums">${esc(a.accountNo||'-')}</span>
+        </div>
+        ${a.promptPayId?'<div style="font-size:10.5px;color:#059669;font-weight:600;margin-top:3px">⚡ PromptPay: '+esc(a.promptPayId)+'</div>':''}
+        ${a.note?'<div style="font-size:10px;color:#92400e;margin-top:4px;background:#fffbeb;padding:3px 8px;border-radius:4px">📝 '+esc(a.note)+'</div>':''}
+        <div style="font-size:10.5px;color:#64748b;margin-top:5px">
+          ${cu>0?'<b style="color:#0369a1">'+cu+'</b> สัญญา':'<span style="color:#cbd5e1">— ยังไม่มีสัญญาใช้</span>'}
+          ${lu>0?' · <b style="color:#7c3aed">'+lu+'</b> ผู้ให้เช่า default':''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+        <button onclick="openBankAccountForm(${a.id})" style="padding:5px 12px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">✏️ แก้ไข</button>
+        ${isArc
+          ? '<button onclick="toggleBankAccountArchive('+a.id+',false)" style="padding:5px 12px;background:#dcfce7;color:#15803d;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">↩️ คืน</button>'
+          : '<button onclick="toggleBankAccountArchive('+a.id+',true)" style="padding:5px 12px;background:#fef3c7;color:#92400e;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun" title="เก็บถาวร (ไม่ลบ · ของเก่ายังอ้างถึงได้)">📦 เก็บ</button>'}
+        ${(cu===0 && lu===0 && hasPermission('delete')) ? '<button onclick="deleteBankAccount('+a.id+')" style="padding:5px 12px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun">🗑️ ลบ</button>' : ''}
+      </div>
+    </div>`;
+  };
+
+  return `<div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin:0">บัญชีรับโอน</h2>
+      <span style="font-size:12px;color:#64748b">· ${active.length} ใช้งาน${archived.length>0?' · '+archived.length+' เก็บถาวร':''}</span>
+      <button onclick="openBankAccountForm(0)" style="margin-left:auto;padding:8px 16px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">+ เพิ่มบัญชี</button>
+    </div>
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:11.5px;color:#1e40af;line-height:1.6">
+      💡 บัญชีรับโอนแยกจาก "ผู้ให้เช่า" · ผู้ให้เช่าคนเดียวอาจใช้บัญชีหลายเล่ม · บัญชีเดียวกันใช้กับผู้ให้เช่าหลายคนได้
+    </div>
+    ${active.length===0 && archived.length===0
+      ? '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px">ยังไม่มีบัญชีรับโอน · กด "+ เพิ่มบัญชี" เพื่อเริ่ม</div>'
+      : active.map(card).join('') + (archived.length>0 ? '<div style="font-size:11px;color:#94a3b8;margin:14px 0 6px">เก็บถาวรแล้ว</div>' + archived.map(card).join('') : '')}
+  </div>`;
+}
+
+function openBankAccountForm(id){
+  if(!Array.isArray(DB.bankAccounts)) DB.bankAccounts = [];
+  const isEdit = !!id;
+  const a = isEdit ? DB.bankAccounts.find(x=>x.id===id) : null;
+  if(isEdit && !a){ toast('ไม่พบบัญชี','error'); return; }
+  const sV = v => (v||'').toString().replace(/"/g,'&quot;');
+
+  $('mtitle').textContent = isEdit ? 'แก้ไขบัญชีรับโอน' : 'เพิ่มบัญชีรับโอน';
+  const inp = 'w-full px-3 py-2 border border-gray-300 rounded text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
+  const lbl = 'display:block;font-size:11px;color:#475569;font-weight:600;margin-bottom:4px';
+
+  $('mbody').innerHTML = `<form id="baForm" style="font-family:Sarabun">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="${lbl}">ธนาคาร <span style="color:#dc2626">*</span></label>
+          <input type="text" name="bankName" value="${sV(a?.bankName)}" placeholder="เช่น ธนาคารกรุงเทพ สาขาบ้านโป่ง" class="${inp}" required>
+        </div>
+        <div>
+          <label style="${lbl}">เลขบัญชี <span style="color:#dc2626">*</span></label>
+          <input type="text" name="accountNo" value="${sV(a?.accountNo)}" placeholder="123-4-56789-0" class="${inp}" required>
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="${lbl}">ชื่อบัญชี <span style="color:#dc2626">*</span></label>
+          <input type="text" name="accountName" value="${sV(a?.accountName)}" placeholder="เช่น บริษัท สมบัตินภา จำกัด" class="${inp}" required>
+        </div>
+        <div>
+          <label style="${lbl}">PromptPay ID (ถ้ามี)</label>
+          <input type="text" name="promptPayId" value="${sV(a?.promptPayId)}" placeholder="เบอร์โทร / เลขผู้เสียภาษี" class="${inp}">
+        </div>
+        <div>
+          <label style="${lbl}">ป้ายชื่อ (label) — แสดงใน dropdown</label>
+          <input type="text" name="label" value="${sV(a?.label)}" placeholder="ถ้าเว้นว่าง: auto-gen จากชื่อบัญชี + ธนาคาร" class="${inp}">
+        </div>
+        <div style="grid-column:1/-1">
+          <label style="${lbl}">หมายเหตุ (ไม่บังคับ)</label>
+          <input type="text" name="note" value="${sV(a?.note)}" placeholder="เช่น 'ใช้สำหรับลูกค้าโซน A'" class="${inp}">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button type="button" onclick="closeModal()" style="padding:10px 20px;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+      <button type="submit" style="padding:10px 28px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:Sarabun">${isEdit?'บันทึก':'เพิ่มบัญชี'}</button>
+    </div>
+  </form>`;
+  $('modal').classList.remove('hidden');
+  $('baForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const bn = (fd.get('bankName')||'').trim();
+    const an = (fd.get('accountNo')||'').trim();
+    const anm = (fd.get('accountName')||'').trim();
+    if(!bn || !an || !anm){ toast('กรอกข้อมูลไม่ครบ','error'); return; }
+    const stripBank = s => String(s||'').replace(/^ธนาคาร\s*/,'').replace(/\s+จำกัด.*$/,'');
+    const autoLabel = [anm, stripBank(bn), an].filter(Boolean).join(' · ');
+    const data = {
+      label: (fd.get('label')||'').trim() || autoLabel,
+      bankName: bn, accountNo: an, accountName: anm,
+      promptPayId: (fd.get('promptPayId')||'').trim(),
+      note: (fd.get('note')||'').trim(),
+      archived: false
+    };
+    if(isEdit){
+      Object.assign(a, data);
+      addActivityLog('edit_bank_account','แก้ไขบัญชีรับโอน — '+data.accountName);
+      toast('บันทึกแล้ว ✓','success');
+    } else {
+      if(!DB.nextBankAccountId) DB.nextBankAccountId = 1;
+      data.id = DB.nextBankAccountId++;
+      DB.bankAccounts.push(data);
+      addActivityLog('add_bank_account','เพิ่มบัญชีรับโอน — '+data.accountName);
+      toast('เพิ่มแล้ว ✓','success');
+    }
+    save();
+    closeModal();
+    renderSettingsPage();
+  });
+}
+
+function toggleBankAccountArchive(id, archive){
+  const a = (DB.bankAccounts||[]).find(x=>x.id===id);
+  if(!a) return;
+  a.archived = !!archive;
+  addActivityLog(archive?'archive_bank_account':'unarchive_bank_account', (archive?'เก็บถาวร':'คืน')+'บัญชี — '+a.accountName);
+  save();
+  toast(archive?'เก็บถาวรแล้ว ✓':'คืนแล้ว ✓','success');
+  renderSettingsPage();
+}
+
+function deleteBankAccount(id){
+  const a = (DB.bankAccounts||[]).find(x=>x.id===id);
+  if(!a) return;
+  // Safety: check usage
+  const cu = (DB.contracts||[]).filter(c=>c.bankAccountId===id).length;
+  const lu = Object.values(DB.landlordDefaults||{}).filter(d=>d?.defaultBankAccountId===id).length;
+  if(cu>0||lu>0){ toast('ลบไม่ได้ — มีการใช้งานอยู่ ('+cu+' สัญญา · '+lu+' ผู้ให้เช่า default) — ลองเก็บถาวรแทน','error'); return; }
+  customConfirm('ลบบัญชีรับโอน','ลบ "'+a.accountName+'" ถาวร? (ไม่สามารถกู้คืน)', function(){
+    DB.bankAccounts = (DB.bankAccounts||[]).filter(x=>x.id!==id);
+    addActivityLog('delete_bank_account','ลบบัญชี — '+a.accountName);
+    save();
+    toast('ลบแล้ว ✓','success');
+    renderSettingsPage();
+  }, {icon:'🗑️',yesLabel:'ลบ',yesColor:'#dc2626'});
 }
 
 function renderSettingsSystem(){
@@ -9416,10 +9652,11 @@ function viewContract(id) {
   } else {
     depositDisplay = depositAmt && !isNaN(depositAmt) ? fmtBaht(depositAmt, {sym: 0}) + ' บาท' : '';
   }
-  // Bank details: contract first, header fallback
-  const vcBank = c.bank || vcHdr.bankName || '';
-  const vcAcctNo = c.acctNo || vcHdr.bankAccount || '';
-  const vcAcctName = c.accountName || vcHdr.bankAccountName || '';
+  // Bank details: Phase 2 fallback chain (entity → landlord default → legacy)
+  const _vcBA = resolveBankFields(c, vcHdr);
+  const vcBank = _vcBA.bankName;
+  const vcAcctNo = _vcBA.accountNo;
+  const vcAcctName = _vcBA.accountName;
   // Landlord address: contract first, header fallback (ผู้ให้เช่ามักมีที่อยู่ใน invoice header แล้ว)
   const vcLandlordAddr = c.landlordAddr || vcHdr.address || '';
   const vcMadeAt = c.madeAt || vcLandlordAddr || '';
@@ -11699,7 +11936,7 @@ function openAddContractDialog(pid){
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
-        bank: fd.get('bank'), acctNo: fd.get('acctNo'),
+        bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
@@ -11748,7 +11985,7 @@ function renewContract(cid) {
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
-        bank: fd.get('bank'), acctNo: fd.get('acctNo'),
+        bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
@@ -11794,7 +12031,7 @@ function copyContract(cid) {
         taxId: fd.get('taxId') || '', branch: fd.get('branch') || '00000', tenantAddr: assembleAddrFromPrefix(fd,'ta'), madeAt: fd.get('madeAt') || '',
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
-        bank: fd.get('bank'), acctNo: fd.get('acctNo'),
+        bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', deed: fd.get('deed') || '',
@@ -12073,6 +12310,27 @@ function contractFormHTML(mode, c, pid) {
             <input type="text" name="madeAt" id="cfMadeAt" value="${v('madeAt')}" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="ดึงอัตโนมัติจากที่อยู่ผู้ให้เช่าเมื่อเลือก · แก้ได้">
           </div>
 
+          <!-- ✏️ Phase 2: บัญชีรับโอน (แยกจากผู้ให้เช่า) -->
+          <div class="col-span-2" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:13px">🏦</span>
+              <span style="font-size:11px;font-weight:600;color:#1e40af">บัญชีรับโอน</span>
+              <span style="font-size:10px;color:#64748b">(แยกจากผู้ให้เช่า · default = ของผู้ให้เช่า)</span>
+            </div>
+            ${(()=>{
+              const accs = (DB.bankAccounts||[]).filter(b=>!b.archived);
+              const curId = v('bankAccountId') ? +v('bankAccountId') : 0;
+              const opts = accs.map(b => '<option value="'+b.id+'" '+(curId===b.id?'selected':'')+'>'+esc(b.label||b.accountName||'(no label)')+'</option>').join('');
+              return `<select name="bankAccountId" id="cfBankAccountId" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="cfOnBankAccountChange(this.value)">
+                <option value="">— ใช้ default ของผู้ให้เช่า —</option>
+                ${opts}
+                <option value="_new">+ เพิ่มบัญชีใหม่...</option>
+              </select>
+              <div id="cfBankPreview" style="margin-top:6px;font-size:11px;color:#475569"></div>`;
+            })()}
+          </div>
+
+          <!-- legacy hidden fields — kept สำหรับ backward compat กับ data เก่า -->
           <input type="hidden" name="bank" value="${v('bank')}">
           <input type="hidden" name="acctNo" value="${v('acctNo')}">
           <input type="hidden" name="accountName" value="${v('accountName')}">
@@ -12573,6 +12831,20 @@ function cfSelectHeader(val){
   if(hiddenHeaderId)hiddenHeaderId.value=h.id;
 
   // Auto-fill hidden fields + update visible bank select
+  // Phase 2: ถ้าผู้ให้เช่ามี default bank account → auto-pick · ไม่งั้น fallback ใช้ header bank fields
+  const landlordKey = h.companyName||'';
+  const defAcctId = (DB.landlordDefaults && DB.landlordDefaults[landlordKey] && DB.landlordDefaults[landlordKey].defaultBankAccountId) || 0;
+  const baSel = document.getElementById('cfBankAccountId');
+  if(defAcctId && baSel){
+    // Check if option exists; if yes, select
+    let found = false;
+    for(const opt of baSel.options){ if(+opt.value === defAcctId){ baSel.value = String(defAcctId); found = true; break; } }
+    if(found){
+      // Trigger handler to update preview + legacy hidden fields
+      if(typeof cfOnBankAccountChange === 'function') cfOnBankAccountChange(String(defAcctId));
+    }
+  }
+  // Legacy fields (kept for backward compat — read fallback)
   document.querySelector('[name=bank]').value=h.bankName||'';
   document.querySelector('[name=acctNo]').value=h.bankAccount||'';
   document.querySelector('[name=accountName]').value=h.bankAccountName||'';
@@ -12650,6 +12922,39 @@ function cfSelectHeader(val){
       // Already selected — ensure preview shows
     }
   },100);
+}
+
+// Phase 2: handler ของ bankAccountId dropdown ใน contract form
+function cfOnBankAccountChange(val){
+  const preview = document.getElementById('cfBankPreview');
+  const hidBank = document.querySelector('[name=bank]');
+  const hidAcct = document.querySelector('[name=acctNo]');
+  const hidAcctName = document.querySelector('[name=accountName]');
+  // _new → เปิด modal เพิ่มบัญชี
+  if(val === '_new'){
+    // reset dropdown ก่อน เพื่อกัน lock
+    const sel = document.getElementById('cfBankAccountId');
+    if(sel) sel.value = '';
+    // เปิด bank account form แล้วหลัง save → reload page ก็จะเห็น option ใหม่
+    if(typeof openBankAccountForm === 'function') openBankAccountForm(0);
+    return;
+  }
+  if(!val){
+    if(preview) preview.innerHTML = '<span style="color:#94a3b8">ใช้ default ของผู้ให้เช่า (ถ้ามี) · ตอนพิมพ์ใบจะใช้ fallback</span>';
+    // ไม่ overwrite hidden bank/acctNo/accountName — เก็บ legacy values
+    return;
+  }
+  const id = +val;
+  const ba = (DB.bankAccounts||[]).find(b => b.id === id);
+  if(!ba) return;
+  // อัปเดต preview
+  if(preview){
+    preview.innerHTML = '<b>'+esc(ba.bankName||'-')+'</b> · '+esc(ba.accountNo||'-')+' <span style="color:#475569">('+esc(ba.accountName||'-')+')</span>'+(ba.promptPayId?' · ⚡ PP '+esc(ba.promptPayId):'');
+  }
+  // Mirror ค่าไป legacy hidden inputs (backward compat) — เผื่อ code อื่นยังอ่าน c.bank/c.acctNo
+  if(hidBank) hidBank.value = ba.bankName||'';
+  if(hidAcct) hidAcct.value = ba.accountNo||'';
+  if(hidAcctName) hidAcctName.value = ba.accountName||'';
 }
 
 function cfSelectLandlord(val){
@@ -17261,14 +17566,16 @@ function invoiceHTML(invoices,staff){
 
         <!-- ── Bank + PromptPay QR ── -->
         ${(()=>{
-          const hasPP=h?.promptPayId&&inv.total>0;
-          const qrSrc=hasPP?generateQRDataUrl(h.promptPayId,inv.total):'';
-          const bk=c?.bank||h?.bankName||'';
-          const acct=c?.acctNo||h?.bankAccount||'';
-          const acctName=c?.accountName||h?.bankAccountName||'';
+          // Phase 2: resolveBankFields → c.bankAccountId → landlordDefaults → legacy fallback
+          const _rb=resolveBankFields(c,h);
+          const ppId=_rb.promptPayId||h?.promptPayId||'';
+          const hasPP=ppId&&inv.total>0;
+          const qrSrc=hasPP?generateQRDataUrl(ppId,inv.total):'';
+          const bk=_rb.bankName;
+          const acct=_rb.accountNo;
+          const acctName=_rb.accountName;
           const ppName=h?.promptPayName||acctName||'';
           const ppBank=h?.promptPayBank||bk||'';
-          const ppId=h?.promptPayId||'';
           // PromptPay QR section (เฉพาะใบแจ้งหนี้ที่ยังไม่จ่าย + ยอด > 0)
           let html='';
           if(hasPP&&qrSrc){
@@ -22406,6 +22713,39 @@ function getContractDeposit(c){
   if(c && c.hasDeposit === false) return 0;
   const raw = String(c.deposit||'').replace(/[^0-9.]/g,'');
   return Number(raw)||0;
+}
+
+// ===== Phase 2: bank account helpers =====
+// fallback chain: c.bankAccountId → landlordDefaults[c.landlord].defaultBankAccountId → null
+function getBankAccountById(id){
+  if(!id) return null;
+  return (DB.bankAccounts||[]).find(function(b){ return b.id === id || b.id === +id; }) || null;
+}
+function getEffectiveBankAccount(c){
+  if(!c) return null;
+  // 1) contract override
+  if(c.bankAccountId){
+    var b = getBankAccountById(c.bankAccountId);
+    if(b && !b.archived) return b;
+  }
+  // 2) landlord default
+  var ll = c.landlord || '';
+  if(ll && DB.landlordDefaults && DB.landlordDefaults[ll]){
+    var defId = DB.landlordDefaults[ll].defaultBankAccountId;
+    var bd = getBankAccountById(defId);
+    if(bd && !bd.archived) return bd;
+  }
+  return null;
+}
+// Resolve bank fields for display/print — bank account entity → fallback legacy → fallback header
+function resolveBankFields(c, h){
+  var ba = getEffectiveBankAccount(c);
+  if(ba) return { bankName: ba.bankName||'', accountNo: ba.accountNo||'', accountName: ba.accountName||'', promptPayId: ba.promptPayId||'', source: 'entity' };
+  // Legacy fallback: contract first, then header
+  var bn = c?.bank || h?.bankName || '';
+  var an = c?.acctNo || h?.bankAccount || '';
+  var anm = c?.accountName || h?.bankAccountName || '';
+  return { bankName: bn, accountNo: an, accountName: anm, promptPayId: '', source: 'legacy' };
 }
 
 function getDepositReturn(cid){
