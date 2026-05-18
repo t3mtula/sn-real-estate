@@ -20069,7 +20069,9 @@ function msSaveAll(){
   } else {
     toast('ไม่มีการเปลี่ยนแปลง','warning');
   }
-  closeModal();
+  // กัน dirty guard popup หลัง save → reset flag ก่อน closeModal
+  _modalDirty = false;
+  closeModal(true);
   if(typeof render === 'function') render();
 }
 
