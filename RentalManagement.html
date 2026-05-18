@@ -3193,7 +3193,7 @@ function closeConfirmOverlay(){
 
 // ===== 02-state.js =====
 // ========== STATE ==========
-let DB = { properties: [], contracts: [], payments: {}, invoices: [], nextPId: 200, nextCId: 200, nextInvId: 1000, nextReceiptId: 1, templates: [], activeTemplate: null, invoiceHeaders: [], defaultInvHeader: null, bankAccounts: [], landlordDefaults: {}, nextBankAccountId: 1, activityLog: [], staff: [], formConfig: {}, sysConfig: {expiringDays: 90}, deposits: [], depositLedger: [], nextDepLedgerId: 1, inspections: [], nextInspId: 1, slipOk: {branchId:'', apiKey:'', enabled:false} };
+let DB = { properties: [], contracts: [], payments: {}, invoices: [], nextPId: 200, nextCId: 200, nextInvId: 1000, nextReceiptId: 1, templates: [], activeTemplate: null, invoiceHeaders: [], defaultInvHeader: null, bankAccounts: [], landlordDefaults: {}, nextBankAccountId: 1, utilityTypes: [], meterReadings: [], nextMeterReadingId: 1, activityLog: [], staff: [], formConfig: {}, sysConfig: {expiringDays: 90}, deposits: [], depositLedger: [], nextDepLedgerId: 1, inspections: [], nextInspId: 1, slipOk: {branchId:'', apiKey:'', enabled:false} };
 
 let page = 'dashboard', cPage = 0, cFilter = {q:'',st:'all',cat:'all',signed:'all'};
 let currentUser = null; // {name, role, pin, createdAt}
@@ -3504,7 +3504,7 @@ function logout() {
 // ===== 04-storage.js =====
 // ========== STORAGE ==========
 // ========== DATA VERSION & MIGRATIONS ==========
-const DATA_VERSION = 36;
+const DATA_VERSION = 37;
 const MIGRATIONS = [
   // {fromVersion: 15, toVersion: 16, migrate: (data) => { ... return data; }}
   { fromVersion: 15, toVersion: 16, migrate: function(data) {
@@ -4058,6 +4058,24 @@ const MIGRATIONS = [
       console.log('[v36 dedup] merged ' + mergeCount + ' duplicate bank accounts');
     }
     return data;
+  }},
+  { fromVersion: 36, toVersion: 37, migrate: function(data) {
+    // v37: meter system — utility types catalog + meter readings + property.utilities
+    if(!Array.isArray(data.utilityTypes)) data.utilityTypes = [];
+    if(!Array.isArray(data.meterReadings)) data.meterReadings = [];
+    if(!data.nextMeterReadingId) data.nextMeterReadingId = 1;
+    // Seed default utility types ถ้ายังว่าง (water + elec)
+    if(data.utilityTypes.length === 0){
+      data.utilityTypes = [
+        { key:'water', label:'ค่าน้ำ', unit:'หน่วย', defaultRate:18, lineItemPrefix:'ค่าน้ำ', icon:'💧' },
+        { key:'elec',  label:'ค่าไฟ', unit:'หน่วย', defaultRate:8,  lineItemPrefix:'ค่าไฟ', icon:'⚡' }
+      ];
+    }
+    // Initialize property.utilities = [] ถ้ายังไม่มี · ไม่ enable อะไรเริ่มต้น (manual toggle per property)
+    (data.properties||[]).forEach(function(p){
+      if(!Array.isArray(p.utilities)) p.utilities = [];
+    });
+    return data;
   }}
 ];
 
@@ -4264,6 +4282,9 @@ function importData(e) {
         if(!Array.isArray(DB.bankAccounts))DB.bankAccounts=[];
         if(!DB.landlordDefaults||typeof DB.landlordDefaults!=='object'||Array.isArray(DB.landlordDefaults))DB.landlordDefaults={};
         if(!DB.nextBankAccountId)DB.nextBankAccountId=1;
+        if(!Array.isArray(DB.utilityTypes))DB.utilityTypes=[];
+        if(!Array.isArray(DB.meterReadings))DB.meterReadings=[];
+        if(!DB.nextMeterReadingId)DB.nextMeterReadingId=1;
         if(!DB.nextPId)DB.nextPId=200;
         if(!DB.nextCId)DB.nextCId=200;
         if(!DB.nextInvId)DB.nextInvId=1000;
@@ -6803,6 +6824,7 @@ const PAGES=[
   {id:'contracts',label:'สัญญาเช่า',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'},
   {id:'landlords',label:'ผู้ให้เช่า',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'},
   {id:'invoices',label:'ใบแจ้งหนี้',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>'},
+  {id:'meters',label:'มิเตอร์',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'},
   {id:'reports',label:'รายงาน',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>',perm:'view_reports'},
 ];
 
@@ -7919,7 +7941,7 @@ function staffSaveInline(editIdx){
 
 function render(){
   // Update title based on current tab
-  const titleMap={properties:'ทรัพย์สิน',contracts:'สัญญาเช่า',renewals:'ใกล้หมดอายุ',contractform:'แบบฟอร์มสัญญา',dashboard:'Dashboard',landlords:'ผู้ให้เช่า',invoices:'ใบแจ้งหนี้',pipeline:'Pipeline',reports:'รายงาน',settings:'ตั้งค่าระบบ',datafix:'ข้อมูลต้องแก้'};
+  const titleMap={properties:'ทรัพย์สิน',contracts:'สัญญาเช่า',renewals:'ใกล้หมดอายุ',contractform:'แบบฟอร์มสัญญา',dashboard:'Dashboard',landlords:'ผู้ให้เช่า',invoices:'ใบแจ้งหนี้',meters:'มิเตอร์น้ำ/ไฟ',pipeline:'Pipeline',reports:'รายงาน',settings:'ตั้งค่าระบบ',datafix:'ข้อมูลต้องแก้'};
   if(page==='properties')$('title').textContent=titleMap[propTab]||'ทรัพย์สิน';
   else $('title').textContent=titleMap[page]||'';
 
@@ -7934,6 +7956,7 @@ function render(){
   }
   else if(page==='landlords')renderLandlords();
   else if(page==='invoices')renderInvoicePage();
+  else if(page==='meters')renderMetersPage();
   else if(page==='pipeline')renderPipelinePage();
   else if(page==='reports')renderReportsPage();
   else if(page==='settings')renderSettingsPage();
@@ -10777,10 +10800,60 @@ function openPropertyDetail(pid) {
     , editAddrBtn);
   }
 
+  // ── Section: 🔌 มิเตอร์น้ำ/ไฟ (Phase 3) ──
+  let secUtilities;
+  {
+    if(!Array.isArray(p.utilities)) p.utilities = [];
+    const utilityTypes = (DB.utilityTypes||[]);
+    const isUtilEdit = (window._pdEditMode === 'utilities');
+    if(isUtilEdit){
+      const rows = utilityTypes.map(ut => {
+        const pu = p.utilities.find(u => u.key === ut.key) || { key:ut.key, enabled:false, rate:ut.defaultRate, unit:ut.unit, lastReading:0, lastConsumedMonth:'' };
+        const safeRate = (v) => String(v||'').replace(/"/g,'&quot;');
+        return `<div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;font-size:12.5px">
+            <input type="checkbox" data-utility-key="${ut.key}" data-role="enabled" ${pu.enabled?'checked':''} style="width:16px;height:16px;cursor:pointer">
+            <span style="font-size:16px">${ut.icon||'🔌'}</span>
+            <span style="font-weight:600;color:#1e293b">${esc(ut.label)}</span>
+          </label>
+          <span style="font-size:11px;color:#64748b">rate</span>
+          <input type="number" data-utility-key="${ut.key}" data-role="rate" value="${safeRate(pu.rate||ut.defaultRate)}" min="0" step="0.5" style="width:80px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:Sarabun" placeholder="0">
+          <span style="font-size:11px;color:#64748b">บาท/${esc(ut.unit||'หน่วย')}</span>
+          ${pu.lastReading>0?'<span style="font-size:10.5px;color:#94a3b8;margin-left:8px">last: '+esc(String(pu.lastReading))+(pu.lastConsumedMonth?' ('+esc(pu.lastConsumedMonth)+')':'')+'</span>':''}
+        </div>`;
+      }).join('');
+      const utilBody = (utilityTypes.length===0
+        ? '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:12px">ยังไม่มี utility types · ตั้งค่าใน Settings ก่อน</div>'
+        : rows) +
+        `<div style="grid-column:1/-1;display:flex;gap:6px;justify-content:flex-end;padding-top:8px;margin-top:4px">
+          <button onclick="pdCancelEdit(${pid})" style="padding:5px 12px;background:#f1f5f9;color:#475569;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">ยกเลิก</button>
+          <button onclick="pdSaveUtilities(${pid})" style="padding:5px 14px;background:#10b981;color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+        </div>`;
+      secUtilities = _pdSection('มิเตอร์น้ำ/ไฟ (กำลังแก้ไข)', '✏️', utilBody);
+    } else {
+      const editUtilBtn = `<button onclick="pdEditSection(${pid},'utilities')" style="font-size:11px;color:#6366f1;font-weight:600;cursor:pointer;padding:4px 12px;border-radius:6px;background:#eef2ff;border:none;display:flex;align-items:center;gap:4px;font-family:Sarabun" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">✏️ ตั้งค่า</button>`;
+      const activeRows = p.utilities.filter(u => u.enabled);
+      if(activeRows.length===0){
+        secUtilities = _pdSection('มิเตอร์น้ำ/ไฟ', '🔌',
+          '<div style="grid-column:1/-1;padding:8px;color:#94a3b8;font-size:12px;text-align:center">ทรัพย์สินนี้ไม่ได้เปิดเก็บค่าน้ำ/ไฟ — กด "ตั้งค่า" เพื่อเปิด</div>'
+        , editUtilBtn);
+      } else {
+        const body = activeRows.map(u => {
+          const ut = getUtilityType(u.key) || { label:u.key, unit:'หน่วย', icon:'🔌' };
+          return _pdRowFull((ut.icon||'🔌')+' '+ut.label,
+            `<b>${esc(String(u.rate||0))}</b> บาท/${esc(ut.unit||'หน่วย')} · เลขล่าสุด <b>${esc(String(u.lastReading||0))}</b>${u.lastConsumedMonth?' <span style="color:#64748b">('+esc(u.lastConsumedMonth)+')</span>':' <span style="color:#94a3b8">(ยังไม่เคยจด)</span>'}`
+          );
+        }).join('');
+        secUtilities = _pdSection('มิเตอร์น้ำ/ไฟ', '🔌', body, editUtilBtn);
+      }
+    }
+  }
+
   $('mbody').innerHTML = `
     <div style="font-family:Sarabun">
       ${sec1General}
       ${sec2Address}
+      ${secUtilities}
 
       ${(()=>{
         // Section 3: ผู้เช่า/สัญญา
@@ -10939,6 +11012,41 @@ function pdSaveAddress(pid){
   window._pdEditMode = null;
   _modalDirty = false;
   toast('✓ บันทึกที่อยู่แล้ว','success');
+  openPropertyDetail(pid);
+}
+
+// Phase 3: Save property utilities settings (toggle + rate per utility type)
+function pdSaveUtilities(pid){
+  const p = DB.properties.find(x => x.pid === pid);
+  if(!p) return;
+  if(!Array.isArray(p.utilities)) p.utilities = [];
+  // Snapshot existing utilities (preserve lastReading/lastConsumedMonth)
+  const existing = {};
+  p.utilities.forEach(u => { existing[u.key] = u; });
+  // Read all utility rows from form
+  const rows = $('mbody').querySelectorAll('[data-utility-key][data-role="enabled"]');
+  const newUtilities = [];
+  rows.forEach(chk => {
+    const key = chk.dataset.utilityKey;
+    const rateEl = $('mbody').querySelector('[data-utility-key="'+key+'"][data-role="rate"]');
+    const rate = parseFloat(rateEl?.value || 0) || 0;
+    const ut = getUtilityType(key);
+    const prev = existing[key] || {};
+    newUtilities.push({
+      key: key,
+      enabled: !!chk.checked,
+      rate: rate,
+      unit: ut?.unit || prev.unit || 'หน่วย',
+      lastReading: prev.lastReading || 0,
+      lastConsumedMonth: prev.lastConsumedMonth || ''
+    });
+  });
+  p.utilities = newUtilities;
+  addActivityLog('edit_property_utilities','ตั้งค่ามิเตอร์ — '+p.name+' · '+newUtilities.filter(u=>u.enabled).map(u=>(getUtilityType(u.key)?.label||u.key)+'@'+u.rate).join(', '));
+  save();
+  window._pdEditMode = null;
+  _modalDirty = false;
+  toast('✓ บันทึกการตั้งค่ามิเตอร์แล้ว','success');
   openPropertyDetail(pid);
 }
 
@@ -12012,6 +12120,7 @@ function openAddContractDialog(pid){
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
+        meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
@@ -12061,6 +12170,7 @@ function renewContract(cid) {
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
+        meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
@@ -12107,6 +12217,7 @@ function copyContract(cid) {
         rate: buildRateStr(fd), start: normalizeBEDate(fd.get('start')), end: normalizeBEDate(fd.get('end')),
         dur: fd.get('dur'), deposit: fd.get('deposit'), hasDeposit: fd.get('hasDeposit')==='true', payment: fd.get('payment'),
         bank: fd.get('bank'), acctNo: fd.get('acctNo'), bankAccountId: fd.get('bankAccountId') ? +fd.get('bankAccountId') : null,
+        meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
         accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', deed: fd.get('deed') || '',
@@ -12585,6 +12696,32 @@ function contractFormHTML(mode, c, pid) {
               })()}
             </datalist>
           </div>
+
+          <!-- Phase 3: Initial meter readings (ถ้าทรัพย์สินมี utility enabled) -->
+          ${(()=>{
+            if(!p || !Array.isArray(p.utilities)) return '';
+            const activeUtils = p.utilities.filter(u => u.enabled);
+            if(activeUtils.length === 0) return '';
+            const init = (mode==='edit' && c?.meterInit) ? c.meterInit : {};
+            return `<div class="col-span-2" style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:10px 14px">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                <span style="font-size:14px">🔌</span>
+                <span style="font-size:12px;font-weight:700;color:#92400e">เลขมิเตอร์เริ่มต้น (ตอนเข้าพัก)</span>
+                <span style="font-size:10px;color:#a16207">ใช้คำนวณค่าน้ำ/ไฟครั้งแรก · ปล่อยว่างได้ถ้าจดทีหลัง</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(${Math.min(activeUtils.length,3)},1fr);gap:10px">
+                ${activeUtils.map(u => {
+                  const ut = getUtilityType(u.key) || {label:u.key, unit:'หน่วย', icon:'🔌'};
+                  const curVal = init[u.key];
+                  const lastP = (u.lastReading||0);
+                  return `<div>
+                    <label class="text-xs font-medium text-gray-700 mb-1 block">${ut.icon||'🔌'} ${esc(ut.label)} <span style="font-weight:400;color:#a16207">(${esc(ut.unit||'หน่วย')})</span></label>
+                    <input type="number" name="meterInit_${u.key}" value="${curVal!=null?curVal:(lastP||'')}" min="0" step="1" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="${lastP?'last: '+lastP:'เช่น 1200'}">
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+          })()}
         </div>
       ${_cfSecClose}
 
@@ -15046,6 +15183,22 @@ function generateInvoice(cid,month){
   const items=[
     {desc:itemDesc,amount:rentAmount}
   ];
+
+  // Phase 3: Append meter line items — meter readings ที่ billMonth = month นี้
+  // (จดมิเตอร์เดือน X-1 → ออกบิลเดือน X · "lag 1 รอบ")
+  const meterEntries = (DB.meterReadings||[]).filter(r => r.cid === cid && r.billMonth === month);
+  meterEntries.forEach(mr => {
+    const ut = getUtilityType(mr.utilityKey);
+    const prefix = ut?.lineItemPrefix || ut?.label || mr.utilityKey;
+    const unit = ut?.unit || 'หน่วย';
+    const consumedM = mr.consumedMonth || '';
+    const consumedParts = consumedM.split('-');
+    const consumedLabel = consumedParts.length===2
+      ? thMonths[parseInt(consumedParts[1])-1]+' '+(parseInt(consumedParts[0])+543)
+      : consumedM;
+    const desc = `${prefix} ${mr.units||0} ${unit} (${mr.prev}→${mr.now}) ใช้ ${consumedLabel} @ ${mr.rate||0}`;
+    items.push({ desc, amount: +(mr.amount||0), meterReadingId: mr.id, vatable: false });
+  });
 
   const total=items.reduce((s,it)=>s+it.amount,0);
 
@@ -19299,6 +19452,319 @@ function rptClearDateFilter(){
   render();
 }
 
+// ===== Phase 3: Meters Page =====
+// State for meter page
+var meterPageMonth = null; // null = current month
+var meterPageUtilityFilter = 'all'; // 'all' | utility key
+var meterPagePropFilter = ''; // free text search
+
+function renderMetersPage(){
+  if(!hasPermission || !hasPermission('settings')){ /* OK ทุก role ดูได้ */ }
+  if(!Array.isArray(DB.utilityTypes)) DB.utilityTypes = [];
+  if(!Array.isArray(DB.meterReadings)) DB.meterReadings = [];
+  if(!meterPageMonth) meterPageMonth = monthKeyToday();
+
+  const utilTypes = DB.utilityTypes.slice();
+  const consumedMonth = meterPageMonth;
+  const billMonth = monthKeyAdd(consumedMonth, 1);
+
+  // Collect properties + utilities ที่ enabled
+  const rowsRaw = [];
+  (DB.properties||[]).forEach(p => {
+    if(!Array.isArray(p.utilities)) return;
+    p.utilities.filter(u => u.enabled).forEach(u => {
+      if(meterPageUtilityFilter !== 'all' && u.key !== meterPageUtilityFilter) return;
+      if(meterPagePropFilter && !p.name.toLowerCase().includes(meterPagePropFilter.toLowerCase())) return;
+      // หาผู้เช่าปัจจุบัน
+      const activeC = (DB.contracts||[]).find(c => c.pid===p.pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+      // หา reading เดือนนี้
+      const existing = DB.meterReadings.find(r => r.pid===p.pid && r.utilityKey===u.key && r.consumedMonth===consumedMonth);
+      const prev = getPrevReadingValue(p.pid, u.key, activeC?.id);
+      rowsRaw.push({
+        p, u, ut: getUtilityType(u.key) || {label:u.key, unit:'หน่วย', icon:'🔌'},
+        activeC,
+        existing,
+        prev,
+        now: existing ? existing.now : null
+      });
+    });
+  });
+  rowsRaw.sort((a,b)=> (a.p.name||'').localeCompare(b.p.name||'','th') || a.u.key.localeCompare(b.u.key));
+
+  // KPI
+  const totalRows = rowsRaw.length;
+  const filledRows = rowsRaw.filter(r => r.existing).length;
+  const totalAmount = rowsRaw.filter(r => r.existing).reduce((s,r)=>s+(+r.existing.amount||0), 0);
+
+  // Filter options
+  const utilFilterOpts = '<option value="all">ทุกประเภท</option>' + utilTypes.map(ut => `<option value="${ut.key}" ${meterPageUtilityFilter===ut.key?'selected':''}>${esc(ut.icon||'🔌')} ${esc(ut.label)}</option>`).join('');
+
+  // Body rows
+  const bodyRows = rowsRaw.length === 0
+    ? `<tr><td colspan="9" style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">ไม่มีทรัพย์สินเปิดเก็บค่ามิเตอร์ในเดือนนี้ — เปิดในหน้าทรัพย์สิน → "ตั้งค่ามิเตอร์"</td></tr>`
+    : rowsRaw.map((r, i) => {
+      const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+      const id = 'mtrNow_'+r.p.pid+'_'+r.u.key;
+      const units = (r.now!=null) ? (r.now - r.prev) : null;
+      const amount = (units!=null) ? units * (r.u.rate||0) : null;
+      const statusBadge = r.existing
+        ? '<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-weight:600">✓ บันทึกแล้ว</span>'
+        : '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-weight:600">⌛ ยังไม่จด</span>';
+      return `<tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:10px 12px"><div style="font-size:12.5px;font-weight:600;color:#1e293b">${esc(r.p.name)}</div>${r.activeC?'<div style="font-size:10.5px;color:#64748b">'+esc(r.activeC.tenant||'-')+' · '+esc(r.activeC.no||'')+'</div>':'<div style="font-size:10.5px;color:#dc2626">ว่าง — ไม่มีสัญญา</div>'}</td>
+        <td style="padding:10px 12px;font-size:12px"><span style="font-size:14px">${r.ut.icon||'🔌'}</span> ${esc(r.ut.label)}</td>
+        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#64748b">${esc(String(r.prev))}</td>
+        <td style="padding:10px 12px;text-align:right"><input type="number" id="${id}" data-pid="${r.p.pid}" data-utility="${r.u.key}" data-prev="${r.prev}" data-rate="${r.u.rate||0}" value="${r.now!=null?escAttr(String(r.now)):''}" placeholder="ใส่เลขล่าสุด" min="${r.prev}" style="width:110px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums" oninput="mtrCalc('${id}')"></td>
+        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#0891b2;font-weight:600" id="${id}_units">${units!=null?units:'-'}</td>
+        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;color:#64748b">${esc(String(r.u.rate||0))}</td>
+        <td style="padding:10px 12px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#059669" id="${id}_amount">${amount!=null?fmtBaht(amount,{sym:0,dec:2}):'-'}</td>
+        <td style="padding:10px 12px;text-align:center">${statusBadge}</td>
+        <td style="padding:10px 12px;text-align:center">
+          <button onclick="saveMeterReading('${r.p.pid}','${r.u.key}','${consumedMonth}')" style="padding:5px 12px;background:#4338ca;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
+          ${r.existing?'<button onclick="deleteMeterReading('+r.existing.id+')" style="margin-left:4px;padding:5px 8px;background:#fee2e2;color:#dc2626;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun" title="ลบ">🗑</button>':''}
+        </td>
+      </tr>`;
+    }).join('');
+
+  // Month nav
+  const prevMonth = monthKeyAdd(consumedMonth, -1);
+  const nextMonth = monthKeyAdd(consumedMonth, 1);
+  const monthLabel = (() => {
+    const parts = consumedMonth.split('-');
+    const m = parseInt(parts[1]); const y = parseInt(parts[0]) + 543;
+    const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return ths[m-1]+' '+y;
+  })();
+  const billMonthLabel = (() => {
+    const parts = billMonth.split('-');
+    const m = parseInt(parts[1]); const y = parseInt(parts[0]) + 543;
+    const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return ths[m-1]+' '+y;
+  })();
+
+  $('content').innerHTML = `<div style="max-width:1300px;margin:0 auto;font-family:Sarabun">
+    <!-- Header + Month nav -->
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap">
+      <h2 style="font-size:20px;font-weight:700;color:#1e293b;margin:0">มิเตอร์น้ำ/ไฟ</h2>
+      <div style="display:flex;align-items:center;gap:6px;background:#f1f5f9;border-radius:10px;padding:4px">
+        <button onclick="meterPageMonth='${prevMonth}';render()" style="padding:6px 10px;border:none;background:transparent;cursor:pointer;font-size:14px">‹</button>
+        <span style="padding:6px 14px;font-weight:700;color:#1e293b;font-size:14px">เดือน <b>${monthLabel}</b></span>
+        <button onclick="meterPageMonth='${nextMonth}';render()" style="padding:6px 10px;border:none;background:transparent;cursor:pointer;font-size:14px">›</button>
+        <button onclick="meterPageMonth='${monthKeyToday()}';render()" style="padding:6px 10px;border:none;background:#fff;border-radius:6px;cursor:pointer;font-size:11px;color:#475569;font-family:Sarabun">วันนี้</button>
+      </div>
+      <span style="font-size:11px;color:#64748b">จดมิเตอร์ของ <b>${monthLabel}</b> → ออกใบบิลเดือน <b>${billMonthLabel}</b> (lag 1 รอบ)</span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button onclick="mtrPasteFromExcel()" style="padding:8px 14px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">📋 วาง Excel</button>
+        <button onclick="mtrExportExcel('${consumedMonth}')" style="padding:8px 14px;background:#fff;color:#0369a1;border:1px solid #bae6fd;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun">📥 Export</button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ที่ต้องจด</div><div style="font-size:22px;font-weight:800;color:#4338ca">${totalRows}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">จดแล้ว</div><div style="font-size:22px;font-weight:800;color:#059669">${filledRows}/${totalRows}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ยังไม่จด</div><div style="font-size:22px;font-weight:800;color:#d97706">${totalRows-filledRows}</div></div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px"><div style="font-size:11px;color:#64748b">ค่าน้ำ/ไฟรวม</div><div style="font-size:20px;font-weight:800;color:#059669">${fmtBaht(totalAmount,{sym:0,dec:0})} บาท</div></div>
+    </div>
+
+    <!-- Filters -->
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <select onchange="meterPageUtilityFilter=this.value;render()" style="padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun;background:#fff">
+        ${utilFilterOpts}
+      </select>
+      <input type="text" id="mtrSearchInput" value="${esc(meterPagePropFilter)}" oninput="meterPagePropFilter=this.value;clearTimeout(window._mtrSearchT);window._mtrSearchT=setTimeout(()=>render(),250)" placeholder="ค้นหาทรัพย์สิน..." style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun;flex:1;max-width:300px">
+    </div>
+
+    <!-- Table -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-family:Sarabun">
+        <thead>
+          <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
+            <th style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700">ทรัพย์สิน / ผู้เช่า</th>
+            <th style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700">ประเภท</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">เลขก่อน</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">เลขปัจจุบัน</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">หน่วย</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">rate</th>
+            <th style="padding:10px 12px;text-align:right;font-size:11px;color:#475569;font-weight:700">ยอด</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">สถานะ</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">Action</th>
+          </tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// Live calc preview เมื่อพิมพ์ now
+function mtrCalc(inputId){
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+  const prev = parseFloat(inp.dataset.prev) || 0;
+  const rate = parseFloat(inp.dataset.rate) || 0;
+  const now = parseFloat(inp.value);
+  const unitsEl = document.getElementById(inputId+'_units');
+  const amountEl = document.getElementById(inputId+'_amount');
+  if(isNaN(now) || now < prev){
+    if(unitsEl) unitsEl.textContent = '-';
+    if(amountEl) amountEl.textContent = '-';
+    return;
+  }
+  const units = now - prev;
+  const amount = units * rate;
+  if(unitsEl) unitsEl.textContent = units;
+  if(amountEl) amountEl.textContent = fmtBaht(amount, {sym:0,dec:2});
+}
+
+// บันทึก meter reading 1 row
+function saveMeterReading(pidStr, utilityKey, consumedMonth){
+  const pid = +pidStr;
+  const id = 'mtrNow_'+pid+'_'+utilityKey;
+  const inp = document.getElementById(id);
+  if(!inp){ toast('ไม่พบ input','error'); return; }
+  const now = parseFloat(inp.value);
+  if(isNaN(now)){ toast('กรอกเลขมิเตอร์ก่อน','error'); return; }
+  const prev = parseFloat(inp.dataset.prev) || 0;
+  if(now < prev){ toast('เลขใหม่ต้อง ≥ เลขก่อน ('+prev+')','error'); return; }
+  const rate = parseFloat(inp.dataset.rate) || 0;
+  const units = now - prev;
+  const amount = +(units * rate).toFixed(2);
+  const p = DB.properties.find(pp => pp.pid === pid);
+  const activeC = (DB.contracts||[]).find(c => c.pid===pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+  const billMonth = monthKeyAdd(consumedMonth, 1);
+
+  if(!Array.isArray(DB.meterReadings)) DB.meterReadings = [];
+  // upsert: find existing
+  let entry = DB.meterReadings.find(r => r.pid===pid && r.utilityKey===utilityKey && r.consumedMonth===consumedMonth);
+  if(entry){
+    entry.prev = prev;
+    entry.now = now;
+    entry.units = units;
+    entry.rate = rate;
+    entry.amount = amount;
+    entry.updatedAt = new Date().toISOString();
+    entry.by = (currentUser&&currentUser.name) || entry.by || '';
+    addActivityLog('edit_meter','แก้มิเตอร์ — '+(p?.name||'#'+pid)+' '+(getUtilityType(utilityKey)?.label||utilityKey)+' = '+now);
+  } else {
+    if(!DB.nextMeterReadingId) DB.nextMeterReadingId = 1;
+    entry = {
+      id: DB.nextMeterReadingId++,
+      pid, cid: activeC?.id || null,
+      utilityKey, consumedMonth, billMonth,
+      prev, now, units, rate, amount,
+      recordedAt: typeof todayBE==='function' ? todayBE() : new Date().toLocaleDateString('th-TH'),
+      note: '',
+      by: (currentUser&&currentUser.name) || '',
+      createdAt: new Date().toISOString()
+    };
+    DB.meterReadings.push(entry);
+    addActivityLog('add_meter','จดมิเตอร์ — '+(p?.name||'#'+pid)+' '+(getUtilityType(utilityKey)?.label||utilityKey)+' = '+now+' (units '+units+' @ '+rate+' = '+amount+')');
+  }
+  mirrorLastReadingToProperty(pid, utilityKey, now, consumedMonth);
+  save();
+  toast('✓ บันทึก '+(getUtilityType(utilityKey)?.label||utilityKey)+' = '+now+' (ยอด '+fmtBaht(amount,{sym:0})+' บาท)','success');
+  render();
+}
+
+function deleteMeterReading(id){
+  const e = (DB.meterReadings||[]).find(r => r.id === id);
+  if(!e) return;
+  customConfirm('ลบเลขมิเตอร์','ลบเลข '+(getUtilityType(e.utilityKey)?.label||e.utilityKey)+' = '+e.now+' ของเดือน '+e.consumedMonth+'?', function(){
+    DB.meterReadings = DB.meterReadings.filter(r => r.id !== id);
+    addActivityLog('delete_meter','ลบเลขมิเตอร์ id='+id);
+    save();
+    toast('ลบแล้ว ✓','success');
+    render();
+  }, {icon:'🗑️',yesLabel:'ลบ',yesColor:'#dc2626'});
+}
+
+// Paste from Excel — TSV (tab-separated) แต่ละแถว: property_name<TAB>utility<TAB>now
+function mtrPasteFromExcel(){
+  const tsv = window.prompt('วางจาก Excel (รูปแบบ: ชื่อทรัพย์สิน [TAB] ประเภท (water/elec/...) [TAB] เลขล่าสุด · 1 แถวต่อ 1 บัญชี · เดือน = ตามที่เลือกอยู่)');
+  if(!tsv) return;
+  const consumedMonth = meterPageMonth;
+  const billMonth = monthKeyAdd(consumedMonth, 1);
+  const lines = tsv.split('\n').map(l => l.trim()).filter(l => l);
+  let success = 0, failed = 0;
+  const errors = [];
+  lines.forEach((line, idx) => {
+    const parts = line.split('\t').map(p => p.trim());
+    if(parts.length < 3){ failed++; errors.push('แถว '+(idx+1)+': ข้อมูลไม่ครบ'); return; }
+    const [propName, utilKey, nowStr] = parts;
+    const now = parseFloat(nowStr.replace(/,/g,''));
+    if(isNaN(now)){ failed++; errors.push('แถว '+(idx+1)+' "'+propName+'": เลขมิเตอร์ไม่ถูกต้อง'); return; }
+    const p = (DB.properties||[]).find(pp => pp.name === propName);
+    if(!p){ failed++; errors.push('แถว '+(idx+1)+': ไม่พบทรัพย์สิน "'+propName+'"'); return; }
+    if(!isUtilityEnabled(p, utilKey)){ failed++; errors.push('แถว '+(idx+1)+': "'+propName+'" ไม่ได้เปิดเก็บ '+utilKey); return; }
+    const u = getPropertyUtility(p, utilKey);
+    const prev = getPrevReadingValue(p.pid, utilKey);
+    if(now < prev){ failed++; errors.push('แถว '+(idx+1)+' "'+propName+'": เลขใหม่ ('+now+') < เลขก่อน ('+prev+')'); return; }
+    const rate = u.rate || 0;
+    const units = now - prev;
+    const amount = +(units * rate).toFixed(2);
+    const activeC = (DB.contracts||[]).find(c => c.pid===p.pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+    if(!Array.isArray(DB.meterReadings)) DB.meterReadings = [];
+    let entry = DB.meterReadings.find(r => r.pid===p.pid && r.utilityKey===utilKey && r.consumedMonth===consumedMonth);
+    if(entry){
+      Object.assign(entry, {prev, now, units, rate, amount, updatedAt:new Date().toISOString()});
+    } else {
+      if(!DB.nextMeterReadingId) DB.nextMeterReadingId = 1;
+      DB.meterReadings.push({
+        id: DB.nextMeterReadingId++,
+        pid: p.pid, cid: activeC?.id || null,
+        utilityKey: utilKey, consumedMonth, billMonth,
+        prev, now, units, rate, amount,
+        recordedAt: typeof todayBE==='function' ? todayBE() : new Date().toLocaleDateString('th-TH'),
+        note: 'paste-from-excel',
+        by: (currentUser&&currentUser.name) || '',
+        createdAt: new Date().toISOString()
+      });
+    }
+    mirrorLastReadingToProperty(p.pid, utilKey, now, consumedMonth);
+    success++;
+  });
+  if(success > 0){
+    addActivityLog('paste_meter','วาง Excel มิเตอร์ — '+success+' แถวสำเร็จ'+(failed>0?', '+failed+' ล้มเหลว':''));
+    save();
+  }
+  toast(success+' แถวบันทึกแล้ว'+(failed>0?' · '+failed+' ล้มเหลว: '+errors.slice(0,3).join('; ')+(errors.length>3?' (...อีก '+(errors.length-3)+')':''):''), failed>0?'warning':'success');
+  render();
+}
+
+function mtrExportExcel(month){
+  if(typeof XLSX === 'undefined'){ toast('ไม่พบ XLSX library','error'); return; }
+  const rows = (DB.meterReadings||[]).filter(r => !month || r.consumedMonth === month).map(r => {
+    const p = (DB.properties||[]).find(pp => pp.pid === r.pid);
+    const ut = getUtilityType(r.utilityKey);
+    const c = r.cid ? (DB.contracts||[]).find(cc => cc.id === r.cid) : null;
+    return {
+      'ทรัพย์สิน': p?.name || '#'+r.pid,
+      'ผู้เช่า': c?.tenant || '',
+      'สัญญา': c?.no || '',
+      'ประเภท': r.utilityKey,
+      'ประเภท (ไทย)': ut?.label || r.utilityKey,
+      'รอบใช้งาน': r.consumedMonth,
+      'รอบบิล': r.billMonth,
+      'เลขก่อน': r.prev,
+      'เลขปัจจุบัน': r.now,
+      'หน่วย': r.units,
+      'rate (บ./หน่วย)': r.rate,
+      'ยอด (บาท)': r.amount,
+      'จดวันที่': r.recordedAt,
+      'จดโดย': r.by||''
+    };
+  });
+  if(rows.length === 0){ toast('ไม่มีข้อมูลให้ export','warning'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'มิเตอร์');
+  const fname = 'มิเตอร์_'+(month||'all')+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.writeFile(wb, fname);
+  addActivityLog('export_meter','Export มิเตอร์ — '+rows.length+' รายการ ('+(month||'all')+')');
+  toast('Export สำเร็จ · '+rows.length+' รายการ','success');
+}
+
 // ----- Render layer (read-only) -----
 function renderReportsPage(){
   // Permission check: ถ้าดูไม่ได้ report ปัจจุบัน → หา report แรกที่ดูได้
@@ -22060,6 +22526,10 @@ async function loadFromSupabase() {
   DB.bankAccounts     = Array.isArray(cfg.bankAccounts) ? cfg.bankAccounts : [];
   DB.landlordDefaults = (cfg.landlordDefaults && typeof cfg.landlordDefaults==='object' && !Array.isArray(cfg.landlordDefaults)) ? cfg.landlordDefaults : {};
   DB.nextBankAccountId= Number(cfg.nextBankAccountId)|| 1;
+  // Phase 3: meter system (persisted in re_config)
+  DB.utilityTypes     = Array.isArray(cfg.utilityTypes) ? cfg.utilityTypes : [];
+  DB.meterReadings    = Array.isArray(cfg.meterReadings) ? cfg.meterReadings : [];
+  DB.nextMeterReadingId = Number(cfg.nextMeterReadingId) || 1;
   // Data version + migration trigger
   DB._v = Number(cfg._v) || (DB.contracts && DB.contracts.length ? 15 : DATA_VERSION); // legacy data without _v → assume v15
   if(!DB.payments)    DB.payments    = {};
@@ -22362,6 +22832,10 @@ async function saveToSupabase() {
     { key:'bankAccounts',     value:DB.bankAccounts||[],    updated_at:now },
     { key:'landlordDefaults', value:DB.landlordDefaults||{},updated_at:now },
     { key:'nextBankAccountId',value:DB.nextBankAccountId||1,updated_at:now },
+    // Phase 3: meter system
+    { key:'utilityTypes',     value:DB.utilityTypes||[],    updated_at:now },
+    { key:'meterReadings',    value:DB.meterReadings||[],   updated_at:now },
+    { key:'nextMeterReadingId',value:DB.nextMeterReadingId||1,updated_at:now },
     { key:'_v',               value:DB._v||DATA_VERSION,    updated_at:now }
   ]));
 
@@ -22865,6 +23339,105 @@ function resolveBankFields(c, h){
   var an = c?.acctNo || h?.bankAccount || '';
   var anm = c?.accountName || h?.bankAccountName || '';
   return { bankName: bn, accountNo: an, accountName: anm, promptPayId: '', source: 'legacy' };
+}
+
+// ===== Phase 3: Meter system helpers =====
+function getUtilityType(key){
+  return (DB.utilityTypes||[]).find(function(u){ return u.key === key; }) || null;
+}
+function getPropertyUtility(p, key){
+  if(!p || !Array.isArray(p.utilities)) return null;
+  return p.utilities.find(function(u){ return u.key === key; }) || null;
+}
+function isUtilityEnabled(p, key){
+  var u = getPropertyUtility(p, key);
+  return !!(u && u.enabled);
+}
+// Get utility settings for property (ensures utilities array exists)
+function getActiveUtilitiesForProperty(p){
+  if(!p) return [];
+  if(!Array.isArray(p.utilities)) p.utilities = [];
+  return p.utilities.filter(function(u){ return u && u.enabled; });
+}
+// Month string helpers (YYYY-MM format)
+function monthKeyAdd(monthKey, delta){
+  // monthKey = "2026-01" · delta = number of months to add
+  var parts = String(monthKey||'').split('-');
+  if(parts.length !== 2) return monthKey;
+  var y = parseInt(parts[0]); var m = parseInt(parts[1]);
+  if(isNaN(y)||isNaN(m)) return monthKey;
+  var d = new Date(y, m-1+delta, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function monthKeyToday(){
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+// Get latest reading for (pid, utilityKey) — used as `prev` for next reading
+function getLatestMeterReading(pid, utilityKey){
+  if(!Array.isArray(DB.meterReadings)) return null;
+  var list = DB.meterReadings.filter(function(r){ return r.pid === pid && r.utilityKey === utilityKey; });
+  if(list.length === 0) return null;
+  // sort by consumedMonth desc
+  list.sort(function(a,b){ return String(b.consumedMonth||'').localeCompare(String(a.consumedMonth||'')); });
+  return list[0];
+}
+// Get previous reading value (number) for a property/utility — falls back to property.lastReading or contract.meterInit
+function getPrevReadingValue(pid, utilityKey, cid){
+  var latest = getLatestMeterReading(pid, utilityKey);
+  if(latest && typeof latest.now === 'number') return latest.now;
+  // fallback to property.utilities lastReading
+  var p = (DB.properties||[]).find(function(pp){ return pp.pid === pid; });
+  var pu = getPropertyUtility(p, utilityKey);
+  if(pu && typeof pu.lastReading === 'number') return pu.lastReading;
+  // fallback to contract.meterInit
+  if(cid){
+    var c = (DB.contracts||[]).find(function(cc){ return cc.id === cid; });
+    if(c && c.meterInit && typeof c.meterInit[utilityKey] === 'number') return c.meterInit[utilityKey];
+  }
+  return 0;
+}
+// Mirror lastReading + lastConsumedMonth to property.utilities[]
+function mirrorLastReadingToProperty(pid, utilityKey, now, consumedMonth){
+  var p = (DB.properties||[]).find(function(pp){ return pp.pid === pid; });
+  if(!p) return;
+  if(!Array.isArray(p.utilities)) p.utilities = [];
+  var u = p.utilities.find(function(uu){ return uu.key === utilityKey; });
+  if(!u){
+    var ut = getUtilityType(utilityKey);
+    u = { key: utilityKey, enabled: true, rate: ut?ut.defaultRate:0, unit: ut?ut.unit:'หน่วย', lastReading: 0, lastConsumedMonth: '' };
+    p.utilities.push(u);
+  }
+  // Mirror only if newer (lexicographic compare YYYY-MM)
+  if(!u.lastConsumedMonth || String(consumedMonth) >= String(u.lastConsumedMonth)){
+    u.lastReading = now;
+    u.lastConsumedMonth = consumedMonth;
+  }
+}
+
+// Phase 3: Assemble c.meterInit from form (input names: meterInit_water, meterInit_elec, ...)
+function assembleMeterInit(fd, pid){
+  var p = (DB.properties||[]).find(function(pp){ return pp.pid === pid; });
+  if(!p || !Array.isArray(p.utilities)) return null;
+  var out = {};
+  var hasAny = false;
+  p.utilities.filter(function(u){return u.enabled;}).forEach(function(u){
+    var raw = fd.get('meterInit_'+u.key);
+    if(raw==null || String(raw).trim()==='') return;
+    var v = parseFloat(raw);
+    if(!isNaN(v) && v >= 0){
+      out[u.key] = v;
+      hasAny = true;
+      // Mirror to property.utilities.lastReading ถ้ายังไม่มี history reading
+      var pu = p.utilities.find(function(x){return x.key===u.key;});
+      if(pu && !pu.lastReading){
+        pu.lastReading = v;
+      }
+    }
+  });
+  if(!hasAny) return null;
+  out.recordedAt = (typeof todayBE==='function') ? todayBE() : new Date().toLocaleDateString('th-TH');
+  return out;
 }
 
 function getDepositReturn(cid){
