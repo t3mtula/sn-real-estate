@@ -19874,6 +19874,9 @@ function mtrExportExcel(month){
 // ===== Phase 3+: Bulk meter setup modal — set ทรัพย์สินหลายตัวพร้อมกัน =====
 var meterSetupFilter = 'all'; // 'all' | 'with-tenant' | 'has-meter' | 'no-meter'
 var meterSetupSearch = '';
+var meterSetupType = 'all'; // ประเภททรัพย์สิน (PROP_TYPES.v)
+var meterSetupProvince = 'all'; // จังหวัด
+var meterSetupLandlord = 'all'; // ผู้ให้เช่า (active contract → landlord)
 
 function openMeterSetupModal(){
   $('mtitle').textContent = 'ตั้งค่ามิเตอร์รวม';
@@ -19888,16 +19891,32 @@ function renderMeterSetupBody(){
     $('mbody').innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">ยังไม่มี utility types · เพิ่มใน Settings ก่อน</div>';
     return;
   }
-  // Filter properties
+  // Build active contract map for landlord lookup
+  const activeContractMap = {};
+  (DB.contracts||[]).forEach(c => { if(!c.cancelled){ const st=status(c); if(st==='active'||st==='upcoming') activeContractMap[c.pid] = c; }});
+
+  // Distinct values for filter dropdowns (from all properties)
   const allProps = (DB.properties||[]);
+  const distinctProvinces = [...new Set(allProps.map(p => p.addr_province || p.province || '').filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+  const distinctLandlords = [...new Set(Object.values(activeContractMap).map(c => c.landlord).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+
+  // Filter properties
   let props = allProps.slice();
   if(meterSetupSearch){
     const q = meterSetupSearch.toLowerCase();
-    props = props.filter(p => p.name.toLowerCase().includes(q));
+    props = props.filter(p => (p.name||'').toLowerCase().includes(q) || (activeContractMap[p.pid]?.tenant||'').toLowerCase().includes(q));
+  }
+  if(meterSetupType !== 'all'){
+    props = props.filter(p => (p.type||'') === meterSetupType);
+  }
+  if(meterSetupProvince !== 'all'){
+    props = props.filter(p => (p.addr_province||p.province||'') === meterSetupProvince);
+  }
+  if(meterSetupLandlord !== 'all'){
+    props = props.filter(p => (activeContractMap[p.pid]?.landlord||'') === meterSetupLandlord);
   }
   if(meterSetupFilter === 'with-tenant'){
-    const activeContractPids = new Set((DB.contracts||[]).filter(c => !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})()).map(c => c.pid));
-    props = props.filter(p => activeContractPids.has(p.pid));
+    props = props.filter(p => !!activeContractMap[p.pid]);
   } else if(meterSetupFilter === 'has-meter'){
     props = props.filter(p => (p.utilities||[]).some(u => u.enabled));
   } else if(meterSetupFilter === 'no-meter'){
@@ -19912,9 +19931,6 @@ function renderMeterSetupBody(){
     <th style="padding:5px 4px;text-align:center;font-size:9px;color:#64748b;font-weight:600;border-left:1px solid #e2e8f0">เปิด</th>
     <th style="padding:5px 4px;text-align:center;font-size:9px;color:#64748b;font-weight:600">rate (บ./${esc(ut.unit||'หน่วย')})</th>
   `).join('');
-
-  const activeContractMap = {};
-  (DB.contracts||[]).forEach(c => { if(!c.cancelled){ const st=status(c); if(st==='active'||st==='upcoming') activeContractMap[c.pid] = c; }});
 
   const propRows = props.length === 0
     ? `<tr><td colspan="${2+utilTypes.length*2}" style="padding:30px;text-align:center;color:#94a3b8;font-size:12px">ไม่พบทรัพย์สิน</td></tr>`
@@ -19968,11 +19984,28 @@ function renderMeterSetupBody(){
       <div style="display:flex;gap:8px;flex-wrap:wrap">${bulkActions}</div>
     </div>
 
-    <!-- Filters + search -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <div style="display:flex;gap:4px">${filterChips}</div>
-      <input type="text" id="msSearch" value="${esc(meterSetupSearch)}" oninput="meterSetupSearch=this.value;clearTimeout(window._msT);window._msT=setTimeout(renderMeterSetupBody,200)" placeholder="ค้นหาทรัพย์สิน..." style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:Sarabun;flex:1;max-width:260px">
-      <span style="font-size:11px;color:#64748b;margin-left:auto">${props.length} ทรัพย์สิน</span>
+    <!-- Filters: chips + dropdowns + search -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px">${filterChips}</div>
+        <span style="font-size:11px;color:#64748b;margin-left:auto">${props.length} ทรัพย์สิน</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select onchange="meterSetupType=this.value;renderMeterSetupBody()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;background:#fff">
+          <option value="all" ${meterSetupType==='all'?'selected':''}>ทุกประเภท</option>
+          ${(typeof PROP_TYPES!=='undefined'?PROP_TYPES:[]).map(t=>`<option value="${esc(t.v)}" ${meterSetupType===t.v?'selected':''}>${esc(t.l)}</option>`).join('')}
+        </select>
+        <select onchange="meterSetupProvince=this.value;renderMeterSetupBody()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;background:#fff">
+          <option value="all" ${meterSetupProvince==='all'?'selected':''}>ทุกจังหวัด</option>
+          ${distinctProvinces.map(pv=>`<option value="${esc(pv)}" ${meterSetupProvince===pv?'selected':''}>${esc(pv)}</option>`).join('')}
+        </select>
+        <select onchange="meterSetupLandlord=this.value;renderMeterSetupBody()" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;background:#fff;max-width:220px">
+          <option value="all" ${meterSetupLandlord==='all'?'selected':''}>ทุกผู้ให้เช่า</option>
+          ${distinctLandlords.map(ll=>`<option value="${esc(ll)}" ${meterSetupLandlord===ll?'selected':''}>${esc(shortLandlordName?shortLandlordName(ll):ll)}</option>`).join('')}
+        </select>
+        <input type="text" id="msSearch" value="${esc(meterSetupSearch)}" oninput="meterSetupSearch=this.value;clearTimeout(window._msT);window._msT=setTimeout(renderMeterSetupBody,200)" placeholder="ค้นหาทรัพย์สิน / ผู้เช่า..." style="padding:6px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:11.5px;font-family:Sarabun;flex:1;min-width:200px">
+        ${(meterSetupType!=='all'||meterSetupProvince!=='all'||meterSetupLandlord!=='all'||meterSetupSearch||meterSetupFilter!=='all')?'<button onclick="meterSetupType=\'all\';meterSetupProvince=\'all\';meterSetupLandlord=\'all\';meterSetupSearch=\'\';meterSetupFilter=\'all\';renderMeterSetupBody()" style="padding:6px 12px;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:11px;cursor:pointer;font-family:Sarabun;font-weight:600">✕ ล้างทั้งหมด</button>':''}
+      </div>
     </div>
 
     <!-- Properties table -->
