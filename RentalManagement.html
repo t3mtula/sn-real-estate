@@ -11,34 +11,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.quilljs.com/1.3.7/quill.bubble.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <style>
-/* Quill editor — minimal, document-feel */
-.cf-quill-wrap{border-radius:6px;transition:box-shadow .15s}
-.cf-quill-wrap .ql-toolbar{
-  border-radius:6px 6px 0 0;
-  background:transparent;
-  border:none !important;
-  border-bottom:1px dashed #e2e8f0 !important;
-  padding:4px 0 !important;
-  opacity:0.35;
-  transition:opacity .2s;
-}
-.cf-quill-wrap:hover .ql-toolbar,
-.cf-quill-wrap:focus-within .ql-toolbar{opacity:1}
+/* Quill bubble theme — Medium-style floating toolbar on selection */
+.cf-quill-wrap{border-radius:6px}
 .cf-quill-wrap .ql-container{
-  border-radius:0 0 6px 6px;
   border:none !important;
-  font-size:13px;
+  font-size:14px;
 }
 .cf-quill-wrap .ql-editor{
   font-family:'Sarabun',sans-serif;
-  font-size:13px;
-  min-height:60px;
-  line-height:1.65;
+  font-size:14px;
+  min-height:48px;
+  line-height:1.7;
   color:#1e293b;
-  padding:10px 0;
+  padding:6px 0;
 }
 .cf-quill-wrap .ql-editor.ql-blank::before{
   color:#cbd5e1;
@@ -46,13 +34,35 @@
   left:0;
   right:0;
 }
-.cf-quill-wrap .ql-toolbar button{padding:2px 4px;width:24px;height:22px}
-.cf-quill-wrap .ql-toolbar .ql-stroke{stroke:#94a3b8}
-.cf-quill-wrap .ql-toolbar .ql-fill{fill:#94a3b8}
-.cf-quill-wrap .ql-toolbar button:hover .ql-stroke,
-.cf-quill-wrap .ql-toolbar button.ql-active .ql-stroke{stroke:#4338ca}
-.cf-quill-wrap .ql-toolbar button:hover .ql-fill,
-.cf-quill-wrap .ql-toolbar button.ql-active .ql-fill{fill:#4338ca}
+/* Bubble tooltip — appears above selection */
+.ql-bubble .ql-tooltip{background:#1e293b;border-radius:6px}
+.ql-bubble .ql-tooltip-arrow{border-bottom-color:#1e293b}
+.ql-bubble .ql-toolbar button{color:#fff}
+.ql-bubble .ql-toolbar .ql-stroke{stroke:#cbd5e1}
+.ql-bubble .ql-toolbar .ql-fill{fill:#cbd5e1}
+.ql-bubble .ql-toolbar button:hover .ql-stroke,
+.ql-bubble .ql-toolbar button.ql-active .ql-stroke{stroke:#fff}
+.ql-bubble .ql-toolbar button:hover .ql-fill,
+.ql-bubble .ql-toolbar button.ql-active .ql-fill{fill:#fff}
+
+/* Clause row — drag handle + delete on hover */
+.cf-clause-row .cf-row-actions{opacity:0;transition:opacity .15s}
+.cf-clause-row:hover .cf-row-actions{opacity:1}
+.cf-clause-row .cf-clause-num{
+  position:absolute;left:-44px;top:8px;
+  font-size:22px;font-weight:300;color:#cbd5e1;line-height:1;
+  font-family:'Sarabun',sans-serif;
+  user-select:none;
+}
+.cf-clause-row:hover .cf-clause-num{color:#64748b}
+
+/* Variable pill — inline in flow */
+.cf-var-pill{
+  display:inline-block;padding:1px 8px;margin:0 2px;
+  background:#eef2ff;color:#4338ca;border-radius:99px;
+  font-size:12px;font-weight:500;
+  font-family:'Sarabun',sans-serif;
+}
 </style>
 <style>
 /* ========== DESIGN TOKENS (H2) ========== */
@@ -17758,7 +17768,8 @@ const CF_VARS=[
   {label:'เงินประกัน',val:'{{deposit}}'},
   {label:'เลขสัญญา',val:'{{contractNo}}'},
 ];
-const CF_QUILL_TOOLBAR=[['bold','italic','underline'],[{'list':'ordered'},{'list':'bullet'}],['clean']];
+// Bubble toolbar — แสดงเมื่อ user select text เท่านั้น · ปุ่มน้อยลง · clean
+const CF_QUILL_TOOLBAR=[['bold','italic','underline','clean']];
 
 function _quillHtmlClean(html){
   if(!html||html==='<p><br></p>')return'';
@@ -17772,10 +17783,10 @@ function _cfInitQuills(){
   window._cfActiveQuill=null;
   const tpl=cfEditTpl;
 
-  function initQ(elId,htmlContent){
+  function initQ(elId,htmlContent,placeholder){
     const el=document.getElementById(elId);
     if(!el)return null;
-    const q=new Quill(el,{theme:'snow',modules:{toolbar:CF_QUILL_TOOLBAR}});
+    const q=new Quill(el,{theme:'bubble',modules:{toolbar:CF_QUILL_TOOLBAR},placeholder:placeholder||''});
     if(htmlContent)q.clipboard.dangerouslyPasteHTML(htmlContent);
     el.addEventListener('click',()=>{window._cfActiveQuill=q;});
     el.addEventListener('focus',()=>{window._cfActiveQuill=q;},true);
@@ -17787,7 +17798,7 @@ function _cfInitQuills(){
     return q;
   }
 
-  window._cfQuills['intro']=initQ('cfqIntro',tpl.intro||'');
+  window._cfQuills['intro']=initQ('cfqIntro',tpl.intro||'','เขียนข้อความนำของสัญญา · ปรากฏหลังหัวคู่สัญญา ก่อนเริ่มข้อ 1...');
   (tpl.clauses||[]).forEach((cl,i)=>{
     const obj=typeof cl==='string'?{text:cl,sub:[]}:cl;
     window._cfQuills['clause_'+i]=initQ('cfqClause_'+i,obj.text||'');
@@ -17831,6 +17842,44 @@ function cfInsertVar(varStr){
   q.setSelection(idx+varStr.length);
 }
 
+// ── Var/TOC menus — position near trigger button ───────────────────────
+function cfToggleVarMenu(e){
+  const m=document.getElementById('cfVarMenu');
+  if(!m)return;
+  m.style.display = (m.style.display==='none' ? 'block' : 'none');
+  if(m.style.display==='block') document.getElementById('cfTocMenu').style.display='none';
+  e.stopPropagation();
+}
+function cfHideVarMenu(){
+  const m=document.getElementById('cfVarMenu');
+  if(m) m.style.display='none';
+}
+function cfToggleTocMenu(e){
+  const m=document.getElementById('cfTocMenu');
+  if(!m)return;
+  // position TOC menu near trigger button
+  const btn=e.currentTarget;
+  const r=btn.getBoundingClientRect();
+  const parent=m.parentElement;
+  const pr=parent.getBoundingClientRect();
+  m.style.left=(r.left - pr.left)+'px';
+  m.style.top=(r.bottom - pr.top + 4)+'px';
+  m.style.display = (m.style.display==='none' ? 'block' : 'none');
+  if(m.style.display==='block') document.getElementById('cfVarMenu').style.display='none';
+  e.stopPropagation();
+}
+function cfHideTocMenu(){
+  const m=document.getElementById('cfTocMenu');
+  if(m) m.style.display='none';
+}
+// Click outside closes menus
+document.addEventListener('click',function(e){
+  const tocM=document.getElementById('cfTocMenu');
+  const varM=document.getElementById('cfVarMenu');
+  if(tocM && tocM.style.display==='block' && !tocM.contains(e.target)) tocM.style.display='none';
+  if(varM && varM.style.display==='block' && !varM.contains(e.target)) varM.style.display='none';
+});
+
 function _cfSetupDragDrop(){
   let dragIdx=null;
   document.querySelectorAll('.cf-clause-row').forEach(row=>{
@@ -17862,76 +17911,84 @@ function renderCfEditor(){
   }
   const tpl=cfEditTpl;
   $('cfEditor').innerHTML=`
-    <!-- ── Variable pills · minimal, syntax in tooltip ── -->
-    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #f1f5f9">
-      <span style="font-size:10px;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.6px;margin-right:6px;flex-shrink:0" title="คลิกที่ตำแหน่งในข้อสัญญาก่อน → กด pill นี้แทรกตัวแปร · ตอนพิมพ์จริงจะถูกแทนที่ด้วยข้อมูลจากสัญญานั้น">ตัวแปร</span>
-      ${CF_VARS.map(v=>`<button onclick="cfInsertVar('${v.val}')" title="แทรก ${v.val}" style="padding:4px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:99px;font-size:11px;color:#475569;cursor:pointer;font-weight:500;font-family:Sarabun;transition:all .15s" onmouseover="this.style.borderColor='#94a3b8';this.style.color='#1e293b';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#475569';this.style.background='#fff'">${v.label}</button>`).join('')}
-    </div>
+    <!-- ── Document-feel container — generous padding, large typography ── -->
+    <div style="max-width:780px;margin:0 auto;padding:0 60px 14px 60px">
 
-    <!-- ── Name field (underline input) ── -->
-    <div style="margin-bottom:22px">
-      <label style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;display:block;margin-bottom:4px" title="แสดงใน dropdown สำหรับเลือก template เวลาเปิดสัญญาใหม่">ชื่อ template</label>
-      <input id="cfName" value="${tpl.name}" style="width:100%;padding:6px 0;border:none;border-bottom:1px solid #e2e8f0;font-size:15px;font-weight:600;color:#1e293b;box-sizing:border-box;background:transparent;outline:none;font-family:Sarabun;transition:border-color .15s" placeholder="แบบมาตรฐาน, แบบเสาสัญญาณ, แบบที่ดิน..." onfocus="this.style.borderBottomColor='#4338ca'" onblur="this.style.borderBottomColor='#e2e8f0'">
-    </div>
+      <!-- ── Template name (underline · large) ── -->
+      <input id="cfName" value="${tpl.name}" style="width:100%;padding:8px 0;margin-bottom:6px;border:none;border-bottom:1px solid transparent;font-size:24px;font-weight:700;color:#1e293b;box-sizing:border-box;background:transparent;outline:none;font-family:Sarabun;transition:border-color .15s" placeholder="ตั้งชื่อ template..." onfocus="this.style.borderBottomColor='#cbd5e1'" onblur="this.style.borderBottomColor='transparent'" title="ชื่อ template — แสดงใน dropdown ตอนเปิดสัญญาใหม่">
 
-    <!-- ── Intro paragraph ── -->
-    <div style="margin-bottom:26px">
-      <label style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;display:block;margin-bottom:6px" title="ข้อความหลังหัวคู่สัญญา ก่อนเริ่มข้อ 1">ข้อความนำ</label>
-      <div id="cfqIntro" class="cf-quill-wrap"></div>
-    </div>
-
-    <!-- ── Clauses header ── -->
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;padding-top:18px;border-top:1px solid #f1f5f9">
-      <h3 style="font-size:14px;font-weight:700;color:#1e293b;margin:0">ข้อสัญญา <span style="font-weight:400;color:#94a3b8;font-size:12px;margin-left:6px">${tpl.clauses.length} ข้อ</span></h3>
-      <div style="display:flex;gap:0;align-items:center;font-size:11px">
-        <button onclick="cfCollapseAll()" style="color:#64748b;background:none;border:none;cursor:pointer;padding:4px 8px;font-family:Sarabun" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#64748b'" title="ยุบทุกข้อ — สแกนโครงสร้างง่าย">ยุบทั้งหมด</button>
+      <!-- ── Top utility bar — compact, only essentials ── -->
+      <div style="display:flex;align-items:center;gap:4px;margin-bottom:28px;font-size:12px;color:#94a3b8;flex-wrap:wrap">
+        <div style="position:relative;display:inline-block">
+          <button onclick="cfToggleVarMenu(event)" style="padding:4px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun;font-weight:500" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'" title="แทรกตัวแปร — คลิก cursor ในข้อก่อน → เลือก">+ ตัวแปร</button>
+          <div id="cfVarMenu" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.08);padding:4px;z-index:50;min-width:160px">
+            ${CF_VARS.map(v=>`<button onclick="cfInsertVar('${v.val}');cfHideVarMenu()" style="display:block;width:100%;text-align:left;padding:6px 12px;border:none;background:none;color:#475569;font-size:12px;cursor:pointer;border-radius:5px;font-family:Sarabun" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='none'">${v.label}</button>`).join('')}
+          </div>
+        </div>
+        <button onclick="cfToggleTocMenu(event)" style="padding:4px 10px;background:none;color:#94a3b8;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#f1f5f9';this.style.color='#475569'" onmouseout="this.style.background='none';this.style.color='#94a3b8'" title="กระโดดไปข้อใดข้อหนึ่ง">สารบัญ</button>
         <span style="color:#e2e8f0">·</span>
-        <button onclick="cfExpandAll()" style="color:#64748b;background:none;border:none;cursor:pointer;padding:4px 8px;font-family:Sarabun" onmouseover="this.style.color='#1e293b'" onmouseout="this.style.color='#64748b'" title="ขยายทุกข้อเพื่อแก้ไข">ขยายทั้งหมด</button>
-        <span style="color:#e2e8f0;margin-left:4px">·</span>
-        <button onclick="cfAddClause()" style="color:#4338ca;background:none;border:none;cursor:pointer;font-weight:600;padding:4px 8px;font-family:Sarabun" title="เพิ่มข้อใหม่ต่อท้าย — เลขจะ auto">+ เพิ่มข้อ</button>
+        <button onclick="cfCollapseAll()" style="padding:4px 10px;background:none;color:#94a3b8;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#f1f5f9';this.style.color='#475569'" onmouseout="this.style.background='none';this.style.color='#94a3b8'" title="ยุบทุกข้อ">ยุบทั้งหมด</button>
+        <button onclick="cfExpandAll()" style="padding:4px 10px;background:none;color:#94a3b8;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#f1f5f9';this.style.color='#475569'" onmouseout="this.style.background='none';this.style.color='#94a3b8'" title="ขยายทุกข้อ">ขยายทั้งหมด</button>
+        <span style="margin-left:auto;font-size:11px;color:#cbd5e1">${tpl.clauses.length} ข้อ</span>
       </div>
-    </div>
 
-    <!-- ── TOC nav: subtle inline pills ── -->
-    <div style="display:flex;flex-wrap:wrap;gap:2px;align-items:center;margin-bottom:6px">
-      <span style="font-size:10px;color:#cbd5e1;text-transform:uppercase;letter-spacing:0.6px;margin-right:6px">ไปข้อ</span>
-      ${tpl.clauses.map((cl,i)=>`<button onclick="cfScrollToClause(${i})" title="กระโดดไปข้อ ${i+1}" style="min-width:22px;height:22px;padding:0 6px;border:none;background:none;color:#64748b;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;font-family:Sarabun;transition:all .15s" onmouseover="this.style.background='#eef2ff';this.style.color='#4338ca'" onmouseout="this.style.background='none';this.style.color='#64748b'">${i+1}</button>`).join('')}
-    </div>
+      <!-- ── TOC popup (hidden default) ── -->
+      <div id="cfTocMenu" style="display:none;position:absolute;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.08);padding:6px;z-index:50;max-width:300px;max-height:300px;overflow-y:auto">
+        ${tpl.clauses.map((cl,i)=>{
+          const obj=typeof cl==='string'?{text:cl,sub:[]}:cl;
+          const _stripHtml=s=>(s||'').replace(/<[^>]*>/g,'').trim();
+          const previewText=_stripHtml(obj.text).slice(0,40);
+          return`<button onclick="cfScrollToClause(${i});cfHideTocMenu()" style="display:flex;width:100%;align-items:center;gap:8px;padding:6px 10px;border:none;background:none;color:#475569;font-size:12px;cursor:pointer;border-radius:5px;font-family:Sarabun;text-align:left" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='none'"><span style="color:#cbd5e1;font-weight:600;min-width:18px">${i+1}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${esc(previewText)||'(ว่าง)'}</span></button>`;
+        }).join('')}
+      </div>
 
-    <!-- ── Clauses: flat document feel · bottom dividers only ── -->
-    <div id="cfClauseList" style="display:flex;flex-direction:column;margin-bottom:14px">
-      ${tpl.clauses.map((cl,i)=>{
-        const obj=typeof cl==='string'?{text:cl,sub:[]}:cl;
-        const isCollapsed=cfCollapsedSet.has(i);
-        const _stripHtml=s=>(s||'').replace(/<[^>]*>/g,'').trim();
-        const previewText=_stripHtml(obj.text).slice(0,120);
-        const subCount=(obj.sub||[]).length;
-        const isLast=i===tpl.clauses.length-1;
-        return`<div class="cf-clause-row" id="cfClauseRow_${i}" data-idx="${i}" draggable="true" style="padding:14px 0;${isLast?'':'border-bottom:1px solid #f1f5f9'}">
-          <div style="display:flex;align-items:center;gap:8px;${isCollapsed?'':'margin-bottom:10px'}">
-            <span style="cursor:grab;color:#cbd5e1;font-size:13px;user-select:none;flex-shrink:0;line-height:1;width:14px;transition:color .15s" title="ลากเพื่อเรียงลำดับ" onmouseover="this.style.color='#64748b'" onmouseout="this.style.color='#cbd5e1'">⠿</span>
-            <button onclick="cfToggleCollapse(${i})" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:10px;padding:2px;line-height:1;flex-shrink:0;width:14px" title="${isCollapsed?'ขยาย':'ยุบ'}ข้อนี้">${isCollapsed?'▸':'▾'}</button>
-            <span style="font-size:13px;font-weight:700;color:#1e293b;flex-shrink:0;min-width:42px">ข้อ ${i+1}</span>
-            ${isCollapsed?`<span style="font-size:12px;color:#64748b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400;line-height:1.4">${esc(previewText)}${previewText.length>=120?'…':''}${subCount?` <span style="color:#cbd5e1">· ${subCount} ข้อย่อย</span>`:''}</span>`:'<span style="flex:1"></span>'}
-            <button onclick="cfRemoveClause(${i})" style="font-size:11px;color:#cbd5e1;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;opacity:0.6;transition:all .15s;font-family:Sarabun" onmouseover="this.style.opacity='1';this.style.color='#dc2626';this.style.background='#fef2f2'" onmouseout="this.style.opacity='0.6';this.style.color='#cbd5e1';this.style.background='none'" title="ลบข้อนี้">ลบ</button>
-          </div>
-          <div style="display:${isCollapsed?'none':'block'};padding-left:38px">
-            <div id="cfqClause_${i}" class="cf-quill-wrap" style="margin-bottom:8px"></div>
-            <div id="cfSubList_${i}" style="display:flex;flex-direction:column;gap:6px">
-              ${(obj.sub||[]).map((s,j)=>`
-                <div style="display:flex;align-items:flex-start;gap:8px">
-                  <span style="font-size:11px;color:#94a3b8;padding-top:8px;flex-shrink:0;min-width:32px;font-weight:600">${i+1}.${j+1}</span>
-                  <div id="cfqSub_${i}_${j}" class="cf-quill-wrap" style="flex:1"></div>
-                  <button onclick="cfRemoveSub(${i},${j})" style="font-size:13px;color:#cbd5e1;background:none;border:none;cursor:pointer;padding:8px 4px 0;flex-shrink:0;opacity:0.5;line-height:1" onmouseover="this.style.opacity='1';this.style.color='#dc2626'" onmouseout="this.style.opacity='0.5';this.style.color='#cbd5e1'" title="ลบข้อย่อยนี้">×</button>
-                </div>
-              `).join('')}
+      <!-- ── Intro paragraph (no label · just placeholder) ── -->
+      <div id="cfqIntro" class="cf-quill-wrap" style="margin-bottom:28px;color:#475569"></div>
+
+      <!-- ── Clauses · document-style flat list ── -->
+      <div id="cfClauseList">
+        ${tpl.clauses.map((cl,i)=>{
+          const obj=typeof cl==='string'?{text:cl,sub:[]}:cl;
+          const isCollapsed=cfCollapsedSet.has(i);
+          const _stripHtml=s=>(s||'').replace(/<[^>]*>/g,'').trim();
+          const previewText=_stripHtml(obj.text).slice(0,140);
+          const subCount=(obj.sub||[]).length;
+          return`<div class="cf-clause-row" id="cfClauseRow_${i}" data-idx="${i}" draggable="true" style="position:relative;padding:14px 0;margin-bottom:4px">
+            <!-- Gutter number (left) · visible always -->
+            <span class="cf-clause-num" onclick="cfToggleCollapse(${i})" style="cursor:pointer" title="${isCollapsed?'ขยาย':'ยุบ'}ข้อนี้">${i+1}</span>
+
+            <!-- Row actions (right) · reveal on hover -->
+            <div class="cf-row-actions" style="position:absolute;right:0;top:8px;display:flex;gap:2px;align-items:center">
+              <span style="cursor:grab;color:#cbd5e1;font-size:14px;user-select:none;line-height:1;padding:4px 6px" title="ลากเพื่อเรียงลำดับ">⠿</span>
+              <button onclick="cfRemoveClause(${i})" style="font-size:11px;color:#cbd5e1;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:5px;font-family:Sarabun" onmouseover="this.style.color='#dc2626';this.style.background='#fef2f2'" onmouseout="this.style.color='#cbd5e1';this.style.background='none'" title="ลบข้อนี้">ลบ</button>
             </div>
-            <button onclick="cfAddSub(${i})" style="font-size:11px;color:#64748b;background:none;border:none;cursor:pointer;margin-top:8px;font-weight:500;padding:4px 0;font-family:Sarabun" onmouseover="this.style.color='#4338ca'" onmouseout="this.style.color='#64748b'" title="เพิ่มข้อย่อย — เลขจะ auto">+ ข้อย่อย ${i+1}.${(obj.sub||[]).length+1}</button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
 
+            ${isCollapsed?`
+              <div onclick="cfToggleCollapse(${i})" style="cursor:pointer;color:#64748b;font-size:14px;line-height:1.6;font-weight:400;padding:2px 0" title="ขยายเพื่อแก้ไข">
+                ${esc(previewText)}${previewText.length>=140?'…':''}
+                ${subCount?`<span style="color:#cbd5e1;font-size:12px;margin-left:6px">· ${subCount} ข้อย่อย</span>`:''}
+              </div>
+            `:`
+              <div id="cfqClause_${i}" class="cf-quill-wrap"></div>
+              <div id="cfSubList_${i}" style="display:flex;flex-direction:column;gap:4px;margin-top:8px;padding-left:24px">
+                ${(obj.sub||[]).map((s,j)=>`
+                  <div class="cf-sub-row" style="display:flex;align-items:flex-start;gap:8px;position:relative">
+                    <span style="font-size:13px;color:#94a3b8;padding-top:6px;flex-shrink:0;min-width:32px;font-weight:500">${i+1}.${j+1}</span>
+                    <div id="cfqSub_${i}_${j}" class="cf-quill-wrap" style="flex:1"></div>
+                    <button onclick="cfRemoveSub(${i},${j})" class="cf-row-actions" style="font-size:13px;color:#cbd5e1;background:none;border:none;cursor:pointer;padding:8px 4px 0;flex-shrink:0;line-height:1" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#cbd5e1'" title="ลบข้อย่อยนี้">×</button>
+                  </div>
+                `).join('')}
+              </div>
+              <button onclick="cfAddSub(${i})" style="font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;margin-top:10px;margin-left:24px;font-weight:500;padding:2px 0;font-family:Sarabun" onmouseover="this.style.color='#4338ca'" onmouseout="this.style.color='#94a3b8'" title="เพิ่มข้อย่อย">+ ข้อย่อย ${i+1}.${(obj.sub||[]).length+1}</button>
+            `}
+          </div>`;
+        }).join('')}
+      </div>
+
+      <!-- ── Add clause button — subtle text at bottom ── -->
+      <button onclick="cfAddClause()" style="width:100%;padding:14px;margin-top:8px;background:none;border:1px dashed #e2e8f0;border-radius:8px;color:#94a3b8;font-size:13px;cursor:pointer;font-family:Sarabun;transition:all .15s" onmouseover="this.style.borderColor='#94a3b8';this.style.color='#475569';this.style.background='#f8fafc'" onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#94a3b8';this.style.background='none'" title="เพิ่มข้อใหม่ต่อท้าย">+ เพิ่มข้อสัญญา</button>
+
+    </div>
   `;
 
   setTimeout(_cfInitQuills,0);
