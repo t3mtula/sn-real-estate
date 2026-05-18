@@ -3,10 +3,12 @@
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- (ว่าง — เพิ่งจบงาน "นิติบุคคล + ผู้ลงนาม" รอ Tem สั่งต่อ)
+- (ว่าง — เพิ่งจบ perf fix + backfill รอ Tem สั่งต่อ)
 
 ## ⏳ งานค้าง / Next
-- (ไม่มี)
+- 21 company contracts ยังขาด tenantSignerName (Excel ไม่มี · รอ paper / renewal)
+- 3 hardcoded prefix lists ใน html ยังไม่ unified (preexisting)
+- ถ้าอยากเร็วกว่านี้: แยก backups ออกจาก re_config เป็น table แยก (Phase 3)
 
 ## ✅ งานที่จบในรอบล่าสุด (2026-05-17 session)
 1. **Passport support** — taxId field รับตัวอักษรได้ (auto-detect mode Thai ID vs passport)
@@ -34,11 +36,12 @@
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (ALL_NAME_PREFIXES vs tenant form local vs signer pfxOpts) — preexisting ขัด lesson `unify_forms`
 
 ## 📍 Latest commits (branch `claude/sharp-curie-eaa567` push main)
+- `perf(load): กรอง backup snapshots ออกจาก re_config fetch + cleanup เก่า`
+- `docs(state): backfill 3 company contracts จาก Excel`
 - `chore(cleanup): ลบ partyDisplay helper ที่ไม่ถูกเรียกใช้`
 - `feat(juristic): support นิติบุคคล + ผู้ลงนาม ครบ end-to-end`
 - `fix(prefix): revert staff prefix UI + hasPrefix ใช้ includes`
 - `feat(print): apply withPrefix() ใน sigBox ทุกที่`
-- `feat(names): prefix dropdown ทุก field ชื่อคน + passport support`
 
 ## 🚀 ที่ Tem ใช้ตอนนี้
 - Branch deploy: https://sn-real-estate.pages.dev/
