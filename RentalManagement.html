@@ -17987,6 +17987,8 @@ function cfResetTemplate(){
       else{cfEditTpl={_tplId:1,name:'แบบมาตรฐาน',intro:getActiveTemplate().intro,clauses:[...DEFAULT_CLAUSES]};}
       cfClearDirty();
       renderCfEditor();
+      // force preview refresh — กัน preview ค้างกับข้อความเก่าก่อน reset
+      setTimeout(()=>{if(typeof updateCfPreview==='function')updateCfPreview();},100);
       toast('คืนค่าเดิมแล้ว');
     },
     {icon:'↺',yesLabel:'คืนค่า',yesColor:'#dc2626'});
