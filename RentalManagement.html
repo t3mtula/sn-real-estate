@@ -13530,15 +13530,24 @@ function contractHTML(contracts,tplOverride,hideToolbar){
   const today=new Date();
   const todayBE=`${today.getDate()}/${today.getMonth()+1}/${today.getFullYear()+543}`;
   const tpl=tplOverride||getActiveTemplate();
+  // ── Filename สำหรับ PDF save · ใช้ title ของ document → browser ใช้เป็นชื่อไฟล์ default ──
+  const docTitle = contracts.length === 1
+    ? 'สัญญาเช่า '+(contracts[0].no||'')+' '+((contracts[0].tenant||'').replace(/บริษัท\s*/g,'บจก.').replace(/\s*จำกัด/g,'').replace(/\s*โดย.+/,'').trim()).substring(0,40)
+    : 'สัญญาเช่า '+contracts.length+' ฉบับ';
 
   return`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">
+<title>${docTitle}</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <style>
 @page { size: A4; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
 body { background: #fff; color: #1a202c; }
-.page { width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; margin: 0 auto; position: relative; page-break-after: always; }
+.page { width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
 .page:last-child { page-break-after: auto; }
+/* Flex push-down: signature ติด bottom · ไม่มี white space เกิน */
+.page > .c-header { flex-shrink: 0; }
+.page-body { flex: 1; display: flex; flex-direction: column; }
+.page-body-grow { flex: 1; }
 
 /* ════════════════════════════════════════════
    Professional Contract Print · Design System
@@ -13585,8 +13594,8 @@ body { background: #fff; color: #1a202c; }
 /* ── Section divider ── */
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
-/* ── Signature section ── */
-.sig-section { margin-top: 22px; }
+/* ── Signature section · ติด bottom ด้วย margin-top:auto (flex child) ── */
+.sig-section { margin-top: auto; padding-top: 12px; }
 .sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
 .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px; }
 .sig-block { text-align: center; }
@@ -13596,6 +13605,16 @@ body { background: #fff; color: #1a202c; }
 .sig-name { font-size: 11.5px; font-weight: 700; color: #1e3a5f; margin-top: 5px; }
 .sig-role { font-size: 10px; color: #475569; margin-top: 1px; }
 .sig-date { font-size: 9.5px; color: #94a3b8; margin-top: 3px; }
+
+/* ── Appendix Banner Header — เน้นชัดที่หัวกระดาษ ── */
+.c-header.appendix-banner { background: linear-gradient(135deg, #1e3a5f 0%, #2c4a72 100%); color: #fff; border-top: none; border-bottom: 3px solid #1e3a5f; padding: 22px 24px; border-radius: 6px; margin-bottom: 22px; }
+.c-header.appendix-banner .c-title { color: #fff; }
+.c-header.appendix-banner .c-subtitle { color: rgba(255,255,255,.75); letter-spacing: 1px; }
+.c-header.appendix-banner .c-subtitle b { color: #fff; }
+.c-header.appendix-banner .c-meta-badge { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); border-left: 3px solid #fff; backdrop-filter: blur(6px); }
+.c-header.appendix-banner .c-meta-badge .label { color: rgba(255,255,255,.7); }
+.c-header.appendix-banner .c-meta-badge .value { color: #fff; }
+.appendix-eyebrow { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: rgba(255,255,255,.6); text-transform: uppercase; margin-bottom: 6px; }
 
 /* ── Appendix Cards (card-based 2-col layout — design language ตรงกับสัญญาหลัก) ── */
 .ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
@@ -13619,35 +13638,69 @@ body { background: #fff; color: #1a202c; }
 .ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
 .ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
 
-/* ── Page numbers ── */
-body { counter-reset: pagenum; }
-.page { counter-increment: pagenum; }
-.page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 5px; }
-.page-footer-contract { font-size: 9px; color: #64748b; }
-.page-footer-num::before { content: 'หน้า ' counter(pagenum); }
+/* ── Page footer (inline · ลอย bottom) ── */
+.page-footer { margin-top: auto; padding-top: 8mm; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 5px; }
+.page-footer-contract { font-size: 9px; color: #94a3b8; }
+.page-footer-num { font-size: 9px; color: #94a3b8; }
 
+/* ── Print mode: running headers/footers ทุกหน้า · เลขหน้าถูกต้อง · เลขที่สัญญาทุกหน้า ── */
 @media print {
-  @page { size: A4; margin: 16mm 20mm 20mm; }
+  @page {
+    size: A4;
+    margin: 22mm 18mm 18mm;
+    /* Top header bar — ทุกหน้า */
+    @top-left {
+      content: string(doctitle);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 9pt;
+      font-weight: 700;
+      color: #1e3a5f;
+      padding-top: 8mm;
+      vertical-align: top;
+    }
+    @top-right {
+      content: "เลขที่ " string(contractid);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 9pt;
+      font-weight: 600;
+      color: #1e3a5f;
+      padding-top: 8mm;
+      vertical-align: top;
+    }
+    /* Bottom — page number ที่ถูกต้อง */
+    @bottom-center {
+      content: "หน้า " counter(page) " / " counter(pages);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 8pt;
+      color: #94a3b8;
+      padding-bottom: 4mm;
+    }
+  }
+  /* string-set tag · เปลี่ยน string ตอน .page-marker ปรากฏ → running header เปลี่ยนตามหน้า */
+  .doc-marker { string-set: doctitle attr(data-title), contractid attr(data-contract); position: absolute; left: -9999px; height: 0; overflow: hidden; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  /* ตอน print: .page ใช้ @page margin แทน padding — browser จะ paginate
-     content ที่ยาวเกิน 1 หน้าอัตโนมัติ + ทุกหน้าใหม่จะมี margin จาก @page */
-  .page { padding: 0 !important; min-height: auto !important; height: auto; margin: 0; box-shadow: none; }
-  /* clause sub-clause ห้าม split ระหว่างหน้า — ป้องกันข้อความขาด */
+  /* .page ใช้ @page margin → padding=0 + height auto · browser paginate content overflow */
+  .page { padding: 0 !important; min-height: auto !important; height: auto; margin: 0; box-shadow: none; display: block; }
+  /* clause/sub-clause ห้าม split — กันข้อความขาด */
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
-  /* footer absolute → ไม่ทำงานข้ามหน้า ปิดทิ้ง ใช้ @page footer แทน หรือไม่มี footer ก็ได้ */
-  .page-footer { position: static; margin-top: 12mm; }
-  /* ป้องกัน parties-table + signature box ถูกตัด */
-  .parties-table, .sig-grid, .sig-block, .detail-table { page-break-inside: avoid; break-inside: avoid; }
+  /* Signature + tables ห้าม split */
+  .parties-table, .sig-grid, .sig-block, .ap-card { page-break-inside: avoid; break-inside: avoid; }
   /* บังคับ page-break ก่อนเอกสารแนบท้าย */
   .appendix-page { page-break-before: always; break-before: page; }
-  .c-body { padding-bottom: 0; }
+  /* Hide manual page-footer ตอน print → ใช้ @page bottom-center แทน */
+  .page-footer { display: none !important; }
+  /* ตอน print ซ่อน header ใน body (เพราะ @page top-* แสดงแทน) */
+  .page > .c-header { display: none !important; }
 }
 @media screen {
   body { background: #e2e8f0; padding: 20px; }
   .page { box-shadow: 0 4px 24px rgba(0,0,0,0.12); border-radius: 4px; margin-bottom: 20px; }
+  /* doc-marker ซ่อนเสมอใน screen */
+  .doc-marker { display: none; }
+  /* embed preview — keep dimensions match print so user เห็น page boundary ตรงกัน */
   body.embed { background: #f8fafc; padding: 10px 0; }
-  body.embed .page { width: 100%; min-height: auto; padding: 10mm 12mm 14mm; }
+  body.embed .page { width: 100%; max-width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
 }
 </style></head><body>
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
@@ -13670,8 +13723,20 @@ ${contracts.map(c=>{
     // บุคคลธรรมดา → fallback (signer หรือ party name)
     return sigBox(label, withPrefix(signerName||partyName), imgSrc, signerTitle);
   };
+  // ── ทำสัญญาที่ + วันที่ ครบ (full address fallback ถ้า madeAt = ชื่อย่อ) ──
+  const madeAtFull = (function(){
+    const m = (c.madeAt||'').trim();
+    const la = (c.landlordAddr||'').trim();
+    // ถ้า madeAt = ชื่อบริษัท เพียวๆ → append landlord address ครบ
+    if(m && la && !m.includes('ต.') && !m.includes('อ.') && !m.includes('ถนน')) return m+' (ที่อยู่: '+la+')';
+    if(m) return m;
+    if(la) return la;
+    return '-';
+  })();
   return'<div class="page">'+
-    // ── Header ──
+    // String-set markers ตอน print (running headers ใช้)
+    '<div class="doc-marker" data-title="สัญญาเช่า" data-contract="'+c.no+'"></div>'+
+    // ── Header ── (screen only — print ใช้ @page top-*)
     '<div class="c-header">'+
       '<div class="c-header-center">'+
         '<div class="c-title">สัญญาเช่า</div>'+
@@ -13680,8 +13745,8 @@ ${contracts.map(c=>{
       '<div class="c-meta-badge"><span class="label">เลขที่สัญญา</span><span class="value">'+c.no+'</span></div>'+
     '</div>'+
 
-    // ── Date/Place ──
-    '<div class="c-date-strip">ทำสัญญา ณ <b>'+c.madeAt+'</b> &nbsp;·&nbsp; วันที่ <b>'+dateToThai(c.date)+'</b></div>'+
+    // ── Date/Place (ครบ — ที่อยู่ + วันที่ + วันทำสัญญา ทศวรรษไทย) ──
+    '<div class="c-date-strip">ทำสัญญา ณ <b>'+madeAtFull+'</b><br>เมื่อวันที่ <b>'+dateToThai(c.date)+'</b></div>'+
 
     // ── Parties ──
     '<table class="parties-table">'+
@@ -13699,8 +13764,11 @@ ${contracts.map(c=>{
       '</div></td></tr>'+
     '</table>'+
 
+    // ── Page-body wrapper: content + signature ใช้ flex grow → signature ติด bottom · ลด white space ──
+    '<div class="page-body">'+
+
     // ── Body ──
-    '<div class="c-body">'+
+    '<div class="c-body page-body-grow">'+
       '<p class="c-intro">'+renderTemplateText(tpl.intro||'',c)+'</p>'+
       (function(){
         const merged=(typeof applyClauseOverrides==='function')
@@ -13724,9 +13792,9 @@ ${contracts.map(c=>{
       (tpl.closing?'<p class="c-closing">'+renderTemplateText(tpl.closing,c)+'</p>':'')+
     '</div>'+
 
-    // ── Signature ──
-    '<hr class="c-divider">'+
+    // ── Signature (ติด bottom ผ่าน flex auto margin) ──
     '<div class="sig-section">'+
+      '<hr class="c-divider">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
         sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
@@ -13737,10 +13805,23 @@ ${contracts.map(c=>{
         sigBox('พยาน / Witness 2',withPrefix(c.witness2Name||''),c.witness2Sig,c.witness2Title)+
       '</div>'+
     '</div>'+
-    '<div class="page-footer"><span class="page-footer-contract">สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
+    '</div>'+ /* /page-body */
   '</div>'+
 
   // ── Appendix page (card-based 2-col layout · design ตรงกับสัญญาหลัก) ──
+  '<div class="page appendix-page">'+
+    // String-set marker — running header เปลี่ยนเป็น "เอกสารแนบท้าย" ตอน print
+    '<div class="doc-marker" data-title="เอกสารแนบท้ายสัญญา" data-contract="'+c.no+'"></div>'+
+    // Banner header — เด่นชัดในหัวกระดาษ (Tem feedback)
+    '<div class="c-header appendix-banner">'+
+      '<div class="c-header-center">'+
+        '<div class="appendix-eyebrow">SCHEDULE · เอกสารประกอบสัญญา</div>'+
+        '<div class="c-title">เอกสารแนบท้ายสัญญาเช่า</div>'+
+        '<div class="c-subtitle">Contract Details &nbsp;·&nbsp; วันที่ทำสัญญา <b>'+dateToThai(c.date)+'</b></div>'+
+      '</div>'+
+      '<div class="c-meta-badge"><span class="label">เลขที่สัญญา</span><span class="value">'+c.no+'</span></div>'+
+    '</div>'+
+    '<div class="page-body">'+
   (function(){
     const safe = v => v==null?'':String(v);
     const apCell = (label, valueHtml) => '<div class="ap-cell"><div class="ap-label">'+label+'</div><div class="ap-value">'+valueHtml+'</div></div>';
@@ -13816,15 +13897,16 @@ ${contracts.map(c=>{
 
     return partiesCard + propertyCard + leaseCard + bankCard + notesCard;
   })()+
-    '<hr class="c-divider">'+
+    // Signature (push to bottom via flex auto-margin)
     '<div class="sig-section">'+
-      '<div class="sig-section-title">ลายมือชื่อคู่สัญญา / Signatures</div>'+
+      '<hr class="c-divider">'+
+      '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
         sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
         sigBoxParty('ผู้เช่า (Lessee)',c.tenant,c.tenantSignerName,c.tenantSignerTitle,c.tenantSig)+
       '</div>'+
     '</div>'+
-    '<div class="page-footer"><span class="page-footer-contract">เอกสารแนบท้าย — สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
+    '</div>'+ /* /page-body */
   '</div>';
 }).join('')}
 </body></html>`;
