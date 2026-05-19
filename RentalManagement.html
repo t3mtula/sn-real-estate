@@ -14408,111 +14408,115 @@ function openPrintOverlay(contracts,title,rawHTML){
   };
 }
 
-// Auto-split .page ที่ content ยาวเกิน A4 → groups of children · render เป็น .page หลายอัน
-// Re-checks newly created continuation pages (queue-based loop · กัน infinite loop ด้วย iteration cap)
+// ── Paginate contract pages ──
+// แนวคิด (rework v3):
+//   ปัญหาเดิม: flex auto-margin + min-height ทำให้ตำแหน่ง intrinsic ของ children ผิด
+//             วัด rect.bottom ตอนที่ sig ถูก flex push ลงล่างสุด → คิดว่าเกิน → split
+//   วิธีใหม่: เคลียร์ flex + min-height ทั้งหมดก่อนวัด → ตำแหน่งจริงตามเนื้อหา
+//           split โดยใช้ rect.bottom (รวม margin ทุกอย่างถูกต้องแล้ว) → restore styles
 function splitOverflowPages(doc){
   if(!doc) return;
-  const PX_PER_MM = 3.7795;
-  const A4_PX = 297 * PX_PER_MM;
-  const PADDING_BOTTOM_PX = 20 * PX_PER_MM;
-  // safety gutter — กันไม่ให้ content ติด margin bottom เป๊ะ (browser print อาจ clip)
-  const SAFETY_GUTTER = 8;
-  // Flatten .c-body children → direct children ของ .page-body
-  // → split algorithm ตัดได้ระหว่าง clause (ไม่ติดกับ c-body wrapper)
+  const MM = 3.7795;
+  const A4 = 297 * MM;
+  const PAD_TOP = 18 * MM;
+  const PAD_BOT = 20 * MM;
+  const SAFETY = 0;     // 0 = ใช้พื้นที่กระดาษเต็ม · @page margin ใน print mode คุม clip ให้แล้ว
+  const LAST_CHILD_TOLERANCE = 30; // ถ้า last child เกินไม่กี่ pixel ปล่อยให้เกิน · กัน page-ลอย ที่มีแค่ sig
+  // ── 1) Flatten .c-body → direct children of .page-body ──
   doc.querySelectorAll('.page-body > .c-body').forEach(cBody => {
     const parent = cBody.parentNode;
-    while(cBody.firstChild){
-      parent.insertBefore(cBody.firstChild, cBody);
-    }
+    while(cBody.firstChild) parent.insertBefore(cBody.firstChild, cBody);
     cBody.remove();
   });
-  // ── Neutralize flex auto-margin on sig-section ก่อนวัด ──
-  // .sig-section มี margin-top:auto (flex push bottom) → ทำให้ rect.top เลื่อนลง
-  //   แม้ content ก่อนหน้าจะสั้น · split คิดว่าไม่พอ พอแล้วเด้งไปหน้าถัดไป
-  // วิธีแก้: set inline margin-top:0 ระหว่างวัด · คืนค่าหลังเสร็จ
-  const flexOverrides = [];
+  // ── 2) Disable flex behaviors before measuring ──
+  // .page เป็น flex column (min-height 297mm) → fills paper
+  // .page-body flex:1 → grows · sig-section margin-top:auto → pushes to bottom
+  // ทั้งหมดทำให้ rect ของ children "ลอย" ไม่ใช่ตำแหน่ง intrinsic
+  // เคลียร์ทั้งหมด → ทุก child positions = natural flow
+  const restoreOps = [];
+  const disable = (el, prop, val) => {
+    restoreOps.push({el, prop, prev: el.style[prop]});
+    el.style[prop] = val;
+  };
+  doc.querySelectorAll('.page').forEach(el => {
+    disable(el, 'minHeight', 'auto');
+    disable(el, 'display', 'block');
+  });
+  doc.querySelectorAll('.page-body').forEach(el => {
+    disable(el, 'flex', 'none');
+    disable(el, 'display', 'block');
+  });
   doc.querySelectorAll('.sig-section').forEach(el => {
-    flexOverrides.push({el, prev: el.style.marginTop});
-    el.style.marginTop = '12px'; // เท่ากับ padding-top เดิม ไม่ใช่ auto
+    disable(el, 'marginTop', '10px');  // override auto
   });
-  // Also neutralize flex grow on .page-body-grow (which forces sig section to bottom)
   doc.querySelectorAll('.page-body-grow').forEach(el => {
-    flexOverrides.push({el, prev: el.style.flex, _key:'flex'});
-    el.style.flex = 'none';
+    disable(el, 'flex', 'none');
   });
-  // Queue: process pages · เมื่อ split เสร็จ ใส่ continuation ใหม่กลับเข้า queue เพื่อ re-check
+  // Force layout pass
+  doc.body.offsetHeight;
+  // ── 3) Paginate each page · split overflow ──
   const queue = Array.from(doc.querySelectorAll('.page'));
-  let iterations = 0;
-  const MAX_ITER = 200; // safety cap
-  while(queue.length && iterations < MAX_ITER){
-    iterations++;
+  let iter = 0;
+  while(queue.length && iter < 200){
+    iter++;
     const page = queue.shift();
-    if(!page.isConnected) continue; // page ถูก remove ไปแล้ว
-    // Trigger: scrollHeight > A4_PX (เกินกระดาษ A4)
-    if(page.scrollHeight <= A4_PX + SAFETY_GUTTER) continue;
+    if(!page.isConnected) continue;
     const body = page.querySelector('.page-body');
     if(!body) continue;
-    // คำนวณ space ที่เหลือใน page-body
-    // วัด offset ของ body.top จาก page.top → จะรวม c-header + c-date-strip + parties-table + appendix-header (ถ้ามี) ครบ
+    // คำนวณ space ของ page-body
+    // - First page of section: subtract header/parties (อยู่ใน .page แต่นอก page-body)
+    // - Continuation: full page minus top padding
+    const isCont = page.classList.contains('continuation-page');
     const pageRect = page.getBoundingClientRect();
     const bodyRect = body.getBoundingClientRect();
-    const bodyOffsetTop = bodyRect.top - pageRect.top; // px above page-body within this .page
-    // First group: limited by space remaining after header stack
-    const maxFirstGroup = A4_PX - bodyOffsetTop - PADDING_BOTTOM_PX - SAFETY_GUTTER;
-    // Continuation groups: full content area (page top/bottom padding only · no header)
-    const maxContGroup = A4_PX - (18 * PX_PER_MM) - PADDING_BOTTOM_PX - SAFETY_GUTTER;
-    if(maxFirstGroup <= 100) continue; // sanity — page header ยาวเกินกระดาษ (กัน infinite loop)
-    // Walk children · จัดกลุ่มโดยใช้ตำแหน่งจริง · cutLine เลื่อนตาม group ที่กำลังจัด
-    // ใช้ rect.bottom relative to current group's first child top
-    // → รวม margin ระหว่าง children โดยอัตโนมัติ (offsetHeight ไม่นับ margin → คำนวณพลาด)
+    const bodyOffsetTop = bodyRect.top - pageRect.top;
+    let maxH;
+    if(isCont){
+      maxH = A4 - PAD_TOP - PAD_BOT - SAFETY;
+    } else {
+      maxH = A4 - bodyOffsetTop - PAD_BOT - SAFETY;
+    }
+    if(maxH <= 100) continue; // page header ยาวเกินกระดาษ (กัน infinite loop)
+    // Find split point: first child whose bottom > maxH (relative to body top)
     const children = Array.from(body.children);
     if(children.length <= 1) continue;
-    const groups = [[]];
-    let groupRefTop = bodyRect.top;  // anchor: position ของ "start" ของ group ปัจจุบัน
-    let groupCap = maxFirstGroup;
-    children.forEach((child) => {
-      const cRect = child.getBoundingClientRect();
-      const cBottomRel = cRect.bottom - groupRefTop; // relative bottom within current group
-      // ถ้าเกิน cap → เริ่ม group ใหม่ (เว้นแต่ group ว่าง · กัน infinite loop)
-      if(groups[groups.length-1].length > 0 && cBottomRel > groupCap){
-        groups.push([]);
-        groupRefTop = cRect.top;
-        groupCap = maxContGroup;
+    let splitIdx = -1;
+    for(let i = 0; i < children.length; i++){
+      const cBottomRel = children[i].getBoundingClientRect().bottom - bodyRect.top;
+      const isLast = (i === children.length - 1);
+      // สำหรับ child สุดท้าย · ปล่อยให้เกินได้นิดหน่อย (LAST_CHILD_TOLERANCE)
+      // เพราะถ้า split แค่ปลาย จะได้หน้าใหม่มีแค่ 1 child (เช่น sig section ลอยๆ ห่วย)
+      const cap = isLast ? (maxH + LAST_CHILD_TOLERANCE) : maxH;
+      if(cBottomRel > cap){
+        splitIdx = i;
+        break;
       }
-      groups[groups.length-1].push(child);
-    });
-    // ไม่ต้อง split ถ้า group เดียว · หรือ group แรกว่าง
-    if(groups.length <= 1 || groups[0].length === 0) continue;
-    // เคลียร์ body · ใส่ group แรก
-    while(body.firstChild) body.removeChild(body.firstChild);
-    groups[0].forEach(c => body.appendChild(c));
-    // ใส่ group ที่เหลือใน .continuation-page แต่ละอัน · push เข้า queue เพื่อ re-check
-    let anchor = page;
-    for(let i = 1; i < groups.length; i++){
-      if(groups[i].length === 0) continue;
-      const newPage = doc.createElement('div');
-      // continuation page = no header/parties-table · ใช้ class ที่ contains 'continuation-page' เท่านั้น
-      // strip appendix-page · เก็บแค่ 'page continuation-page' (เผื่อเป็น appendix split ก็ต้องเป็น continuation ไม่ใช่ banner)
-      newPage.className = 'page continuation-page';
-      const newBody = doc.createElement('div');
-      newBody.className = 'page-body';
-      groups[i].forEach(c => newBody.appendChild(c));
-      newPage.appendChild(newBody);
-      anchor.after(newPage);
-      anchor = newPage;
-      // ถ้า group ใหม่ยาวเกินกระดาษ → ใส่ queue ไป re-split
-      queue.push(newPage);
     }
+    if(splitIdx === -1) continue; // ทุกอย่างใส่หน้านี้ได้พอดี
+    if(splitIdx === 0) splitIdx = 1; // กัน group ว่าง — ดันอย่างน้อย 1 child ใส่ก่อน
+    // ย้าย children[splitIdx..] ไป continuation page ใหม่
+    const moveOut = children.slice(splitIdx);
+    const newPage = doc.createElement('div');
+    newPage.className = 'page continuation-page';
+    // ต้อง disable flex บน new page ด้วย เพื่อให้ recursive measure ถูกต้อง
+    newPage.style.minHeight = 'auto';
+    newPage.style.display = 'block';
+    const newBody = doc.createElement('div');
+    newBody.className = 'page-body';
+    newBody.style.flex = 'none';
+    newBody.style.display = 'block';
+    moveOut.forEach(c => newBody.appendChild(c));
+    newPage.appendChild(newBody);
+    // Track inline styles ของ newPage/newBody เพื่อ restore ทีหลัง
+    restoreOps.push({el: newPage, prop: 'minHeight', prev: ''});
+    restoreOps.push({el: newPage, prop: 'display', prev: ''});
+    restoreOps.push({el: newBody, prop: 'flex', prev: ''});
+    restoreOps.push({el: newBody, prop: 'display', prev: ''});
+    page.after(newPage);
+    queue.push(newPage);
   }
-  if(iterations >= MAX_ITER){
-    console.warn('splitOverflowPages: hit MAX_ITER · stop split');
-  }
-  // Restore flex overrides — คืน sig-section margin-top:auto + page-body-grow flex:1
-  // เพื่อให้ layout flex (sig ติด bottom) ใช้งานเหมือนเดิมในหน้าที่ render
-  flexOverrides.forEach(o => {
-    if(o._key === 'flex') o.el.style.flex = o.prev || '';
-    else o.el.style.marginTop = o.prev || '';
-  });
+  // ── 4) Restore inline styles → flex layout ทำงานปกติเหมือนเดิม ──
+  restoreOps.forEach(op => { op.el.style[op.prop] = op.prev || ''; });
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
