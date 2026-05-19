@@ -13544,10 +13544,14 @@ function contractHTML(contracts,tplOverride,hideToolbar){
 body { background: #fff; color: #1a202c; }
 .page { width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
 .page:last-child { page-break-after: auto; }
-/* Flex push-down: signature ติด bottom · ไม่มี white space เกิน */
+/* Continuation pages — compact (content actual height · ไม่บังคับ A4) เพื่อไม่ให้มี blank space กลาง */
+.continuation-page { min-height: auto; }
+/* Flex push-down เฉพาะ main page · continuation ใช้ normal flow */
 .page > .c-header { flex-shrink: 0; }
 .page-body { flex: 1; display: flex; flex-direction: column; }
 .page-body-grow { flex: 1; }
+.continuation-page .page-body { display: block; }
+.continuation-page .sig-section { margin-top: 22px; }
 
 /* ════════════════════════════════════════════
    Professional Contract Print · Design System
@@ -13651,6 +13655,7 @@ body { background: #fff; color: #1a202c; }
   body.embed { background: #e2e8f0; padding: 16px 0; }
   /* Preview pages — discrete A4 cards · gap ระหว่างหน้าชัด · เหมือนกระดาษจริง */
   body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 18mm 22mm 20mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; }
+  body.embed .continuation-page { min-height: auto; }
 }
 </style></head><body>
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
