@@ -9897,9 +9897,25 @@ function viewContract(id) {
       </select>`) +
       _vcRowEdit('ตำแหน่ง', `<input type="text" id="vcEdit_landlordSignerTitle" value="${safeAttr(c.landlordSignerTitle)}" placeholder="กรรมการผู้จัดการ" class="${inpCls}">`) +
       _vcRowEdit('ทำที่', `<input type="text" id="vcEdit_madeAt" value="${safeAttr(c.madeAt)}" class="${inpCls}" placeholder="ดึงจากที่อยู่อัตโนมัติ">`) +
-      _vcRowEdit('ชื่อบัญชี', `<input type="text" id="vcEdit_accountName" value="${safeAttr(c.accountName)}" class="${inpCls}">`) +
-      _vcRowEdit('ธนาคาร', `<input type="text" id="vcEdit_bank" value="${safeAttr(c.bank)}" class="${inpCls}">`) +
-      _vcRowEdit('เลขบัญชี', `<input type="text" id="vcEdit_acctNo" value="${safeAttr(c.acctNo)}" class="${inpCls}">`) +
+      // Phase 2 UX: bank fields → dropdown bankAccountId · เลือกจาก DB.bankAccounts · ไม่พิมพ์เอง
+      _vcRowEdit('บัญชีรับโอน', (()=>{
+        const accs = (DB.bankAccounts||[]).filter(b => !b.archived);
+        const curId = c.bankAccountId ? +c.bankAccountId : 0;
+        // sort: ที่ landlord นี้เคยใช้ → ขึ้นบน · ที่เหลือเรียงตาม label
+        const usedByLandlord = new Set((DB.contracts||[]).filter(cc => cc.landlord===c.landlord && cc.bankAccountId).map(cc => cc.bankAccountId));
+        const sorted = accs.slice().sort((a,b) => {
+          const au = usedByLandlord.has(a.id) ? 0 : 1;
+          const bu = usedByLandlord.has(b.id) ? 0 : 1;
+          return au-bu || (a.label||'').localeCompare(b.label||'','th');
+        });
+        const opts = sorted.map(b => `<option value="${b.id}" ${curId===b.id?'selected':''}>${esc(b.label||b.accountName||'(no label)')}${usedByLandlord.has(b.id)?' ✓':''}</option>`).join('');
+        return `<select id="vcEdit_bankAccountId" class="${inpCls}" onchange="vcOnBankChange(this.value)">
+          <option value="">— ใช้ default ของผู้ให้เช่า —</option>
+          ${opts}
+          <option value="_new">+ เพิ่มบัญชีใหม่...</option>
+        </select>
+        <div id="vcEdit_bankPreview" style="margin-top:5px;font-size:11px;color:#475569;line-height:1.5"></div>`;
+      })(), true) +
       _vcSaveCancel('vcSaveLandlord')
     );
   } else {
@@ -10033,6 +10049,11 @@ function vcEditSection(cid, mode){
   viewContract(cid);
   setTimeout(()=>{
     _modalDirty = false;
+    // initial preview render สำหรับ bank dropdown (landlord section)
+    if(mode === 'landlord'){
+      const baSel = document.getElementById('vcEdit_bankAccountId');
+      if(baSel && typeof vcOnBankChange === 'function') vcOnBankChange(baSel.value);
+    }
     // focus first input
     const firstInput = document.querySelector('[id^="vcEdit_"]');
     if(firstInput) firstInput.focus();
@@ -10043,7 +10064,7 @@ function vcCancelEdit(cid){
   _modalDirty = false;
   viewContract(cid);
 }
-// Helper: when invoice header dropdown changes → auto-fill landlord/addr/madeAt/bank
+// Helper: when invoice header dropdown changes → auto-fill landlord/addr/madeAt + bankAccountId default
 function vcOnHeaderChange(headerId){
   if(!headerId) return;
   const h = (DB.invoiceHeaders||[]).find(x => x.id == headerId);
@@ -10052,9 +10073,34 @@ function vcOnHeaderChange(headerId){
   set('vcEdit_landlord', h.companyName||'');
   set('vcEdit_landlordAddr', h.address||'');
   set('vcEdit_madeAt', h.address||'');
-  set('vcEdit_bank', h.bankName||'');
-  set('vcEdit_acctNo', h.bankAccount||'');
-  set('vcEdit_accountName', h.bankAccountName||'');
+  // Auto-pick default bank account ของ landlord ใหม่ ถ้ามี
+  const llName = h.companyName||'';
+  const defId = (DB.landlordDefaults && DB.landlordDefaults[llName] && DB.landlordDefaults[llName].defaultBankAccountId);
+  const baSel = document.getElementById('vcEdit_bankAccountId');
+  if(baSel && defId){
+    for(const opt of baSel.options){ if(+opt.value === +defId){ baSel.value = String(defId); break; } }
+    if(typeof vcOnBankChange === 'function') vcOnBankChange(baSel.value);
+  }
+}
+
+// Handler dropdown bank ใน vcEdit landlord section
+function vcOnBankChange(val){
+  const preview = document.getElementById('vcEdit_bankPreview');
+  if(val === '_new'){
+    // reset dropdown · เปิด modal เพิ่มบัญชี
+    const sel = document.getElementById('vcEdit_bankAccountId');
+    if(sel) sel.value = '';
+    if(preview) preview.innerHTML = '';
+    if(typeof openBankAccountForm === 'function') openBankAccountForm(0);
+    return;
+  }
+  if(!val){
+    if(preview) preview.innerHTML = '<span style="color:#94a3b8">ใช้ default ของผู้ให้เช่า (ตั้งในหน้า "ผู้ให้เช่า") · ถ้าไม่มี → ไม่แสดงบัญชี</span>';
+    return;
+  }
+  const ba = (DB.bankAccounts||[]).find(b => b.id === +val);
+  if(!ba){ if(preview) preview.innerHTML = ''; return; }
+  if(preview) preview.innerHTML = '<b>'+esc(ba.bankName||'-')+'</b> · '+esc(ba.accountNo||'-')+' <span style="color:#475569">('+esc(ba.accountName||'-')+')</span>'+(ba.promptPayId?' · ⚡ PP '+esc(ba.promptPayId):'');
 }
 function vcSaveTenant(cid){
   const c = DB.contracts.find(x => x.id === cid);
@@ -10090,41 +10136,27 @@ function vcSaveLandlord(cid){
   c.madeAt = get('vcEdit_madeAt');
   c.landlordSignerName = get('vcEdit_landlordSignerName');
   c.landlordSignerTitle = get('vcEdit_landlordSignerTitle');
-  const newBank = get('vcEdit_bank');
-  const newAcctNo = get('vcEdit_acctNo');
-  const newAcctName = get('vcEdit_accountName');
-  c.bank = newBank;
-  c.acctNo = newAcctNo;
-  c.accountName = newAcctName;
-  // Phase 2 sync: bank fields ที่ user แก้ → bind c.bankAccountId กับ entity ที่ match (หรือสร้างใหม่)
-  // กัน edit-not-stick: view mode ใช้ resolveBankFields() ดึง entity → ถ้าไม่ sync ค่าจะไม่เปลี่ยน
-  if(newBank || newAcctNo){
-    if(!Array.isArray(DB.bankAccounts)) DB.bankAccounts = [];
-    const norm = s => String(s||'').replace(/[\s\-]/g,'').toLowerCase();
-    const matchingBa = DB.bankAccounts.find(b => !b.archived &&
-      norm(b.accountNo) === norm(newAcctNo) &&
-      (b.bankName||'').trim() === newBank.trim() &&
-      (b.accountName||'').trim() === newAcctName.trim());
-    if(matchingBa){
-      c.bankAccountId = matchingBa.id;
-    } else {
-      // ไม่มี entity ที่ตรง → สร้างใหม่ + bind (auto entity จาก inline edit)
-      if(!DB.nextBankAccountId) DB.nextBankAccountId = 1;
-      const stripBank = s => String(s||'').replace(/^ธนาคาร\s*/,'').replace(/\s+จำกัด.*$/,'');
-      const newBa = {
-        id: DB.nextBankAccountId++,
-        label: [newAcctName, stripBank(newBank), newAcctNo].filter(Boolean).join(' · '),
-        bankName: newBank, accountNo: newAcctNo, accountName: newAcctName,
-        promptPayId: '', note: '[auto จากสัญญา '+(c.no||'#'+cid)+']',
-        archived: false
-      };
-      DB.bankAccounts.push(newBa);
-      c.bankAccountId = newBa.id;
-      addActivityLog('add_bank_account_inline','เพิ่มบัญชี (จากสัญญา '+(c.no||'#'+cid)+') — '+newAcctName);
+  // Phase 2 UX v2: dropdown bankAccountId แทน 3 text inputs · เลือก entity → mirror legacy fields
+  const baSelVal = get('vcEdit_bankAccountId');
+  if(baSelVal === '_new' || baSelVal === ''){
+    // "_new" = user กดยังไม่เสร็จ — เก็บค่าเดิม · "" = ไม่ตั้ง · clear binding
+    if(baSelVal === ''){
+      c.bankAccountId = null;
+      c.bank = '';
+      c.acctNo = '';
+      c.accountName = '';
     }
+    // ถ้า _new ไม่ทำอะไร · user ต้องเลือกใหม่หลังเพิ่ม
   } else {
-    // ทั้ง bank+acctNo ว่าง → clear binding
-    c.bankAccountId = null;
+    const baId = +baSelVal;
+    const ba = (DB.bankAccounts||[]).find(b => b.id === baId);
+    if(ba){
+      c.bankAccountId = baId;
+      // Mirror legacy fields สำหรับ backward compat
+      c.bank = ba.bankName||'';
+      c.acctNo = ba.accountNo||'';
+      c.accountName = ba.accountName||'';
+    }
   }
   addActivityLog('edit_contract','แก้ไขข้อมูลผู้ให้เช่า — '+(c.no||'#'+cid));
   window._vcEditMode = null;
