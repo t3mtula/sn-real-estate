@@ -19495,7 +19495,8 @@ function renderMetersPage(){
     const cells = {};
     matchedUtils.forEach(u => {
       const existing = DB.meterReadings.find(r => r.pid===p.pid && r.utilityKey===u.key && r.consumedMonth===consumedMonth);
-      const prev = getPrevReadingValue(p.pid, u.key, activeC?.id);
+      // Fix bug 1: pass consumedMonth → prev = reading "ก่อน" เดือนนี้ · ไม่ใช่ latest absolute
+      const prev = getPrevReadingValue(p.pid, u.key, activeC?.id, consumedMonth);
       cells[u.key] = {
         u, ut: getUtilityType(u.key) || {label:u.key, unit:'หน่วย', icon:'🔌'},
         existing,
@@ -19519,6 +19520,17 @@ function renderMetersPage(){
   // Filter options
   const utilFilterOpts = '<option value="all">ทุกประเภท</option>' + utilTypes.map(ut => `<option value="${ut.key}" ${meterPageUtilityFilter===ut.key?'selected':''}>${esc(ut.icon||'🔌')} ${esc(ut.label)}</option>`).join('');
 
+  // Month labels — สั้น สำหรับ column header
+  const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const _mLabel = key => {
+    const parts = String(key||'').split('-'); if(parts.length!==2) return key;
+    const m = parseInt(parts[1]), y = (parseInt(parts[0])+543).toString().slice(-2);
+    return ths[m-1]+' '+y;
+  };
+  const prevMonthKey = monthKeyAdd(consumedMonth, -1);
+  const _prevMonthLabel = _mLabel(prevMonthKey);
+  const _curMonthLabel = _mLabel(consumedMonth);
+
   // Build column headers (utility groups)
   const utilColHeaders = shownUtilTypes.map(ut => `
     <th colspan="3" style="padding:8px 10px;text-align:center;font-size:11px;color:#475569;font-weight:700;border-left:1px solid #e2e8f0;background:${ut.key==='water'?'#f0f9ff':ut.key==='elec'?'#fef3c7':'#f1f5f9'}">
@@ -19527,8 +19539,12 @@ function renderMetersPage(){
     </th>
   `).join('');
   const utilSubHeaders = shownUtilTypes.map(ut => `
-    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600;border-left:1px solid #e2e8f0">ก่อน</th>
-    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600">ปัจจุบัน</th>
+    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600;border-left:1px solid #e2e8f0" title="เลขมิเตอร์สิ้นเดือนก่อน">
+      เลขก่อน<br><span style="color:#94a3b8;font-weight:500;font-size:9px">(สิ้น ${esc(_prevMonthLabel)})</span>
+    </th>
+    <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600" title="เลขมิเตอร์ที่จดปัจจุบัน · ใช้ในใบบิลเดือนถัดไป">
+      เลขปัจจุบัน<br><span style="color:#94a3b8;font-weight:500;font-size:9px">(สิ้น ${esc(_curMonthLabel)})</span>
+    </th>
     <th style="padding:6px 8px;text-align:right;font-size:10px;color:#64748b;font-weight:600">ยอด</th>
   `).join('');
 
@@ -19552,7 +19568,7 @@ function renderMetersPage(){
         if(!cell.existing) allFilled = false;
         return `<td style="padding:6px 8px;text-align:right;color:#64748b;font-variant-numeric:tabular-nums;font-size:11.5px;border-left:1px solid #e2e8f0">${esc(String(cell.prev))}</td>
         <td style="padding:6px 8px;text-align:right">
-          <input type="number" id="${inputId}" data-pid="${r.p.pid}" data-utility="${cell.u.key}" data-prev="${cell.prev}" data-rate="${cell.u.rate||0}" value="${cell.now!=null?escAttr(String(cell.now)):''}" placeholder="—" min="${cell.prev}" style="width:88px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;font-family:Sarabun" oninput="mtrCalc('${inputId}')">
+          <input type="number" id="${inputId}" data-pid="${r.p.pid}" data-utility="${cell.u.key}" data-prev="${cell.prev}" data-rate="${cell.u.rate||0}" data-consumed-month="${escAttr(consumedMonth)}" data-original-value="${cell.now!=null?escAttr(String(cell.now)):''}" value="${cell.now!=null?escAttr(String(cell.now)):''}" placeholder="—" min="${cell.prev}" style="width:88px;padding:4px 7px;border:1px solid #cbd5e1;border-radius:5px;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;font-family:Sarabun" oninput="mtrCalc('${inputId}')" onblur="autoSaveMeterCell('${inputId}')" onkeydown="if(event.key==='Enter')this.blur();">
         </td>
         <td style="padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:600;color:${cell.existing?'#059669':'#0891b2'}" id="${inputId}_amount">${amount!=null?fmtBaht(amount,{sym:0,dec:0}):'-'}</td>`;
       }).join('');
@@ -19565,10 +19581,7 @@ function renderMetersPage(){
       return `<tr style="border-bottom:1px solid #f1f5f9">
         <td style="padding:10px 12px;min-width:200px"><div style="font-size:12.5px;font-weight:600;color:#1e293b">${esc(r.p.name)}</div>${r.activeC?'<div style="font-size:10.5px;color:#64748b">'+esc(r.activeC.tenant||'-')+' · '+esc(r.activeC.no||'')+'</div>':'<div style="font-size:10.5px;color:#dc2626">ว่าง — ไม่มีสัญญา</div>'}</td>
         ${utilCells}
-        <td style="padding:10px 12px;text-align:center;border-left:1px solid #e2e8f0">${statusBadge}</td>
-        <td style="padding:10px 8px;text-align:center">
-          <button onclick="saveMeterRowAll('${r.p.pid}','${consumedMonth}')" style="padding:6px 12px;background:#4338ca;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun">💾 บันทึก</button>
-        </td>
+        <td style="padding:10px 12px;text-align:center;border-left:1px solid #e2e8f0" id="mtrStatus_${r.p.pid}">${statusBadge}</td>
       </tr>`;
     }).join('');
 
@@ -19622,7 +19635,7 @@ function renderMetersPage(){
       <input type="text" id="mtrSearchInput" value="${esc(meterPagePropFilter)}" oninput="meterPagePropFilter=this.value;clearTimeout(window._mtrSearchT);window._mtrSearchT=setTimeout(()=>render(),250)" placeholder="ค้นหาทรัพย์สิน..." style="padding:8px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:Sarabun;flex:1;max-width:300px">
     </div>
 
-    <!-- Table — 1 row per property · utility columns เรียงต่อกัน -->
+    <!-- Table — 1 row per property · utility columns เรียงต่อกัน · auto-save on blur -->
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:auto">
       <table style="width:100%;border-collapse:collapse;font-family:Sarabun;min-width:${500 + shownUtilTypes.length*260}px">
         <thead>
@@ -19630,7 +19643,6 @@ function renderMetersPage(){
             <th rowspan="2" style="padding:10px 12px;text-align:left;font-size:11px;color:#475569;font-weight:700;border-right:1px solid #e2e8f0">ทรัพย์สิน / ผู้เช่า</th>
             ${utilColHeaders}
             <th rowspan="2" style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700;border-left:1px solid #e2e8f0">สถานะ</th>
-            <th rowspan="2" style="padding:10px 12px;text-align:center;font-size:11px;color:#475569;font-weight:700">Action</th>
           </tr>
           <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
             ${utilSubHeaders}
@@ -19639,6 +19651,7 @@ function renderMetersPage(){
         <tbody>${bodyRows}</tbody>
       </table>
     </div>
+    <div style="font-size:11px;color:#64748b;margin-top:8px;font-style:italic">💡 พิมพ์เลข → กด Tab/Enter หรือคลิกที่อื่น → บันทึกอัตโนมัติ</div>
   </div>`;
 }
 
@@ -19660,6 +19673,108 @@ function mtrCalc(inputId){
   const amount = units * rate;
   if(unitsEl) unitsEl.textContent = units;
   if(amountEl) amountEl.textContent = fmtBaht(amount, {sym:0,dec:0});
+}
+
+// Auto-save 1 meter cell บน blur — no toast spam · update inline + persist
+function autoSaveMeterCell(inputId){
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+  const pid = +inp.dataset.pid;
+  const utilityKey = inp.dataset.utility;
+  const consumedMonth = inp.dataset.consumedMonth;
+  const original = inp.dataset.originalValue || '';
+  const raw = (inp.value||'').trim();
+  // ไม่มีการเปลี่ยน → skip
+  if(raw === original) return;
+  const p = (DB.properties||[]).find(pp => pp.pid === pid);
+  if(!p) return;
+  // ปล่อยว่าง — ถ้าเดิมมี reading → ลบ (= "เคลียร์")
+  if(raw === ''){
+    const idx = (DB.meterReadings||[]).findIndex(r => r.pid===pid && r.utilityKey===utilityKey && r.consumedMonth===consumedMonth);
+    if(idx >= 0){
+      DB.meterReadings.splice(idx, 1);
+      addActivityLog('delete_meter','ลบมิเตอร์ '+p.name+' · '+utilityKey+' · '+consumedMonth);
+      // re-mirror property.utilities[].lastReading จาก latest reading ที่เหลือ
+      _remirrorPropertyLastReading(pid, utilityKey);
+      save();
+      _showInlineSaved(pid, 'ลบแล้ว');
+      inp.dataset.originalValue = '';
+      const amtEl = document.getElementById(inputId+'_amount');
+      if(amtEl){ amtEl.textContent = '-'; amtEl.style.color = '#0891b2'; }
+    }
+    return;
+  }
+  const now = parseFloat(raw);
+  if(isNaN(now)){
+    _showInlineSaved(pid, '⚠ ตัวเลขไม่ถูก', '#dc2626');
+    return;
+  }
+  const prev = parseFloat(inp.dataset.prev) || 0;
+  if(now < prev){
+    _showInlineSaved(pid, '⚠ ต้อง ≥ '+prev, '#dc2626');
+    return;
+  }
+  const u = (p.utilities||[]).find(uu => uu.key === utilityKey);
+  if(!u || !u.enabled){ _showInlineSaved(pid, '⚠ utility ปิด', '#dc2626'); return; }
+  const rate = parseFloat(inp.dataset.rate) || u.rate || 0;
+  const units = now - prev;
+  const amount = +(units * rate).toFixed(2);
+  const billMonth = monthKeyAdd(consumedMonth, 1);
+  const activeC = (DB.contracts||[]).find(c => c.pid===pid && !c.cancelled && (()=>{const st=status(c); return st==='active'||st==='upcoming';})());
+  if(!Array.isArray(DB.meterReadings)) DB.meterReadings = [];
+  let entry = DB.meterReadings.find(r => r.pid===pid && r.utilityKey===utilityKey && r.consumedMonth===consumedMonth);
+  if(entry){
+    entry.prev = prev; entry.now = now; entry.units = units; entry.rate = rate; entry.amount = amount;
+    entry.updatedAt = new Date().toISOString();
+    entry.by = (currentUser&&currentUser.name) || entry.by || '';
+  } else {
+    if(!DB.nextMeterReadingId) DB.nextMeterReadingId = 1;
+    DB.meterReadings.push({
+      id: DB.nextMeterReadingId++,
+      pid, cid: activeC?.id || null,
+      utilityKey, consumedMonth, billMonth,
+      prev, now, units, rate, amount,
+      recordedAt: typeof todayBE==='function' ? todayBE() : new Date().toLocaleDateString('th-TH'),
+      note: '',
+      by: (currentUser&&currentUser.name) || '',
+      createdAt: new Date().toISOString()
+    });
+  }
+  _remirrorPropertyLastReading(pid, utilityKey);
+  inp.dataset.originalValue = raw;
+  addActivityLog('save_meter_cell','บันทึกมิเตอร์ '+p.name+' · '+utilityKey+' · '+consumedMonth+' = '+now);
+  save();
+  _showInlineSaved(pid, '✓ บันทึก '+fmtBaht(amount,{sym:0,dec:0})+' บ.');
+  // Update cell amount inline (ไม่ rerender — กัน focus หาย)
+  const amtEl = document.getElementById(inputId+'_amount');
+  if(amtEl){ amtEl.textContent = fmtBaht(amount,{sym:0,dec:0}); amtEl.style.color = '#059669'; }
+  // KPI จะ refresh ตอน user เปลี่ยนเดือน หรือ refresh page
+}
+
+// Re-mirror property.utilities[].lastReading จาก reading ล่าสุดที่ยังเหลือ (หลัง delete หรือ edit)
+function _remirrorPropertyLastReading(pid, utilityKey){
+  const p = (DB.properties||[]).find(pp => pp.pid === pid);
+  if(!p || !Array.isArray(p.utilities)) return;
+  const pu = p.utilities.find(u => u.key === utilityKey);
+  if(!pu) return;
+  const list = (DB.meterReadings||[]).filter(r => r.pid===pid && r.utilityKey===utilityKey);
+  if(list.length === 0){
+    pu.lastReading = 0;
+    pu.lastConsumedMonth = '';
+    return;
+  }
+  list.sort((a,b) => String(b.consumedMonth||'').localeCompare(String(a.consumedMonth||'')));
+  pu.lastReading = list[0].now;
+  pu.lastConsumedMonth = list[0].consumedMonth;
+}
+
+// แสดง status feedback inline ใน column สถานะ — ไม่ใช้ toast เพื่อกัน spam
+function _showInlineSaved(pid, msg, color){
+  const el = document.getElementById('mtrStatus_'+pid);
+  if(!el) return;
+  const bgClr = color || '#15803d';
+  const bg = color ? '#fee2e2' : '#dcfce7';
+  el.innerHTML = '<span style="font-size:10px;background:'+bg+';color:'+bgClr+';padding:2px 8px;border-radius:99px;font-weight:600">'+esc(msg)+'</span>';
 }
 
 // Save all utility readings ใน row เดียวกัน (1 property หลาย utility)
@@ -23739,13 +23854,28 @@ function getLatestMeterReading(pid, utilityKey){
   return list[0];
 }
 // Get previous reading value (number) for a property/utility — falls back to property.lastReading or contract.meterInit
-function getPrevReadingValue(pid, utilityKey, cid){
-  var latest = getLatestMeterReading(pid, utilityKey);
-  if(latest && typeof latest.now === 'number') return latest.now;
-  // fallback to property.utilities lastReading
+function getPrevReadingValue(pid, utilityKey, cid, beforeMonth){
+  // Fix bug 1: เมื่อระบุ beforeMonth → หา reading ที่ consumedMonth < beforeMonth ล่าสุด
+  // (ไม่งั้น prev = reading ของเดือนใหม่กว่า → แก้ย้อนหลังไม่ได้)
+  if(Array.isArray(DB.meterReadings)){
+    var list = DB.meterReadings.filter(function(r){
+      if(r.pid !== pid || r.utilityKey !== utilityKey) return false;
+      if(beforeMonth && String(r.consumedMonth||'') >= String(beforeMonth)) return false;
+      return true;
+    });
+    if(list.length > 0){
+      list.sort(function(a,b){ return String(b.consumedMonth||'').localeCompare(String(a.consumedMonth||'')); });
+      return list[0].now;
+    }
+  }
+  // No earlier reading → fallback property lastReading (ใช้เฉพาะถ้า lastConsumedMonth < beforeMonth)
   var p = (DB.properties||[]).find(function(pp){ return pp.pid === pid; });
   var pu = getPropertyUtility(p, utilityKey);
-  if(pu && typeof pu.lastReading === 'number') return pu.lastReading;
+  if(pu && typeof pu.lastReading === 'number'){
+    if(!beforeMonth || !pu.lastConsumedMonth || String(pu.lastConsumedMonth) < String(beforeMonth)){
+      return pu.lastReading;
+    }
+  }
   // fallback to contract.meterInit
   if(cid){
     var c = (DB.contracts||[]).find(function(cc){ return cc.id === cid; });
