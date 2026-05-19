@@ -14053,16 +14053,8 @@ function contractHTML(contracts,tplOverride,hideToolbar){
 @page { size: A4; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
 body { background: #fff; color: #1a202c; }
-.page { width: 210mm; min-height: 297mm; padding: 14mm 20mm 14mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
+.page { width: 210mm; padding: 14mm 20mm 14mm; margin: 0 auto; position: relative; page-break-after: always; }
 .page:last-child { page-break-after: auto; }
-/* Continuation pages — compact (content actual height · ไม่บังคับ A4) เพื่อไม่ให้มี blank space กลาง */
-.continuation-page { min-height: auto; }
-/* Flex push-down เฉพาะ main page · continuation ใช้ normal flow */
-.page > .c-header { flex-shrink: 0; }
-.page-body { flex: 1; display: flex; flex-direction: column; }
-.page-body-grow { flex: 1; }
-.continuation-page .page-body { display: block; }
-.continuation-page .sig-section { margin-top: 22px; }
 
 /* ════════════════════════════════════════════
    Professional Contract Print · Design System
@@ -14096,8 +14088,6 @@ body { background: #fff; color: #1a202c; }
 
 /* ── Contract body ── */
 .c-body { font-size: 13.5px; line-height: 1.85; color: #1e293b; text-align: justify; margin-bottom: 18px; }
-/* หลัง splitOverflowPages flatten — apply body styles ที่ clauses เป็น direct children ของ page-body */
-.page-body > .c-intro, .page-body > .clause, .page-body > .sub-clause, .page-body > .c-closing { font-size: 13.5px; line-height: 1.85; color: #1e293b; text-align: justify; }
 .c-intro { margin-bottom: 16px; text-indent: 28px; }
 .clause { margin-bottom: 12px; padding-left: 0; }
 .clause-num { font-weight: 700; color: #1e3a5f; font-size: 13.5px; }
@@ -14111,8 +14101,8 @@ body { background: #fff; color: #1a202c; }
 /* ── Section divider ── */
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
-/* ── Signature section · ติด bottom ด้วย margin-top:auto (flex child) ── */
-.sig-section { margin-top: auto; padding-top: 10px; }
+/* ── Signature section · flow ตามหลัง content (natural pagination · ไม่ pin bottom) ── */
+.sig-section { margin-top: 24px; padding-top: 10px; }
 .sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
 .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 10px; }
 .sig-block { text-align: center; }
@@ -14149,21 +14139,16 @@ body { background: #fff; color: #1a202c; }
 .ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
 .ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
 
-/* ── Print mode: PARITY กับ preview · flex column + min-height = paper content area
-     → ลายเซ็น (margin-top:auto) ถูกดันไป bottom ของกระดาษเสมอ (เหมือนสัญญากระดาษ) ── */
+/* ── Print mode: natural flow · ปล่อย browser จัด pagination ตาม CSS spec
+     → ไม่ pin sig bottom · ไม่ fill paper · clauses pack แน่นทุกหน้า ── */
 @media print {
   @page { size: A4; margin: 14mm 20mm 14mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  /* .page = 1 paper · flex column ให้ sig auto-margin push ไป bottom ของหน้า ·
-     min-height = paper content area (297-14-14 = 269mm) → fill paper เสมอ ·
-     page-break-after:always → paper ใหม่หลังจบ ·
-     page-break-inside:avoid → ห้าม split .page ข้ามกระดาษ */
-  .page { padding: 0 !important; min-height: calc(297mm - 14mm - 14mm) !important; height: auto !important; margin: 0; box-shadow: none; display: flex !important; flex-direction: column; page-break-inside: avoid; page-break-after: always; break-inside: avoid; break-after: page; }
+  .page { padding: 0 !important; min-height: 0 !important; height: auto !important; margin: 0; box-shadow: none; display: block; page-break-after: always; break-after: page; }
   .page:last-child { page-break-after: auto; break-after: auto; }
-  /* page-body fill remaining height · sig auto-push ลง bottom */
-  .page-body { display: flex !important; flex-direction: column !important; flex: 1 1 auto !important; }
-  .sig-section { margin-top: auto !important; padding-top: 12px; }
+  .page-body { display: block; }
+  .sig-section { padding-top: 12px; }
   /* clause/sub-clause + signature + cards ห้าม split */
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
   .parties-table, .sig-grid, .sig-block, .ap-card, .sig-section { page-break-inside: avoid; break-inside: avoid; }
@@ -14176,11 +14161,9 @@ body { background: #fff; color: #1a202c; }
   body.embed { background: #e2e8f0; padding: 16px 0; }
   /* Preview pages — A4 cards · flex column + min-height = paper content height
      → sig auto-margin push ลง bottom ของหน้า (ตรงกับ @media print) */
-  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: flex; flex-direction: column; }
+  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: auto; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
   /* Continuation pages (clauses ต่อกัน · ไมฺ่มี sig) — min-height:auto · ไม่ต้อง fill paper */
-  body.embed .continuation-page:not(:has(.sig-section)) { min-height: auto; }
-  body.embed .page-body { display: flex; flex-direction: column; flex: 1 1 auto; }
-  body.embed .sig-section { margin-top: auto; padding-top: 12px; }
+  body.embed .page-body { display: block; }
 }
 </style></head><body>
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
@@ -14246,7 +14229,7 @@ ${contracts.map(c=>{
     '<div class="page-body">'+
 
     // ── Body ──
-    '<div class="c-body page-body-grow">'+
+    '<div class="c-body">'+
       '<p class="c-intro">'+renderTemplateText(tpl.intro||'',c)+'</p>'+
       (function(){
         const merged=(typeof applyClauseOverrides==='function')
@@ -14413,123 +14396,9 @@ function openPrintOverlay(contracts,title,rawHTML){
   document.getElementById('printOverlay').style.display='block';
   const frame=document.getElementById('printFrame');
   frame.srcdoc=html;
-  // หลัง iframe โหลดเสร็จ → split .page ที่ content ยาวเกิน 297mm ออกเป็นหน้าใหม่
-  // → preview แสดงเป็น A4 card discrete ตรงกับ print จริง · ไม่มี dashed indicator
-  frame.onload = () => {
-    try { splitOverflowPages(frame.contentDocument); } catch(e) { /* iframe ยังไม่พร้อม */ }
-  };
+  // Preview = single tall card · browser จัด pagination เองตอน print
 }
 
-// ── Paginate contract pages ──
-// แนวคิด (rework v3):
-//   ปัญหาเดิม: flex auto-margin + min-height ทำให้ตำแหน่ง intrinsic ของ children ผิด
-//             วัด rect.bottom ตอนที่ sig ถูก flex push ลงล่างสุด → คิดว่าเกิน → split
-//   วิธีใหม่: เคลียร์ flex + min-height ทั้งหมดก่อนวัด → ตำแหน่งจริงตามเนื้อหา
-//           split โดยใช้ rect.bottom (รวม margin ทุกอย่างถูกต้องแล้ว) → restore styles
-function splitOverflowPages(doc){
-  if(!doc) return;
-  const MM = 3.7795;
-  const A4 = 297 * MM;
-  const PAD_TOP = 14 * MM;          // sync กับ .page padding-top (14mm)
-  const PAD_BOT = 14 * MM;          // sync กับ .page padding-bottom (14mm)
-  const SAFETY = 0;     // 0 = ใช้พื้นที่กระดาษเต็ม · @page margin ใน print mode คุม clip ให้แล้ว
-  const LAST_CHILD_TOLERANCE = 30; // ถ้า last child เกินไม่กี่ pixel ปล่อยให้เกิน · กัน page-ลอย ที่มีแค่ sig
-  // ── 1) Flatten .c-body → direct children of .page-body ──
-  doc.querySelectorAll('.page-body > .c-body').forEach(cBody => {
-    const parent = cBody.parentNode;
-    while(cBody.firstChild) parent.insertBefore(cBody.firstChild, cBody);
-    cBody.remove();
-  });
-  // ── 2) Disable flex behaviors before measuring ──
-  // .page เป็น flex column (min-height 297mm) → fills paper
-  // .page-body flex:1 → grows · sig-section margin-top:auto → pushes to bottom
-  // ทั้งหมดทำให้ rect ของ children "ลอย" ไม่ใช่ตำแหน่ง intrinsic
-  // เคลียร์ทั้งหมด → ทุก child positions = natural flow
-  const restoreOps = [];
-  const disable = (el, prop, val) => {
-    restoreOps.push({el, prop, prev: el.style[prop]});
-    el.style[prop] = val;
-  };
-  doc.querySelectorAll('.page').forEach(el => {
-    disable(el, 'minHeight', 'auto');
-    disable(el, 'display', 'block');
-  });
-  doc.querySelectorAll('.page-body').forEach(el => {
-    disable(el, 'flex', 'none');
-    disable(el, 'display', 'block');
-  });
-  doc.querySelectorAll('.sig-section').forEach(el => {
-    disable(el, 'marginTop', '10px');  // override auto
-  });
-  doc.querySelectorAll('.page-body-grow').forEach(el => {
-    disable(el, 'flex', 'none');
-  });
-  // Force layout pass
-  doc.body.offsetHeight;
-  // ── 3) Paginate each page · split overflow ──
-  const queue = Array.from(doc.querySelectorAll('.page'));
-  let iter = 0;
-  while(queue.length && iter < 200){
-    iter++;
-    const page = queue.shift();
-    if(!page.isConnected) continue;
-    const body = page.querySelector('.page-body');
-    if(!body) continue;
-    // คำนวณ space ของ page-body
-    // - First page of section: subtract header/parties (อยู่ใน .page แต่นอก page-body)
-    // - Continuation: full page minus top padding
-    const isCont = page.classList.contains('continuation-page');
-    const pageRect = page.getBoundingClientRect();
-    const bodyRect = body.getBoundingClientRect();
-    const bodyOffsetTop = bodyRect.top - pageRect.top;
-    let maxH;
-    if(isCont){
-      maxH = A4 - PAD_TOP - PAD_BOT - SAFETY;
-    } else {
-      maxH = A4 - bodyOffsetTop - PAD_BOT - SAFETY;
-    }
-    if(maxH <= 100) continue; // page header ยาวเกินกระดาษ (กัน infinite loop)
-    // Find split point: first child whose bottom > maxH (relative to body top)
-    const children = Array.from(body.children);
-    if(children.length <= 1) continue;
-    let splitIdx = -1;
-    for(let i = 0; i < children.length; i++){
-      const cBottomRel = children[i].getBoundingClientRect().bottom - bodyRect.top;
-      const isLast = (i === children.length - 1);
-      // สำหรับ child สุดท้าย · ปล่อยให้เกินได้นิดหน่อย (LAST_CHILD_TOLERANCE)
-      // เพราะถ้า split แค่ปลาย จะได้หน้าใหม่มีแค่ 1 child (เช่น sig section ลอยๆ ห่วย)
-      const cap = isLast ? (maxH + LAST_CHILD_TOLERANCE) : maxH;
-      if(cBottomRel > cap){
-        splitIdx = i;
-        break;
-      }
-    }
-    if(splitIdx === -1) continue; // ทุกอย่างใส่หน้านี้ได้พอดี
-    if(splitIdx === 0) splitIdx = 1; // กัน group ว่าง — ดันอย่างน้อย 1 child ใส่ก่อน
-    // ย้าย children[splitIdx..] ไป continuation page ใหม่
-    const moveOut = children.slice(splitIdx);
-    const newPage = doc.createElement('div');
-    newPage.className = 'page continuation-page';
-    // ต้อง disable flex บน new page ด้วย เพื่อให้ recursive measure ถูกต้อง
-    newPage.style.minHeight = 'auto';
-    newPage.style.display = 'block';
-    const newBody = doc.createElement('div');
-    newBody.className = 'page-body';
-    newBody.style.flex = 'none';
-    newBody.style.display = 'block';
-    moveOut.forEach(c => newBody.appendChild(c));
-    newPage.appendChild(newBody);
-    // Track inline styles ของ newPage/newBody เพื่อ restore ทีหลัง
-    restoreOps.push({el: newPage, prop: 'minHeight', prev: ''});
-    restoreOps.push({el: newPage, prop: 'display', prev: ''});
-    restoreOps.push({el: newBody, prop: 'flex', prev: ''});
-    restoreOps.push({el: newBody, prop: 'display', prev: ''});
-    page.after(newPage);
-    queue.push(newPage);
-  }
-  // ── 4) Restore inline styles → flex layout ทำงานปกติเหมือนเดิม ──
-  restoreOps.forEach(op => { op.el.style[op.prop] = op.prev || ''; });
-}
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
   document.getElementById('printFrame').srcdoc='';
