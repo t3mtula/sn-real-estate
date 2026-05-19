@@ -19529,7 +19529,7 @@ function renderMetersPage(){
   // Filter options
   const utilFilterOpts = '<option value="all">ทุกประเภท</option>' + utilTypes.map(ut => `<option value="${ut.key}" ${meterPageUtilityFilter===ut.key?'selected':''}>${esc(ut.icon||'🔌')} ${esc(ut.label)}</option>`).join('');
 
-  // Month labels — สั้น สำหรับ column header
+  // Month labels — สั้น สำหรับ column header + buttons (ต้อง declare ก่อน propRows.map() ใช้)
   const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const _mLabel = key => {
     const parts = String(key||'').split('-'); if(parts.length!==2) return key;
@@ -19539,6 +19539,16 @@ function renderMetersPage(){
   const prevMonthKey = monthKeyAdd(consumedMonth, -1);
   const _prevMonthLabel = _mLabel(prevMonthKey);
   const _curMonthLabel = _mLabel(consumedMonth);
+  // Full month labels for header bar (year 4-digit) — used in bodyRows + main template
+  const _mFullLabel = key => {
+    const parts = String(key||'').split('-'); if(parts.length!==2) return key;
+    const m = parseInt(parts[1]), y = parseInt(parts[0])+543;
+    return ths[m-1]+' '+y;
+  };
+  const monthLabel = _mFullLabel(consumedMonth);
+  const billMonthLabel = _mFullLabel(billMonth);
+  const prevMonth = monthKeyAdd(consumedMonth, -1);
+  const nextMonth = monthKeyAdd(consumedMonth, 1);
 
   // Build column headers (utility groups)
   const utilColHeaders = shownUtilTypes.map(ut => `
@@ -19606,22 +19616,6 @@ function renderMetersPage(){
         <td style="padding:10px 12px;text-align:center;border-left:1px solid #e2e8f0">${invBadge}</td>
       </tr>`;
     }).join('');
-
-  // Month nav
-  const prevMonth = monthKeyAdd(consumedMonth, -1);
-  const nextMonth = monthKeyAdd(consumedMonth, 1);
-  const monthLabel = (() => {
-    const parts = consumedMonth.split('-');
-    const m = parseInt(parts[1]); const y = parseInt(parts[0]) + 543;
-    const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    return ths[m-1]+' '+y;
-  })();
-  const billMonthLabel = (() => {
-    const parts = billMonth.split('-');
-    const m = parseInt(parts[1]); const y = parseInt(parts[0]) + 543;
-    const ths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
-    return ths[m-1]+' '+y;
-  })();
 
   $('content').innerHTML = `<div style="max-width:1300px;margin:0 auto;font-family:Sarabun">
     <!-- Header + Month nav -->
