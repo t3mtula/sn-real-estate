@@ -46,7 +46,7 @@ function showGoogleLoginScreen() {
           เข้าสู่ระบบด้วย Google
         </button>
         <div id="loginErr" style="margin-top:14px;font-size:12px;color:#dc2626;min-height:18px"></div>
-        <div style="margin-top:24px;font-size:11px;color:#94a3b8">เฉพาะบัญชีที่ได้รับอนุญาตเท่านั้น</div>
+        <div style="margin-top:24px;font-size:11px;color:#64748b">เฉพาะบัญชีที่ได้รับอนุญาตเท่านั้น</div>
       </div>
     </div>`;
 }
@@ -140,7 +140,7 @@ function _showLoadingScreen() {
       <div style="text-align:center;color:#64748b">
         <div style="font-size:48px;margin-bottom:16px">⏳</div>
         <div style="font-size:15px;font-weight:600;margin-bottom:8px">กำลังโหลดข้อมูล...</div>
-        <div id="loadingStatus" style="font-size:12px;color:#94a3b8"></div>
+        <div id="loadingStatus" style="font-size:12px;color:#64748b"></div>
       </div>
     </div>`;
 }

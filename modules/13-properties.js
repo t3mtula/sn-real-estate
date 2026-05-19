@@ -19,6 +19,34 @@ function propTabBar(){
 }
 
 
+// ========== PROPERTY HELPERS ==========
+// ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน (ดาดฟ้า, ที่ดินใหญ่, ฯลฯ)
+// ใช้สำหรับ skip การเช็ค "ซ้อน!" — เช่นดาดฟ้าใส่เสาส่งสัญญาณหลายเจ้าได้ปกติ
+function isMultiTenantProperty(pidOrProp){
+  let p = pidOrProp;
+  if(typeof pidOrProp === 'number' || typeof pidOrProp === 'string'){
+    p = (DB.properties||[]).find(x => x.pid === +pidOrProp);
+  }
+  if(!p) return false;
+  if(p.multiTenant === true) return true;
+  // Default: ดาดฟ้าเกือบทั้งหมดมีหลายผู้เช่าพร้อมกัน
+  if(p.type === 'rooftop_tower') return true;
+  return false;
+}
+
+// Display address — fallback ไป titleDeed ถ้า address ว่าง/สั้นเกิน (เคสที่ดินเปล่า)
+function getPropertyAddress(p){
+  if(!p) return '';
+  const addr = (p.address || p.location || '').trim();
+  // ถือว่า address ใช้งานได้จริงต้องมี markers (ต./อ./จ./แขวง/เขต/หมู่/ซอย/ถนน) หรือยาวพอ
+  const markers = /(ต\.|อ\.|จ\.|แขวง|เขต|หมู่|ม\.\d|ซอย|ซ\.|ถนน|ถ\.)/;
+  if(addr && (addr.length >= 15 || markers.test(addr))) return addr;
+  // Fallback: titleDeed มักมีตำแหน่งโฉนด (ต.X อ.Y จ.Z) ของที่ดินเปล่า
+  const td = (p.titleDeed || '').trim();
+  if(td && markers.test(td)) return td;
+  return addr || td || '';
+}
+
 // ========== PROPERTIES ==========
 let propFilter = { q: '', type: 'all', loc: 'all', status: 'all' };
 function clearPropFilter(){propFilter={q:'',type:'all',loc:'all',status:'all'};renderProperties();}
@@ -49,18 +77,20 @@ function propInfo(p) {
   const bestStatus = expiring.length > 0 ? 'expiring' : (active.length > 0 ? 'active' : (upcoming.length > 0 ? 'upcoming' : 'vacant'));
   // Get landlords from active contracts
   const landlords = [...new Set([...active,...upcoming].map(c=>c.landlord).filter(Boolean))];
-  // Overlap check — flag ANY contracts with overlapping date ranges (>0 days shared)
-  const nonCancelled=cs.filter(x=>{const sx=status(x);return sx!=='cancelled';});
+  // Overlap check — skip ทรัพย์สินที่แบ่งให้หลายผู้เช่าได้พร้อมกัน (ดาดฟ้า ฯลฯ)
   const overlapIds=new Set();
-  for(let i=0;i<nonCancelled.length;i++){
-    for(let j=i+1;j<nonCancelled.length;j++){
-      const as=parseBE(nonCancelled[i].start),ae=parseBE(nonCancelled[i].end);
-      const bs=parseBE(nonCancelled[j].start),be=parseBE(nonCancelled[j].end);
-      if(as&&ae&&bs&&be){
-        const overlapMs=Math.min(ae.getTime(),be.getTime())-Math.max(as.getTime(),bs.getTime());
-        if(overlapMs>86400000){ // >1 day = real overlap, not edge-touch
-          overlapIds.add(nonCancelled[i].id);
-          overlapIds.add(nonCancelled[j].id);
+  if(!isMultiTenantProperty(p)){
+    const nonCancelled=cs.filter(x=>{const sx=status(x);return sx!=='cancelled';});
+    for(let i=0;i<nonCancelled.length;i++){
+      for(let j=i+1;j<nonCancelled.length;j++){
+        const as=parseBE(nonCancelled[i].start),ae=parseBE(nonCancelled[i].end);
+        const bs=parseBE(nonCancelled[j].start),be=parseBE(nonCancelled[j].end);
+        if(as&&ae&&bs&&be){
+          const overlapMs=Math.min(ae.getTime(),be.getTime())-Math.max(as.getTime(),bs.getTime());
+          if(overlapMs>86400000){ // >1 day = real overlap, not edge-touch
+            overlapIds.add(nonCancelled[i].id);
+            overlapIds.add(nonCancelled[j].id);
+          }
         }
       }
     }
@@ -361,10 +391,12 @@ function renderProperties(){
 function renderPropContracts(p, info) {
   // === Property details section ===
   const imgCount = (p.images||[]).length;
+  // ที่อยู่สำหรับแสดงผล — fallback ไป titleDeed ถ้า address ว่าง/สั้นเกิน (เคสที่ดินเปล่า)
+  const dispAddr = (typeof getPropertyAddress === 'function') ? getPropertyAddress(p) : (p.address||p.location||'');
   const propDetailHTML = `<div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:12px">
     <div>
       <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">ที่อยู่</div>
-      <div style="color:#334155;line-height:1.4">${esc(p.address)||'<span style=\"color:#ef4444\">ไม่ระบุ</span>'}</div>
+      <div style="color:#334155;line-height:1.4">${esc(dispAddr)||'<span style=\"color:#ef4444\">ไม่ระบุ</span>'}</div>
     </div>
     <div>
       <div style="color:#64748b;font-size:10px;font-weight:600;margin-bottom:2px">เลขโฉนด</div>
@@ -624,7 +656,7 @@ function buildContractTimeline(c, cInvoices){
       : `<button onclick="event.stopPropagation();closeModal();viewInvoiceDetail(${inv.id})" style="padding:5px 10px;background:#eef2ff;color:#4338ca;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:Sarabun;flex-shrink:0" onmouseover="this.style.background='#e0e7ff'" onmouseout="this.style.background='#eef2ff'">ดูรายละเอียด</button>`;
 
     return `<div style="display:flex;gap:10px;align-items:center;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;margin-bottom:6px">
-      ${slipThumb||'<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;flex-shrink:0;font-size:14px">📄</div>'}
+      ${slipThumb||'<div style="width:36px;height:36px;border-radius:6px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#64748b;flex-shrink:0;font-size:14px">📄</div>'}
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="font-size:13px;font-weight:600;color:#1e293b">${fmtMonth(inv.month)}</span>
@@ -642,7 +674,7 @@ function buildContractTimeline(c, cInvoices){
   }).join('');
 
   const showMoreBtn=remaining>0?`<div style="text-align:center;margin-top:6px">
-    <button onclick="showMoreVcTimeline()" style="padding:8px 18px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">▾ แสดงเพิ่ม ${Math.min(12,remaining)} ใบ <span style="color:#94a3b8;font-weight:400">(เหลือ ${remaining})</span></button>
+    <button onclick="showMoreVcTimeline()" style="padding:8px 18px;background:#fff;color:#4338ca;border:1px solid #c7d2fe;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:Sarabun" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background='#fff'">▾ แสดงเพิ่ม ${Math.min(12,remaining)} ใบ <span style="color:#64748b;font-weight:400">(เหลือ ${remaining})</span></button>
   </div>`:'';
 
   return `<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">
@@ -684,13 +716,13 @@ function _vcWorkflowStrip(c, st){
           <div style="font-size:11px;font-weight:700;color:${inspDone?'#059669':'#92400e'}">${inspDone?'✓ ตรวจแล้ว':'1. ตรวจรับคืนทรัพย์'}</div>
           <div style="font-size:10px;color:#64748b;margin-top:2px">${inspDone?'กดดูรายงาน':'กดเพื่อเริ่มตรวจ'}</div>
         </button>
-        <div style="display:flex;align-items:center;color:#94a3b8;font-size:18px;font-weight:300">›</div>
+        <div style="display:flex;align-items:center;color:#64748b;font-size:18px;font-weight:300">›</div>
         ${hasDeposit
           ?`<button onclick="openDepositReturn(${cid})" style="flex:1;padding:8px 10px;background:${depReturnDone?'#ecfdf5':'#fff'};border:1.5px solid ${depReturnDone?'#059669':'#fbbf24'};border-radius:8px;cursor:pointer;text-align:left;font-family:Sarabun">
               <div style="font-size:11px;font-weight:700;color:${depReturnDone?'#059669':'#92400e'}">${depReturnDone?'✓ คืนแล้ว':'2. คืนเงินประกัน'}</div>
               <div style="font-size:10px;color:#64748b;margin-top:2px">${depReturnDone?'กดดูใบคืน':'กดเพื่อดำเนินการ'}</div>
             </button>`
-          :`<div style="flex:1;padding:8px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#94a3b8">ไม่มีเงินประกัน</div>`}
+          :`<div style="flex:1;padding:8px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#64748b">ไม่มีเงินประกัน</div>`}
       </div>
     </div>`;
   }
@@ -825,20 +857,20 @@ function viewContract(id) {
             ${st==='active'&&remaining>0&&remaining<=180?`<span style="font-size:11px;color:#6b7280">เหลือ ${remaining} วัน</span>`:''}
           </div>
           <div style="display:flex;gap:20px;flex-wrap:wrap">
-            <div><div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ผู้เช่า</div>
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">ผู้เช่า</div>
               <div style="font-size:16px;font-weight:700;color:#111827">${esc(c.tenant)||'-'}</div>
               ${c.phone?`<div style="font-size:12px;color:#6b7280">${esc(c.phone)}</div>`:''}
             </div>
-            <div><div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ผู้ให้เช่า</div>
+            <div><div style="font-size:11px;color:#64748b;margin-bottom:2px">ผู้ให้เช่า</div>
               <div style="font-size:16px;font-weight:700;color:#111827">${esc(shortLandlordName(c.landlord))||'-'}</div>
             </div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-shrink:0">
           <div style="text-align:right">
-            <div style="font-size:11px;color:#9ca3af;margin-bottom:2px">ค่าเช่า/เดือน</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:2px">ค่าเช่า/เดือน</div>
             <div style="font-size:22px;font-weight:800;color:${stColors[st]};line-height:1.2">${moRev?fmtBaht(moRev,{sym:0})+' <span style="font-size:13px;font-weight:600">บ.</span>':'-'}</div>
-            <div style="font-size:11px;color:#9ca3af">${freq.type==='monthly'?'รายเดือน':freq.type==='quarterly'?'รายไตรมาส':freq.type==='semi'?'ราย 6 เดือน':freq.type==='yearly'?'รายปี':'เหมาจ่าย'}</div>
+            <div style="font-size:11px;color:#64748b">${freq.type==='monthly'?'รายเดือน':freq.type==='quarterly'?'รายไตรมาส':freq.type==='semi'?'ราย 6 เดือน':freq.type==='yearly'?'รายปี':'เหมาจ่าย'}</div>
           </div>
         </div>
       </div>
@@ -933,12 +965,12 @@ function viewContract(id) {
     const rows=audit.slice(0,20).map(a=>`<div style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px">
       <span style="color:#64748b;flex-shrink:0;font-variant-numeric:tabular-nums">${esc(a.beDateStr)}</span>
       <span style="flex:1;color:#334155">${esc(a.detail)}</span>
-      <span style="color:#94a3b8;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
+      <span style="color:#64748b;font-size:11px;flex-shrink:0">${esc(a.user||'')}</span>
     </div>`).join('');
     return `<details style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:0;overflow:hidden">
       <summary style="padding:10px 14px;cursor:pointer;font-size:13px;font-weight:600;color:#475569;list-style:none;display:flex;justify-content:space-between;align-items:center">
         <span>📜 ประวัติการแก้ไข (${audit.length})</span>
-        <span style="font-size:11px;color:#94a3b8">คลิกเพื่อดู</span>
+        <span style="font-size:11px;color:#64748b">คลิกเพื่อดู</span>
       </summary>
       <div style="background:#fff;max-height:300px;overflow-y:auto">${rows}</div>
     </details>`;
@@ -1095,5 +1127,101 @@ function vcLandlordChange(sel,cid){
     if(!hint){hint=document.createElement('div');hint.className='vc-ll-hint';hint.style.cssText='font-size:11px;color:#6366f1;margin-top:2px';sel.parentElement.insertBefore(hint,sel.nextSibling);}
     hint.textContent='ที่อยู่: '+addr.substring(0,60)+(addr.length>60?'...':'');
   }
+}
+
+// ========== EDIT PROPERTY DIALOG ==========
+// แก้ไขข้อมูลทรัพย์สิน (เปิดจากปุ่ม ✏️ แก้ไข ใน openPropertyDetail)
+const PROP_TYPES = [
+  {v:'shophouse', l:'ห้องแถว / อาคารพาณิชย์'},
+  {v:'land_with_house', l:'ที่ดินพร้อมสิ่งปลูกสร้าง / บ้าน'},
+  {v:'vacant_land', l:'ที่ดินเปล่า'},
+  {v:'rooftop_tower', l:'ดาดฟ้า / เสาส่งสัญญาณ'},
+  {v:'apartment', l:'อพาร์ตเมนต์ / ห้องเช่า'},
+  {v:'other', l:'อื่นๆ'}
+];
+
+function openEditPropertyDialog(pid){
+  const p = DB.properties.find(x => x.pid === +pid);
+  if(!p){ toast('ไม่พบทรัพย์สิน','error'); return; }
+  const isMulti = !!p.multiTenant;
+  const safeV = v => (v==null?'':String(v).replace(/"/g,'&quot;'));
+  $('mtitle').textContent = '✏️ แก้ไข ' + p.name;
+  $('mbody').innerHTML = `
+    <form id="propEditForm" class="space-y-4">
+      <div>
+        <label style="font-size:12px;color:#64748b;font-weight:600">ชื่อทรัพย์สิน *</label>
+        <input type="text" name="name" value="${safeV(p.name)}" required class="w-full px-3 py-2 border rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600">ประเภท</label>
+          <select name="type" class="w-full px-3 py-2 border rounded-lg text-sm">
+            ${PROP_TYPES.map(t=>`<option value="${t.v}" ${p.type===t.v?'selected':''}>${t.l}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600">สถานะ</label>
+          <select name="status" class="w-full px-3 py-2 border rounded-lg text-sm">
+            <option value="occupied" ${p.status==='occupied'?'selected':''}>มีผู้เช่า</option>
+            <option value="vacant" ${p.status==='vacant'?'selected':''}>ว่าง</option>
+            <option value="active" ${(!p.status||p.status==='active')?'selected':''}>active (ค่าเริ่มต้น)</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:#64748b;font-weight:600">สถานที่ (location สั้นๆ เช่น "ดาดฟ้า ราชเทวี")</label>
+        <input type="text" name="location" value="${safeV(p.location)}" class="w-full px-3 py-2 border rounded-lg text-sm">
+      </div>
+      <div>
+        <label style="font-size:12px;color:#64748b;font-weight:600">ที่อยู่ (address ละเอียด)</label>
+        <textarea name="address" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm">${safeV(p.address)}</textarea>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">ถ้าเป็นที่ดินเปล่า ปล่อยว่างได้ ระบบจะใช้ "เลขโฉนด" เป็นที่อยู่อัตโนมัติ</div>
+      </div>
+      <div>
+        <label style="font-size:12px;color:#64748b;font-weight:600">เลขโฉนด / titleDeed</label>
+        <input type="text" name="titleDeed" value="${safeV(p.titleDeed)}" class="w-full px-3 py-2 border rounded-lg text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600">พื้นที่</label>
+          <input type="text" name="area" value="${safeV(p.area)}" class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#64748b;font-weight:600">เจ้าของ (owner)</label>
+          <input type="text" name="owner" value="${safeV(p.owner)}" class="w-full px-3 py-2 border rounded-lg text-sm">
+        </div>
+      </div>
+      <div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:12px 14px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" name="multiTenant" ${isMulti?'checked':''} style="margin-top:3px;width:16px;height:16px;accent-color:#10b981">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#065f46">ทรัพย์สินนี้แบ่งให้หลายผู้เช่าได้พร้อมกัน</div>
+            <div style="font-size:11px;color:#047857;margin-top:3px">เช่น ดาดฟ้าใส่เสาสัญญาณหลายเจ้า, ที่ดินใหญ่แบ่งล็อต — ติ๊กแล้วระบบจะไม่เตือน "สัญญาซ้อน"</div>
+          </div>
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:8px;border-top:1px solid #e5e7eb">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-lg text-sm">ยกเลิก</button>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium">บันทึก</button>
+      </div>
+    </form>`;
+  document.getElementById('propEditForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    p.name = (fd.get('name')||'').toString().trim() || p.name;
+    p.type = fd.get('type') || p.type;
+    p.status = fd.get('status') || p.status;
+    p.location = (fd.get('location')||'').toString().trim();
+    p.address = (fd.get('address')||'').toString().trim();
+    p.titleDeed = (fd.get('titleDeed')||'').toString().trim();
+    p.area = (fd.get('area')||'').toString().trim();
+    p.owner = (fd.get('owner')||'').toString().trim();
+    p.multiTenant = !!fd.get('multiTenant');
+    save();
+    addActivityLog('property_edit','แก้ไขข้อมูลทรัพย์สิน '+p.name);
+    closeModal();
+    toast('บันทึกข้อมูลทรัพย์สินแล้ว','success');
+    if(typeof openPropertyDetail === 'function') openPropertyDetail(+pid);
+  });
 }
 

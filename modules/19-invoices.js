@@ -2439,7 +2439,7 @@ function openInvoiceForm(invId){
         <span class="text-xs font-semibold text-gray-500">รายการ</span>
         <button type="button" onclick="addInvoiceItemRow()" style="font-size:11px;color:#4338ca;background:#eef2ff;border:none;padding:3px 10px;border-radius:6px;cursor:pointer;font-family:Sarabun;font-weight:600">+ เพิ่มรายการ</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 120px 70px 28px;gap:8px;margin-bottom:4px;padding:0 4px;font-size:10px;color:#94a3b8;font-weight:600">
+      <div style="display:grid;grid-template-columns:1fr 120px 70px 28px;gap:8px;margin-bottom:4px;padding:0 4px;font-size:10px;color:#64748b;font-weight:600">
         <span>รายละเอียด</span><span style="text-align:right">จำนวน</span><span style="text-align:center">VAT 7%</span><span></span>
       </div>
       <div id="invItemsContainer">
