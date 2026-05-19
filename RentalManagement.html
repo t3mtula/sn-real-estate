@@ -14112,27 +14112,27 @@ body { background: #fff; color: #1a202c; }
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
 /* ── Signature section · ติด bottom ด้วย margin-top:auto (flex child) ── */
-.sig-section { margin-top: auto; padding-top: 12px; }
-.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
-.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px; }
+.sig-section { margin-top: auto; padding-top: 10px; }
+.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 10px; }
 .sig-block { text-align: center; }
-.sig-img-area { height: 54px; display: flex; align-items: flex-end; justify-content: center; }
+.sig-img-area { height: 44px; display: flex; align-items: flex-end; justify-content: center; }
 .sig-img-area img { max-height: 50px; max-width: 145px; object-fit: contain; }
 .sig-line-rule { border-top: 1px solid #1e3a5f; margin: 4px auto 0; width: 170px; }
 .sig-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-top: 5px; }
 .sig-role { font-size: 11.5px; color: #475569; margin-top: 1px; }
 .sig-date { font-size: 11px; color: #64748b; margin-top: 3px; }
 
-/* ── Appendix Header — minimal · ไม่ถมดำ ── */
-.c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 18px 0 14px; margin-bottom: 18px; }
+/* ── Appendix Header — minimal · ไม่ถมดำ · compact เพื่อให้ sig พอใส่หน้าเดียว ── */
+.c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; }
 .appendix-eyebrow { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
 
-/* ── Appendix Cards · minimal · light bg ── */
-.ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
-.ap-card-hdr { background: #f1f5f9; color: #1e3a5f; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+/* ── Appendix Cards · minimal · light bg · compact spacing เพื่อให้พอใส่หน้าเดียว ── */
+.ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.ap-card-hdr { background: #f1f5f9; color: #1e3a5f; padding: 6px 12px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
 .ap-grid-full { display: grid; grid-template-columns: 1fr; gap: 0; }
-.ap-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
+.ap-cell { padding: 8px 14px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
 .ap-cell:nth-child(2n), .ap-grid-full .ap-cell { border-right: none; }
 .ap-cell:nth-last-child(-n+2):not(:only-child), .ap-grid-full .ap-cell:last-child { border-bottom: none; }
 .ap-grid-full .ap-cell { border-bottom: 1px solid #f1f5f9; }
@@ -14426,6 +14426,20 @@ function splitOverflowPages(doc){
     }
     cBody.remove();
   });
+  // ── Neutralize flex auto-margin on sig-section ก่อนวัด ──
+  // .sig-section มี margin-top:auto (flex push bottom) → ทำให้ rect.top เลื่อนลง
+  //   แม้ content ก่อนหน้าจะสั้น · split คิดว่าไม่พอ พอแล้วเด้งไปหน้าถัดไป
+  // วิธีแก้: set inline margin-top:0 ระหว่างวัด · คืนค่าหลังเสร็จ
+  const flexOverrides = [];
+  doc.querySelectorAll('.sig-section').forEach(el => {
+    flexOverrides.push({el, prev: el.style.marginTop});
+    el.style.marginTop = '12px'; // เท่ากับ padding-top เดิม ไม่ใช่ auto
+  });
+  // Also neutralize flex grow on .page-body-grow (which forces sig section to bottom)
+  doc.querySelectorAll('.page-body-grow').forEach(el => {
+    flexOverrides.push({el, prev: el.style.flex, _key:'flex'});
+    el.style.flex = 'none';
+  });
   // Queue: process pages · เมื่อ split เสร็จ ใส่ continuation ใหม่กลับเข้า queue เพื่อ re-check
   const queue = Array.from(doc.querySelectorAll('.page'));
   let iterations = 0;
@@ -14493,6 +14507,12 @@ function splitOverflowPages(doc){
   if(iterations >= MAX_ITER){
     console.warn('splitOverflowPages: hit MAX_ITER · stop split');
   }
+  // Restore flex overrides — คืน sig-section margin-top:auto + page-body-grow flex:1
+  // เพื่อให้ layout flex (sig ติด bottom) ใช้งานเหมือนเดิมในหน้าที่ render
+  flexOverrides.forEach(o => {
+    if(o._key === 'flex') o.el.style.flex = o.prev || '';
+    else o.el.style.marginTop = o.prev || '';
+  });
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
