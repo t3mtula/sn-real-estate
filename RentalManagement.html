@@ -19720,9 +19720,11 @@ function meterGenerateInvoices(){
     metersByContract[cid]++;
   });
   const meterCount = Object.values(metersByContract).reduce((s,v)=>s+v,0);
-  const msg = 'ออกใบบิลเดือน '+billLabel+' จำนวน <b>'+toCreate.length+'</b> ใบ' +
-              (meterCount>0?' · รวมค่าน้ำ/ไฟ <b>'+meterCount+'</b> รายการ':'') +
-              '<br><span style="font-size:11px;color:#64748b">(ออกแล้ว '+ (dueContracts.length - toCreate.length) +' ใบ · ข้าม ไม่ออกซ้ำ)</span>';
+  // ใช้ plain text — customConfirm ใช้ textContent (กัน XSS) ดังนั้น HTML tags จะขึ้นเป็น literal
+  const alreadyCount = dueContracts.length - toCreate.length;
+  const msg = 'ออกใบบิลเดือน '+billLabel+' จำนวน '+toCreate.length+' ใบ' +
+              (meterCount>0?'\nรวมค่าน้ำ/ไฟ '+meterCount+' รายการ':'') +
+              (alreadyCount>0?'\n(ข้าม '+alreadyCount+' ใบที่ออกไปแล้ว)':'');
   customConfirm('ออกใบบิล '+billLabel, msg, function(){
     let created = 0;
     toCreate.forEach(c => {
