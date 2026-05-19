@@ -5790,6 +5790,68 @@ async function _renderAuditLog(){
 // Escape HTML สำหรับ render user input ใน template literals (กัน XSS)
 function esc(s){if(s==null)return'';return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
+// ── Thai bank list (BOT — paher commercial + state-owned ที่ user ใช้บ่อย) ──
+// ใช้ใน bank account form + invoice header settings · dropdown แทนการพิมพ์เอง
+const THAI_BANKS = [
+  'ธนาคารกรุงเทพ',
+  'ธนาคารกสิกรไทย',
+  'ธนาคารกรุงไทย',
+  'ธนาคารไทยพาณิชย์',
+  'ธนาคารกรุงศรีอยุธยา',
+  'ธนาคารทหารไทยธนชาต (ttb)',
+  'ธนาคารยูโอบี',
+  'ธนาคารซีไอเอ็มบีไทย',
+  'ธนาคารเกียรตินาคินภัทร',
+  'ธนาคารแลนด์ แอนด์ เฮ้าส์',
+  'ธนาคารทิสโก้',
+  'ธนาคารไทยเครดิตเพื่อรายย่อย',
+  'ธนาคารไอซีบีซี (ไทย)',
+  'ธนาคารเอชเอสบีซี',
+  'ธนาคารออมสิน',
+  'ธนาคารอาคารสงเคราะห์ (ธอส.)',
+  'ธนาคารเพื่อการเกษตรและสหกรณ์การเกษตร (ธ.ก.ส.)',
+  'ธนาคารอิสลามแห่งประเทศไทย'
+];
+// แยกชื่อธนาคาร + สาขา จาก string เดิม (legacy data เก็บรวมกัน "ธนาคารกรุงเทพ สาขาบ้านโป่ง")
+function splitBankBranch(s){
+  const v = (s||'').trim();
+  if(!v) return {bank:'', branch:''};
+  // หา exact match จาก list ก่อน (กัน partial match เช่น "ธนาคารกสิกร" จะ match "ธนาคารกสิกรไทย")
+  const sorted = THAI_BANKS.slice().sort((a,b)=>b.length-a.length);
+  for(const b of sorted){
+    if(v.startsWith(b)){
+      const rest = v.slice(b.length).trim().replace(/^สาขา\s*/i,'').trim();
+      return {bank: b, branch: rest};
+    }
+  }
+  // ไม่ match · split ที่คำว่า "สาขา"
+  const m = v.match(/^(.*?)\s*สาขา\s*(.*)$/);
+  if(m) return {bank: m[1].trim(), branch: m[2].trim()};
+  return {bank: v, branch: ''};
+}
+// รวมชื่อธนาคาร + สาขา กลับเป็น string เดียว
+function joinBankBranch(bank, branch){
+  const b = (bank||'').trim();
+  const br = (branch||'').trim();
+  if(!b) return '';
+  if(!br) return b;
+  return b + ' สาขา' + br;
+}
+// HTML dropdown สำหรับเลือกธนาคาร · selectedVal = string ปัจจุบัน (อาจจะมี "สาขา" รวมอยู่)
+function bankDropdownHTML(name, selectedVal, extraAttr){
+  const sel = (selectedVal||'').trim();
+  // ถ้า value ปัจจุบันไม่อยู่ใน THAI_BANKS · เพิ่ม option custom ขึ้นมาก่อน
+  const inList = THAI_BANKS.some(b => sel === b || sel.startsWith(b));
+  const parts = splitBankBranch(sel);
+  const customOpt = (!inList && sel) ? `<option value="${esc(parts.bank)}" selected>${esc(parts.bank)} (ไม่อยู่ในรายการ)</option>` : '';
+  const opts = THAI_BANKS.map(b => `<option value="${esc(b)}" ${parts.bank===b?'selected':''}>${esc(b)}</option>`).join('');
+  return `<select name="${name}" ${extraAttr||''}>
+    <option value="">— เลือกธนาคาร —</option>
+    ${customOpt}
+    ${opts}
+  </select>`;
+}
+
 // Clamp helpers — boundary validation สำหรับ money/integer values
 // ใช้ที่ Excel import / form save / API response เพื่อกัน negative + NaN + overflow
 //   clampMoney('-50,000')         → 0       (negative clamped to min=0)
@@ -7605,12 +7667,18 @@ function openBankAccountForm(id){
   const inp = 'w-full px-3 py-2 border border-gray-300 rounded text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
   const lbl = 'display:block;font-size:11px;color:#475569;font-weight:600;margin-bottom:4px';
 
+  // แยก bank + สาขา จาก legacy string ถ้ามี
+  const _baParts = splitBankBranch(a?.bankName||'');
   $('mbody').innerHTML = `<form id="baForm" style="font-family:Sarabun">
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div>
           <label style="${lbl}">ธนาคาร <span style="color:#dc2626">*</span></label>
-          <input type="text" name="bankName" value="${sV(a?.bankName)}" placeholder="เช่น ธนาคารกรุงเทพ สาขาบ้านโป่ง" class="${inp}" required>
+          ${bankDropdownHTML('bankName', _baParts.bank, 'class="'+inp+'" required')}
+        </div>
+        <div>
+          <label style="${lbl}">สาขา (ไม่บังคับ)</label>
+          <input type="text" name="branchName" value="${sV(_baParts.branch)}" placeholder="เช่น บ้านโป่ง" class="${inp}">
         </div>
         <div>
           <label style="${lbl}">เลขบัญชี <span style="color:#dc2626">*</span></label>
@@ -7643,10 +7711,12 @@ function openBankAccountForm(id){
   $('baForm').addEventListener('submit', function(e){
     e.preventDefault();
     const fd = new FormData(e.target);
-    const bn = (fd.get('bankName')||'').trim();
+    const bankSel = (fd.get('bankName')||'').trim();
+    const branchVal = (fd.get('branchName')||'').trim();
+    const bn = joinBankBranch(bankSel, branchVal);
     const an = (fd.get('accountNo')||'').trim();
     const anm = (fd.get('accountName')||'').trim();
-    if(!bn || !an || !anm){ toast('กรอกข้อมูลไม่ครบ','error'); return; }
+    if(!bn || !an || !anm){ toast('กรอกข้อมูลไม่ครบ (ต้องเลือกธนาคารด้วย)','error'); return; }
     const stripBank = s => String(s||'').replace(/^ธนาคาร\s*/,'').replace(/\s+จำกัด.*$/,'');
     const autoLabel = [anm, stripBank(bn), an].filter(Boolean).join(' · ');
     const data = {
@@ -9838,15 +9908,69 @@ function viewContract(id) {
   let sec1Tenant;
   if(editMode === 'tenant'){
     const isHead = (c.branch||'00000') === '00000';
-    // Layout match display: ชื่อ|taxId · สาขา|phone · ที่อยู่(full) · ลงนาม|ตำแหน่ง
+    // === ชื่อผู้เช่า: prefix (ตรงกับฟอร์มเต็ม) + first + last ===
+    const _t = (()=>{
+      const full = c.tenant||'';
+      const prefixes = ['นาย','นาง','นางสาว','บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ','น.ส.'];
+      let curPrefix='', curFirst='', curLast='';
+      if(full){
+        for(const pf of prefixes){
+          if(full.startsWith(pf)){
+            curPrefix=pf;
+            const rest=full.slice(pf.length).trim();
+            const parts=rest.split(/\s+/);
+            if(parts.length>=2){ curLast=parts.pop(); curFirst=parts.join(' '); }
+            else { curFirst=rest; }
+            break;
+          }
+        }
+        if(!curPrefix){
+          const parts=full.split(/\s+/);
+          if(parts.length>=2){ curLast=parts.pop(); curFirst=parts.join(' '); }
+          else { curFirst=full; }
+        }
+      }
+      return {prefix:curPrefix, first:curFirst, last:curLast};
+    })();
+    const _isCompanyT = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].includes(_t.prefix);
+    // signer prefix split
+    const _sp = splitPrefix(c.tenantSignerName||'');
+    const sgPfxOpts = ['','นาย','นาง','นางสาว','Mr.','Mrs.','Ms.','Miss','ดร.','นพ.','พญ.'];
     sec1Tenant = _vcSection('ผู้เช่า (กำลังแก้ไข)', '✏️',
-      _vcRowEdit('ชื่อผู้เช่า', `<input type="text" id="vcEdit_tenant" value="${safeAttr(c.tenant)}" class="${inpCls}">`) +
-      _vcRowEdit('เลขผู้เสียภาษี', `<input type="text" id="vcEdit_taxId" value="${safeAttr(c.taxId)}" class="${inpCls}" maxlength="17" placeholder="1-2345-67890-12-3">`) +
+      // ── ชื่อผู้เช่า: prefix + first + last ──
+      _vcRowEdit('ชื่อผู้เช่า', `<div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:5px">
+        <select id="vcEdit_tenantPrefix" class="${inpCls}" onchange="vcOnTenantTypeChange()">
+          <option value="">— คำนำหน้า —</option>
+          <optgroup label="บุคคล">
+            ${['นาย','นาง','นางสาว'].map(pf=>`<option value="${pf}" ${_t.prefix===pf?'selected':''}>${pf}</option>`).join('')}
+          </optgroup>
+          <optgroup label="นิติบุคคล">
+            ${['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].map(pf=>`<option value="${pf}" ${_t.prefix===pf?'selected':''}>${pf}</option>`).join('')}
+          </optgroup>
+        </select>
+        <input type="text" id="vcEdit_tenantFirst" value="${safeAttr(_t.first)}" placeholder="${_isCompanyT?'ชื่อบริษัท/ห้างฯ':'ชื่อ'}" class="${inpCls}">
+        <input type="text" id="vcEdit_tenantLast" value="${safeAttr(_t.last)}" placeholder="${_isCompanyT?'จำกัด':'นามสกุล'}" class="${inpCls}">
+      </div>
+      <div id="vcEdit_tenantCompanyHint" style="${_isCompanyT?'':'display:none;'}margin-top:5px;padding:5px 9px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:5px;font-size:10.5px;color:#4338ca">🏢 <b>นิติบุคคล</b> — กรุณาระบุผู้ลงนาม (กรรมการ) ด้านล่าง</div>`, true) +
+      _vcRowEdit('เลขผู้เสียภาษี', `<input type="text" id="vcEdit_taxId" value="${safeAttr(c.taxId)}" class="${inpCls}" maxlength="22" placeholder="1-2345-67890-12-3" oninput="cfFormatThaiId(this)">`) +
       _vcRowEdit('สาขา', `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;margin-right:8px"><input type="radio" name="vcEdit_branch" value="head" ${isHead?'checked':''}>หลัก</label><label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="radio" name="vcEdit_branch" value="branch" ${!isHead?'checked':''}>สาขา</label> <input type="text" id="vcEdit_branchNo" value="${isHead?'':safeAttr(c.branch)}" placeholder="เลขสาขา" maxlength="5" class="${inpCls}" style="display:inline-block;width:80px;margin-left:4px;${isHead?'visibility:hidden':''}" onfocus="document.querySelector('input[name=vcEdit_branch][value=branch]').checked=true;this.style.visibility='visible'">`) +
-      _vcRowEdit('เบอร์โทร', `<input type="text" id="vcEdit_phone" value="${safeAttr(c.phone)}" class="${inpCls}">`) +
-      _vcRowEdit('ที่อยู่ผู้เช่า', `<textarea id="vcEdit_tenantAddr" class="${inpCls}" style="min-height:60px;resize:vertical">${esc(c.tenantAddr||'')}</textarea>`, true) +
-      _vcRowEdit('ลงนามโดย', `<input type="text" id="vcEdit_tenantSignerName" value="${safeAttr(c.tenantSignerName)}" placeholder="ปล่อยว่าง = ผู้เช่าเอง" class="${inpCls}">`) +
-      _vcRowEdit('ตำแหน่งผู้ลงนาม', `<input type="text" id="vcEdit_tenantSignerTitle" value="${safeAttr(c.tenantSignerTitle)}" placeholder="(ไม่บังคับ)" class="${inpCls}">`) +
+      _vcRowEdit('เบอร์โทร', `<input type="text" id="vcEdit_phone" value="${safeAttr(c.phone)}" placeholder="081-234-5678" class="${inpCls}">`) +
+      // ── ที่อยู่ผู้เช่า: structured subfields (เหมือนฟอร์มเต็ม) ──
+      _vcRowEdit('ที่อยู่ผู้เช่า', vcAddrSubFieldsHTML('vcEdit_ta', c.tenantAddr||''), true) +
+      // ── ลงนามโดย: prefix + name + title ──
+      _vcRowEdit('ลงนามโดย', `<div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:5px">
+        <select id="vcEdit_tenantSignerPrefix" class="${inpCls}">
+          ${sgPfxOpts.map(pf=>`<option value="${pf}" ${_sp.prefix===pf?'selected':''}>${pf||'— คำนำหน้า —'}</option>`).join('')}
+        </select>
+        <input type="text" id="vcEdit_tenantSignerName" value="${safeAttr(_sp.rest)}" placeholder="ชื่อ-นามสกุล (ปล่อยว่าง = ผู้เช่าเอง)" class="${inpCls}">
+        <input type="text" id="vcEdit_tenantSignerTitle" value="${safeAttr(c.tenantSignerTitle)}" placeholder="ตำแหน่ง (ไม่บังคับ)" class="${inpCls}">
+      </div>`, true) +
+      _vcRowEdit('โลโก้ผู้เช่า', `<div style="display:flex;align-items:center;gap:8px">
+        <div id="vcEdit_tenantLogoPreview" style="width:40px;height:40px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;color:#94a3b8">${c.tenantLogo?'<img src="'+esc(c.tenantLogo)+'" style="width:100%;height:100%;object-fit:contain">':'🖼️'}</div>
+        <input type="file" accept="image/*" class="text-xs" onchange="vcPickTenantLogo(this)">
+        ${c.tenantLogo?`<button type="button" onclick="document.getElementById('vcEdit_tenantLogo').value='';document.getElementById('vcEdit_tenantLogoPreview').innerHTML='🖼️';this.remove()" style="padding:3px 9px;background:#fef2f2;color:#dc2626;border:none;border-radius:5px;font-size:11px;cursor:pointer;font-family:Sarabun">ลบ</button>`:''}
+        <input type="hidden" id="vcEdit_tenantLogo" value="${safeAttr(c.tenantLogo)}">
+      </div>`, true) +
       _vcSaveCancel('vcSaveTenant')
     );
   } else {
@@ -9862,6 +9986,9 @@ function viewContract(id) {
     const signerRow = c.tenantSignerName
       ? _vcRow(tIsCompany ? 'ลงนามโดย (กรรมการ)' : 'ลงนามโดย', tenantSignerDisplay)
       : '';
+    const tenantLogoRow = c.tenantLogo
+      ? _vcRow('โลโก้', '<img src="'+esc(c.tenantLogo)+'" style="max-height:36px;max-width:120px;object-fit:contain;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;padding:3px">')
+      : '';
     sec1Tenant = _vcSection('ผู้เช่า', '👤',
       _vcRow(tIsCompany ? 'ชื่อบริษัท' : 'ชื่อผู้เช่า', esc(c.tenant) + tTypeBadge) +
       _vcRow('เลขผู้เสียภาษี', esc(c.taxId)) +
@@ -9869,7 +9996,8 @@ function viewContract(id) {
       _vcRow('เบอร์โทร', esc(c.phone)) +
       _vcRowFull('ที่อยู่ผู้เช่า', esc(c.tenantAddr)) +
       signerRow +
-      needSignerWarn
+      needSignerWarn +
+      tenantLogoRow
     , _vcEditBtn('tenant'));
   }
 
@@ -9890,7 +10018,7 @@ function viewContract(id) {
         ${headers.map(h => '<option value="'+h.id+'" '+(c.invHeaderId==h.id?'selected':'')+'>'+esc(h.companyName||h.name)+'</option>').join('')}
       </select>`) +
       _vcRowEdit('ชื่อ (override)', `<input type="text" id="vcEdit_landlord" value="${safeAttr(c.landlord)}" class="${inpCls}" placeholder="ใช้ตามหัวบิล">`) +
-      _vcRowEdit('ที่อยู่ผู้ให้เช่า', `<textarea id="vcEdit_landlordAddr" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.landlordAddr||'')}</textarea>`, true) +
+      _vcRowEdit('ที่อยู่ผู้ให้เช่า', vcAddrSubFieldsHTML('vcEdit_la', c.landlordAddr||''), true) +
       _vcRowEdit('กรรมการลงนาม', `<select id="vcEdit_landlordSignerName" class="${inpCls}" onchange="const t=this.options[this.selectedIndex].dataset.title||'';document.getElementById('vcEdit_landlordSignerTitle').value=t;">
         <option value="">— เลือกกรรมการ —</option>
         ${signers.map(s => '<option value="'+esc(s.name)+'" data-title="'+(s.title||'').replace(/"/g,'&quot;')+'" '+(c.landlordSignerName===s.name?'selected':'')+'>'+esc(s.name)+(s.title?' ('+esc(s.title)+')':'')+'</option>').join('')}
@@ -9941,18 +10069,79 @@ function viewContract(id) {
   // ── Section 3: 📋 รายละเอียดการเช่า ──
   let sec3Lease;
   if(editMode === 'lease'){
-    // Layout match display: เลขที่|date · วันเริ่ม|วันสิ้น · ระยะเวลา|ค่าเช่า · วิธีชำระ|เงินประกัน · การปรับ(full) · วัตถุประสงค์(full)
+    // ── Rate: split prefix (วันละ/เดือนละ/...) + amount ──
+    const ratePrefixes = ['วันละ','เดือนละ','ไตรมาสละ','ครึ่งปีละ','ปีละ','เหมาจ่าย'];
+    const curRate = c.rate||'';
+    let curRatePfx = 'เดือนละ';
+    for(const p of ratePrefixes){ if(curRate.includes(p)){ curRatePfx = p; break; } }
+    const rateAmtMatch = curRate.match(/([\d,]+(?:\.\d+)?)\s*(?:\.?-?\s*บาท|บาท)/) || curRate.match(/(?:เดือนละ|ไตรมาสละ|ปีละ|วันละ|ครึ่งปีละ|เหมาจ่าย|งวดละ)\s*([\d,]+)/);
+    const curRateAmt = rateAmtMatch ? rateAmtMatch[1] : '';
+    // ── Duration: split years + months ──
+    const durY = (c.dur||'').match(/(\d+)\s*ปี/);
+    const durM = (c.dur||'').match(/(\d+)\s*เดือน/);
+    // ── Purpose: preset dropdown ──
+    const allPurposes = [...new Set((DB.contracts||[]).map(x => x.purpose).filter(Boolean))].sort();
+    const curPurpose = c.purpose||'';
+    const isPurposePreset = allPurposes.includes(curPurpose);
+    // ── Rate adjustment: preset ──
+    const adjPresets = ['ไม่ปรับตลอดสัญญา','ปรับเพิ่ม 5% ทุกปี','ปรับเพิ่ม 10% ทุก 3 ปี','ปรับเพิ่ม 10% ทุก 5 ปี','ปรับตามข้อตกลง'];
+    const curAdj = c.rateAdj||'';
+    const isAdjPreset = adjPresets.includes(curAdj);
+    // ── Payment: split schedule + channel + note ──
+    const paySchedules = ['ล่วงหน้า','ทุกเดือน','รายไตรมาส','รายปี','ตามสัญญา'];
+    const payChannels = ['โอนเงิน','เงินสด','เช็ค','อื่นๆ'];
+    const curPay = c.payment||'';
+    let curPaySched = 'ทุกเดือน', curPayChan = 'โอนเงิน', curPayNote = curPay;
+    for(const s of paySchedules){ if(curPay.includes(s)){ curPaySched = s; curPayNote = curPayNote.replace(s,''); break; } }
+    for(const ch of payChannels){ if(curPay.includes(ch)){ curPayChan = ch; curPayNote = curPayNote.replace(ch,''); break; } }
+    curPayNote = curPayNote.replace(/[·,\s]+/g,' ').trim();
     sec3Lease = _vcSection('รายละเอียดการเช่า (กำลังแก้ไข)', '✏️',
-      _vcRowEdit('เลขที่สัญญา', `<input type="text" id="vcEdit_no" value="${safeAttr(c.no)}" class="${inpCls}">`) +
-      _vcRowEdit('วันทำสัญญา', `<input type="text" id="vcEdit_date" value="${safeAttr(c.date)}" placeholder="DD/MM/BBBB" class="${inpCls}">`) +
-      _vcRowEdit('วันเริ่มต้น', `<input type="text" id="vcEdit_start" value="${safeAttr(c.start)}" placeholder="DD/MM/BBBB" class="${inpCls}">`) +
-      _vcRowEdit('วันสิ้นสุด', `<input type="text" id="vcEdit_end" value="${safeAttr(c.end)}" placeholder="DD/MM/BBBB" class="${inpCls}">`) +
-      _vcRowEdit('ระยะเวลา', `<input type="text" id="vcEdit_dur" value="${safeAttr(c.dur)}" placeholder="เช่น 3 ปี" class="${inpCls}">`) +
-      _vcRowEdit('ค่าเช่า', `<input type="text" id="vcEdit_rate" value="${safeAttr(c.rate)}" placeholder="เดือนละ 10,000 บาท" class="${inpCls}">`) +
-      _vcRowEdit('วิธีชำระ', `<input type="text" id="vcEdit_payment" value="${safeAttr(c.payment)}" placeholder="ทุกเดือน · โอนเงิน" class="${inpCls}">`) +
-      _vcRowEdit('เงินประกัน', `<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-right:8px"><input type="checkbox" id="vcEdit_hasDeposit" ${c.hasDeposit===true||(c.hasDeposit!==false && parseFloat(String(c.deposit||0).replace(/[^\d.]/g,''))>0)?'checked':''} onchange="document.getElementById('vcEdit_deposit').style.display=this.checked?'':'none';if(!this.checked)document.getElementById('vcEdit_deposit').value='';">มีเงินประกัน</label><input type="text" id="vcEdit_deposit" value="${safeAttr(c.deposit)}" placeholder="50000" class="${inpCls}" style="${(c.hasDeposit===false)?'display:none':''}">`) +
-      _vcRowEdit('การปรับค่าเช่า', `<input type="text" id="vcEdit_rateAdj" value="${safeAttr(c.rateAdj)}" placeholder="ไม่ปรับ / ปรับเพิ่ม 5% ทุกปี" class="${inpCls}">`, true) +
-      _vcRowEdit('วัตถุประสงค์', `<textarea id="vcEdit_purpose" class="${inpCls}" style="min-height:50px;resize:vertical">${esc(c.purpose||'')}</textarea>`, true) +
+      // ── เลขที่ + วันทำสัญญา (with date picker icon) ──
+      _vcRowEdit('เลขที่สัญญา', `<div style="display:flex;gap:5px"><input type="text" id="vcEdit_no" value="${safeAttr(c.no)}" class="${inpCls}" style="flex:1"><button type="button" onclick="vcGenContractNo()" style="padding:4px 9px;background:#eef2ff;color:#4338ca;border:none;border-radius:5px;font-size:10.5px;cursor:pointer;white-space:nowrap;font-family:Sarabun">⚡ สร้างเลข</button></div>`) +
+      _vcRowEdit('วันทำสัญญา', `<div style="position:relative"><input type="text" id="vcEdit_date" value="${safeAttr(c.date)}" placeholder="DD/MM/BBBB" class="${inpCls}" style="padding-right:30px"><span onclick="openThaiDP(document.getElementById('vcEdit_date'))" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px" title="เลือกวันที่">📅</span></div>`) +
+      // ── วัตถุประสงค์: preset dropdown ──
+      _vcRowEdit('วัตถุประสงค์', `<select id="vcEdit_purposePreset" class="${inpCls}" onchange="if(this.value==='_custom'){document.getElementById('vcEdit_purpose').style.display='';document.getElementById('vcEdit_purpose').focus();this.style.display='none';}else{document.getElementById('vcEdit_purpose').value=this.value;}">
+        <option value="">— เลือก —</option>
+        ${allPurposes.map(pp=>`<option value="${esc(pp).replace(/&#39;/g,"'")}" ${curPurpose===pp?'selected':''}>${esc(pp)}</option>`).join('')}
+        <option value="_custom" ${curPurpose&&!isPurposePreset?'selected':''}>+ พิมพ์เอง...</option>
+      </select>
+      <input type="text" id="vcEdit_purpose" value="${safeAttr(curPurpose)}" placeholder="พิมพ์วัตถุประสงค์" class="${inpCls}" style="margin-top:4px;${curPurpose&&!isPurposePreset?'':'display:none'}">`, true) +
+      // ── ค่าเช่า: prefix dropdown + amount ──
+      _vcRowEdit('อัตราค่าเช่า', `<div style="display:flex;gap:5px;align-items:center">
+        <select id="vcEdit_ratePrefix" class="${inpCls}" style="flex:0 0 auto;width:130px">
+          ${ratePrefixes.map(p=>`<option value="${p}" ${curRatePfx===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+        <input type="text" id="vcEdit_rateAmt" value="${safeAttr(curRateAmt)}" placeholder="จำนวน" class="${inpCls}" style="flex:1">
+        <span style="font-size:12px;color:#64748b">บาท</span>
+      </div>`, true) +
+      // ── ระยะเวลา: ปี + เดือน + auto-calc end ──
+      _vcRowEdit('ระยะเวลา', `<div style="display:flex;gap:5px;align-items:center">
+        <input type="number" id="vcEdit_durYears" value="${durY?durY[1]:''}" min="0" placeholder="0" class="${inpCls}" style="width:60px;text-align:center" onchange="vcCalcEndFromDur()">
+        <span style="font-size:12px;color:#64748b">ปี</span>
+        <input type="number" id="vcEdit_durMonths" value="${durM?durM[1]:''}" min="0" max="11" placeholder="0" class="${inpCls}" style="width:60px;text-align:center" onchange="vcCalcEndFromDur()">
+        <span style="font-size:12px;color:#64748b">เดือน</span>
+      </div>`) +
+      _vcRowEdit('วันเริ่มต้น', `<div style="position:relative"><input type="text" id="vcEdit_start" value="${safeAttr(c.start)}" placeholder="DD/MM/BBBB" class="${inpCls}" style="padding-right:30px" onchange="vcCalcEndFromDur()"><span onclick="openThaiDP(document.getElementById('vcEdit_start'))" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px" title="เลือกวันที่">📅</span></div>`) +
+      _vcRowEdit('วันสิ้นสุด', `<div style="position:relative"><input type="text" id="vcEdit_end" value="${safeAttr(c.end)}" placeholder="DD/MM/BBBB" class="${inpCls}" style="padding-right:30px"><span onclick="openThaiDP(document.getElementById('vcEdit_end'))" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:14px" title="เลือกวันที่">📅</span></div>`) +
+      // ── วิธีชำระ: schedule + channel + note ──
+      _vcRowEdit('วิธีชำระ', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:4px">
+        <select id="vcEdit_paySchedule" class="${inpCls}">
+          ${paySchedules.map(s=>`<option value="${s}" ${curPaySched===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <select id="vcEdit_payChannel" class="${inpCls}">
+          ${payChannels.map(ch=>`<option value="${ch}" ${curPayChan===ch?'selected':''}>${ch}</option>`).join('')}
+        </select>
+      </div>
+      <input type="text" id="vcEdit_payNote" value="${safeAttr(curPayNote)}" placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)" class="${inpCls}">`, true) +
+      _vcRowEdit('วันครบกำหนด', `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#64748b">ทุกวันที่</span><input type="number" id="vcEdit_dueDay" value="${c.dueDay||5}" min="1" max="31" class="${inpCls}" style="width:70px;text-align:center"><span style="font-size:11px;color:#64748b">ของเดือน (1-31)</span></div>`) +
+      _vcRowEdit('เงินประกัน', `<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-right:8px"><input type="checkbox" id="vcEdit_hasDeposit" ${c.hasDeposit===true||(c.hasDeposit!==false && parseFloat(String(c.deposit||0).replace(/[^\d.]/g,''))>0)?'checked':''} onchange="document.getElementById('vcEdit_deposit').style.display=this.checked?'':'none';if(!this.checked)document.getElementById('vcEdit_deposit').value='';">มีเงินประกัน</label><input type="text" id="vcEdit_deposit" value="${safeAttr(c.deposit)}" placeholder="50,000" class="${inpCls}" style="${(c.hasDeposit===false)?'display:none':''}" onblur="cfFormatDeposit(this)">`) +
+      // ── การปรับค่าเช่า: preset ──
+      _vcRowEdit('การปรับค่าเช่า', `<select id="vcEdit_rateAdjPreset" class="${inpCls}" onchange="if(this.value==='_custom'){document.getElementById('vcEdit_rateAdj').style.display='';document.getElementById('vcEdit_rateAdj').focus();this.style.display='none';}else{document.getElementById('vcEdit_rateAdj').value=this.value;}">
+        <option value="">— เลือก —</option>
+        ${adjPresets.map(p=>`<option value="${p}" ${curAdj===p?'selected':''}>${p}</option>`).join('')}
+        <option value="_custom" ${curAdj&&!isAdjPreset?'selected':''}>+ พิมพ์เอง...</option>
+      </select>
+      <input type="text" id="vcEdit_rateAdj" value="${safeAttr(curAdj)}" placeholder="พิมพ์รายละเอียด" class="${inpCls}" style="margin-top:4px;${curAdj&&!isAdjPreset?'':'display:none'}">`, true) +
       _vcSaveCancel('vcSaveLease')
     );
   } else {
@@ -9964,6 +10153,7 @@ function viewContract(id) {
       _vcRow('ระยะเวลา', esc(c.dur)) +
       _vcRow('ค่าเช่า', esc(c.rate)) +
       _vcRow('วิธีชำระ', esc(c.payment)) +
+      _vcRow('วันครบกำหนด', 'ทุกวันที่ ' + (c.dueDay||5) + ' ของเดือน') +
       (depositDisplay ? _vcRow('เงินประกัน', depositDisplay) : '') +  /* always shows when hasDeposit set (true/false) */
       (c.rateAdj ? _vcRowFull('การปรับค่าเช่า', esc(c.rateAdj)) : '') +
       _vcRowFull('วัตถุประสงค์', esc(c.purpose))
@@ -9994,19 +10184,80 @@ function viewContract(id) {
     , _vcEditBtn('property'));
   }
 
+  // ── Section 5: 📝 พยาน · ลายเซ็น ──
+  // Helper: signature pick + preview (เก็บใน hidden inputs)
+  const _sigBox = (label, hidId, prevId, curVal) => `<div style="text-align:center">
+    <div style="font-size:11px;color:#475569;font-weight:600;margin-bottom:4px">${label}</div>
+    <div id="${prevId}" style="width:100%;height:50px;border:1px dashed #cbd5e1;border-radius:6px;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:20px;color:#cbd5e1">${curVal?'<img src="'+esc(curVal)+'" style="max-width:100%;max-height:100%;object-fit:contain">':'📝'}</div>
+    <input type="hidden" id="${hidId}" value="${safeAttr(curVal)}">
+    <div style="display:flex;gap:4px;margin-top:4px;justify-content:center">
+      <label style="padding:3px 8px;background:#eef2ff;color:#4338ca;border-radius:5px;font-size:10px;cursor:pointer;font-weight:600">📎 อัพโหลด<input type="file" accept="image/*" style="display:none" onchange="vcPickSig(this,'${hidId}','${prevId}');this.parentElement.nextElementSibling.style.display=this.files[0]?'inline-block':'none'"></label>
+      <button type="button" onclick="vcClearSig('${hidId}','${prevId}',this)" style="display:${curVal?'inline-block':'none'};padding:3px 8px;background:#fef2f2;color:#dc2626;border:none;border-radius:5px;font-size:10px;cursor:pointer;font-family:Sarabun">ลบ</button>
+    </div>
+  </div>`;
+  // Sig preview สำหรับ read mode (compact thumbnails)
+  const _sigThumb = (label, src) => src
+    ? `<div style="text-align:center"><div style="font-size:10px;color:#64748b;font-weight:600;margin-bottom:3px">${label}</div><div style="height:38px;display:flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;border-radius:5px;background:#f8fafc;padding:2px;overflow:hidden"><img src="${esc(src)}" style="max-width:100%;max-height:100%;object-fit:contain"></div></div>`
+    : `<div style="text-align:center"><div style="font-size:10px;color:#94a3b8;font-weight:500;margin-bottom:3px">${label}</div><div style="height:38px;display:flex;align-items:center;justify-content:center;border:1px dashed #cbd5e1;border-radius:5px;background:#fafbff;color:#cbd5e1;font-size:11px">— ยังไม่เซ็น —</div></div>`;
+
+  let sec5Witness;
+  if(editMode === 'witness'){
+    // dropdown prefix สำหรับพยาน (คำนำหน้า)
+    const prefixOpts = ['','นาย','นาง','นางสาว','คุณ','ดร.','บริษัท'].map(p =>
+      `<option value="${p}">${p||'— คำนำหน้า —'}</option>`
+    ).join('');
+    // แยก prefix จาก existing witness name
+    const _wSplit = (full)=>{
+      const m = (full||'').match(/^(นาย|นางสาว|นาง|คุณ|ดร\.|บริษัท)\s*(.*)$/);
+      return m ? {prefix:m[1], rest:m[2].trim()} : {prefix:'', rest:(full||'')};
+    };
+    const _w1 = _wSplit(c.witness1Name);
+    const _w2 = _wSplit(c.witness2Name);
+    sec5Witness = _vcSection('พยาน · ลายเซ็น (กำลังแก้ไข)', '✏️',
+      `<div style="grid-column:1/-1;margin-bottom:4px;font-size:11px;color:#64748b;font-weight:600">พยาน 2 คน · ห้ามซ้ำกับผู้ลงนาม</div>` +
+      _vcRowEdit('พยานคนที่ 1', `<div style="display:flex;gap:5px"><select id="vcEdit_witness1Prefix" class="${inpCls}" style="flex:0 0 auto;width:110px">${prefixOpts.replace(`value="${_w1.prefix}"`,`value="${_w1.prefix}" selected`)}</select><input type="text" id="vcEdit_witness1Name" value="${safeAttr(_w1.rest)}" placeholder="ชื่อ-นามสกุล" class="${inpCls}" style="flex:1"></div>`, true) +
+      _vcRowEdit('ตำแหน่งพยาน 1', `<input type="text" id="vcEdit_witness1Title" value="${safeAttr(c.witness1Title)}" placeholder="(ไม่บังคับ)" class="${inpCls}">`) +
+      _vcRowEdit('พยานคนที่ 2', `<div style="display:flex;gap:5px"><select id="vcEdit_witness2Prefix" class="${inpCls}" style="flex:0 0 auto;width:110px">${prefixOpts.replace(`value="${_w2.prefix}"`,`value="${_w2.prefix}" selected`)}</select><input type="text" id="vcEdit_witness2Name" value="${safeAttr(_w2.rest)}" placeholder="ชื่อ-นามสกุล" class="${inpCls}" style="flex:1"></div>`, true) +
+      _vcRowEdit('ตำแหน่งพยาน 2', `<input type="text" id="vcEdit_witness2Title" value="${safeAttr(c.witness2Title)}" placeholder="(ไม่บังคับ)" class="${inpCls}">`) +
+      `<div style="grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:11px;color:#475569;font-weight:600;margin-bottom:6px">ภาพลายเซ็น (อัพโหลดเป็นรูป)</div>` +
+      `<div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${_sigBox('ลายเซ็นผู้ให้เช่า','vcEdit_landlordSig','vcEdit_landlordSigPrev',c.landlordSig)}
+        ${_sigBox('ลายเซ็นผู้เช่า','vcEdit_tenantSig','vcEdit_tenantSigPrev',c.tenantSig)}
+        ${_sigBox('ลายเซ็นพยาน 1','vcEdit_witness1Sig','vcEdit_witness1SigPrev',c.witness1Sig)}
+        ${_sigBox('ลายเซ็นพยาน 2','vcEdit_witness2Sig','vcEdit_witness2SigPrev',c.witness2Sig)}
+      </div>` +
+      _vcSaveCancel('vcSaveWitness')
+    );
+  } else {
+    const _w1Disp = c.witness1Name ? esc(c.witness1Name)+(c.witness1Title?' <span style="color:#94a3b8">·</span> <span style="color:#475569">'+esc(c.witness1Title)+'</span>':'') : '<span style="color:#94a3b8;font-style:italic">ยังไม่ระบุ</span>';
+    const _w2Disp = c.witness2Name ? esc(c.witness2Name)+(c.witness2Title?' <span style="color:#94a3b8">·</span> <span style="color:#475569">'+esc(c.witness2Title)+'</span>':'') : '<span style="color:#94a3b8;font-style:italic">ยังไม่ระบุ</span>';
+    const _hasAnySig = c.landlordSig || c.tenantSig || c.witness1Sig || c.witness2Sig;
+    sec5Witness = _vcSection('พยาน · ลายเซ็น', '📝',
+      _vcRow('พยานคนที่ 1', _w1Disp) +
+      _vcRow('พยานคนที่ 2', _w2Disp) +
+      (_hasAnySig ? `<div style="grid-column:1/-1;margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${_sigThumb('ผู้ให้เช่า',c.landlordSig)}
+        ${_sigThumb('ผู้เช่า',c.tenantSig)}
+        ${_sigThumb('พยาน 1',c.witness1Sig)}
+        ${_sigThumb('พยาน 2',c.witness2Sig)}
+      </div>` : `<div style="grid-column:1/-1;margin-top:6px;font-size:11px;color:#94a3b8;font-style:italic">ยังไม่ได้อัพโหลดลายเซ็น — กดแก้ไขเพื่อเพิ่ม</div>`)
+    , _vcEditBtn('witness'));
+  }
+
   // === Collapsible wrapper ===
   const detailHTML = `<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px">
     <button onclick="const b=document.getElementById('vcDetailBody');const ch=document.getElementById('vcDetailChev');if(b.style.display==='none'){b.style.display='';ch.style.transform='rotate(90deg)'}else{b.style.display='none';ch.style.transform=''}" style="display:flex;align-items:center;gap:8px;width:100%;padding:6px 0;background:none;border:none;cursor:pointer;text-align:left">
       <svg id="vcDetailChev" style="width:14px;height:14px;color:#64748b;transition:transform .15s;flex-shrink:0;transform:rotate(90deg)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       <svg style="width:15px;height:15px;color:#6366f1;flex-shrink:0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
       <span style="font-size:13px;font-weight:600;color:#475569">รายละเอียดสัญญา</span>
-      <span onclick="event.stopPropagation();openEditContract(${c.id})" style="margin-left:auto;font-size:10px;color:#94a3b8;font-weight:500;cursor:pointer;padding:3px 10px;border-radius:5px;background:#f8fafc;display:flex;align-items:center;gap:3px;transition:background .12s" onmouseover="this.style.background='#f1f5f9';this.style.color='#64748b'" onmouseout="this.style.background='#f8fafc';this.style.color='#94a3b8'" title="แก้ไขฟอร์มเต็ม (พยาน, ลายเซ็น, prefix ผู้เช่า ฯลฯ)">✏️ ฟอร์มเต็ม</span>
+      <span style="margin-left:auto;font-size:10px;color:#94a3b8">กดปุ่ม ✏️ แก้ไข ของแต่ละหัวข้อเพื่อแก้</span>
     </button>
     <div id="vcDetailBody" style="padding:8px 2px 4px">
       ${sec1Tenant}
       ${sec2Landlord}
       ${sec3Lease}
       ${sec4Property}
+      ${sec5Witness}
     </div>
   </div>`;
 
@@ -10040,7 +10291,19 @@ function viewContract(id) {
   // No form submit handler needed — read-only view
 
   $('modal').classList.remove('hidden');
-  setTimeout(()=>enhanceDatalistInputs($('mbody')),50);
+  setTimeout(()=>{
+    enhanceDatalistInputs($('mbody'));
+    // ── Mark dirty เมื่อ user แก้อะไรในโหมด edit · กัน realtime reload ทับงาน ──
+    if(window._vcEditMode){
+      document.querySelectorAll('#mbody input, #mbody select, #mbody textarea').forEach(el => {
+        // skip hidden/static inputs ที่ไม่ใช่ของ inline edit
+        if(el.closest && el.closest('#mbody')){
+          el.addEventListener('input', markModalDirty);
+          el.addEventListener('change', markModalDirty);
+        }
+      });
+    }
+  },50);
 }
 
 // ── Inline edit helpers สำหรับ viewContract (4 sections) ──
@@ -10071,7 +10334,13 @@ function vcOnHeaderChange(headerId){
   if(!h) return;
   const set = (id, v) => { const el = document.getElementById(id); if(el) el.value = v||''; };
   set('vcEdit_landlord', h.companyName||'');
-  set('vcEdit_landlordAddr', h.address||'');
+  // Address: split into subfields ถ้ามี · ไม่งั้นใส่ทั้ง string ใน line
+  const ap = parseAddrParts(h.address||'');
+  set('vcEdit_la_line', ap.addrLine||'');
+  set('vcEdit_la_sd', ap.subDistrict||'');
+  set('vcEdit_la_dt', ap.district||'');
+  set('vcEdit_la_pv', ap.province||'');
+  set('vcEdit_la_zip', ap.zip||'');
   set('vcEdit_madeAt', h.address||'');
   // Auto-pick default bank account ของ landlord ใหม่ ถ้ามี
   const llName = h.companyName||'';
@@ -10084,6 +10353,133 @@ function vcOnHeaderChange(headerId){
 }
 
 // Handler dropdown bank ใน vcEdit landlord section
+// ── Inline edit · auto-calc end date จาก start + duration (years/months) ──
+function vcCalcEndFromDur(){
+  const startStr = document.getElementById('vcEdit_start')?.value || '';
+  const dY = parseInt(document.getElementById('vcEdit_durYears')?.value)||0;
+  const dM = parseInt(document.getElementById('vcEdit_durMonths')?.value)||0;
+  if(!startStr || (dY===0 && dM===0)) return;
+  const sd = parseBE(startStr);
+  if(!sd) return;
+  // End date = start + (years*12 + months) months - 1 day
+  const ed = new Date(sd);
+  ed.setMonth(ed.getMonth() + dY*12 + dM);
+  ed.setDate(ed.getDate() - 1);
+  const dd = String(ed.getDate()).padStart(2,'0');
+  const mm = String(ed.getMonth()+1).padStart(2,'0');
+  const yy = ed.getFullYear() + 543;
+  const endInp = document.getElementById('vcEdit_end');
+  if(endInp) endInp.value = `${dd}/${mm}/${yy}`;
+}
+// ── Inline edit · generate contract no ──
+function vcGenContractNo(){
+  const noInp = document.getElementById('vcEdit_no');
+  if(!noInp) return;
+  // Pattern: ปี พ.ศ. 2 หลัก + running number 3 หลัก จาก max ใน DB
+  const yr = new Date().getFullYear() + 543;
+  const yrShort = String(yr).slice(-2);
+  // หา running number ที่ใช้แล้วในปีนี้
+  const existing = (DB.contracts||[])
+    .map(x => (x.no||'').match(new RegExp('^(\\d{2,4})['+yrShort+']?-?(\\d{3,4})$')))
+    .filter(Boolean)
+    .map(m => parseInt(m[2])||0);
+  // Fallback: หา running จาก /-(\d+)$/ ใน contract no ปีนี้
+  const fallback = (DB.contracts||[])
+    .map(x => (x.no||'').match(/-(\d{3,4})$/))
+    .filter(Boolean)
+    .map(m => parseInt(m[1])||0);
+  const allNums = [...existing, ...fallback];
+  const next = (allNums.length ? Math.max(...allNums) : 0) + 1;
+  noInp.value = `SN${yrShort}-${String(next).padStart(3,'0')}`;
+  noInp.focus();
+}
+// ── Inline edit · address structured subfields (เหมือนฟอร์มเต็ม buildAddrSubFields) ──
+// prefix = id prefix เช่น 'vcEdit_ta' → vcEdit_ta_line, vcEdit_ta_sd, vcEdit_ta_dt, vcEdit_ta_pv, vcEdit_ta_zip
+function vcAddrSubFieldsHTML(idPrefix, addrStr){
+  const ap = parseAddrParts(addrStr||'');
+  const safeV = s => (s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const cls = 'w-full px-2 py-1 border border-gray-300 rounded text-sm focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 outline-none';
+  return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px;margin-top:2px">
+    <div style="margin-bottom:5px">
+      <label style="font-size:10.5px;color:#64748b;margin-bottom:2px;display:block">เลขที่ / หมู่ / ซอย / ถนน</label>
+      <input type="text" id="${idPrefix}_line" value="${safeV(ap.addrLine)}" class="${cls}" placeholder="เช่น 99/1 หมู่ 5 ถ.เพชรเกษม">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px">
+      <div>
+        <label style="font-size:10.5px;color:#64748b;margin-bottom:2px;display:block">ตำบล/แขวง</label>
+        <input type="text" id="${idPrefix}_sd" value="${safeV(ap.subDistrict)}" class="${cls}" placeholder="เช่น ดอนกรวย">
+      </div>
+      <div>
+        <label style="font-size:10.5px;color:#64748b;margin-bottom:2px;display:block">อำเภอ/เขต</label>
+        <input type="text" id="${idPrefix}_dt" value="${safeV(ap.district)}" class="${cls}" placeholder="เช่น ดำเนินสะดวก">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+      <div>
+        <label style="font-size:10.5px;color:#64748b;margin-bottom:2px;display:block">จังหวัด</label>
+        <datalist id="dl_${idPrefix}_pv">${(typeof TH_PROVINCES!=='undefined'?TH_PROVINCES:[]).map(p=>'<option value="'+p+'">').join('')}</datalist>
+        <input type="text" id="${idPrefix}_pv" value="${safeV(ap.province)}" aria-autocomplete="list" list="dl_${idPrefix}_pv" class="${cls}" placeholder="เช่น ราชบุรี">
+      </div>
+      <div>
+        <label style="font-size:10.5px;color:#64748b;margin-bottom:2px;display:block">รหัสไปรษณีย์</label>
+        <input type="text" id="${idPrefix}_zip" value="${safeV(ap.zip)}" maxlength="5" class="${cls}" placeholder="70130">
+      </div>
+    </div>
+  </div>`;
+}
+// Read structured address inputs by ID prefix → combine เป็น string เดียวกับ assembleAddrFromPrefix
+function vcAssembleAddr(idPrefix){
+  const get = k => (document.getElementById(idPrefix+'_'+k)?.value||'').trim();
+  const al = get('line'), sd = get('sd'), dt = get('dt'), pv = get('pv'), zp = get('zip');
+  const isBKK = /กรุงเทพ/.test(pv);
+  const parts = [];
+  if(al) parts.push(al);
+  if(sd) parts.push(isBKK?'แขวง'+sd:'ต.'+sd);
+  if(dt) parts.push(isBKK?'เขต'+dt:'อ.'+dt);
+  if(pv) parts.push('จ.'+pv);
+  if(zp) parts.push(zp);
+  return parts.join(' ');
+}
+// Trigger เมื่อ tenant prefix เปลี่ยน → toggle company hint + placeholder
+function vcOnTenantTypeChange(){
+  const pf = document.getElementById('vcEdit_tenantPrefix')?.value||'';
+  const isCompany = ['บริษัท','ห้างหุ้นส่วนจำกัด','ห้างหุ้นส่วนสามัญ'].includes(pf);
+  const fst = document.getElementById('vcEdit_tenantFirst');
+  const lst = document.getElementById('vcEdit_tenantLast');
+  if(fst) fst.placeholder = isCompany ? 'ชื่อบริษัท/ห้างฯ' : 'ชื่อ';
+  if(lst) lst.placeholder = isCompany ? 'จำกัด' : 'นามสกุล';
+  const hint = document.getElementById('vcEdit_tenantCompanyHint');
+  if(hint) hint.style.display = isCompany ? '' : 'none';
+}
+// Pick + compress tenant logo · เก็บลง hidden input + แสดง preview
+function vcPickTenantLogo(input){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  compressImage(f, 200, 0.85, dataUrl => {
+    const hid = document.getElementById('vcEdit_tenantLogo');
+    const prev = document.getElementById('vcEdit_tenantLogoPreview');
+    if(hid) hid.value = dataUrl;
+    if(prev) prev.innerHTML = '<img src="'+dataUrl+'" style="width:100%;height:100%;object-fit:contain">';
+  });
+}
+// Pick + compress signature → hidden input + preview
+function vcPickSig(input, hidId, prevId){
+  const f = input.files && input.files[0];
+  if(!f) return;
+  compressImage(f, 400, 0.92, dataUrl => {
+    const hid = document.getElementById(hidId);
+    const prev = document.getElementById(prevId);
+    if(hid) hid.value = dataUrl;
+    if(prev) prev.innerHTML = '<img src="'+dataUrl+'" style="max-width:100%;max-height:100%;object-fit:contain">';
+  });
+}
+function vcClearSig(hidId, prevId, btn){
+  const hid = document.getElementById(hidId);
+  const prev = document.getElementById(prevId);
+  if(hid) hid.value = '';
+  if(prev) prev.innerHTML = '📝';
+  if(btn) btn.style.display = 'none';
+}
 function vcOnBankChange(val){
   const preview = document.getElementById('vcEdit_bankPreview');
   if(val === '_new'){
@@ -10106,8 +10502,12 @@ function vcSaveTenant(cid){
   const c = DB.contracts.find(x => x.id === cid);
   if(!c) return;
   const get = id => (document.getElementById(id)?.value || '').trim();
-  const newTenant = get('vcEdit_tenant');
-  if(!newTenant){ toast('กรุณากรอกชื่อผู้เช่า','error'); return; }
+  // ── ชื่อผู้เช่า: prefix + first + last ──
+  const tPfx = get('vcEdit_tenantPrefix');
+  const tFst = get('vcEdit_tenantFirst');
+  const tLst = get('vcEdit_tenantLast');
+  if(!tFst){ toast('กรุณากรอกชื่อผู้เช่า','error'); return; }
+  const newTenant = (tPfx?tPfx:'') + ((tPfx&&tFst)?' ':'') + tFst + (tLst?' '+tLst:'');
   c.tenant = newTenant;
   c.taxId = get('vcEdit_taxId');
   // branch
@@ -10115,9 +10515,14 @@ function vcSaveTenant(cid){
   if(branchType === 'head'){ c.branch = '00000'; c.branchType = 'head'; }
   else { const bn = get('vcEdit_branchNo') || '00000'; c.branch = bn.padStart(5,'0').slice(0,5); c.branchType = 'branch'; }
   c.phone = get('vcEdit_phone');
-  c.tenantAddr = get('vcEdit_tenantAddr');
-  c.tenantSignerName = get('vcEdit_tenantSignerName');
+  // ── ที่อยู่ผู้เช่า: assemble จาก subfields ──
+  c.tenantAddr = vcAssembleAddr('vcEdit_ta');
+  // ── ลงนามโดย: combine prefix + name (rule: '.'-ending prefix → space, else no space — ตรงกับ _combineName ในฟอร์มเต็ม) ──
+  const sgPfx = get('vcEdit_tenantSignerPrefix');
+  const sgName = get('vcEdit_tenantSignerName');
+  c.tenantSignerName = !sgName ? '' : (!sgPfx ? sgName : sgPfx + (/\.$/.test(sgPfx) ? ' ' : '') + sgName);
   c.tenantSignerTitle = get('vcEdit_tenantSignerTitle');
+  c.tenantLogo = (document.getElementById('vcEdit_tenantLogo')?.value || '') || null;
   addActivityLog('edit_contract','แก้ไขข้อมูลผู้เช่า — '+(c.no||'#'+cid));
   window._vcEditMode = null;
   _modalDirty = false;
@@ -10132,7 +10537,7 @@ function vcSaveLandlord(cid){
   const newHeaderId = get('vcEdit_invHeaderId');
   c.invHeaderId = newHeaderId ? +newHeaderId : null;
   c.landlord = get('vcEdit_landlord');
-  c.landlordAddr = get('vcEdit_landlordAddr');
+  c.landlordAddr = vcAssembleAddr('vcEdit_la');
   c.madeAt = get('vcEdit_madeAt');
   c.landlordSignerName = get('vcEdit_landlordSignerName');
   c.landlordSignerTitle = get('vcEdit_landlordSignerTitle');
@@ -10182,9 +10587,27 @@ function vcSaveLease(cid){
   c.date = normalizeBEDate(get('vcEdit_date'));
   c.start = normalizeBEDate(newStart);
   c.end = normalizeBEDate(newEnd);
-  c.dur = get('vcEdit_dur');
-  c.rate = get('vcEdit_rate');
-  c.payment = get('vcEdit_payment');
+  // ── Duration: combine years + months → "X ปี Y เดือน" ──
+  const dY = parseInt(get('vcEdit_durYears'))||0;
+  const dM = parseInt(get('vcEdit_durMonths'))||0;
+  c.dur = [dY>0?dY+' ปี':'', dM>0?dM+' เดือน':''].filter(Boolean).join(' ') || (c.dur||'');
+  // ── Rate: combine prefix + amount + "บาท" ──
+  const rPfx = get('vcEdit_ratePrefix') || 'เดือนละ';
+  const rAmt = (get('vcEdit_rateAmt')||'').replace(/[^\d.,]/g,'');
+  if(rAmt){
+    // Format amount with thousand separators if numeric
+    const num = parseFloat(rAmt.replace(/,/g,''));
+    const fmtAmt = isNaN(num) ? rAmt : num.toLocaleString('en-US');
+    c.rate = rPfx + ' ' + fmtAmt + ' บาท';
+  }
+  // ── Payment: combine schedule + channel + note ──
+  const pSched = get('vcEdit_paySchedule');
+  const pChan = get('vcEdit_payChannel');
+  const pNote = get('vcEdit_payNote');
+  c.payment = [pSched, pChan, pNote].filter(Boolean).join(' · ');
+  // dueDay (วันครบกำหนดชำระประจำเดือน)
+  const _dueDayVal = parseInt(get('vcEdit_dueDay'))||5;
+  c.dueDay = Math.max(1, Math.min(31, _dueDayVal));
   // hasDeposit checkbox: ติ๊ก → เก็บ deposit value · ไม่ติ๊ก → ไม่มีเงินประกัน clear value
   const _hasDepEl = document.getElementById('vcEdit_hasDeposit');
   c.hasDeposit = _hasDepEl ? _hasDepEl.checked : (parseFloat(String(c.deposit||0).replace(/[^\d.]/g,''))>0);
@@ -10192,6 +10615,38 @@ function vcSaveLease(cid){
   c.rateAdj = get('vcEdit_rateAdj');
   c.purpose = get('vcEdit_purpose');
   addActivityLog('edit_contract','แก้ไขรายละเอียดการเช่า — '+(c.no||'#'+cid));
+  window._vcEditMode = null;
+  _modalDirty = false;
+  save();
+  toast('✓ บันทึกแล้ว','success');
+  viewContract(cid);
+}
+function vcSaveWitness(cid){
+  const c = DB.contracts.find(x => x.id === cid);
+  if(!c) return;
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  const _combine = (pfx, name) => {
+    const p = (pfx||'').trim(), n = (name||'').trim();
+    if(!n) return '';
+    if(!p) return n;
+    return p + (/\.$/.test(p) ? ' ' : '') + n;
+  };
+  const w1 = _combine(get('vcEdit_witness1Prefix'), get('vcEdit_witness1Name'));
+  const w2 = _combine(get('vcEdit_witness2Prefix'), get('vcEdit_witness2Name'));
+  // กันพยานซ้ำกับผู้ลงนาม
+  const signer = (c.landlordSignerName||'').trim();
+  if(signer && w1 && signer===w1){ toast('พยานคนที่ 1 ซ้ำกับผู้ลงนามไม่ได้','error'); return; }
+  if(signer && w2 && signer===w2){ toast('พยานคนที่ 2 ซ้ำกับผู้ลงนามไม่ได้','error'); return; }
+  if(w1 && w2 && w1===w2){ toast('พยาน 2 คน ต้องไม่ใช่คนเดียวกัน','error'); return; }
+  c.witness1Name = w1;
+  c.witness1Title = get('vcEdit_witness1Title');
+  c.witness2Name = w2;
+  c.witness2Title = get('vcEdit_witness2Title');
+  c.landlordSig = get('vcEdit_landlordSig') || '';
+  c.tenantSig = get('vcEdit_tenantSig') || '';
+  c.witness1Sig = get('vcEdit_witness1Sig') || '';
+  c.witness2Sig = get('vcEdit_witness2Sig') || '';
+  addActivityLog('edit_contract','แก้ไขพยาน/ลายเซ็น — '+(c.no||'#'+cid));
   window._vcEditMode = null;
   _modalDirty = false;
   save();
@@ -13626,7 +14081,7 @@ body { background: #fff; color: #1a202c; }
 .c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 13px; display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
 /* ── Date/Place strip ── */
-.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 9px 16px; font-size: 11.5px; color: #475569; margin-bottom: 16px; line-height: 1.55; }
+.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 10px 16px; font-size: 13px; color: #334155; margin-bottom: 16px; line-height: 1.6; }
 .c-date-strip b { color: #1e3a5f; font-weight: 700; }
 
 /* ── Parties table · minimal — section hdr ใช้ light bg + navy text (ลดถมดำตอน print) ── */
@@ -13636,20 +14091,20 @@ body { background: #fff; color: #1a202c; }
 .party-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; }
 .party-cell:last-child { border-right: none; }
 .party-label { font-size: 8.5px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
-.party-name { font-size: 14px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.3; }
-.party-detail { font-size: 10.5px; color: #475569; line-height: 1.6; margin-top: 2px; }
-.party-detail-label { color: #94a3b8; font-weight: 600; font-size: 9px; letter-spacing: .5px; }
+.party-name { font-size: 15px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.3; }
+.party-detail { font-size: 12px; color: #1e293b; line-height: 1.6; margin-top: 2px; }
+.party-detail-label { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .5px; }
 
 /* ── Contract body ── */
-.c-body { font-size: 11.5px; line-height: 1.9; color: #334155; text-align: justify; margin-bottom: 18px; }
+.c-body { font-size: 13.5px; line-height: 1.85; color: #1e293b; text-align: justify; margin-bottom: 18px; }
 /* หลัง splitOverflowPages flatten — apply body styles ที่ clauses เป็น direct children ของ page-body */
-.page-body > .c-intro, .page-body > .clause, .page-body > .sub-clause, .page-body > .c-closing { font-size: 11.5px; line-height: 1.9; color: #334155; text-align: justify; }
-.c-intro { margin-bottom: 16px; text-indent: 24px; }
-.clause { margin-bottom: 11px; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 11.5px; }
-.sub-clause { margin: 6px 0 6px 26px; font-size: 11px; color: #334155; line-height: 1.78; }
+.page-body > .c-intro, .page-body > .clause, .page-body > .sub-clause, .page-body > .c-closing { font-size: 13.5px; line-height: 1.85; color: #1e293b; text-align: justify; }
+.c-intro { margin-bottom: 16px; text-indent: 28px; }
+.clause { margin-bottom: 12px; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 13.5px; }
+.sub-clause { margin: 7px 0 7px 28px; font-size: 13px; color: #1e293b; line-height: 1.75; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; }
-.c-closing { margin-top: 16px; text-indent: 24px; }
+.c-closing { margin-top: 18px; text-indent: 28px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
@@ -13665,9 +14120,9 @@ body { background: #fff; color: #1a202c; }
 .sig-img-area { height: 54px; display: flex; align-items: flex-end; justify-content: center; }
 .sig-img-area img { max-height: 50px; max-width: 145px; object-fit: contain; }
 .sig-line-rule { border-top: 1px solid #1e3a5f; margin: 4px auto 0; width: 170px; }
-.sig-name { font-size: 11.5px; font-weight: 700; color: #1e3a5f; margin-top: 5px; }
-.sig-role { font-size: 10px; color: #475569; margin-top: 1px; }
-.sig-date { font-size: 9.5px; color: #94a3b8; margin-top: 3px; }
+.sig-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-top: 5px; }
+.sig-role { font-size: 11.5px; color: #475569; margin-top: 1px; }
+.sig-date { font-size: 11px; color: #64748b; margin-top: 3px; }
 
 /* ── Appendix Header — minimal · ไม่ถมดำ ── */
 .c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 18px 0 14px; margin-bottom: 18px; }
@@ -13683,12 +14138,12 @@ body { background: #fff; color: #1a202c; }
 .ap-cell:nth-last-child(-n+2):not(:only-child), .ap-grid-full .ap-cell:last-child { border-bottom: none; }
 .ap-grid-full .ap-cell { border-bottom: 1px solid #f1f5f9; }
 .ap-grid-full .ap-cell:last-child { border-bottom: none; }
-.ap-label { font-size: 8.5px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
-.ap-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
-.ap-value { font-size: 11px; color: #334155; line-height: 1.6; }
+.ap-label { font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.ap-name { font-size: 14.5px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
+.ap-value { font-size: 12.5px; color: #1e293b; line-height: 1.6; }
 .ap-value strong { color: #1e3a5f; font-weight: 600; }
-.ap-meta-line { font-size: 10.5px; color: #475569; line-height: 1.6; margin-top: 3px; }
-.ap-meta-line .ap-meta-key { color: #94a3b8; font-weight: 600; font-size: 9px; letter-spacing: .3px; }
+.ap-meta-line { font-size: 12px; color: #334155; line-height: 1.6; margin-top: 3px; }
+.ap-meta-line .ap-meta-key { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .3px; }
 /* 4-col grid for compact info (lease terms / bank) */
 .ap-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; }
 .ap-grid-4 .ap-cell { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
@@ -13955,10 +14410,14 @@ function openPrintOverlay(contracts,title,rawHTML){
 }
 
 // Auto-split .page ที่ content ยาวเกิน A4 → groups of children · render เป็น .page หลายอัน
-// One-pass · ไม่มี recursive split · กัน infinite loop หน้าเปล่า
+// Re-checks newly created continuation pages (queue-based loop · กัน infinite loop ด้วย iteration cap)
 function splitOverflowPages(doc){
   if(!doc) return;
-  const A4_PX = 297 * 3.7795; // 1mm ≈ 3.7795px @ 96dpi
+  const PX_PER_MM = 3.7795;
+  const A4_PX = 297 * PX_PER_MM;
+  const PADDING_BOTTOM_PX = 20 * PX_PER_MM;
+  // safety gutter — กันไม่ให้ content ติด margin bottom เป๊ะ (browser print อาจ clip)
+  const SAFETY_GUTTER = 8;
   // Flatten .c-body children → direct children ของ .page-body
   // → split algorithm ตัดได้ระหว่าง clause (ไม่ติดกับ c-body wrapper)
   doc.querySelectorAll('.page-body > .c-body').forEach(cBody => {
@@ -13968,50 +14427,73 @@ function splitOverflowPages(doc){
     }
     cBody.remove();
   });
-  // หา .page ทั้งหมด · process ตามลำดับ (snapshot ก่อน เพราะอาจ insert page ใหม่)
-  const pages = Array.from(doc.querySelectorAll('.page'));
-  pages.forEach(page => {
-    // Skip ถ้า page ยังไม่ overflow (height อาจ = min-height 297mm พอดี)
-    if(page.scrollHeight <= A4_PX + 8) return;
+  // Queue: process pages · เมื่อ split เสร็จ ใส่ continuation ใหม่กลับเข้า queue เพื่อ re-check
+  const queue = Array.from(doc.querySelectorAll('.page'));
+  let iterations = 0;
+  const MAX_ITER = 200; // safety cap
+  while(queue.length && iterations < MAX_ITER){
+    iterations++;
+    const page = queue.shift();
+    if(!page.isConnected) continue; // page ถูก remove ไปแล้ว
+    // Trigger: scrollHeight > A4_PX (เกินกระดาษ A4)
+    if(page.scrollHeight <= A4_PX + SAFETY_GUTTER) continue;
     const body = page.querySelector('.page-body');
-    if(!body) return;
-    // คำนวณ space ที่เหลือใน page หลัง header
-    const header = page.querySelector('.c-header');
-    const headerH = header ? header.offsetHeight + 18 : 60; // header + margin
-    const innerPadding = 38 * 3.7795 * 2; // 18mm + 20mm padding top/bottom (ใน body.embed) — approx
-    const maxBodyH = A4_PX - headerH - innerPadding * 0.3; // padding บางส่วนเท่านั้น (approximate safe)
-    // Walk children · group ที่ fit แล้วเริ่ม group ใหม่ก่อนเกิน
+    if(!body) continue;
+    // คำนวณ space ที่เหลือใน page-body
+    // วัด offset ของ body.top จาก page.top → จะรวม c-header + c-date-strip + parties-table + appendix-header (ถ้ามี) ครบ
+    const pageRect = page.getBoundingClientRect();
+    const bodyRect = body.getBoundingClientRect();
+    const bodyOffsetTop = bodyRect.top - pageRect.top; // px above page-body within this .page
+    // First group: limited by space remaining after header stack
+    const maxFirstGroup = A4_PX - bodyOffsetTop - PADDING_BOTTOM_PX - SAFETY_GUTTER;
+    // Continuation groups: full content area (page top/bottom padding only · no header)
+    const maxContGroup = A4_PX - (18 * PX_PER_MM) - PADDING_BOTTOM_PX - SAFETY_GUTTER;
+    if(maxFirstGroup <= 100) continue; // sanity — page header ยาวเกินกระดาษ (กัน infinite loop)
+    // Walk children · จัดกลุ่มโดยใช้ตำแหน่งจริง · cutLine เลื่อนตาม group ที่กำลังจัด
+    // ใช้ rect.bottom relative to current group's first child top
+    // → รวม margin ระหว่าง children โดยอัตโนมัติ (offsetHeight ไม่นับ margin → คำนวณพลาด)
     const children = Array.from(body.children);
+    if(children.length <= 1) continue;
     const groups = [[]];
-    let curH = 0;
-    children.forEach(child => {
-      const h = child.offsetHeight || 0;
-      if(curH > 0 && curH + h > maxBodyH){
+    let groupRefTop = bodyRect.top;  // anchor: position ของ "start" ของ group ปัจจุบัน
+    let groupCap = maxFirstGroup;
+    children.forEach((child) => {
+      const cRect = child.getBoundingClientRect();
+      const cBottomRel = cRect.bottom - groupRefTop; // relative bottom within current group
+      // ถ้าเกิน cap → เริ่ม group ใหม่ (เว้นแต่ group ว่าง · กัน infinite loop)
+      if(groups[groups.length-1].length > 0 && cBottomRel > groupCap){
         groups.push([]);
-        curH = 0;
+        groupRefTop = cRect.top;
+        groupCap = maxContGroup;
       }
       groups[groups.length-1].push(child);
-      curH += h;
     });
     // ไม่ต้อง split ถ้า group เดียว · หรือ group แรกว่าง
-    if(groups.length <= 1 || groups[0].length === 0) return;
+    if(groups.length <= 1 || groups[0].length === 0) continue;
     // เคลียร์ body · ใส่ group แรก
     while(body.firstChild) body.removeChild(body.firstChild);
     groups[0].forEach(c => body.appendChild(c));
-    // ใส่ group ที่เหลือใน .continuation-page แต่ละอัน หลัง current
+    // ใส่ group ที่เหลือใน .continuation-page แต่ละอัน · push เข้า queue เพื่อ re-check
     let anchor = page;
     for(let i = 1; i < groups.length; i++){
       if(groups[i].length === 0) continue;
       const newPage = doc.createElement('div');
-      newPage.className = page.className + ' continuation-page';
+      // continuation page = no header/parties-table · ใช้ class ที่ contains 'continuation-page' เท่านั้น
+      // strip appendix-page · เก็บแค่ 'page continuation-page' (เผื่อเป็น appendix split ก็ต้องเป็น continuation ไม่ใช่ banner)
+      newPage.className = 'page continuation-page';
       const newBody = doc.createElement('div');
       newBody.className = 'page-body';
       groups[i].forEach(c => newBody.appendChild(c));
       newPage.appendChild(newBody);
       anchor.after(newPage);
       anchor = newPage;
+      // ถ้า group ใหม่ยาวเกินกระดาษ → ใส่ queue ไป re-split
+      queue.push(newPage);
     }
-  });
+  }
+  if(iterations >= MAX_ITER){
+    console.warn('splitOverflowPages: hit MAX_ITER · stop split');
+  }
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
@@ -17429,22 +17911,28 @@ function buildInvoiceHeaderFormHTML(h){
     `)}
 
     <!-- ═════ ธนาคาร ═════ -->
-    ${_hsec('🏦', 'บัญชีธนาคาร', `
+    ${_hsec('🏦', 'บัญชีธนาคาร', (()=>{
+      const _hdrBankParts = splitBankBranch(isEdit?h.bankName:'');
+      return `
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label style="${lbl}">ธนาคาร</label>
-          <input type="text" name="bankName" id="hdrBank" value="${isEdit?safeV(h.bankName):''}" placeholder="ธ.กสิกรไทย" class="${inp}">
+          ${bankDropdownHTML('bankName', _hdrBankParts.bank, 'id="hdrBank" class="'+inp+'"')}
+        </div>
+        <div>
+          <label style="${lbl}">สาขา (ไม่บังคับ)</label>
+          <input type="text" name="bankBranch" id="hdrBankBranch" value="${safeV(_hdrBankParts.branch)}" placeholder="เช่น บ้านโป่ง" class="${inp}">
         </div>
         <div>
           <label style="${lbl}">เลขบัญชี</label>
           <input type="text" name="bankAccount" id="hdrAccount" value="${isEdit?safeV(h.bankAccount):''}" placeholder="123-4-56789-0" class="${inp}">
         </div>
-        <div class="col-span-2">
+        <div>
           <label style="${lbl}">ชื่อบัญชี</label>
           <input type="text" name="bankAccountName" id="hdrAccountName" value="${isEdit?safeV(h.bankAccountName):''}" placeholder="บจก. สมบัตินภา" class="${inp}">
         </div>
       </div>
-    `)}
+    `;})())}
 
     <!-- ═════ PromptPay ═════ -->
     ${_hsec('⚡', 'PromptPay (สร้าง QR อัตโนมัติในใบแจ้งหนี้)', `
@@ -17578,7 +18066,7 @@ function submitInvoiceHeaderForm(headerId){
     vatMode: vatMode,
     vatRegistered: vatMode !== 'none',
     vatRate: parseFloat(fd.get('vatRate')) || 7,
-    bankName: (fd.get('bankName')||'').trim(),
+    bankName: joinBankBranch(fd.get('bankName'), fd.get('bankBranch')),
     bankAccount: (fd.get('bankAccount')||'').trim(),
     bankAccountName: (fd.get('bankAccountName')||'').trim(),
     promptPayId: (fd.get('promptPayId')||'').trim(),
