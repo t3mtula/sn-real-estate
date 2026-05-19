@@ -13610,6 +13610,8 @@ body { background: #fff; color: #1a202c; }
 
 /* ── Contract body ── */
 .c-body { font-size: 11.5px; line-height: 1.9; color: #334155; text-align: justify; margin-bottom: 18px; }
+/* หลัง splitOverflowPages flatten — apply body styles ที่ clauses เป็น direct children ของ page-body */
+.page-body > .c-intro, .page-body > .clause, .page-body > .sub-clause, .page-body > .c-closing { font-size: 11.5px; line-height: 1.9; color: #334155; text-align: justify; }
 .c-intro { margin-bottom: 16px; text-indent: 24px; }
 .clause { margin-bottom: 11px; padding-left: 0; }
 .clause-num { font-weight: 700; color: #1e3a5f; font-size: 11.5px; }
@@ -13925,6 +13927,15 @@ function openPrintOverlay(contracts,title,rawHTML){
 function splitOverflowPages(doc){
   if(!doc) return;
   const A4_PX = 297 * 3.7795; // 1mm ≈ 3.7795px @ 96dpi
+  // Flatten .c-body children → direct children ของ .page-body
+  // → split algorithm ตัดได้ระหว่าง clause (ไม่ติดกับ c-body wrapper)
+  doc.querySelectorAll('.page-body > .c-body').forEach(cBody => {
+    const parent = cBody.parentNode;
+    while(cBody.firstChild){
+      parent.insertBefore(cBody.firstChild, cBody);
+    }
+    cBody.remove();
+  });
   // หา .page ทั้งหมด · process ตามลำดับ (snapshot ก่อน เพราะอาจ insert page ใหม่)
   const pages = Array.from(doc.querySelectorAll('.page'));
   pages.forEach(page => {
