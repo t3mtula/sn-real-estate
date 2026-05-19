@@ -13568,9 +13568,9 @@ body { background: #fff; color: #1a202c; }
 .c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 9px 16px; font-size: 11.5px; color: #475569; margin-bottom: 16px; line-height: 1.55; }
 .c-date-strip b { color: #1e3a5f; font-weight: 700; }
 
-/* ── Parties table ── */
+/* ── Parties table · minimal — section hdr ใช้ light bg + navy text (ลดถมดำตอน print) ── */
 .parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 18px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
-.parties-table .sect-hdr td { background: #1e3a5f; color: #fff; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .parties-table .party-row td { padding: 0; vertical-align: top; }
 .party-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; }
 .party-cell:last-child { border-right: none; }
@@ -13606,19 +13606,13 @@ body { background: #fff; color: #1a202c; }
 .sig-role { font-size: 10px; color: #475569; margin-top: 1px; }
 .sig-date { font-size: 9.5px; color: #94a3b8; margin-top: 3px; }
 
-/* ── Appendix Banner Header — เน้นชัดที่หัวกระดาษ ── */
-.c-header.appendix-banner { background: linear-gradient(135deg, #1e3a5f 0%, #2c4a72 100%); color: #fff; border-top: none; border-bottom: 3px solid #1e3a5f; padding: 22px 24px; border-radius: 6px; margin-bottom: 22px; }
-.c-header.appendix-banner .c-title { color: #fff; }
-.c-header.appendix-banner .c-subtitle { color: rgba(255,255,255,.75); letter-spacing: 1px; }
-.c-header.appendix-banner .c-subtitle b { color: #fff; }
-.c-header.appendix-banner .c-meta-badge { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); border-left: 3px solid #fff; backdrop-filter: blur(6px); }
-.c-header.appendix-banner .c-meta-badge .label { color: rgba(255,255,255,.7); }
-.c-header.appendix-banner .c-meta-badge .value { color: #fff; }
-.appendix-eyebrow { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: rgba(255,255,255,.6); text-transform: uppercase; margin-bottom: 6px; }
+/* ── Appendix Header — minimal · ไม่ถมดำ ── */
+.c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 18px 0 14px; margin-bottom: 18px; }
+.appendix-eyebrow { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
 
-/* ── Appendix Cards (card-based 2-col layout — design language ตรงกับสัญญาหลัก) ── */
+/* ── Appendix Cards · minimal · light bg ── */
 .ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
-.ap-card-hdr { background: #1e3a5f; color: #fff; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.ap-card-hdr { background: #f1f5f9; color: #1e3a5f; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
 .ap-grid-full { display: grid; grid-template-columns: 1fr; gap: 0; }
 .ap-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
@@ -13638,69 +13632,25 @@ body { background: #fff; color: #1a202c; }
 .ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
 .ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
 
-/* ── Page footer (inline · ลอย bottom) ── */
-.page-footer { margin-top: auto; padding-top: 8mm; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 5px; }
-.page-footer-contract { font-size: 9px; color: #94a3b8; }
-.page-footer-num { font-size: 9px; color: #94a3b8; }
-
-/* ── Print mode: running headers/footers ทุกหน้า · เลขหน้าถูกต้อง · เลขที่สัญญาทุกหน้า ── */
+/* ── Print mode: PARITY กับ preview · header แสดง inline ทั้ง 2 view ── */
 @media print {
-  @page {
-    size: A4;
-    margin: 22mm 18mm 18mm;
-    /* Top header bar — ทุกหน้า */
-    @top-left {
-      content: string(doctitle);
-      font-family: 'Sarabun', sans-serif;
-      font-size: 9pt;
-      font-weight: 700;
-      color: #1e3a5f;
-      padding-top: 8mm;
-      vertical-align: top;
-    }
-    @top-right {
-      content: "เลขที่ " string(contractid);
-      font-family: 'Sarabun', sans-serif;
-      font-size: 9pt;
-      font-weight: 600;
-      color: #1e3a5f;
-      padding-top: 8mm;
-      vertical-align: top;
-    }
-    /* Bottom — page number ที่ถูกต้อง */
-    @bottom-center {
-      content: "หน้า " counter(page) " / " counter(pages);
-      font-family: 'Sarabun', sans-serif;
-      font-size: 8pt;
-      color: #94a3b8;
-      padding-bottom: 4mm;
-    }
-  }
-  /* string-set tag · เปลี่ยน string ตอน .page-marker ปรากฏ → running header เปลี่ยนตามหน้า */
-  .doc-marker { string-set: doctitle attr(data-title), contractid attr(data-contract); position: absolute; left: -9999px; height: 0; overflow: hidden; }
+  @page { size: A4; margin: 18mm 22mm 20mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  /* .page ใช้ @page margin → padding=0 + height auto · browser paginate content overflow */
-  .page { padding: 0 !important; min-height: auto !important; height: auto; margin: 0; box-shadow: none; display: block; }
-  /* clause/sub-clause ห้าม split — กันข้อความขาด */
+  /* .page ใช้ @page margin → padding=0 + height auto */
+  .page { padding: 0 !important; min-height: auto !important; height: auto; margin: 0; box-shadow: none; display: flex; flex-direction: column; }
+  /* clause/sub-clause + signature + cards ห้าม split */
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
-  /* Signature + tables ห้าม split */
   .parties-table, .sig-grid, .sig-block, .ap-card { page-break-inside: avoid; break-inside: avoid; }
   /* บังคับ page-break ก่อนเอกสารแนบท้าย */
   .appendix-page { page-break-before: always; break-before: page; }
-  /* Hide manual page-footer ตอน print → ใช้ @page bottom-center แทน */
-  .page-footer { display: none !important; }
-  /* ตอน print ซ่อน header ใน body (เพราะ @page top-* แสดงแทน) */
-  .page > .c-header { display: none !important; }
 }
 @media screen {
   body { background: #e2e8f0; padding: 20px; }
-  .page { box-shadow: 0 4px 24px rgba(0,0,0,0.12); border-radius: 4px; margin-bottom: 20px; }
-  /* doc-marker ซ่อนเสมอใน screen */
-  .doc-marker { display: none; }
-  /* embed preview — keep dimensions match print so user เห็น page boundary ตรงกัน */
-  body.embed { background: #f8fafc; padding: 10px 0; }
-  body.embed .page { width: 100%; max-width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .page { box-shadow: 0 4px 24px rgba(0,0,0,0.12); border-radius: 4px; margin-bottom: 24px; background: #fff; }
+  body.embed { background: #e2e8f0; padding: 16px 0; }
+  /* Preview pages — discrete A4 cards · gap ระหว่างหน้าชัด · เหมือนกระดาษจริง */
+  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 18mm 22mm 20mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; }
 }
 </style></head><body>
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
@@ -13734,9 +13684,7 @@ ${contracts.map(c=>{
     return '-';
   })();
   return'<div class="page">'+
-    // String-set markers ตอน print (running headers ใช้)
-    '<div class="doc-marker" data-title="สัญญาเช่า" data-contract="'+c.no+'"></div>'+
-    // ── Header ── (screen only — print ใช้ @page top-*)
+    // ── Header (แสดงทั้ง screen + print เหมือนกัน — parity) ──
     '<div class="c-header">'+
       '<div class="c-header-center">'+
         '<div class="c-title">สัญญาเช่า</div>'+
@@ -13808,11 +13756,9 @@ ${contracts.map(c=>{
     '</div>'+ /* /page-body */
   '</div>'+
 
-  // ── Appendix page (card-based 2-col layout · design ตรงกับสัญญาหลัก) ──
+  // ── Appendix page (card layout · design ตรงกับสัญญาหลัก) ──
   '<div class="page appendix-page">'+
-    // String-set marker — running header เปลี่ยนเป็น "เอกสารแนบท้าย" ตอน print
-    '<div class="doc-marker" data-title="เอกสารแนบท้ายสัญญา" data-contract="'+c.no+'"></div>'+
-    // Banner header — เด่นชัดในหัวกระดาษ (Tem feedback)
+    // Banner header — minimal · ใช้ style เดียวกับ main contract header
     '<div class="c-header appendix-banner">'+
       '<div class="c-header-center">'+
         '<div class="appendix-eyebrow">SCHEDULE · เอกสารประกอบสัญญา</div>'+
@@ -13937,40 +13883,48 @@ function openPrintOverlay(contracts,title,rawHTML){
   document.getElementById('printOverlay').style.display='block';
   const frame=document.getElementById('printFrame');
   frame.srcdoc=html;
-  // หลัง iframe โหลดเสร็จ → วาดเส้นแบ่งหน้าให้ preview ตรงกับ print จริง
+  // หลัง iframe โหลดเสร็จ → split .page ที่ content ยาวเกิน 297mm ออกเป็นหน้าใหม่
+  // → preview แสดงเป็น A4 card discrete ตรงกับ print จริง · ไม่มี dashed indicator
   frame.onload = () => {
-    try { showPageBreakIndicators(frame.contentDocument); } catch(e) { /* iframe ยังไม่พร้อม */ }
+    try { splitOverflowPages(frame.contentDocument); } catch(e) { /* iframe ยังไม่พร้อม */ }
   };
 }
 
-// วาดเส้น dashed สีแดง + label "✂️ ตัดหน้า N" ที่ทุก 297mm ใน .page ที่ยาวเกิน
-// → preview แสดงตำแหน่งที่ browser จะ paginate ตอน print จริง
-function showPageBreakIndicators(doc){
+// Auto-split .page ที่ content ยาวเกิน A4 height → ย้าย children ส่วนเกินไป new .page card
+// กลไก: หา breakpoint ที่ safe (between top-level children · ไม่กลาง clause/table)
+function splitOverflowPages(doc){
   if(!doc) return;
-  // A4 height = 297mm. 1mm ≈ 3.7795px ที่ 96dpi (default screen)
-  const A4_PX = 297 * 3.7795;
-  doc.querySelectorAll('.page').forEach(page => {
-    const h = page.offsetHeight;
-    if(h <= A4_PX + 5) return; // เผื่อ rounding
-    const breaks = Math.floor(h / A4_PX);
-    page.style.position = page.style.position || 'relative';
-    for(let i = 1; i <= breaks; i++){
-      const y = i * A4_PX;
-      const line = doc.createElement('div');
-      line.className = 'page-break-indicator';
-      line.style.cssText = 'position:absolute;left:-20mm;right:-20mm;top:'+y+'px;height:0;border-top:2px dashed #ef4444;z-index:50;pointer-events:none';
-      const label = doc.createElement('div');
-      label.className = 'page-break-indicator';
-      label.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);top:'+(y-11)+'px;background:#ef4444;color:#fff;padding:2px 12px;border-radius:99px;font-size:10px;font-weight:700;z-index:51;font-family:Sarabun;white-space:nowrap;box-shadow:0 2px 6px rgba(239,68,68,.4)';
-      label.textContent = '✂️ ตัดหน้า ' + (i+1) + ' ตอน print';
-      page.appendChild(line);
-      page.appendChild(label);
+  const A4_PX = 297 * 3.7795; // 1mm ≈ 3.7795px @ 96dpi
+  // Repeat until no .page overflows
+  let safety = 0;
+  while(safety++ < 20){
+    const pages = Array.from(doc.querySelectorAll('.page'));
+    let didSplit = false;
+    for(const page of pages){
+      if(page.offsetHeight <= A4_PX + 5) continue;
+      // Find page-body wrapper (where content flows)
+      const body = page.querySelector('.page-body');
+      if(!body) continue;
+      // Move children one-by-one ไป new page until current page < A4
+      // Skip: signature section ต้องตามตอนสุดท้าย เสมอ
+      const newPage = doc.createElement('div');
+      newPage.className = page.className + ' continuation-page';
+      const newBody = doc.createElement('div');
+      newBody.className = 'page-body';
+      newPage.appendChild(newBody);
+      // Collect overflow children — สแกนหลังไปหน้า จนกว่า page < A4
+      while(page.offsetHeight > A4_PX + 5 && body.children.length > 1){
+        const last = body.lastElementChild;
+        if(!last) break;
+        newBody.insertBefore(last, newBody.firstChild);
+      }
+      // Insert new page after current
+      page.after(newPage);
+      didSplit = true;
+      break; // re-scan all pages
     }
-  });
-  // ตอน print → ซ่อน indicators (browser paginate เอง)
-  const style = doc.createElement('style');
-  style.textContent = '@media print { .page-break-indicator { display: none !important; } }';
-  doc.head.appendChild(style);
+    if(!didSplit) break;
+  }
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
