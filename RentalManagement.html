@@ -13738,17 +13738,23 @@ ${contracts.map(c=>{
       (c.phone?'<tr><td>เบอร์โทร</td><td>'+c.phone+'</td></tr>':'')+
       (c.taxId?'<tr><td>เลขบัตรประชาชน</td><td>'+c.taxId+'</td></tr>':'')+
       '<tr class="sect-row"><td colspan="2">▸ รายละเอียดทรัพย์สิน</td></tr>'+
-      '<tr><td>ทรัพย์สิน</td><td>'+c.property+'</td></tr>'+
-      '<tr><td>วัตถุประสงค์</td><td>'+c.purpose+'</td></tr>'+
-      '<tr><td>พื้นที่</td><td>'+c.area+'</td></tr>'+
-      (p?'<tr><td>เอกสารสิทธิ์</td><td>'+p.titleDeed+'</td></tr>':'')+
+      (c.property?'<tr><td>ทรัพย์สิน</td><td>'+c.property+'</td></tr>':'')+
+      (c.purpose?'<tr><td>วัตถุประสงค์</td><td>'+c.purpose+'</td></tr>':'')+
+      (c.area?'<tr><td>พื้นที่</td><td>'+c.area+'</td></tr>':'')+
+      (p&&p.titleDeed?'<tr><td>เอกสารสิทธิ์</td><td>'+p.titleDeed+'</td></tr>':'')+
       '<tr class="sect-row"><td colspan="2">▸ เงื่อนไขการเช่า</td></tr>'+
-      '<tr><td>ระยะเวลา</td><td>'+c.dur+'</td></tr>'+
-      '<tr><td>วันเริ่มต้น</td><td>'+dateToThai(c.start)+'</td></tr>'+
-      '<tr><td>วันสิ้นสุด</td><td>'+dateToThai(c.end)+'</td></tr>'+
-      '<tr><td>อัตราค่าเช่า</td><td>'+c.rate+'</td></tr>'+
+      (c.dur?'<tr><td>ระยะเวลา</td><td>'+c.dur+'</td></tr>':'')+
+      (c.start?'<tr><td>วันเริ่มต้น</td><td>'+dateToThai(c.start)+'</td></tr>':'')+
+      (c.end?'<tr><td>วันสิ้นสุด</td><td>'+dateToThai(c.end)+'</td></tr>':'')+
+      (c.rate?'<tr><td>อัตราค่าเช่า</td><td>'+c.rate+'</td></tr>':'')+
       (c.rateAdj?'<tr><td>การปรับค่าเช่า</td><td>'+c.rateAdj+'</td></tr>':'')+
-      (c.hasDeposit===false?'<tr><td>เงินประกัน</td><td>ไม่มี</td></tr>':'<tr><td>เงินประกัน</td><td>'+fmtDeposit(c.deposit)+'</td></tr>')+
+      (function(){
+        // ไม่มีเงินประกันจริงๆ (hasDeposit=false) หรือไม่มีค่า → skip ทั้งบรรทัด
+        if(c.hasDeposit === false) return '';
+        const depStr = fmtDeposit(c.deposit);
+        if(!depStr || depStr === '-') return '';
+        return '<tr><td>เงินประกัน</td><td>'+depStr+'</td></tr>';
+      })()+
       (c.payment?'<tr><td>วิธีชำระ</td><td>'+c.payment+'</td></tr>':'')+
       // Phase 2: ใช้ resolveBankFields() — ดึง bank จาก entity (c.bankAccountId → landlord default → legacy fallback)
       (function(){
