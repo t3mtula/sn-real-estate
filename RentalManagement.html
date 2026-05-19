@@ -13560,7 +13560,7 @@ body { background: #fff; color: #1a202c; }
 .c-header-center { flex: 1; }
 .c-title { font-size: 24px; font-weight: 800; color: #1e3a5f; letter-spacing: .3px; line-height: 1.15; }
 .c-subtitle { font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
-.c-meta-badge { background: #fff; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 8px 14px; text-align: left; white-space: nowrap; min-width: 130px; }
+.c-meta-badge { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 8px 14px; text-align: left; white-space: nowrap; min-width: 130px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
 .c-meta-badge .label { color: #94a3b8; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 13px; display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
@@ -13890,41 +13890,55 @@ function openPrintOverlay(contracts,title,rawHTML){
   };
 }
 
-// Auto-split .page ที่ content ยาวเกิน A4 height → ย้าย children ส่วนเกินไป new .page card
-// กลไก: หา breakpoint ที่ safe (between top-level children · ไม่กลาง clause/table)
+// Auto-split .page ที่ content ยาวเกิน A4 → groups of children · render เป็น .page หลายอัน
+// One-pass · ไม่มี recursive split · กัน infinite loop หน้าเปล่า
 function splitOverflowPages(doc){
   if(!doc) return;
   const A4_PX = 297 * 3.7795; // 1mm ≈ 3.7795px @ 96dpi
-  // Repeat until no .page overflows
-  let safety = 0;
-  while(safety++ < 20){
-    const pages = Array.from(doc.querySelectorAll('.page'));
-    let didSplit = false;
-    for(const page of pages){
-      if(page.offsetHeight <= A4_PX + 5) continue;
-      // Find page-body wrapper (where content flows)
-      const body = page.querySelector('.page-body');
-      if(!body) continue;
-      // Move children one-by-one ไป new page until current page < A4
-      // Skip: signature section ต้องตามตอนสุดท้าย เสมอ
+  // หา .page ทั้งหมด · process ตามลำดับ (snapshot ก่อน เพราะอาจ insert page ใหม่)
+  const pages = Array.from(doc.querySelectorAll('.page'));
+  pages.forEach(page => {
+    // Skip ถ้า page ยังไม่ overflow (height อาจ = min-height 297mm พอดี)
+    if(page.scrollHeight <= A4_PX + 8) return;
+    const body = page.querySelector('.page-body');
+    if(!body) return;
+    // คำนวณ space ที่เหลือใน page หลัง header
+    const header = page.querySelector('.c-header');
+    const headerH = header ? header.offsetHeight + 18 : 60; // header + margin
+    const innerPadding = 38 * 3.7795 * 2; // 18mm + 20mm padding top/bottom (ใน body.embed) — approx
+    const maxBodyH = A4_PX - headerH - innerPadding * 0.3; // padding บางส่วนเท่านั้น (approximate safe)
+    // Walk children · group ที่ fit แล้วเริ่ม group ใหม่ก่อนเกิน
+    const children = Array.from(body.children);
+    const groups = [[]];
+    let curH = 0;
+    children.forEach(child => {
+      const h = child.offsetHeight || 0;
+      if(curH > 0 && curH + h > maxBodyH){
+        groups.push([]);
+        curH = 0;
+      }
+      groups[groups.length-1].push(child);
+      curH += h;
+    });
+    // ไม่ต้อง split ถ้า group เดียว · หรือ group แรกว่าง
+    if(groups.length <= 1 || groups[0].length === 0) return;
+    // เคลียร์ body · ใส่ group แรก
+    while(body.firstChild) body.removeChild(body.firstChild);
+    groups[0].forEach(c => body.appendChild(c));
+    // ใส่ group ที่เหลือใน .continuation-page แต่ละอัน หลัง current
+    let anchor = page;
+    for(let i = 1; i < groups.length; i++){
+      if(groups[i].length === 0) continue;
       const newPage = doc.createElement('div');
       newPage.className = page.className + ' continuation-page';
       const newBody = doc.createElement('div');
       newBody.className = 'page-body';
+      groups[i].forEach(c => newBody.appendChild(c));
       newPage.appendChild(newBody);
-      // Collect overflow children — สแกนหลังไปหน้า จนกว่า page < A4
-      while(page.offsetHeight > A4_PX + 5 && body.children.length > 1){
-        const last = body.lastElementChild;
-        if(!last) break;
-        newBody.insertBefore(last, newBody.firstChild);
-      }
-      // Insert new page after current
-      page.after(newPage);
-      didSplit = true;
-      break; // re-scan all pages
+      anchor.after(newPage);
+      anchor = newPage;
     }
-    if(!didSplit) break;
-  }
+  });
 }
 function closePrintOverlay(){
   document.getElementById('printOverlay').style.display='none';
