@@ -14149,21 +14149,21 @@ body { background: #fff; color: #1a202c; }
 .ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
 .ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
 
-/* ── Print mode: PARITY กับ preview · block layout (ไม่ใช้ flex) เพื่อ pagination predictable ── */
+/* ── Print mode: PARITY กับ preview · flex column + min-height = paper content area
+     → ลายเซ็น (margin-top:auto) ถูกดันไป bottom ของกระดาษเสมอ (เหมือนสัญญากระดาษ) ── */
 @media print {
   @page { size: A4; margin: 14mm 20mm 14mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  /* .page = 1 paper exact · block layout (flex ทำให้ browser split paper ผิด) ·
-     page-break-inside: avoid → กันไม่ให้ .page โดน split ข้ามกระดาษ
-     page-break-after: always บังคับ paper ใหม่หลังจบ .page */
-  .page { padding: 0 !important; min-height: auto !important; height: auto !important; margin: 0; box-shadow: none; display: block !important; page-break-inside: avoid; page-break-after: always; break-inside: avoid; break-after: page; }
+  /* .page = 1 paper · flex column ให้ sig auto-margin push ไป bottom ของหน้า ·
+     min-height = paper content area (297-14-14 = 269mm) → fill paper เสมอ ·
+     page-break-after:always → paper ใหม่หลังจบ ·
+     page-break-inside:avoid → ห้าม split .page ข้ามกระดาษ */
+  .page { padding: 0 !important; min-height: calc(297mm - 14mm - 14mm) !important; height: auto !important; margin: 0; box-shadow: none; display: flex !important; flex-direction: column; page-break-inside: avoid; page-break-after: always; break-inside: avoid; break-after: page; }
   .page:last-child { page-break-after: auto; break-after: auto; }
-  /* page-body ก็ block layout (no flex push) */
-  .page-body { display: block !important; flex: none !important; }
-  .page-body-grow { flex: none !important; }
-  /* sig-section ใน print: margin-top:auto = 0 (parent ไม่ใช่ flex) → sig ไหลตาม content */
-  .sig-section { margin-top: 16px !important; padding-top: 12px; }
+  /* page-body fill remaining height · sig auto-push ลง bottom */
+  .page-body { display: flex !important; flex-direction: column !important; flex: 1 1 auto !important; }
+  .sig-section { margin-top: auto !important; padding-top: 12px; }
   /* clause/sub-clause + signature + cards ห้าม split */
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
   .parties-table, .sig-grid, .sig-block, .ap-card, .sig-section { page-break-inside: avoid; break-inside: avoid; }
@@ -14174,15 +14174,13 @@ body { background: #fff; color: #1a202c; }
   body { background: #e2e8f0; padding: 20px; }
   .page { box-shadow: 0 4px 24px rgba(0,0,0,0.12); border-radius: 4px; margin-bottom: 24px; background: #fff; }
   body.embed { background: #e2e8f0; padding: 16px 0; }
-  /* Preview pages — discrete A4 cards · gap ระหว่างหน้าชัด · เหมือนกระดาษจริง
-     CRITICAL: use BLOCK layout (ไม่ใช้ flex) เพื่อให้ pagination ตรงกับ @media print
-     ถ้าใช้ flex column: sig-section margin-top:auto จะถูก push ไปท้ายกระดาษใน preview
-     แต่ใน print (block layout) sig ไหลตาม content → preview != print */
-  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
-  body.embed .continuation-page { min-height: auto; }
-  body.embed .page-body { display: block; flex: none; }
-  body.embed .page-body-grow { flex: none; }
-  body.embed .sig-section { margin-top: 16px; padding-top: 12px; }
+  /* Preview pages — A4 cards · flex column + min-height = paper content height
+     → sig auto-margin push ลง bottom ของหน้า (ตรงกับ @media print) */
+  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: flex; flex-direction: column; }
+  /* Continuation pages (clauses ต่อกัน · ไมฺ่มี sig) — min-height:auto · ไม่ต้อง fill paper */
+  body.embed .continuation-page:not(:has(.sig-section)) { min-height: auto; }
+  body.embed .page-body { display: flex; flex-direction: column; flex: 1 1 auto; }
+  body.embed .sig-section { margin-top: auto; padding-top: 12px; }
 }
 </style></head><body>
 ${hideToolbar?'':'<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)"><button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button><button onclick="window.close()" style="background:transparent;color:#64748b;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button><span style="color:#64748b;font-size:12px;margin-left:auto">สัญญาเช่า — '+today.toLocaleDateString("th-TH")+'</span></div><div style="height:56px" class="no-print"></div>'}
