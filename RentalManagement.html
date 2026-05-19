@@ -13597,15 +13597,27 @@ body { background: #fff; color: #1a202c; }
 .sig-role { font-size: 10px; color: #475569; margin-top: 1px; }
 .sig-date { font-size: 9.5px; color: #94a3b8; margin-top: 3px; }
 
-/* ── Appendix (uses same .c-header style — consistent visual language) ── */
-.detail-table { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 22px; }
-.detail-table tr:nth-child(even) td { background: #fafbfc; }
-.detail-table tr { border-bottom: 1px solid #f1f5f9; }
-.detail-table tr:last-child { border-bottom: none; }
-.detail-table td { padding: 9px 14px; font-size: 11px; vertical-align: top; color: #334155; }
-.detail-table td:first-child { width: 150px; font-weight: 600; color: #64748b; white-space: nowrap; font-size: 10.5px; letter-spacing: .2px; }
-.detail-table td:last-child { color: #1e3a5f; font-weight: 500; }
-.detail-table .sect-row td { background: #1e3a5f !important; color: #fff !important; font-weight: 700; font-size: 10px; letter-spacing: 1.5px; padding: 7px 14px; text-transform: uppercase; }
+/* ── Appendix Cards (card-based 2-col layout — design language ตรงกับสัญญาหลัก) ── */
+.ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+.ap-card-hdr { background: #1e3a5f; color: #fff; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+.ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.ap-grid-full { display: grid; grid-template-columns: 1fr; gap: 0; }
+.ap-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
+.ap-cell:nth-child(2n), .ap-grid-full .ap-cell { border-right: none; }
+.ap-cell:nth-last-child(-n+2):not(:only-child), .ap-grid-full .ap-cell:last-child { border-bottom: none; }
+.ap-grid-full .ap-cell { border-bottom: 1px solid #f1f5f9; }
+.ap-grid-full .ap-cell:last-child { border-bottom: none; }
+.ap-label { font-size: 8.5px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.ap-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
+.ap-value { font-size: 11px; color: #334155; line-height: 1.6; }
+.ap-value strong { color: #1e3a5f; font-weight: 600; }
+.ap-meta-line { font-size: 10.5px; color: #475569; line-height: 1.6; margin-top: 3px; }
+.ap-meta-line .ap-meta-key { color: #94a3b8; font-weight: 600; font-size: 9px; letter-spacing: .3px; }
+/* 4-col grid for compact info (lease terms / bank) */
+.ap-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; }
+.ap-grid-4 .ap-cell { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
+.ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
+.ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
 
 /* ── Page numbers ── */
 body { counter-reset: pagenum; }
@@ -13728,56 +13740,82 @@ ${contracts.map(c=>{
     '<div class="page-footer"><span class="page-footer-contract">สัญญาเลขที่ '+c.no+'</span><span class="page-footer-num"></span></div>'+
   '</div>'+
 
-  // ── Appendix page (ใช้ header style เดียวกันกับ main contract) ──
-  '<div class="page appendix-page">'+
-    '<div class="c-header">'+
-      '<div class="c-header-center">'+
-        '<div class="c-title">เอกสารแนบท้าย</div>'+
-        '<div class="c-subtitle">Contract Details</div>'+
-      '</div>'+
-      '<div class="c-meta-badge"><span class="label">เลขที่สัญญา</span><span class="value">'+c.no+'</span></div>'+
-    '</div>'+
-    '<table class="detail-table">'+
-      '<tr class="sect-row"><td colspan="2">ข้อมูลสัญญา &nbsp;·&nbsp; Contract Information</td></tr>'+
-      '<tr><td>เลขที่สัญญา</td><td>'+c.no+'</td></tr>'+
-      '<tr><td>วันที่ทำสัญญา</td><td>'+dateToThai(c.date)+'</td></tr>'+
-      '<tr class="sect-row"><td colspan="2">ผู้ให้เช่า &nbsp;·&nbsp; Lessor</td></tr>'+
-      '<tr><td>ชื่อ</td><td>'+c.landlord+'</td></tr>'+
-      (c.landlordAddr?'<tr><td>ที่อยู่</td><td>'+c.landlordAddr+'</td></tr>':'')+
-      '<tr class="sect-row"><td colspan="2">ผู้เช่า &nbsp;·&nbsp; Lessee</td></tr>'+
-      '<tr><td>ชื่อ</td><td>'+c.tenant+'</td></tr>'+
-      (c.tenantAddr?'<tr><td>ที่อยู่</td><td>'+c.tenantAddr+'</td></tr>':'')+
-      (c.phone?'<tr><td>เบอร์โทร</td><td>'+c.phone+'</td></tr>':'')+
-      (c.taxId?'<tr><td>เลขผู้เสียภาษี</td><td>'+c.taxId+'</td></tr>':'')+
-      '<tr class="sect-row"><td colspan="2">รายละเอียดทรัพย์สิน &nbsp;·&nbsp; Property</td></tr>'+
-      (c.property?'<tr><td>ทรัพย์สิน</td><td>'+c.property+'</td></tr>':'')+
-      (c.purpose?'<tr><td>วัตถุประสงค์</td><td>'+c.purpose+'</td></tr>':'')+
-      (c.area?'<tr><td>พื้นที่</td><td>'+c.area+'</td></tr>':'')+
-      (p&&p.titleDeed?'<tr><td>เอกสารสิทธิ์</td><td>'+p.titleDeed+'</td></tr>':'')+
-      '<tr class="sect-row"><td colspan="2">เงื่อนไขการเช่า &nbsp;·&nbsp; Lease Terms</td></tr>'+
-      (c.dur?'<tr><td>ระยะเวลา</td><td>'+c.dur+'</td></tr>':'')+
-      (c.start?'<tr><td>วันเริ่มต้น</td><td>'+dateToThai(c.start)+'</td></tr>':'')+
-      (c.end?'<tr><td>วันสิ้นสุด</td><td>'+dateToThai(c.end)+'</td></tr>':'')+
-      (c.rate?'<tr><td>อัตราค่าเช่า</td><td>'+c.rate+'</td></tr>':'')+
-      (c.rateAdj?'<tr><td>การปรับค่าเช่า</td><td>'+c.rateAdj+'</td></tr>':'')+
-      (function(){
-        // ไม่มีเงินประกันจริงๆ (hasDeposit=false) หรือไม่มีค่า → skip ทั้งบรรทัด
-        if(c.hasDeposit === false) return '';
-        const depStr = fmtDeposit(c.deposit);
-        if(!depStr || depStr === '-') return '';
-        return '<tr><td>เงินประกัน</td><td>'+depStr+'</td></tr>';
-      })()+
-      (c.payment?'<tr><td>วิธีชำระ</td><td>'+c.payment+'</td></tr>':'')+
-      // Phase 2: ใช้ resolveBankFields() — ดึง bank จาก entity (c.bankAccountId → landlord default → legacy fallback)
-      (function(){
-        const _ph = (DB.invoiceHeaders||[]).find(x => x.id == c.invHeaderId);
-        const _rb = (typeof resolveBankFields==='function') ? resolveBankFields(c, _ph) : {bankName:c.bank||'',accountNo:c.acctNo||'',accountName:c.accountName||''};
-        return (_rb.bankName?'<tr><td>ธนาคาร</td><td>'+_rb.bankName+'</td></tr>':'')+
-               (_rb.accountName?'<tr><td>ชื่อบัญชี</td><td>'+_rb.accountName+'</td></tr>':'')+
-               (_rb.accountNo?'<tr><td>เลขที่บัญชี</td><td>'+_rb.accountNo+'</td></tr>':'');
-      })()+
-      (c.notes?'<tr><td>หมายเหตุ</td><td>'+c.notes+'</td></tr>':'')+
-    '</table>'+
+  // ── Appendix page (card-based 2-col layout · design ตรงกับสัญญาหลัก) ──
+  (function(){
+    const safe = v => v==null?'':String(v);
+    const apCell = (label, valueHtml) => '<div class="ap-cell"><div class="ap-label">'+label+'</div><div class="ap-value">'+valueHtml+'</div></div>';
+    const apCellOptional = (label, value) => value ? apCell(label, safe(value)) : '';
+    const apMetaLine = (label, value) => value ? '<div class="ap-meta-line"><span class="ap-meta-key">'+label+':</span> '+safe(value)+'</div>' : '';
+
+    // Parties card (2-col)
+    const partiesCard =
+      '<div class="ap-card"><div class="ap-card-hdr">คู่สัญญา &nbsp;·&nbsp; Parties</div>'+
+      '<div class="ap-grid">'+
+        '<div class="ap-cell">'+
+          '<div class="ap-label">ผู้ให้เช่า · Lessor</div>'+
+          '<div class="ap-name">'+safe(c.landlord)+'</div>'+
+          apMetaLine('ที่อยู่', c.landlordAddr)+
+        '</div>'+
+        '<div class="ap-cell">'+
+          '<div class="ap-label">ผู้เช่า · Lessee</div>'+
+          '<div class="ap-name">'+safe(c.tenant)+'</div>'+
+          apMetaLine('ที่อยู่', c.tenantAddr)+
+          apMetaLine('โทรศัพท์', c.phone)+
+          apMetaLine('เลขผู้เสียภาษี', c.taxId)+
+        '</div>'+
+      '</div></div>';
+
+    // Property card (full width — บางครั้งยาว)
+    const hasProperty = c.property || c.purpose || c.area || (p && p.titleDeed);
+    const propertyCard = hasProperty ?
+      '<div class="ap-card"><div class="ap-card-hdr">ทรัพย์สิน &nbsp;·&nbsp; Property</div>'+
+      '<div class="ap-grid">'+
+        apCellOptional('ทรัพย์สิน', c.property)+
+        apCellOptional('วัตถุประสงค์การเช่า', c.purpose)+
+        apCellOptional('พื้นที่', c.area)+
+        apCellOptional('เอกสารสิทธิ์', p&&p.titleDeed)+
+      '</div></div>' : '';
+
+    // Lease terms card (4-col grid for compact)
+    const depositCell = (function(){
+      if(c.hasDeposit === false) return '';
+      const depStr = fmtDeposit(c.deposit);
+      if(!depStr || depStr === '-') return '';
+      return apCell('เงินประกัน', depStr);
+    })();
+    const leaseItems = [
+      apCellOptional('ระยะเวลา', c.dur),
+      apCellOptional('วันเริ่มต้น', c.start ? dateToThai(c.start) : ''),
+      apCellOptional('วันสิ้นสุด', c.end ? dateToThai(c.end) : ''),
+      apCellOptional('อัตราค่าเช่า', c.rate),
+      apCellOptional('การปรับค่าเช่า', c.rateAdj),
+      apCellOptional('วิธีชำระ', c.payment),
+      depositCell
+    ].filter(Boolean).join('');
+    const leaseCard = leaseItems ?
+      '<div class="ap-card"><div class="ap-card-hdr">เงื่อนไขการเช่า &nbsp;·&nbsp; Lease Terms</div>'+
+      '<div class="ap-grid">'+leaseItems+'</div></div>' : '';
+
+    // Bank card (ใช้ resolveBankFields → entity ปัจจุบัน)
+    const _ph = (DB.invoiceHeaders||[]).find(x => x.id == c.invHeaderId);
+    const _rb = (typeof resolveBankFields==='function') ? resolveBankFields(c, _ph) : {bankName:c.bank||'',accountNo:c.acctNo||'',accountName:c.accountName||''};
+    const bankItems = [
+      apCellOptional('ธนาคาร', _rb.bankName),
+      apCellOptional('ชื่อบัญชี', _rb.accountName),
+      apCellOptional('เลขที่บัญชี', _rb.accountNo),
+      apCellOptional('PromptPay', _rb.promptPayId)
+    ].filter(Boolean).join('');
+    const bankCard = bankItems ?
+      '<div class="ap-card"><div class="ap-card-hdr">บัญชีรับโอน &nbsp;·&nbsp; Payment Account</div>'+
+      '<div class="ap-grid">'+bankItems+'</div></div>' : '';
+
+    // Notes card (full width)
+    const notesCard = c.notes ?
+      '<div class="ap-card"><div class="ap-card-hdr">หมายเหตุ &nbsp;·&nbsp; Notes</div>'+
+      '<div class="ap-grid-full"><div class="ap-cell"><div class="ap-value">'+safe(c.notes)+'</div></div></div></div>' : '';
+
+    return partiesCard + propertyCard + leaseCard + bankCard + notesCard;
+  })()+
     '<hr class="c-divider">'+
     '<div class="sig-section">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญา / Signatures</div>'+
