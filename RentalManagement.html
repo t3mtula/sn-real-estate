@@ -10065,9 +10065,42 @@ function vcSaveLandlord(cid){
   c.madeAt = get('vcEdit_madeAt');
   c.landlordSignerName = get('vcEdit_landlordSignerName');
   c.landlordSignerTitle = get('vcEdit_landlordSignerTitle');
-  c.bank = get('vcEdit_bank');
-  c.acctNo = get('vcEdit_acctNo');
-  c.accountName = get('vcEdit_accountName');
+  const newBank = get('vcEdit_bank');
+  const newAcctNo = get('vcEdit_acctNo');
+  const newAcctName = get('vcEdit_accountName');
+  c.bank = newBank;
+  c.acctNo = newAcctNo;
+  c.accountName = newAcctName;
+  // Phase 2 sync: bank fields ที่ user แก้ → bind c.bankAccountId กับ entity ที่ match (หรือสร้างใหม่)
+  // กัน edit-not-stick: view mode ใช้ resolveBankFields() ดึง entity → ถ้าไม่ sync ค่าจะไม่เปลี่ยน
+  if(newBank || newAcctNo){
+    if(!Array.isArray(DB.bankAccounts)) DB.bankAccounts = [];
+    const norm = s => String(s||'').replace(/[\s\-]/g,'').toLowerCase();
+    const matchingBa = DB.bankAccounts.find(b => !b.archived &&
+      norm(b.accountNo) === norm(newAcctNo) &&
+      (b.bankName||'').trim() === newBank.trim() &&
+      (b.accountName||'').trim() === newAcctName.trim());
+    if(matchingBa){
+      c.bankAccountId = matchingBa.id;
+    } else {
+      // ไม่มี entity ที่ตรง → สร้างใหม่ + bind (auto entity จาก inline edit)
+      if(!DB.nextBankAccountId) DB.nextBankAccountId = 1;
+      const stripBank = s => String(s||'').replace(/^ธนาคาร\s*/,'').replace(/\s+จำกัด.*$/,'');
+      const newBa = {
+        id: DB.nextBankAccountId++,
+        label: [newAcctName, stripBank(newBank), newAcctNo].filter(Boolean).join(' · '),
+        bankName: newBank, accountNo: newAcctNo, accountName: newAcctName,
+        promptPayId: '', note: '[auto จากสัญญา '+(c.no||'#'+cid)+']',
+        archived: false
+      };
+      DB.bankAccounts.push(newBa);
+      c.bankAccountId = newBa.id;
+      addActivityLog('add_bank_account_inline','เพิ่มบัญชี (จากสัญญา '+(c.no||'#'+cid)+') — '+newAcctName);
+    }
+  } else {
+    // ทั้ง bank+acctNo ว่าง → clear binding
+    c.bankAccountId = null;
+  }
   addActivityLog('edit_contract','แก้ไขข้อมูลผู้ให้เช่า — '+(c.no||'#'+cid));
   window._vcEditMode = null;
   _modalDirty = false;
@@ -13714,11 +13747,17 @@ ${contracts.map(c=>{
       '<tr><td>วันเริ่มต้น</td><td>'+dateToThai(c.start)+'</td></tr>'+
       '<tr><td>วันสิ้นสุด</td><td>'+dateToThai(c.end)+'</td></tr>'+
       '<tr><td>อัตราค่าเช่า</td><td>'+c.rate+'</td></tr>'+
-      '<tr><td>เงินประกัน</td><td>'+fmtDeposit(c.deposit)+'</td></tr>'+
-      '<tr><td>วิธีชำระ</td><td>'+c.payment+'</td></tr>'+
-      '<tr><td>ธนาคาร</td><td>'+c.bank+'</td></tr>'+
-      '<tr><td>ชื่อบัญชี</td><td>'+c.accountName+'</td></tr>'+
-      '<tr><td>เลขที่บัญชี</td><td>'+c.acctNo+'</td></tr>'+
+      (c.rateAdj?'<tr><td>การปรับค่าเช่า</td><td>'+c.rateAdj+'</td></tr>':'')+
+      (c.hasDeposit===false?'<tr><td>เงินประกัน</td><td>ไม่มี</td></tr>':'<tr><td>เงินประกัน</td><td>'+fmtDeposit(c.deposit)+'</td></tr>')+
+      (c.payment?'<tr><td>วิธีชำระ</td><td>'+c.payment+'</td></tr>':'')+
+      // Phase 2: ใช้ resolveBankFields() — ดึง bank จาก entity (c.bankAccountId → landlord default → legacy fallback)
+      (function(){
+        const _ph = (DB.invoiceHeaders||[]).find(x => x.id == c.invHeaderId);
+        const _rb = (typeof resolveBankFields==='function') ? resolveBankFields(c, _ph) : {bankName:c.bank||'',accountNo:c.acctNo||'',accountName:c.accountName||''};
+        return (_rb.bankName?'<tr><td>ธนาคาร</td><td>'+_rb.bankName+'</td></tr>':'')+
+               (_rb.accountName?'<tr><td>ชื่อบัญชี</td><td>'+_rb.accountName+'</td></tr>':'')+
+               (_rb.accountNo?'<tr><td>เลขที่บัญชี</td><td>'+_rb.accountNo+'</td></tr>':'');
+      })()+
       (c.notes?'<tr><td>หมายเหตุ</td><td>'+c.notes+'</td></tr>':'')+
     '</table>'+
     '<hr class="c-divider">'+
