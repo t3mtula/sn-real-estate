@@ -14053,7 +14053,7 @@ function contractHTML(contracts,tplOverride,hideToolbar){
 @page { size: A4; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
 body { background: #fff; color: #1a202c; }
-.page { width: 210mm; min-height: 297mm; padding: 18mm 22mm 20mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
+.page { width: 210mm; min-height: 297mm; padding: 14mm 20mm 14mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
 .page:last-child { page-break-after: auto; }
 /* Continuation pages — compact (content actual height · ไม่บังคับ A4) เพื่อไม่ให้มี blank space กลาง */
 .continuation-page { min-height: auto; }
@@ -14151,7 +14151,7 @@ body { background: #fff; color: #1a202c; }
 
 /* ── Print mode: PARITY กับ preview · block layout (ไม่ใช้ flex) เพื่อ pagination predictable ── */
 @media print {
-  @page { size: A4; margin: 18mm 22mm 20mm; }
+  @page { size: A4; margin: 14mm 20mm 14mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
   /* .page = 1 paper exact · block layout (flex ทำให้ browser split paper ผิด) ·
@@ -14178,7 +14178,7 @@ body { background: #fff; color: #1a202c; }
      CRITICAL: use BLOCK layout (ไม่ใช้ flex) เพื่อให้ pagination ตรงกับ @media print
      ถ้าใช้ flex column: sig-section margin-top:auto จะถูก push ไปท้ายกระดาษใน preview
      แต่ใน print (block layout) sig ไหลตาม content → preview != print */
-  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 18mm 22mm 20mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
+  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: 297mm; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
   body.embed .continuation-page { min-height: auto; }
   body.embed .page-body { display: block; flex: none; }
   body.embed .page-body-grow { flex: none; }
@@ -14432,8 +14432,8 @@ function splitOverflowPages(doc){
   if(!doc) return;
   const MM = 3.7795;
   const A4 = 297 * MM;
-  const PAD_TOP = 18 * MM;
-  const PAD_BOT = 20 * MM;
+  const PAD_TOP = 14 * MM;          // sync กับ .page padding-top (14mm)
+  const PAD_BOT = 14 * MM;          // sync กับ .page padding-bottom (14mm)
   const SAFETY = 0;     // 0 = ใช้พื้นที่กระดาษเต็ม · @page margin ใน print mode คุม clip ให้แล้ว
   const LAST_CHILD_TOLERANCE = 30; // ถ้า last child เกินไม่กี่ pixel ปล่อยให้เกิน · กัน page-ลอย ที่มีแค่ sig
   // ── 1) Flatten .c-body → direct children of .page-body ──
