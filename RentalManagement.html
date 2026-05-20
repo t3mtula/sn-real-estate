@@ -12667,7 +12667,7 @@ function openAddContractDialog(pid){
         meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
-        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
+        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', rateAdjType: fd.get('rateAdjType') || 'none', rateAdjPercent: parseInt(fd.get('rateAdjPercent'))||0,
         dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         invHeaderId: fd.get('invHeaderId') || null,
         tenantLogo: fd.get('tenantLogo') || null,
@@ -12717,7 +12717,7 @@ function renewContract(cid) {
         meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
-        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '',
+        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', rateAdjType: fd.get('rateAdjType') || 'none', rateAdjPercent: parseInt(fd.get('rateAdjPercent'))||0,
         dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         renewedFrom: cid,
         invHeaderId: fd.get('invHeaderId') || null,
@@ -12764,7 +12764,7 @@ function copyContract(cid) {
         meterInit: assembleMeterInit(fd, thePid),
         property: DB.properties.find(x => x.pid === thePid)?.name || '',
         area: fd.get('area') || '', spot: fd.get('spot') || '', landlord: shortLandlordName(fd.get('landlord') || ''), landlordAddr: assembleAddrFromPrefix(fd,'la'),
-        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', deed: fd.get('deed') || '',
+        accountName: fd.get('accountName') || '', rateAdj: fd.get('rateAdj') || '', rateAdjType: fd.get('rateAdjType') || 'none', rateAdjPercent: parseInt(fd.get('rateAdjPercent'))||0, deed: fd.get('deed') || '',
         dueDay: clampInt(fd.get('dueDay'),{min:1,max:31,def:5}),
         copiedFrom: cid,
         invHeaderId: fd.get('invHeaderId') || null,
@@ -13160,16 +13160,34 @@ function contractFormHTML(mode, c, pid) {
           <div>
             <label class="text-xs font-medium text-gray-600 mb-1 block">การปรับค่าเช่า</label>
             ${(()=>{
-              const cur=v('rateAdj');
-              const presets=['ไม่ปรับตลอดสัญญา','ปรับเพิ่ม 5% ทุกปี','ปรับเพิ่ม 10% ทุก 3 ปี','ปรับเพิ่ม 10% ทุก 5 ปี','ปรับตามข้อตกลง'];
-              const isPreset=presets.includes(cur);
-              return `<select name="rateAdjPreset" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="if(this.value==='_custom'){this.nextElementSibling.style.display='';this.nextElementSibling.focus();}else{this.nextElementSibling.style.display='none';document.querySelector('[name=rateAdj]').value=this.value;}">
-                <option value="">— เลือก —</option>
-                ${presets.map(p=>'<option value="'+p+'" '+(cur===p?'selected':'')+'>'+p+'</option>').join('')}
-                <option value="_custom" ${cur&&!isPreset?'selected':''}>+ พิมพ์เอง...</option>
-              </select>
-              <input type="text" name="rateAdjCustom" style="display:${cur&&!isPreset?'':'none'}" value="${cur&&!isPreset?(cur||'').replace(/"/g,'&quot;'):''}" class="w-full px-3 py-2 border rounded-lg text-sm mt-1" placeholder="พิมพ์รายละเอียดการปรับค่าเช่า" oninput="document.querySelector('[name=rateAdj]').value=this.value">
-              <input type="hidden" name="rateAdj" value="${(cur||'').replace(/"/g,'&quot;')}">`;
+              // Initial state — รองรับ legacy (มีแต่ c.rateAdj text) + structured ใหม่ (c.rateAdjType + c.rateAdjPercent)
+              const curText = v('rateAdj') || '';
+              const curType = (c && c.rateAdjType) || (curText ? 'custom' : 'none');
+              const curPct = (c && c.rateAdjPercent) || 10;
+              const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+              return `
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#374151">
+                <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+                  <input type="radio" name="rateAdjType" value="none" ${curType==='none'?'checked':''} onchange="rateAdjOnChange()">
+                  <span>ไม่ปรับ (ค่าเช่าคงที่ตลอดสัญญา)</span>
+                </label>
+                <label style="cursor:pointer;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <input type="radio" name="rateAdjType" value="percent" ${curType==='percent'?'checked':''} onchange="rateAdjOnChange()">
+                  <span>ปรับเมื่อต่อสัญญา</span>
+                  <input type="number" name="rateAdjPercent" value="${curPct}" min="1" max="100" step="1" oninput="rateAdjOnChange()" style="width:60px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;text-align:center">
+                  <span>%</span>
+                </label>
+                <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
+                  <input type="radio" name="rateAdjType" value="custom" ${curType==='custom'?'checked':''} onchange="rateAdjOnChange()">
+                  <span>พิมพ์เอง</span>
+                </label>
+              </div>
+              <input type="text" name="rateAdjText" value="${curType==='custom'?escAttr(curText):''}" placeholder="พิมพ์ข้อความที่จะปรากฏในสัญญา" oninput="rateAdjOnChange()" style="display:${curType==='custom'?'block':'none'};width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:8px">
+              <div id="rateAdjPreview" style="display:${curType==='custom'?'none':'block'};background:#f8fafc;border-left:3px solid #94a3b8;padding:8px 12px;font-size:12px;color:#1e293b;margin-top:8px;line-height:1.5">
+                <div style="font-size:9px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">ข้อความที่จะแสดงในสัญญา</div>
+                <div id="rateAdjPreviewText">${escAttr(curText)}</div>
+              </div>
+              <input type="hidden" name="rateAdj" value="${escAttr(curText)}">`;
             })()}
           </div>
 
@@ -13768,6 +13786,34 @@ function buildRateStr(fd) {
   return prefix + ' ' + rateAmt + ' บาท';
 }
 
+// ── การปรับค่าเช่า: handle radio change, generate Thai contract text, sync hidden field + preview ──
+function rateAdjOnChange(){
+  const typeEl = document.querySelector('input[name=rateAdjType]:checked');
+  if(!typeEl) return;
+  const type = typeEl.value;
+  const pctEl = document.querySelector('input[name=rateAdjPercent]');
+  const textEl = document.querySelector('input[name=rateAdjText]');
+  const hiddenEl = document.querySelector('input[name=rateAdj]');
+  const preview = document.getElementById('rateAdjPreview');
+  const previewText = document.getElementById('rateAdjPreviewText');
+  if(!hiddenEl) return;
+  if(textEl) textEl.style.display = (type === 'custom') ? '' : 'none';
+  if(preview) preview.style.display = (type === 'custom') ? 'none' : '';
+  let text = '';
+  if(type === 'none'){
+    text = 'ไม่มีการปรับอัตราค่าเช่า ตลอดอายุสัญญา';
+  } else if(type === 'percent'){
+    const pct = parseInt((pctEl && pctEl.value) || 0);
+    if(pct > 0){
+      text = 'จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+pct+' ของอัตราค่าเช่าเดิม';
+    }
+  } else if(type === 'custom'){
+    text = (textEl && textEl.value) || '';
+  }
+  hiddenEl.value = text;
+  if(previewText) previewText.textContent = text;
+}
+
 // Resolve custom dropdown values before saving
 function resolveFormDropdowns(fd){
   // Purpose: if dropdown is _custom, use the text input
@@ -13781,9 +13827,18 @@ function resolveFormDropdowns(fd){
     const full=(tPrefix?tPrefix+' ':'')+tFirst+(tLast?' '+tLast:'');
     fd.set('tenant',full);
   }
-  // RateAdj: if preset is _custom, hidden rateAdj already has the custom value from oninput; otherwise use preset
-  const rateAdjPreset=fd.get('rateAdjPreset');
-  if(rateAdjPreset&&rateAdjPreset!=='_custom'){fd.set('rateAdj',rateAdjPreset);}
+  // RateAdj (new structured): hidden rateAdj already has generated text from rateAdjOnChange();
+  // here ensure it's filled in case JS didn't run (e.g. headless / no interaction)
+  const _rateAdjType = fd.get('rateAdjType') || 'none';
+  if(!fd.get('rateAdj')){
+    if(_rateAdjType==='none'){fd.set('rateAdj','ไม่มีการปรับอัตราค่าเช่า ตลอดอายุสัญญา');}
+    else if(_rateAdjType==='percent'){
+      const p=parseInt(fd.get('rateAdjPercent')||0);
+      if(p>0) fd.set('rateAdj','จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+p+' ของอัตราค่าเช่าเดิม');
+    } else if(_rateAdjType==='custom'){
+      fd.set('rateAdj',fd.get('rateAdjText')||'');
+    }
+  }
   // Payment: assemble from sub-fields if hidden field is empty
   if(!fd.get('payment')){
     const parts=[];
