@@ -28,6 +28,15 @@ function validateContractForm(form){
   if(!rateAmtRaw) addErr('rateAmt','กรุณากรอกจำนวนค่าเช่า');
   else if(isNaN(rateNum)||rateNum<=0) addErr('rateAmt','ค่าเช่าต้องเป็นตัวเลขมากกว่า 0');
 
+  // 4b. การปรับค่าเช่า — ถ้าเลือก "ปรับเมื่อต่อสัญญา" ต้องกรอก % > 0
+  const rateAdjType = (form.querySelector('input[name=rateAdjType]:checked')?.value) || '';
+  if(rateAdjType==='percent'){
+    const rateAdjPct = parseInt(getVal('rateAdjPercent'));
+    if(!rateAdjPct || rateAdjPct<=0 || rateAdjPct>100){
+      addErr('rateAdjPercent','กรุณากรอก % ที่ปรับ (1–100)');
+    }
+  }
+
   // 5. วันเริ่มต้น — ต้อง valid พ.ศ. format
   const startStr=getVal('start');
   const startDate=parseBE(startStr);
@@ -661,6 +670,7 @@ function contractFormHTML(mode, c, pid) {
               const curType = (c && c.rateAdjType) || (curText ? 'custom' : 'none');
               const curPct = (c && c.rateAdjPercent) || 10;
               const escAttr = s => String(s||'').replace(/"/g,'&quot;');
+              const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
               return `
               <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#374151">
                 <label style="cursor:pointer;display:flex;align-items:center;gap:6px">
@@ -681,7 +691,7 @@ function contractFormHTML(mode, c, pid) {
               <input type="text" name="rateAdjText" value="${curType==='custom'?escAttr(curText):''}" placeholder="พิมพ์ข้อความที่จะปรากฏในสัญญา" oninput="rateAdjOnChange()" style="display:${curType==='custom'?'block':'none'};width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;margin-top:8px">
               <div id="rateAdjPreview" style="display:${curType==='custom'?'none':'block'};background:#f8fafc;border-left:3px solid #94a3b8;padding:8px 12px;font-size:12px;color:#1e293b;margin-top:8px;line-height:1.5">
                 <div style="font-size:9px;font-weight:600;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">ข้อความที่จะแสดงในสัญญา</div>
-                <div id="rateAdjPreviewText">${escAttr(curText)}</div>
+                <div id="rateAdjPreviewText">${escHtml(curText)}</div>
               </div>
               <input type="hidden" name="rateAdj" value="${escAttr(curText)}">`;
             })()}
@@ -1102,6 +1112,25 @@ function buildRateStr(fd) {
   return prefix + ' ' + rateAmt + ' บาท';
 }
 
+// ── Thai number-to-word (1–100) สำหรับใส่ในวงเล็บข้อความสัญญา ──
+function thaiNum(n){
+  if(!Number.isInteger(n)||n<0||n>100) return '';
+  if(n===0) return 'ศูนย์';
+  if(n===100) return 'หนึ่งร้อย';
+  const u=['','หนึ่ง','สอง','สาม','สี่','ห้า','หก','เจ็ด','แปด','เก้า'];
+  const tens=Math.floor(n/10), units=n%10;
+  if(n<10) return u[units];
+  if(n<20){
+    if(units===0) return 'สิบ';
+    if(units===1) return 'สิบเอ็ด';
+    return 'สิบ'+u[units];
+  }
+  const tensWord = tens===2 ? 'ยี่' : u[tens];
+  if(units===0) return tensWord+'สิบ';
+  if(units===1) return tensWord+'สิบเอ็ด';
+  return tensWord+'สิบ'+u[units];
+}
+
 // ── การปรับค่าเช่า: handle radio change, generate Thai contract text, sync hidden field + preview ──
 // Called from form inputs (onchange/oninput) — must be global (window scope)
 function rateAdjOnChange(){
@@ -1124,7 +1153,8 @@ function rateAdjOnChange(){
   } else if(type === 'percent'){
     const pct = parseInt((pctEl && pctEl.value) || 0);
     if(pct > 0){
-      text = 'จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+pct+' ของอัตราค่าเช่าเดิม';
+      const w = thaiNum(pct);
+      text = 'จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+pct+(w?' ('+w+')':'')+' ของอัตราค่าเช่าเดิม';
     }
   } else if(type === 'custom'){
     text = (textEl && textEl.value) || '';
@@ -1153,7 +1183,10 @@ function resolveFormDropdowns(fd){
     if(_rateAdjType==='none'){fd.set('rateAdj','ไม่มีการปรับอัตราค่าเช่า ตลอดอายุสัญญา');}
     else if(_rateAdjType==='percent'){
       const p=parseInt(fd.get('rateAdjPercent')||0);
-      if(p>0) fd.set('rateAdj','จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+p+' ของอัตราค่าเช่าเดิม');
+      if(p>0){
+        const w = (typeof thaiNum==='function') ? thaiNum(p) : '';
+        fd.set('rateAdj','จะปรับอัตราค่าเช่าเพิ่มขึ้น สำหรับการต่อระยะเวลาการเช่าใหม่ ในอัตราร้อยละ '+p+(w?' ('+w+')':'')+' ของอัตราค่าเช่าเดิม');
+      }
     } else if(_rateAdjType==='custom'){
       fd.set('rateAdj',fd.get('rateAdjText')||'');
     }
