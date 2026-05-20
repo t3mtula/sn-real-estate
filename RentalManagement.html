@@ -14063,37 +14063,37 @@ body { background: #fff; color: #1a202c; }
    ════════════════════════════════════════════ */
 
 /* ── Header (used by both main contract + appendix) ── */
-.c-header { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 18px 0 14px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.c-header { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .c-header-center { flex: 1; }
-.c-title { font-size: 24px; font-weight: 800; color: #1e3a5f; letter-spacing: .3px; line-height: 1.15; }
-.c-subtitle { font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px; }
-.c-meta-badge { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 8px 14px; text-align: left; white-space: nowrap; min-width: 130px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
-.c-meta-badge .label { color: #94a3b8; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-.c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 13px; display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.c-title { font-size: 20px; font-weight: 800; color: #1e3a5f; letter-spacing: .3px; line-height: 1.15; }
+.c-subtitle { font-size: 9px; color: #94a3b8; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
+.c-meta-badge { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 6px 12px; text-align: left; white-space: nowrap; min-width: 120px; }
+.c-meta-badge .label { color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 12px; display: block; margin-top: 1px; font-variant-numeric: tabular-nums; }
 
-/* ── Date/Place strip ── */
-.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 10px 16px; font-size: 13px; color: #334155; margin-bottom: 16px; line-height: 1.6; }
+/* ── Date/Place strip · compact ── */
+.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 7px 14px; font-size: 12px; color: #334155; margin-bottom: 12px; line-height: 1.55; }
 .c-date-strip b { color: #1e3a5f; font-weight: 700; }
 
-/* ── Parties table · minimal — section hdr ใช้ light bg + navy text (ลดถมดำตอน print) ── */
-.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 18px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
-.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 8px 14px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+/* ── Parties table · compact: ลด padding + font + รวม phone/taxId บรรทัดเดียว ── */
+.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 14px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
+.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 5px 12px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .parties-table .party-row td { padding: 0; vertical-align: top; }
-.party-cell { padding: 12px 16px; border-right: 1px solid #e2e8f0; }
+.party-cell { padding: 8px 12px; border-right: 1px solid #e2e8f0; }
 .party-cell:last-child { border-right: none; }
-.party-label { font-size: 8.5px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
-.party-name { font-size: 15px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.3; }
-.party-detail { font-size: 12px; color: #1e293b; line-height: 1.6; margin-top: 2px; }
-.party-detail-label { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .5px; }
+.party-label { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 3px; }
+.party-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 3px; line-height: 1.3; }
+.party-detail { font-size: 11px; color: #1e293b; line-height: 1.5; margin-top: 1px; }
+.party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
 
-/* ── Contract body · spacing scale: 8 (sub) / 14 (clause) / 20 (section) ── */
-.c-body { font-size: 13.5px; line-height: 1.8; color: #1e293b; text-align: justify; margin-bottom: 20px; }
-.c-intro { margin: 0 0 14px 0; text-indent: 28px; }
-.clause { margin: 14px 0; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 13.5px; }
-.sub-clause { margin: 8px 0 8px 28px; font-size: 13px; color: #1e293b; line-height: 1.8; }
+/* ── Contract body · บีบเข้า 2 หน้า: font 12 · line-height 1.6 · margin clauses 10/sub 6 ── */
+.c-body { font-size: 12px; line-height: 1.6; color: #1e293b; text-align: justify; margin-bottom: 14px; }
+.c-intro { margin: 0 0 10px 0; text-indent: 24px; }
+.clause { margin: 10px 0; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; }
+.sub-clause { margin: 6px 0 6px 24px; font-size: 11.5px; color: #1e293b; line-height: 1.6; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; }
-.c-closing { margin: 20px 0 0 0; text-indent: 28px; }
+.c-closing { margin: 14px 0 0 0; text-indent: 24px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
@@ -14150,7 +14150,7 @@ body { background: #fff; color: #1a202c; }
 /* ── Print mode: natural flow · ปล่อย browser จัด pagination ตาม CSS spec
      → ไม่ pin sig bottom · ไม่ fill paper · clauses pack แน่นทุกหน้า ── */
 @media print {
-  @page { size: A4; margin: 14mm 20mm 14mm; }
+  @page { size: A4; margin: 12mm 18mm 12mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
   .page { padding: 0 !important; min-height: 0 !important; height: auto !important; margin: 0; box-shadow: none; display: block; page-break-after: always; break-after: page; }
@@ -14169,7 +14169,7 @@ body { background: #fff; color: #1a202c; }
   body.embed { background: #e2e8f0; padding: 16px 0; }
   /* Preview pages — A4 cards · flex column + min-height = paper content height
      → sig auto-margin push ลง bottom ของหน้า (ตรงกับ @media print) */
-  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: auto; padding: 14mm 20mm 14mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
+  body.embed .page { width: 210mm; max-width: calc(100% - 20px); margin: 0 auto 24px; min-height: auto; padding: 12mm 18mm 12mm; box-shadow: 0 6px 20px rgba(0,0,0,0.10); border-radius: 4px; background: #fff; display: block; }
   /* Continuation pages (clauses ต่อกัน · ไมฺ่มี sig) — min-height:auto · ไม่ต้อง fill paper */
   body.embed .page-body { display: block; }
 }
@@ -14228,8 +14228,11 @@ ${contracts.map(c=>{
         '<div class="party-label">ผู้เช่า · Lessee</div>'+
         '<div class="party-name">'+c.tenant+'</div>'+
         (c.tenantAddr?'<div class="party-detail"><span class="party-detail-label">ที่อยู่:</span> '+c.tenantAddr+'</div>':'')+
-        (c.phone?'<div class="party-detail"><span class="party-detail-label">โทร:</span> '+c.phone+'</div>':'')+
-        (c.taxId?'<div class="party-detail"><span class="party-detail-label">เลขผู้เสียภาษี:</span> '+c.taxId+'</div>':'')+
+        ((c.phone||c.taxId)?'<div class="party-detail">'+
+          (c.phone?'<span class="party-detail-label">โทร:</span> '+c.phone:'')+
+          (c.phone&&c.taxId?' &nbsp;·&nbsp; ':'')+
+          (c.taxId?'<span class="party-detail-label">เลขผู้เสียภาษี:</span> '+c.taxId:'')+
+        '</div>':'')+
       '</div></td></tr>'+
     '</table>'+
 
