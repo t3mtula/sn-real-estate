@@ -2056,6 +2056,65 @@ button[onclick="logout()"]{
   .v2-kpi-grid .kpi-v2 .kpi-v2-value{font-size:18px!important}
   .section-card{padding:14px!important}
 }
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  v5 patch · readability sweep (Tem feedback 2026-05-20)
+   ║  "แถบสีเข้มๆ + หัวข้อสีใกล้เคียง อ่านยาก"
+   ║  - drop top stripe on Properties KPIs (.kpi-accent)
+   ║  - unify KPI value colors to text-default (kill semantic colored numbers)
+   ║  - location group header: kill colored bg/border, Notion-style minimal label
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+/* KPI .kpi-accent — kill top stripe (was 3px solid colored) */
+.kpi.kpi-accent,
+.kpi-accent{
+  border-top:none!important;
+  border:1px solid var(--c-border)!important;
+}
+
+/* KPI values: neutral text color — inline color="" is overridden by !important.
+   All numbers read at same visual weight; the label gives the context. */
+.kpi .kpi-value,
+.kpi-card .kpi-value,
+.kpi-value[style*="color"]{
+  color:var(--c-text)!important;
+}
+.kpi .kpi-label,
+.kpi-card .kpi-label{
+  color:var(--c-text-muted)!important;
+  font-weight:400!important;
+  font-size:11px!important;
+  text-transform:none!important;
+  letter-spacing:.2px!important;
+  margin-bottom:4px!important;
+}
+
+/* Location group header (Properties listing) — Notion-quiet
+   Was: 3px solid colored border-left + 7%-alpha colored bg → "dark band"
+   Now: transparent bg, thin bottom border, content gives the structure. */
+[style*="border-left:3px solid"][style*="border-radius:0 4px 4px 0"]{
+  background:transparent!important;
+  border:none!important;
+  border-bottom:1px solid var(--c-border)!important;
+  border-radius:0!important;
+  padding:8px 4px!important;
+  margin-top:18px!important;
+  margin-bottom:6px!important;
+}
+[style*="border-left:3px solid"][style*="border-radius:0 4px 4px 0"] > span:first-child{
+  font-weight:600!important;
+  color:var(--c-text)!important;
+  font-size:13px!important;
+}
+[style*="border-left:3px solid"][style*="border-radius:0 4px 4px 0"] > span:nth-child(2){
+  color:var(--c-text-subtle)!important;
+  font-size:11px!important;
+}
+[style*="border-left:3px solid"][style*="border-radius:0 4px 4px 0"] > span:last-child{
+  color:var(--c-text-muted)!important;
+  font-weight:500!important;
+  font-size:11px!important;
+}
 </style>
 </head>
 <body class="bg-gray-50">
@@ -8283,7 +8342,9 @@ var propTab='properties'; // M2: var (not let) — script-concat build means inl
 const PAGES=[
   {id:'dashboard',label:'Dashboard',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'},
   {id:'properties',label:'ทรัพย์สิน',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>'},
-  {id:'contracts',label:'สัญญาเช่า',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'},
+  // 'contracts' removed from sidebar — duplicate of the "สัญญาเช่า" tab on
+  // Properties page (same view, same data). showPage('contracts') still
+  // works internally for cross-page links (routes to properties+contracts tab).
   {id:'landlords',label:'ผู้ให้เช่า',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'},
   {id:'invoices',label:'ใบแจ้งหนี้',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>'},
   {id:'meters',label:'มิเตอร์',icon:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>'},
