@@ -14086,14 +14086,14 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 12px; color: #1e293b; line-height: 1.6; margin-top: 2px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .5px; }
 
-/* ── Contract body ── */
-.c-body { font-size: 13.5px; line-height: 1.85; color: #1e293b; text-align: justify; margin-bottom: 18px; }
-.c-intro { margin-bottom: 16px; text-indent: 28px; }
-.clause { margin-bottom: 12px; padding-left: 0; }
+/* ── Contract body · spacing scale: 8 (sub) / 14 (clause) / 20 (section) ── */
+.c-body { font-size: 13.5px; line-height: 1.8; color: #1e293b; text-align: justify; margin-bottom: 20px; }
+.c-intro { margin: 0 0 14px 0; text-indent: 28px; }
+.clause { margin: 14px 0; padding-left: 0; }
 .clause-num { font-weight: 700; color: #1e3a5f; font-size: 13.5px; }
-.sub-clause { margin: 7px 0 7px 28px; font-size: 13px; color: #1e293b; line-height: 1.75; }
+.sub-clause { margin: 8px 0 8px 28px; font-size: 13px; color: #1e293b; line-height: 1.8; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; }
-.c-closing { margin-top: 18px; text-indent: 28px; }
+.c-closing { margin: 20px 0 0 0; text-indent: 28px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
@@ -14113,31 +14113,37 @@ body { background: #fff; color: #1a202c; }
 .sig-role { font-size: 11.5px; color: #475569; margin-top: 1px; }
 .sig-date { font-size: 11px; color: #64748b; margin-top: 3px; }
 
-/* ── Appendix Header — minimal · ไม่ถมดำ · compact เพื่อให้ sig พอใส่หน้าเดียว ── */
-.c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; }
+/* ── Appendix Header ── */
+.c-header.appendix-banner { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 18px; }
 .appendix-eyebrow { font-size: 9px; letter-spacing: 3px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
 
-/* ── Appendix Cards · minimal · light bg · compact spacing เพื่อให้พอใส่หน้าเดียว ── */
-.ap-card { border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
-.ap-card-hdr { background: #f1f5f9; color: #1e3a5f; padding: 6px 12px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
-.ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-.ap-grid-full { display: grid; grid-template-columns: 1fr; gap: 0; }
-.ap-cell { padding: 8px 14px; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
-.ap-cell:nth-child(2n), .ap-grid-full .ap-cell { border-right: none; }
-.ap-cell:nth-last-child(-n+2):not(:only-child), .ap-grid-full .ap-cell:last-child { border-bottom: none; }
-.ap-grid-full .ap-cell { border-bottom: 1px solid #f1f5f9; }
-.ap-grid-full .ap-cell:last-child { border-bottom: none; }
-.ap-label { font-size: 9.5px; font-weight: 700; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
-.ap-name { font-size: 14.5px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
-.ap-value { font-size: 12.5px; color: #1e293b; line-height: 1.6; }
-.ap-value strong { color: #1e3a5f; font-weight: 600; }
-.ap-meta-line { font-size: 12px; color: #334155; line-height: 1.6; margin-top: 3px; }
-.ap-meta-line .ap-meta-key { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .3px; }
-/* 4-col grid for compact info (lease terms / bank) */
-.ap-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; }
-.ap-grid-4 .ap-cell { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; }
-.ap-grid-4 .ap-cell:nth-child(4n) { border-right: none; }
-.ap-grid-4 .ap-cell:nth-last-child(-n+4):not(:nth-child(-n+0)) { border-bottom: none; }
+/* ── Appendix Section · form-style: dark section bar + 2-col key|value table
+     · ทุก field มี row ของตัวเอง · field ว่าง = แถวหาย · ไม่มี alignment issue
+     · page-break-inside: avoid → section ไม่ตัดกลาง (browser override ถ้าใหญ่เกินหน้า) ── */
+.ap-section { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
+.ap-section-bar { background: #1e3a5f; color: #fff; padding: 7px 14px; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px 4px 0 0; }
+.ap-section-bar .en { color: #94a3b8; font-weight: 500; margin-left: 8px; font-size: 9.5px; letter-spacing: 1.5px; }
+
+/* Key|Value table (Property, Lease Terms, Bank) */
+.ap-table { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; }
+.ap-table tr { border-bottom: 1px solid #f1f5f9; }
+.ap-table tr:last-child { border-bottom: none; }
+.ap-table tr:nth-child(even) { background: #fafbfc; }
+.ap-table td { padding: 8px 14px; font-size: 12.5px; color: #1e293b; line-height: 1.6; vertical-align: top; }
+.ap-table td.k { width: 38%; color: #475569; font-weight: 600; font-size: 11.5px; letter-spacing: .2px; }
+.ap-table td.v strong { color: #1e3a5f; font-weight: 700; }
+
+/* Parties section: 2-col compare table (Lessor | Lessee) */
+.ap-parties { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
+.ap-parties td { padding: 12px 14px; vertical-align: top; width: 50%; border-right: 1px solid #e2e8f0; }
+.ap-parties td:last-child { border-right: none; }
+.ap-party-label { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.ap-party-name { font-size: 14px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.35; }
+.ap-party-detail { font-size: 12px; color: #1e293b; line-height: 1.6; margin-top: 3px; }
+.ap-party-detail .k { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .3px; }
+
+/* Notes section: full-width text block */
+.ap-notes-text { padding: 12px 14px; font-size: 12.5px; color: #1e293b; line-height: 1.7; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
 
 /* ── Print mode: natural flow · ปล่อย browser จัด pagination ตาม CSS spec
      → ไม่ pin sig bottom · ไม่ fill paper · clauses pack แน่นทุกหน้า ── */
@@ -14255,7 +14261,6 @@ ${contracts.map(c=>{
 
     // ── Signature (ติด bottom ผ่าน flex auto margin) ──
     '<div class="sig-section">'+
-      '<hr class="c-divider">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
         sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
@@ -14283,82 +14288,78 @@ ${contracts.map(c=>{
     '<div class="page-body">'+
   (function(){
     const safe = v => v==null?'':String(v);
-    const apCell = (label, valueHtml) => '<div class="ap-cell"><div class="ap-label">'+label+'</div><div class="ap-value">'+valueHtml+'</div></div>';
-    const apCellOptional = (label, value) => value ? apCell(label, safe(value)) : '';
-    const apMetaLine = (label, value) => value ? '<div class="ap-meta-line"><span class="ap-meta-key">'+label+':</span> '+safe(value)+'</div>' : '';
+    // Helper: render row only if value present — field ว่าง = แถวหายไป (ไม่ shift)
+    const row = (label, value) => value ? '<tr><td class="k">'+label+'</td><td class="v">'+safe(value)+'</td></tr>' : '';
+    const section = (thai, en, innerHtml) => innerHtml ?
+      '<div class="ap-section">'+
+        '<div class="ap-section-bar">'+thai+'<span class="en">· '+en+'</span></div>'+
+        innerHtml+
+      '</div>' : '';
 
-    // Parties card (2-col)
-    const partiesCard =
-      '<div class="ap-card"><div class="ap-card-hdr">คู่สัญญา &nbsp;·&nbsp; Parties</div>'+
-      '<div class="ap-grid">'+
-        '<div class="ap-cell">'+
-          '<div class="ap-label">ผู้ให้เช่า · Lessor</div>'+
-          '<div class="ap-name">'+safe(c.landlord)+'</div>'+
-          apMetaLine('ที่อยู่', c.landlordAddr)+
-        '</div>'+
-        '<div class="ap-cell">'+
-          '<div class="ap-label">ผู้เช่า · Lessee</div>'+
-          '<div class="ap-name">'+safe(c.tenant)+'</div>'+
-          apMetaLine('ที่อยู่', c.tenantAddr)+
-          apMetaLine('โทรศัพท์', c.phone)+
-          apMetaLine('เลขผู้เสียภาษี', c.taxId)+
-        '</div>'+
-      '</div></div>';
+    // ── คู่สัญญา · Parties (compare 2-col) ──
+    const partyDetail = (k, v) => v ? '<div class="ap-party-detail"><span class="k">'+k+':</span> '+safe(v)+'</div>' : '';
+    const partiesInner =
+      '<table class="ap-parties"><tr>'+
+        '<td>'+
+          '<div class="ap-party-label">ผู้ให้เช่า · Lessor</div>'+
+          '<div class="ap-party-name">'+safe(c.landlord)+'</div>'+
+          partyDetail('ที่อยู่', c.landlordAddr)+
+        '</td>'+
+        '<td>'+
+          '<div class="ap-party-label">ผู้เช่า · Lessee</div>'+
+          '<div class="ap-party-name">'+safe(c.tenant)+'</div>'+
+          partyDetail('ที่อยู่', c.tenantAddr)+
+          partyDetail('โทรศัพท์', c.phone)+
+          partyDetail('เลขผู้เสียภาษี', c.taxId)+
+        '</td>'+
+      '</tr></table>';
+    const partiesSection = section('คู่สัญญา', 'PARTIES', partiesInner);
 
-    // Property card (full width — บางครั้งยาว)
-    const hasProperty = c.property || c.purpose || c.area || (p && p.titleDeed);
-    const propertyCard = hasProperty ?
-      '<div class="ap-card"><div class="ap-card-hdr">ทรัพย์สิน &nbsp;·&nbsp; Property</div>'+
-      '<div class="ap-grid">'+
-        apCellOptional('ทรัพย์สิน', c.property)+
-        apCellOptional('วัตถุประสงค์การเช่า', c.purpose)+
-        apCellOptional('พื้นที่', c.area)+
-        apCellOptional('เอกสารสิทธิ์', p&&p.titleDeed)+
-      '</div></div>' : '';
+    // ── รายละเอียดทรัพย์สิน · Property ──
+    const propertyRows =
+      row('ทรัพย์สิน', c.property)+
+      row('วัตถุประสงค์การเช่า', c.purpose)+
+      row('พื้นที่', c.area)+
+      row('เอกสารสิทธิ์', p && p.titleDeed);
+    const propertySection = section('รายละเอียดทรัพย์สิน', 'PROPERTY',
+      propertyRows ? '<table class="ap-table">'+propertyRows+'</table>' : '');
 
-    // Lease terms card (4-col grid for compact)
-    const depositCell = (function(){
+    // ── ระยะเวลาและค่าเช่า · Lease Terms (ทุก field แถวของตัวเอง) ──
+    const depositVal = (function(){
       if(c.hasDeposit === false) return '';
-      const depStr = fmtDeposit(c.deposit);
-      if(!depStr || depStr === '-') return '';
-      return apCell('เงินประกัน', depStr);
+      const s = fmtDeposit(c.deposit);
+      return (!s || s === '-') ? '' : s;
     })();
-    const leaseItems = [
-      apCellOptional('ระยะเวลา', c.dur),
-      apCellOptional('วันเริ่มต้น', c.start ? dateToThai(c.start) : ''),
-      apCellOptional('วันสิ้นสุด', c.end ? dateToThai(c.end) : ''),
-      apCellOptional('อัตราค่าเช่า', c.rate),
-      apCellOptional('การปรับค่าเช่า', c.rateAdj),
-      apCellOptional('วิธีชำระ', c.payment),
-      depositCell
-    ].filter(Boolean).join('');
-    const leaseCard = leaseItems ?
-      '<div class="ap-card"><div class="ap-card-hdr">เงื่อนไขการเช่า &nbsp;·&nbsp; Lease Terms</div>'+
-      '<div class="ap-grid">'+leaseItems+'</div></div>' : '';
+    const leaseRows =
+      row('วันเริ่มต้น', c.start ? dateToThai(c.start) : '')+
+      row('วันสิ้นสุด', c.end ? dateToThai(c.end) : '')+
+      row('ระยะเวลา', c.dur)+
+      row('อัตราค่าเช่า', c.rate)+
+      row('วิธีชำระ', c.payment)+
+      row('การปรับค่าเช่า', c.rateAdj)+
+      row('เงินประกัน', depositVal);
+    const leaseSection = section('ระยะเวลาและค่าเช่า', 'LEASE TERMS',
+      leaseRows ? '<table class="ap-table">'+leaseRows+'</table>' : '');
 
-    // Bank card (ใช้ resolveBankFields → entity ปัจจุบัน)
+    // ── บัญชีรับโอน · Payment Account ──
     const _ph = (DB.invoiceHeaders||[]).find(x => x.id == c.invHeaderId);
     const _rb = (typeof resolveBankFields==='function') ? resolveBankFields(c, _ph) : {bankName:c.bank||'',accountNo:c.acctNo||'',accountName:c.accountName||''};
-    const bankItems = [
-      apCellOptional('ธนาคาร', _rb.bankName),
-      apCellOptional('ชื่อบัญชี', _rb.accountName),
-      apCellOptional('เลขที่บัญชี', _rb.accountNo),
-      apCellOptional('PromptPay', _rb.promptPayId)
-    ].filter(Boolean).join('');
-    const bankCard = bankItems ?
-      '<div class="ap-card"><div class="ap-card-hdr">บัญชีรับโอน &nbsp;·&nbsp; Payment Account</div>'+
-      '<div class="ap-grid">'+bankItems+'</div></div>' : '';
+    const bankRows =
+      row('ธนาคาร', _rb.bankName)+
+      row('ชื่อบัญชี', _rb.accountName)+
+      row('เลขที่บัญชี', _rb.accountNo)+
+      row('PromptPay', _rb.promptPayId);
+    const bankSection = section('บัญชีรับโอน', 'PAYMENT ACCOUNT',
+      bankRows ? '<table class="ap-table">'+bankRows+'</table>' : '');
 
-    // Notes card (full width)
-    const notesCard = c.notes ?
-      '<div class="ap-card"><div class="ap-card-hdr">หมายเหตุ &nbsp;·&nbsp; Notes</div>'+
-      '<div class="ap-grid-full"><div class="ap-cell"><div class="ap-value">'+safe(c.notes)+'</div></div></div></div>' : '';
+    // ── หมายเหตุ · Notes (ถ้ามี) ──
+    const notesSection = section('หมายเหตุ', 'NOTES',
+      c.notes ? '<div class="ap-notes-text">'+safe(c.notes)+'</div>' : '');
 
-    return partiesCard + propertyCard + leaseCard + bankCard + notesCard;
+    return partiesSection + propertySection + leaseSection + bankSection + notesSection;
   })()+
     // Signature (push to bottom via flex auto-margin)
     '<div class="sig-section">'+
-      '<hr class="c-divider">'+
       '<div class="sig-section-title">ลายมือชื่อคู่สัญญาและพยาน / Signatures</div>'+
       '<div class="sig-grid">'+
         sigBoxParty('ผู้ให้เช่า (Lessor)',c.landlord,c.landlordSignerName,c.landlordSignerTitle,c.landlordSig)+
