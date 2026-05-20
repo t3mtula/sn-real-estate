@@ -87,8 +87,8 @@ body { background: #fff; color: #1a202c; }
      · ทุก field มี row ของตัวเอง · field ว่าง = แถวหาย · ไม่มี alignment issue
      · page-break-inside: avoid → section ไม่ตัดกลาง (browser override ถ้าใหญ่เกินหน้า) ── */
 .ap-section { margin-bottom: 14px; page-break-inside: avoid; break-inside: avoid; }
-.ap-section-bar { background: #1e3a5f; color: #fff; padding: 7px 14px; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px 4px 0 0; }
-.ap-section-bar .en { color: #94a3b8; font-weight: 500; margin-left: 8px; font-size: 9.5px; letter-spacing: 1.5px; }
+.ap-section-bar { background: #f1f5f9; color: #1e3a5f; padding: 6px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 4px 4px 0 0; border-bottom: 1px solid #cbd5e1; }
+.ap-section-bar .en { color: #64748b; font-weight: 500; margin-left: 8px; font-size: 9px; letter-spacing: 1.5px; }
 
 /* Key|Value table (Property, Lease Terms, Bank) */
 .ap-table { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; overflow: hidden; }
