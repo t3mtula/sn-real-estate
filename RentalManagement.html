@@ -1592,6 +1592,470 @@ button[onclick*="help"],
   .v2-kpi-grid .kpi-v2 .kpi-v2-value{font-size:20px!important}
   .dash-todos::before{font-size:10px}
 }
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  BRAND v5 — "Quiet & Confident"  ·  May 2026
+   ║
+   ║  Pulls v4 away from the warm cream / copper-everywhere "vintage" feel
+   ║  and toward Linear / Notion quietness: cool whites, crisp greys, accent
+   ║  only where it earns its place. Same teal primary identity — but used
+   ║  with restraint.
+   ║
+   ║  v4 → v5
+   ║    Surface  warm cream #FAF7F2  →  near-white #FAFAFA
+   ║    Sidebar  warm cream          →  cool grey  #F4F4F5
+   ║    Border   warm beige          →  cool slate #E4E4E7
+   ║    Ink      warm near-black     →  true near-black #0A0A0A
+   ║    Copper   on every section    →  tiny dots only, sidebar-active mark
+   ║    Radii    12/14 rounded       →  8/10 tighter
+   ║    Section  copper bar + 17px   →  no decoration, 13px uppercase eyebrow
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  /* === Cool, near-white surfaces (Linear/Notion) === */
+  --c-bg:#FAFAFA;
+  --c-bg-card:#FFFFFF;
+  --c-bg-soft:#F4F4F5;
+  --c-bg-cream:#F4F4F5;
+
+  /* === Cool slate borders === */
+  --c-border:#E4E4E7;
+  --c-border-subtle:#EFEFF1;
+  --c-border-strong:#D4D4D8;
+
+  /* === Cooler ink for content-first feel === */
+  --c-text:#0A0A0A;
+  --c-text-muted:#52525B;
+  --c-text-subtle:#71717A;
+  --c-text-faint:#A1A1AA;
+
+  /* === Primary teal stays (brand DNA) — but slightly desaturated for Notion-quiet === */
+  --c-primary:#0F4C5C;
+  --c-primary-hover:#0A3744;
+  --c-primary-bg:#EDF2F4;
+  --c-primary-soft:#D9E3E6;
+
+  /* === Accent (copper) — kept, but now RARE === */
+  --c-accent:#C77D49;
+  --c-accent-hover:#A66838;
+  --c-accent-bg:#FAF1E8;
+  --c-accent-soft:#F2DCC2;
+
+  /* === Refined radius scale (tighter, more Notion) === */
+  --r-xs:3px;
+  --r-sm:5px;
+  --r-md:6px;
+  --r-lg:8px;
+  --r-xl:10px;
+  --r-2xl:12px;
+
+  /* === Refined shadows (cooler, subtler) === */
+  --sh-sm:0 1px 2px rgba(0,0,0,.03);
+  --sh-md:0 1px 2px rgba(0,0,0,.04), 0 2px 4px rgba(0,0,0,.03);
+  --sh-lg:0 2px 8px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --sh-xl:0 8px 24px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+}
+
+/* === Body / main: pure neutral === */
+body,body.bg-gray-50,main{background:var(--c-bg)!important}
+
+/* === Header bar — minimal === */
+header.h-16{
+  background:var(--c-bg-card)!important;
+  border-bottom:1px solid var(--c-border)!important;
+  box-shadow:none!important;
+}
+
+/* === Page title — Notion-style: no accent bar, tighter === */
+#title{
+  font-size:22px!important;
+  font-weight:600!important;
+  letter-spacing:-0.4px!important;
+  color:var(--c-text)!important;
+  gap:0!important;
+}
+#title::before{display:none!important}
+
+/* === Sidebar — Linear-style: dense, monochromatic, single active marker === */
+#app > aside{
+  background:var(--c-bg-soft)!important;
+  border-right:1px solid var(--c-border)!important;
+  width:228px!important;
+}
+#app > aside > div:first-child{
+  height:60px!important;
+  padding:0 14px!important;
+  border-bottom:1px solid var(--c-border)!important;
+}
+#app > aside > div:first-child svg{
+  width:22px!important;height:22px!important;
+  color:var(--c-text)!important;
+}
+#app > aside > div:first-child span{
+  font-size:13px!important;
+  font-weight:600!important;
+  color:var(--c-text)!important;
+  letter-spacing:-0.1px!important;
+}
+/* Remove the copper "ที่ดิน" subtitle — it was decoration, not info */
+#app > aside > div:first-child span::after{display:none!important}
+
+/* Nav buttons — tighter, quieter */
+.sb{
+  border-radius:6px!important;
+  margin:0px 6px!important;
+  padding:6px 10px!important;
+  font-size:13px!important;
+  font-weight:500!important;
+  color:var(--c-text-muted)!important;
+  width:calc(100% - 12px)!important;
+  min-height:32px!important;
+}
+.sb svg{
+  width:16px!important;height:16px!important;
+  color:var(--c-text-subtle)!important;
+}
+.sb:hover:not(.active){
+  background:rgba(0,0,0,.04)!important;
+  color:var(--c-text)!important;
+}
+.sb:hover:not(.active) svg{color:var(--c-text-muted)!important}
+
+/* Active state — subtle background + tiny copper marker on left */
+.sb.active{
+  background:rgba(15,76,92,.08)!important;
+  color:var(--c-primary)!important;
+  font-weight:600!important;
+  box-shadow:none!important;
+  position:relative;
+}
+.sb.active svg{color:var(--c-primary)!important}
+.sb.active::before{
+  display:block!important;
+  content:""!important;
+  position:absolute!important;
+  left:-6px!important;top:50%!important;
+  transform:translateY(-50%)!important;
+  width:3px!important;height:16px!important;
+  background:var(--c-accent)!important;
+  border-radius:0 2px 2px 0!important;
+  box-shadow:none!important;
+}
+
+/* Sidebar footer (export buttons) — tighter */
+#app > aside > div:last-child{
+  padding:8px 10px!important;
+  border-top:1px solid var(--c-border)!important;
+}
+#app > aside > div:last-child button{
+  font-size:12px!important;
+  padding:6px 8px!important;
+  border-radius:5px!important;
+  min-height:30px!important;
+}
+
+/* === Section titles — eyebrow style (Notion/Linear) === */
+.section-title,
+.sec-head-title,
+h2[class*="font-semibold"],
+h2[class*="font-bold"]{
+  font-size:14px!important;
+  font-weight:600!important;
+  color:var(--c-text)!important;
+  letter-spacing:-0.1px!important;
+  margin-bottom:12px!important;
+}
+/* KILL the copper accent bar on section titles — was too much */
+.section-title::before{display:none!important}
+
+/* === Cards: tighter, subtle === */
+.section-card,
+.kpi-card,
+.property-card,
+.prop-row,
+.map-loc-card,
+.map-svg-box{
+  border:1px solid var(--c-border)!important;
+  border-radius:var(--r-lg)!important;
+  background:var(--c-bg-card)!important;
+  box-shadow:none!important;
+}
+.section-card{padding:18px!important}
+.section-card:hover,.kpi-card:hover,.prop-row:hover{
+  border-color:var(--c-border-strong)!important;
+  box-shadow:var(--sh-sm)!important;
+}
+
+/* === KPI tiles — quieter, content-forward === */
+.v2-kpi-grid .kpi-v2{
+  border:1px solid var(--c-border)!important;
+  border-radius:var(--r-lg)!important;
+  background:var(--c-bg-card)!important;
+  box-shadow:none!important;
+  padding:18px!important;
+  transition:border-color .12s, box-shadow .12s;
+}
+.v2-kpi-grid .kpi-v2:hover{
+  border-color:var(--c-border-strong)!important;
+  box-shadow:var(--sh-sm)!important;
+  transform:none!important;
+}
+/* Hero: NO copper stripe — just slightly bigger numbers */
+.v2-kpi-grid .kpi-v2.hero::before{display:none!important}
+.v2-kpi-grid .kpi-v2.hero .kpi-v2-value{
+  font-size:30px!important;
+  font-weight:600!important;
+  letter-spacing:-0.8px!important;
+}
+.v2-kpi-grid .kpi-v2 .kpi-v2-value{
+  font-size:24px!important;
+  font-weight:600!important;
+  letter-spacing:-0.5px!important;
+  color:var(--c-text)!important;
+}
+.v2-kpi-grid .kpi-v2 .kpi-v2-label{
+  font-size:12px!important;
+  color:var(--c-text-muted)!important;
+  font-weight:400!important;
+  line-height:1.5!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+}
+/* KPI icon chips — subtler */
+.kpi-v2-icon{
+  width:32px!important;height:32px!important;
+  border-radius:6px!important;
+}
+.kpi-v2-icon svg{width:16px!important;height:16px!important}
+.ic-indigo{background:var(--c-primary-bg)!important;color:var(--c-primary)!important}
+
+/* === KPI card legacy (.kpi-card with ::before stripe) — kill stripe === */
+.kpi-card::before{display:none!important}
+.kpi-card{padding:18px!important}
+.kpi-value{
+  font-size:26px!important;
+  font-weight:600!important;
+  letter-spacing:-0.5px!important;
+  color:var(--c-text)!important;
+}
+.kpi-label{
+  font-size:12px!important;
+  font-weight:400!important;
+  color:var(--c-text-muted)!important;
+  letter-spacing:0!important;
+  text-transform:none!important;
+}
+
+/* === Alert strips — quieter, tighter, more Notion === */
+.alert-strip{
+  border-radius:var(--r-md)!important;
+  padding:10px 14px!important;
+  font-size:13px!important;
+  gap:10px;
+}
+.alert-strip-title{font-size:13px!important;font-weight:600!important;margin-bottom:1px!important}
+.alert-strip-desc{font-size:12px!important;opacity:.75!important;line-height:1.4!important}
+.alert-strip.danger{border-color:#F4C9C5!important;background:#FCF2F1!important;color:#7A2922!important}
+.alert-strip.warn{border-color:#F2D49B!important;background:#FBF5E5!important;color:#7A4406!important}
+.alert-strip.info{border-color:#C5DAE6!important;background:#F0F6FA!important;color:#0E4B66!important}
+.alert-strip.success{border-color:#C2DCBF!important;background:#F0F7EF!important;color:#1F5A2B!important}
+.alert-strip-icon{width:14px!important;height:14px!important;flex-shrink:0}
+
+/* === Dash-todos tier-2 — refined eyebrow === */
+.dash-todos{
+  border-top:1px solid var(--c-border)!important;
+  border-bottom:none;
+  padding-top:14px!important;
+  padding-bottom:0!important;
+}
+.dash-todos::before{
+  content:"งานต้องดูใจวันนี้";
+  font-size:11px!important;
+  font-weight:500!important;
+  letter-spacing:.4px!important;
+  text-transform:uppercase!important;
+  color:var(--c-text-subtle)!important;
+  margin-bottom:10px!important;
+}
+
+/* === Tables — Notion-tight, content-first === */
+table{background:var(--c-bg-card)!important}
+table th{
+  font-size:11px!important;
+  font-weight:500!important;
+  color:var(--c-text-muted)!important;
+  background:var(--c-bg-card)!important;
+  border-bottom:1px solid var(--c-border)!important;
+  padding:8px 12px!important;
+  letter-spacing:.3px!important;
+  text-transform:none!important;
+}
+/* Active sort col — quiet teal underline only */
+th.bg-indigo-100, th[class*="bg-indigo"]{
+  background:var(--c-bg-card)!important;
+  color:var(--c-primary)!important;
+  border-bottom:2px solid var(--c-primary)!important;
+}
+table td{
+  font-size:13px!important;
+  color:var(--c-text)!important;
+  padding:9px 12px!important;
+  border-bottom:1px solid var(--c-border-subtle)!important;
+  line-height:1.45!important;
+}
+tbody tr:hover td{background:var(--c-bg-soft)!important}
+
+/* === Buttons — Notion-quiet === */
+.btn{border-radius:var(--r-md)!important;padding:6px 12px!important;font-size:13px!important;font-weight:500!important}
+.btn-primary,
+button.bg-indigo-600,
+button.bg-indigo-600.cursor-pointer{
+  background:var(--c-primary)!important;
+  color:#fff!important;
+  border:1px solid var(--c-primary)!important;
+  box-shadow:0 1px 0 rgba(0,0,0,.04)!important;
+  font-weight:500!important;
+}
+.btn-primary:hover,
+button.bg-indigo-600:hover{
+  background:var(--c-primary-hover)!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.08)!important;
+}
+.btn-secondary,button.bg-white{
+  background:var(--c-bg-card)!important;
+  color:var(--c-text)!important;
+  border:1px solid var(--c-border)!important;
+}
+.btn-secondary:hover{
+  background:var(--c-bg-soft)!important;
+  border-color:var(--c-border-strong)!important;
+}
+
+/* === Inputs — Notion-style === */
+input[type="text"],input[type="number"],input[type="email"],input[type="date"],
+input[type="search"],input:not([type]),select,textarea{
+  background:var(--c-bg-card)!important;
+  border:1px solid var(--c-border)!important;
+  border-radius:var(--r-md)!important;
+  color:var(--c-text)!important;
+  font-size:13px!important;
+  padding:7px 10px!important;
+  min-height:34px!important;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--c-primary)!important;
+  box-shadow:0 0 0 3px rgba(15,76,92,.10)!important;
+  outline:none!important;
+}
+
+/* === Badges / chips — quiet === */
+.badge,.bdg,.type-badge,.summary-chip{
+  font-size:11px!important;
+  font-weight:500!important;
+  padding:2px 8px!important;
+  border-radius:var(--r-sm)!important;
+  letter-spacing:0!important;
+}
+
+/* === Modal === */
+#modal > div.bg-white{
+  border-radius:var(--r-xl)!important;
+  border:1px solid var(--c-border)!important;
+  box-shadow:var(--sh-xl)!important;
+}
+#modal h3#mtitle{
+  font-size:16px!important;
+  font-weight:600!important;
+  letter-spacing:-0.2px!important;
+  color:var(--c-text)!important;
+}
+
+/* === Auto-save indicator — even quieter === */
+#saveStatus{
+  color:var(--c-text-subtle)!important;
+  font-size:11px!important;
+  font-weight:400!important;
+}
+
+/* === Selection — brand subtle === */
+::selection{background:var(--c-primary-bg);color:var(--c-primary-hover)}
+
+/* === Scrollbar — barely-there === */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--c-border-strong);border-radius:5px;border:3px solid var(--c-bg)}
+::-webkit-scrollbar-thumb:hover{background:var(--c-text-subtle)}
+
+/* === Dashboard "premium header" — if used anywhere — Notion-quiet === */
+.dashboard-header{
+  background:var(--c-bg-card)!important;
+  color:var(--c-text)!important;
+  border:1px solid var(--c-border)!important;
+  box-shadow:none!important;
+  border-radius:var(--r-lg)!important;
+}
+.dashboard-header::after{display:none!important}
+.dashboard-title{color:var(--c-text)!important;font-size:24px!important;letter-spacing:-0.5px!important}
+.dashboard-subtitle{color:var(--c-text-muted)!important}
+.meta-badge{background:var(--c-bg-soft)!important;color:var(--c-text-muted)!important;border:1px solid var(--c-border)!important}
+
+/* === Notification panel — clean === */
+#notifPanel{
+  border-radius:var(--r-xl)!important;
+  border:1px solid var(--c-border)!important;
+  box-shadow:var(--sh-xl)!important;
+}
+#notifPanel > div:first-child{
+  background:var(--c-bg-card)!important;
+  border-bottom-color:var(--c-border)!important;
+}
+
+/* === Logout button — quieter (was loud red border) === */
+button[onclick*="logout"],
+button[onclick="logout()"]{
+  font-size:12px!important;
+  font-weight:500!important;
+  padding:6px 10px!important;
+}
+
+/* === Sidebar user-area "Audit Designer / ผู้ดูแลระบบ" — refined === */
+#app > aside [class*="role"],
+#app > aside > nav + div + div{
+  font-size:12px!important;
+}
+
+/* === Quill var pill === */
+.cf-var-pill{
+  background:var(--c-primary-bg)!important;
+  color:var(--c-primary)!important;
+  border-radius:var(--r-sm)!important;
+  font-size:12px!important;
+}
+
+/* === Map: quieter === */
+.map-loc-card{background:var(--c-bg-card)!important;border:1px solid var(--c-border)!important}
+.map-loc-card.sel{
+  border-color:var(--c-primary)!important;
+  box-shadow:0 0 0 1px var(--c-primary)!important;
+}
+
+/* === Tab strip (above invoice table etc.) — Notion underline tab === */
+[class*="tab"]>button,
+.tab-btn,
+[role="tab"]{
+  font-size:13px!important;
+  padding:7px 12px!important;
+  border-radius:var(--r-md)!important;
+}
+
+/* === Mobile: keep sidebar margin from screen edge but cool === */
+@media (max-width:767px){
+  #app > aside{background:var(--c-bg-soft)!important;width:min(264px,84vw)!important}
+  #title{font-size:18px!important}
+  .v2-kpi-grid .kpi-v2.hero .kpi-v2-value{font-size:22px!important}
+  .v2-kpi-grid .kpi-v2 .kpi-v2-value{font-size:18px!important}
+  .section-card{padding:14px!important}
+}
 </style>
 </head>
 <body class="bg-gray-50">
