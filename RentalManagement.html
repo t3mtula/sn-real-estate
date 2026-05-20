@@ -2115,6 +2115,142 @@ button[onclick="logout()"]{
   font-weight:500!important;
   font-size:11px!important;
 }
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  v5 patch · "พื้นที่ดำเนินงาน" redesign (Option B)
+   ║  Map ambient (small right), list primary (left, full data)
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+.map-wrap.map-wrap-v5{
+  display:grid;
+  grid-template-columns:1fr 200px;
+  gap:24px;
+  min-height:auto!important;
+  align-items:start;
+}
+
+/* Map: shrink to ambient illustration size, no border/card chrome */
+.map-wrap-v5 .map-svg-box{
+  background:transparent!important;
+  border:none!important;
+  padding:0!important;
+  position:relative;
+  display:block!important;
+  min-height:auto!important;
+}
+.map-wrap-v5 .map-svg-box svg{
+  width:100%!important;
+  height:auto!important;
+  max-height:340px!important;
+}
+/* Map provinces — quieter fill (no more loud teal/red/grey) */
+.map-wrap-v5 .map-prov-bg{fill:#EFEFF1!important;stroke:#fff!important;stroke-width:0.6!important}
+.map-wrap-v5 .map-prov-target{fill:#EFEFF1!important}
+.map-wrap-v5 .map-prov-target:hover{fill:#D4E1E4!important;stroke:var(--c-primary)!important;stroke-width:1!important}
+
+/* List — clean Notion rows */
+.map-wrap-v5 .map-detail{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.map-wrap-v5 .map-loc-card{
+  background:transparent!important;
+  border:none!important;
+  border-bottom:1px solid var(--c-border)!important;
+  border-radius:0!important;
+  padding:10px 0!important;
+  margin:0!important;
+  cursor:pointer;
+  transition:none!important;
+}
+.map-wrap-v5 .map-loc-card:last-child{border-bottom:none!important}
+.map-wrap-v5 .map-loc-card:hover{
+  background:transparent!important;
+  box-shadow:none!important;
+}
+.map-wrap-v5 .map-loc-card.sel{
+  background:var(--c-primary-bg)!important;
+  border-radius:var(--r-md)!important;
+  padding:10px 12px!important;
+  margin:-2px -12px!important;
+  border:none!important;
+}
+
+.map-wrap-v5 .map-loc-row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:6px;
+}
+.map-wrap-v5 .map-loc-name{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  min-width:0;
+  flex:1;
+}
+.map-wrap-v5 .map-loc-dot{
+  width:7px;height:7px;
+  border-radius:50%;
+  background:var(--c-primary);
+  flex-shrink:0;
+  transform:translateY(-1px);
+}
+.map-wrap-v5 .map-loc-label{
+  font-size:13px;
+  font-weight:600;
+  color:var(--c-text);
+  white-space:nowrap;
+}
+.map-wrap-v5 .map-loc-meta{
+  font-size:11px;
+  color:var(--c-text-subtle);
+  margin-left:4px;
+}
+.map-wrap-v5 .map-loc-value{
+  display:flex;
+  align-items:baseline;
+  gap:8px;
+  white-space:nowrap;
+}
+.map-wrap-v5 .map-loc-amount{
+  font-size:13px;
+  font-weight:600;
+  color:var(--c-text);
+  font-variant-numeric:tabular-nums;
+  font-family:var(--font-num);
+}
+.map-wrap-v5 .map-loc-pct{
+  font-size:11px;
+  color:var(--c-text-subtle);
+  font-variant-numeric:tabular-nums;
+  min-width:32px;
+  text-align:right;
+}
+/* Single-color brand teal bar (was rainbow gradient per province) */
+.map-wrap-v5 .map-loc-track{
+  height:4px;
+  background:var(--c-bg-soft);
+  border-radius:2px;
+  overflow:hidden;
+}
+.map-wrap-v5 .map-loc-fill{
+  height:100%;
+  background:var(--c-primary);
+  border-radius:2px;
+  transition:width .4s ease;
+}
+.map-wrap-v5 .map-loc-card:hover .map-loc-fill{background:var(--c-primary-hover)}
+.map-wrap-v5 .map-loc-card.sel .map-loc-fill{background:var(--c-primary)}
+
+/* Mobile: map drops below list (stacks) */
+@media (max-width:767px){
+  .map-wrap.map-wrap-v5{grid-template-columns:1fr;gap:16px}
+  .map-wrap-v5 .map-svg-box{max-width:200px;margin:0 auto}
+  .map-wrap-v5 .map-svg-box svg{max-height:240px!important}
+}
 </style>
 </head>
 <body class="bg-gray-50">
@@ -9857,7 +9993,8 @@ function renderDash(){
   });
 
   // Interactive colored bubbles — เฉพาะจังหวัดที่มีทรัพย์สิน (count>0)
-  // ซ่อนจังหวัด 0 เพราะรกแผนที่และให้ข้อมูลผิด ("รายได้ 0 บาท" = ไม่ได้ลงทุน, ไม่ใช่ insight)
+  // Ambient map (v5 Option B): tiny brand-teal dots, no labels.
+  // The list on the LEFT is the primary read; the map is geographic context.
   let labelsHTML='';
   const bubbleData=Object.entries(TH_LOC_MAP).map(([loc,id])=>{
     const c=TH_CENTROIDS[id];if(!c)return null;
@@ -9865,19 +10002,17 @@ function renderDash(){
     const count=ld?ld.props.length:0;
     if(count===0)return null;
     const rev=ld?ld.rev:0;
-    return{loc,id,cx:c[0],cy:c[1],count,rev,color:MAP_LOC_COLORS[loc]||'#6366f1'};
+    return{loc,id,cx:c[0],cy:c[1],count,rev};
   }).filter(Boolean).sort((a,b)=>a.count-b.count);
   const maxCount=Math.max(...bubbleData.map(b=>b.count),1);
   bubbleData.forEach(b=>{
     const isSel=b.loc===mapSelLoc;
-    const r=Math.max(16,Math.min(36,16+(b.count/maxCount)*20));
-    const selR=isSel?r+4:r;
+    // Dot radius scales gently with count (8 → 16) — big enough to see, small enough not to hide map
+    const r=Math.max(8,Math.min(16,8+(b.count/maxCount)*8));
     labelsHTML+=`<g onclick="mapClickLoc('${b.loc}')" style="cursor:pointer" class="map-pin">
-      ${isSel?`<circle cx="${b.cx}" cy="${b.cy}" r="${selR+6}" fill="${b.color}" opacity="0.15"><animate attributeName="r" values="${selR+4};${selR+10};${selR+4}" dur="2s" repeatCount="indefinite"/></circle>`:''}
-      <circle cx="${b.cx}" cy="${b.cy}" r="${selR}" fill="${b.color}" stroke="#fff" stroke-width="3" opacity="${isSel?1:0.9}" filter="url(#bubbleSh)"/>
-      <text x="${b.cx}" y="${b.cy}" text-anchor="middle" dominant-baseline="central" font-size="${Math.max(12,selR*0.55)}" font-weight="800" fill="#fff" pointer-events="none">${b.count}</text>
-      <text x="${b.cx}" y="${b.cy+selR+14}" text-anchor="middle" font-size="12" font-weight="700" fill="#334155" pointer-events="none" stroke="#fff" stroke-width="4" paint-order="stroke">${esc(b.loc)}</text>
-      ${b.rev>0?`<text x="${b.cx}" y="${b.cy+selR+27}" text-anchor="middle" font-size="9" font-weight="500" fill="#64748b" pointer-events="none" stroke="#fff" stroke-width="3" paint-order="stroke">${(b.rev/1000).toFixed(0)}K/ด.</text>`:''}
+      ${isSel?`<circle cx="${b.cx}" cy="${b.cy}" r="${r+6}" fill="#0F4C5C" opacity="0.18"><animate attributeName="r" values="${r+4};${r+9};${r+4}" dur="2s" repeatCount="indefinite"/></circle>`:''}
+      <circle cx="${b.cx}" cy="${b.cy}" r="${r}" fill="${isSel?'#0F4C5C':'#0F4C5C'}" stroke="#fff" stroke-width="2.5" opacity="${isSel?1:0.85}"/>
+      <title>${esc(b.loc)} · ${b.count} ทรัพย์${b.rev>0?' · '+(b.rev/1000).toFixed(0)+'K/ด.':''}</title>
     </g>`;
   });
 
@@ -10271,35 +10406,32 @@ function renderDash(){
 
     <div class="grid grid-cols-3 gap-6 mb-6">
       <div class="section-card col-span-2">
-        <h2 class="section-title" style="--section-color:#6366f1">แผนที่ทรัพย์สิน</h2>
-        <div class="map-wrap">
-          <div class="map-svg-box" style="flex:0 0 380px;padding:12px">${thaiMap}</div>
+        <h2 class="section-title">พื้นที่ดำเนินงาน</h2>
+        <div class="map-wrap map-wrap-v5">
+          <!-- LIST first (primary read), MAP second (ambient context) -->
           <div class="map-detail">
-            <div style="font-size:12px;color:#64748b;margin-bottom:16px">กดจังหวัดบนแผนที่เพื่อดูรายละเอียด</div>
-            ${locEntries.slice(0,5).map(([loc,d])=>{
+            ${locEntries.slice(0,8).map(([loc,d])=>{
               const pct=tot?Math.round(d.rev/tot*100):0;
-              const color=MAP_LOC_COLORS[loc]||'#64748b';
               const isSel=loc===sel;
-              return`<div class="map-loc-card ${isSel?'sel':''}" onclick="mapClickLoc('${loc}')" style="${isSel?'border-left-color:'+color+';border-left-width:4px':''}">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
-                    <span class="font-semibold text-gray-900 text-sm">${esc(loc)}</span>
+              const activeContracts=d.contracts.filter(c=>{const s=status(c);return s==='active'||s==='expiring'}).length;
+              return`<div class="map-loc-card ${isSel?'sel':''}" onclick="mapClickLoc('${loc}')">
+                <div class="map-loc-row">
+                  <div class="map-loc-name">
+                    <span class="map-loc-dot"></span>
+                    <span class="map-loc-label">${esc(loc)}</span>
+                    <span class="map-loc-meta">${d.props.length} ทรัพย์ · ${activeContracts} สัญญา</span>
                   </div>
-                  <div class="text-right">
-                    <span class="font-bold text-sm" style="color:${color}">${fmtBaht(d.rev,{sym:0})}</span>
-                    <span class="text-xs text-gray-400 ml-1">${pct}%</span>
+                  <div class="map-loc-value">
+                    <span class="map-loc-amount">${fmtBaht(d.rev,{sym:0})}</span>
+                    <span class="map-loc-pct">${pct}%</span>
                   </div>
                 </div>
-                <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                  <span>${d.props.length} ทรัพย์</span>
-                  <span>·</span>
-                  <span>${d.contracts.filter(c=>{const s=status(c);return s==='active'||s==='expiring'}).length} สัญญา</span>
-                </div>
-                <div class="heat-bar" style="width:${pct}%;background:linear-gradient(90deg,${color},${color}dd);margin-top:8px;padding:0 8px;font-size:10px">${pct}%</div>
+                <div class="map-loc-track"><div class="map-loc-fill" style="width:${pct}%"></div></div>
               </div>`;
             }).join('')}
           </div>
+          <!-- Ambient map silhouette, no labels, click-through -->
+          <div class="map-svg-box">${thaiMap}</div>
         </div>
       </div>
 
