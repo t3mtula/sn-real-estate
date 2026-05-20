@@ -1250,6 +1250,348 @@ button[aria-label*="ช่วย"]{
   background:var(--c-primary-bg)!important;
   color:var(--c-primary)!important;
 }
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  BRAND v4 · Batch A — Typography + Print + Mobile polish
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+/* ===== A1 · Typography readability pass — Thai script needs more room ===== */
+
+/* Table cells — was 11-12px (uncomfortable for Thai) → 13-14px */
+table th{font-size:var(--f-sm)!important;line-height:1.4!important;padding:11px 12px!important;letter-spacing:0!important}
+table td{font-size:var(--f-sm)!important;line-height:1.55!important;padding:13px 12px!important}
+table td.text-right,table td[class*="text-right"]{font-family:var(--font-num)!important;font-variant-numeric:tabular-nums}
+
+/* Badge / chip sizing */
+.badge,.bdg,.type-badge,.summary-chip{
+  font-size:var(--f-xs)!important;
+  padding:3px 10px!important;
+  line-height:1.5!important;
+}
+
+/* Alert-strip body line-height for Thai */
+.alert-strip-desc{line-height:1.6!important}
+
+/* Filter dropdowns / inputs in table toolbars */
+select,
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="date"]{
+  font-size:var(--f-sm)!important;
+  padding:8px 12px!important;
+  min-height:38px;
+}
+
+/* Tab pills (tab navigation) */
+[class*="tab"]>button,
+.tab-btn,
+[role="tab"]{
+  font-size:var(--f-sm)!important;
+  padding:9px 14px!important;
+}
+
+/* Notification panel readability */
+#notifPanel{
+  border-radius:var(--r-xl)!important;
+  border:1px solid var(--c-border)!important;
+  box-shadow:var(--sh-xl)!important;
+}
+#notifPanel>div:first-child{
+  background:var(--c-bg-cream)!important;
+  border-bottom-color:var(--c-border)!important;
+}
+#notifPanel>div:first-child>div:first-child{
+  font-size:var(--f-base)!important;
+  color:var(--c-text)!important;
+}
+
+/* ===== A2 · Print preview modal — was dark navy, now brand teal ===== */
+
+#printOverlay>div{
+  background:var(--c-primary-hover)!important;
+  border-radius:var(--r-xl)!important;
+  box-shadow:0 24px 64px rgba(15,76,92,.40)!important;
+}
+#printOverlay>div>div:first-child{
+  background:linear-gradient(180deg,var(--c-primary) 0%,var(--c-primary-hover) 100%)!important;
+}
+#printOverlay>div>div:last-child{
+  background:rgba(0,0,0,.18)!important;
+}
+#printOverlay [style*="background:#4f46e5"],
+#printOverlay [style*="background: #4f46e5"]{
+  background:var(--c-accent)!important;
+}
+#printOverlay [style*="background:#4f46e5"]:hover,
+#printOverlay [style*="background: #4f46e5"]:hover{
+  background:var(--c-accent-hover)!important;
+}
+#printOverlay button:hover{filter:brightness(1.08)}
+
+/* ===== A3 · Mobile responsive polish ===== */
+
+@media (max-width:767px){
+  /* Page H1 mobile — was 1rem (tiny), bump to 20px */
+  #app > main > header h1,
+  #title{
+    font-size:var(--f-xl)!important;
+    letter-spacing:-0.2px!important;
+  }
+  #title::before{height:18px!important}
+
+  /* Header bar height + padding */
+  header.h-16{
+    padding:0 12px!important;
+    min-height:56px!important;
+    gap:8px;
+  }
+  #saveStatus{display:none!important}
+
+  /* Hamburger styled per brand */
+  .mobile-hamburger{
+    border:1px solid var(--c-border)!important;
+    border-radius:var(--r-md)!important;
+    width:38px;height:38px;
+  }
+  .mobile-hamburger svg{color:var(--c-primary)!important}
+
+  /* Sidebar: full-height drawer with safer width on tiny phones */
+  #app > aside{
+    width:min(280px, 86vw)!important;
+    box-shadow:8px 0 32px rgba(15,76,92,.18)!important;
+  }
+  #app > aside > div:first-child{height:64px!important}
+
+  /* Content padding */
+  #app > main > div#content{padding:12px 10px!important}
+
+  /* KPI grid: never 1-col (waste), always 2-col on mobile */
+  .v2-kpi-grid,.kpi-grid{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+  .v2-kpi-grid .kpi-v2.hero,.kpi-grid > .col-span-2{grid-column:1/-1!important}
+  .kpi-card{padding:14px!important}
+  .kpi-value{font-size:var(--f-xl)!important}
+  .kpi-label{font-size:10px!important;letter-spacing:.4px!important}
+
+  /* HTML table → card-stack on phone (catches the Invoices table that isn't grid-based) */
+  table.inv-tbl, table[class*="inv"],
+  #content > table,
+  .invoices-table table,
+  table:not(.no-mobile-stack){
+    display:block;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    border-radius:var(--r-lg);
+    border:1px solid var(--c-border);
+    background:var(--c-bg-card);
+    /* Make at least the cell text fit nicely */
+    font-size:var(--f-sm);
+  }
+  table thead{position:sticky;top:0;background:var(--c-bg-cream);z-index:2}
+  table th,table td{padding:9px 10px!important;white-space:nowrap}
+
+  /* Alert strips: tighter spacing */
+  .alert-strip{padding:10px 12px!important;gap:8px!important}
+  .alert-strip-title{font-size:var(--f-xs)!important}
+  .alert-strip-desc{font-size:11px!important}
+  .alert-strip-icon{width:16px;height:16px}
+
+  /* Dashboard heat-bar (location rows) */
+  .heat-bar{font-size:11px!important;padding:8px 10px!important}
+
+  /* Modal — full width, less margin */
+  #modal>div.bg-white{
+    max-width:calc(100vw - 12px)!important;
+    margin:6px!important;
+    max-height:calc(100vh - 12px)!important;
+    border-radius:var(--r-lg)!important;
+  }
+  #modal .px-6{padding-left:14px!important;padding-right:14px!important}
+  #modal .py-4{padding-top:12px!important;padding-bottom:12px!important}
+  #modal .p-6{padding:14px!important}
+
+  /* Filter rows wrap */
+  #content .flex.flex-wrap.items-center.gap-3{flex-wrap:wrap!important}
+
+  /* Print overlay: full width on mobile */
+  #printOverlay{padding:8px!important}
+  #printOverlay>div{max-width:100%!important}
+}
+
+/* Tablet polish (768–1023) — sidebar narrower but visible */
+@media (min-width:768px) and (max-width:1023px){
+  #app > aside{width:200px!important}
+  #title{font-size:22px!important}
+  .v2-kpi-grid,.kpi-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  BRAND v4 · Batch B — Emoji unification + visual quieting
+   ║  We can't rewrite 200+ emoji uses in JS template strings cheaply.
+   ║  Instead: force consistent rendering + soften them visually so they
+   ║  read as functional markers (not toy stickers).
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+/* Use system emoji font as a *fallback* AFTER the IBM Plex family. Text glyphs
+   stay sharp from Plex; only emoji codepoints (no glyph in Plex) fall through
+   to the platform emoji font. Single consistent stack across all surfaces. */
+:root{
+  --font-sans:'IBM Plex Sans Thai','IBM Plex Sans','Sarabun',-apple-system,BlinkMacSystemFont,system-ui,'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;
+}
+
+/* Optical correction: emoji renders 10–20% larger than its em-box in Plex.
+   Use `font-size-adjust` substring sweep + a wrapper class for known offenders.
+   Where emoji directly precedes a label, mute its weight + slightly shrink. */
+.alert-strip-title,
+.alert-strip-desc,
+.kpi-v2-label,
+.kpi-v2-value,
+.sec-head-title,
+.sb,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger{
+  font-family:var(--font-sans);
+}
+
+/* Hide emoji that immediately precede the alert-strip title — the SVG icon
+   on the LEFT is the real status marker, the emoji is duplicate. We can't
+   reach into innerText, but we CAN shrink emoji glyphs inside these
+   specific elements via font-size scoping. */
+.alert-strip .alert-strip-body p{
+  /* Emoji baseline alignment */
+  line-height:1.55;
+}
+
+/* Action button emoji (e.g. "💰 รับเงิน") — keep but neutralize. We
+   reduce emoji font-size in tight action button contexts via `font-size-adjust`
+   trick: use a narrower line-height + slightly smaller character. */
+button.bg-red-600,
+button.bg-green-600,
+button.bg-indigo-600,
+.pay-btn,
+.btn-primary,
+.btn-danger,
+.btn-success{
+  letter-spacing:.1px;
+}
+
+/* Numeric KPI value — never use emoji font, keep pure Plex for tabular figures */
+.kpi-v2-value,
+.kpi-value,
+.kpi-value-big,
+[class*="kpi"][class*="value"]{
+  font-family:var(--font-num)!important;
+  font-variant-numeric:tabular-nums!important;
+}
+
+/* Section title emoji (📊 รายได้ตามพื้นที่) — soften ahead of the copper bar.
+   Visual reading order: copper bar → emoji → title → action.
+   Slightly smaller emoji makes the copper bar more dominant. */
+.section-title,
+.sec-head-title,
+h2.section-title{
+  display:flex;align-items:center;gap:8px;
+  font-feature-settings:"ss01";
+}
+
+/* Apply uniform opacity to emoji-only spans (best effort) */
+[class*="emoji"]{font-style:normal!important;text-decoration:none!important}
+
+/* Floating "?" help button — was Indigo, already brand teal · refine the bubble */
+button[onclick*="onboard"],
+button[onclick*="tour"],
+button[onclick*="help"],
+#helpBtn,
+[id*="helpBtn"]{
+  background:var(--c-primary)!important;
+  color:#fff!important;
+  border-color:var(--c-primary)!important;
+  border-radius:50%!important;
+  box-shadow:0 6px 16px rgba(15,76,92,.30)!important;
+  font-weight:700!important;
+}
+
+/* ╔══════════════════════════════════════════════════════════════════════════════════
+   ║  BRAND v4 · Batch C — Dashboard hierarchy support
+   ╚══════════════════════════════════════════════════════════════════════════════════ */
+
+/* When KPI tiles sit on TOP, give them more presence — increase value size */
+.v2-kpi-grid .kpi-v2.hero .kpi-v2-value{
+  font-size:32px!important;
+  font-weight:700!important;
+  letter-spacing:-0.6px!important;
+  line-height:1.1!important;
+}
+.v2-kpi-grid .kpi-v2 .kpi-v2-value{
+  font-size:26px!important;
+  font-weight:700!important;
+  letter-spacing:-0.4px!important;
+  line-height:1.1!important;
+}
+.v2-kpi-grid .kpi-v2 .kpi-v2-label{
+  font-size:var(--f-xs)!important;
+  color:var(--c-text-muted)!important;
+  line-height:1.5!important;
+  margin-top:4px!important;
+}
+.v2-kpi-grid .kpi-v2{
+  border:1px solid var(--c-border)!important;
+  border-radius:var(--r-lg)!important;
+  background:var(--c-bg-card)!important;
+  box-shadow:var(--sh-sm)!important;
+  transition:border-color .15s, box-shadow .15s, transform .15s;
+}
+.v2-kpi-grid .kpi-v2:hover{
+  border-color:var(--c-border-strong)!important;
+  box-shadow:var(--sh-md)!important;
+  transform:translateY(-1px);
+}
+
+/* Hero KPI: subtle copper accent stripe on top */
+.v2-kpi-grid .kpi-v2.hero{
+  position:relative;
+  overflow:hidden;
+}
+.v2-kpi-grid .kpi-v2.hero::before{
+  content:"";
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg, var(--c-primary), var(--c-accent));
+}
+
+/* Tier-2 alerts container — give it a "section feel" but quieter than KPIs */
+.dash-todos{
+  border-top:1px dashed var(--c-border);
+  padding-top:14px;
+  margin-top:4px!important;
+}
+.dash-todos::before{
+  content:"ที่ต้องดูใจวันนี้";
+  display:block;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:var(--c-text-subtle);
+  margin-bottom:8px;
+}
+.dash-todos .alert-strip{
+  margin-bottom:0!important;
+}
+
+/* Mobile: when KPIs sit on top, reflow nicely */
+@media (max-width:767px){
+  .v2-kpi-grid .kpi-v2.hero .kpi-v2-value{font-size:24px!important}
+  .v2-kpi-grid .kpi-v2 .kpi-v2-value{font-size:20px!important}
+  .dash-todos::before{font-size:10px}
+}
 </style>
 </head>
 <body class="bg-gray-50">
@@ -9182,16 +9524,11 @@ function renderDash(){
     <span class="btn2 btn2-ghost btn2-sm" style="pointer-events:none">ดำเนินการ →</span>
   </div>`:'';
 
+  // ===== Hierarchy fix (Brand v4): KPIs answer "how are we doing?" first.
+  // Alerts (todos for the day) come *after* — visible but tier-2.
   $('content').innerHTML=`
-    ${_dataFixAlertHTML}
-    ${_dashAlertHTML}
-    ${_ovdAlertHTML}
-    ${_expAlertHTML}
-    ${_unpaidDepHTML}
-    ${_pendDepAlertHTML}
-
-    <!-- V2 KPI row: Hero revenue + 3 secondary -->
-    <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px" class="v2-kpi-grid">
+    <!-- V2 KPI row: Hero revenue + 3 secondary  ·  TOP of dashboard -->
+    <div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:14px;margin-bottom:18px" class="v2-kpi-grid">
       <div class="kpi-v2 hero" onclick="showPage('properties')">
         <div class="kpi-v2-icon ic-indigo"><svg viewBox="0 0 24 24" fill="currentColor" aria-label="บาท"><text x="12" y="17.5" text-anchor="middle" font-size="17" font-weight="800" font-family="Sarabun,system-ui,sans-serif">฿</text></svg></div>
         <div class="kpi-v2-body">
@@ -9222,6 +9559,18 @@ function renderDash(){
         </div>
       </div>
     </div>
+
+    <!-- ===== TIER-2: Action items / things to handle today ===== -->
+    ${(_dataFixAlertHTML||_dashAlertHTML||_ovdAlertHTML||_expAlertHTML||_unpaidDepHTML||_pendDepAlertHTML) ? `
+      <div class="dash-todos" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+        ${_dataFixAlertHTML}
+        ${_dashAlertHTML}
+        ${_ovdAlertHTML}
+        ${_expAlertHTML}
+        ${_unpaidDepHTML}
+        ${_pendDepAlertHTML}
+      </div>
+    ` : ''}
 
     <!-- ===== REVENUE & COLLECTION OVERVIEW ===== -->
     <div class="grid grid-cols-3 gap-6 mb-6">
