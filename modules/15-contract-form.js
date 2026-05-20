@@ -237,7 +237,11 @@ function renewContract(cid) {
   if (!c) return;
   $('mtitle').textContent = 'ต่อสัญญา — ' + c.tenant;
   $('mbody').innerHTML = contractFormHTML('renew', c);
-  setTimeout(cfCalcEndFromDur, 50); // Auto-calc end date on load
+  setTimeout(() => {
+    cfCalcEndFromDur(); // Auto-calc end date on load
+    // ── Phase 2: ระบบปรับ rate ใหม่อัตโนมัติตาม rateAdjType + rateAdjPercent ──
+    applyRenewRateAdj(c);
+  }, 50);
   $('contractForm').addEventListener('submit', e => {
     e.preventDefault();
     resolveFormDropdowns(new FormData(e.target));
@@ -1110,6 +1114,45 @@ function buildRateStr(fd) {
   const prefix = fd.get('ratePrefix') || 'เดือนละ';
   const rateAmt = (fd.get('rateAmt') || '0').replace(/[^\d,.]/g,'');
   return prefix + ' ' + rateAmt + ' บาท';
+}
+
+// ── Phase 2: Auto-calc rate ใหม่ตอนต่อสัญญา ตาม rateAdjType + rateAdjPercent ──
+// ถ้า source contract เป็น structured 'percent' → ปรับ rate ใหม่ = rate เดิม × (1+%) + ใส่ลง form + แสดง note
+// ถ้า rate เป็น stepped (อัตราขั้นบันได) → ไม่ calc · แสดง warning ให้พนง.แก้เอง
+// ถ้า type=none/custom → ไม่ทำอะไร (legacy + non-percent ใช้ rate เดิม)
+function applyRenewRateAdj(sourceC){
+  if(!sourceC) return;
+  const rateAmtEl = document.querySelector('input[name=rateAmt]');
+  if(!rateAmtEl) return;
+  const oldRate = String(sourceC.rate||'');
+  // Stepped rate detection (มี comma + "ปี XXXX")
+  const isStepped = /,\s*ปี\s*\d/.test(oldRate);
+  // Only auto-calc when source is structured percent + valid %
+  if(sourceC.rateAdjType !== 'percent' || !sourceC.rateAdjPercent || sourceC.rateAdjPercent <= 0){
+    return; // ไม่มี structured % → ไม่ทำอะไร (พนง.คิดเอง เหมือนปัจจุบัน)
+  }
+  // Show warning for stepped — auto-calc ไม่ทำ
+  if(isStepped){
+    const note = document.createElement('div');
+    note.id = 'renewRateNote';
+    note.style.cssText = 'background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;font-size:12px;color:#92400e;margin-top:6px;border-radius:4px;line-height:1.5';
+    note.textContent = '⚠️ สัญญาเดิมเป็นอัตราขั้นบันได ระบบไม่คำนวณ rate ใหม่ให้อัตโนมัติ — กรุณาแก้ rate เอง';
+    rateAmtEl.parentElement.appendChild(note);
+    return;
+  }
+  // Normal auto-calc
+  const oldAmt = (typeof amt === 'function') ? amt(sourceC.rate) : 0;
+  if(!oldAmt || oldAmt <= 0) return; // parse ไม่ได้ → skip
+  const pct = sourceC.rateAdjPercent;
+  const newAmt = Math.round(oldAmt * (1 + pct/100));
+  // ใส่ค่าใหม่ลง form (พนง.แก้กลับได้)
+  rateAmtEl.value = newAmt.toLocaleString('en-US');
+  // ติด note สีฟ้าบอกที่มา
+  const note = document.createElement('div');
+  note.id = 'renewRateNote';
+  note.style.cssText = 'background:#dbeafe;border-left:3px solid #3b82f6;padding:8px 12px;font-size:12px;color:#1e40af;margin-top:6px;border-radius:4px;line-height:1.5';
+  note.innerHTML = '💡 ระบบปรับค่าเช่าจาก <b>'+oldAmt.toLocaleString()+'</b> → <b>'+newAmt.toLocaleString()+'</b> ตามสัญญาเดิม (ปรับ '+pct+'%) · ถ้าไม่ต้องการปรับ แก้เลขกลับได้';
+  rateAmtEl.parentElement.appendChild(note);
 }
 
 // ── Thai number-to-word (1–100) สำหรับใส่ในวงเล็บข้อความสัญญา ──

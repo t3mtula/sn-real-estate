@@ -12712,7 +12712,11 @@ function renewContract(cid) {
   if (!c) return;
   $('mtitle').textContent = 'ต่อสัญญา — ' + c.tenant;
   $('mbody').innerHTML = contractFormHTML('renew', c);
-  setTimeout(cfCalcEndFromDur, 50); // Auto-calc end date on load
+  setTimeout(() => {
+    cfCalcEndFromDur(); // Auto-calc end date on load
+    // ── Phase 2: ระบบปรับ rate ใหม่อัตโนมัติตาม rateAdjType + rateAdjPercent ──
+    applyRenewRateAdj(c);
+  }, 50);
   $('contractForm').addEventListener('submit', e => {
     e.preventDefault();
     resolveFormDropdowns(new FormData(e.target));
@@ -13801,6 +13805,36 @@ function buildRateStr(fd) {
   const prefix = fd.get('ratePrefix') || 'เดือนละ';
   const rateAmt = (fd.get('rateAmt') || '0').replace(/[^\d,.]/g,'');
   return prefix + ' ' + rateAmt + ' บาท';
+}
+
+// ── Phase 2: Auto-calc rate ใหม่ตอนต่อสัญญา ตาม rateAdjType + rateAdjPercent ──
+function applyRenewRateAdj(sourceC){
+  if(!sourceC) return;
+  const rateAmtEl = document.querySelector('input[name=rateAmt]');
+  if(!rateAmtEl) return;
+  const oldRate = String(sourceC.rate||'');
+  const isStepped = /,\s*ปี\s*\d/.test(oldRate);
+  if(sourceC.rateAdjType !== 'percent' || !sourceC.rateAdjPercent || sourceC.rateAdjPercent <= 0){
+    return;
+  }
+  if(isStepped){
+    const note = document.createElement('div');
+    note.id = 'renewRateNote';
+    note.style.cssText = 'background:#fef3c7;border-left:3px solid #f59e0b;padding:8px 12px;font-size:12px;color:#92400e;margin-top:6px;border-radius:4px;line-height:1.5';
+    note.textContent = '⚠️ สัญญาเดิมเป็นอัตราขั้นบันได ระบบไม่คำนวณ rate ใหม่ให้อัตโนมัติ — กรุณาแก้ rate เอง';
+    rateAmtEl.parentElement.appendChild(note);
+    return;
+  }
+  const oldAmt = (typeof amt === 'function') ? amt(sourceC.rate) : 0;
+  if(!oldAmt || oldAmt <= 0) return;
+  const pct = sourceC.rateAdjPercent;
+  const newAmt = Math.round(oldAmt * (1 + pct/100));
+  rateAmtEl.value = newAmt.toLocaleString('en-US');
+  const note = document.createElement('div');
+  note.id = 'renewRateNote';
+  note.style.cssText = 'background:#dbeafe;border-left:3px solid #3b82f6;padding:8px 12px;font-size:12px;color:#1e40af;margin-top:6px;border-radius:4px;line-height:1.5';
+  note.innerHTML = '💡 ระบบปรับค่าเช่าจาก <b>'+oldAmt.toLocaleString()+'</b> → <b>'+newAmt.toLocaleString()+'</b> ตามสัญญาเดิม (ปรับ '+pct+'%) · ถ้าไม่ต้องการปรับ แก้เลขกลับได้';
+  rateAmtEl.parentElement.appendChild(note);
 }
 
 // ── Thai number-to-word (1–100) สำหรับใส่ในวงเล็บข้อความสัญญา ──
