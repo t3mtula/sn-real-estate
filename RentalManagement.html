@@ -14108,6 +14108,8 @@ body { background: #fff; color: #1a202c; }
 .sig-block { text-align: center; }
 .sig-img-area { height: 44px; display: flex; align-items: flex-end; justify-content: center; }
 .sig-img-area img { max-height: 50px; max-width: 145px; object-fit: contain; }
+/* คู่สัญญา (sig-grid ที่ตามหลัง sig-section-title) มีข้อมูลใต้เส้นเยอะ → เพิ่มพื้นที่เซ็นเหนือเส้น · พยาน grid 2 คงเดิม */
+.sig-section-title + .sig-grid .sig-img-area { height: 72px; }
 .sig-line-rule { border-top: 1px solid #1e3a5f; margin: 4px auto 0; width: 170px; }
 .sig-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-top: 5px; }
 .sig-role { font-size: 11.5px; color: #475569; margin-top: 1px; }
