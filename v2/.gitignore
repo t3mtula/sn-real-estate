@@ -11,6 +11,11 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.local
+.env.*.local
+.wrangler
+.cache
 
 # Editor directories and files
 .vscode/*
@@ -22,11 +27,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# Env
-.env
-.env.local
-.env.*.local
-
-# Build cache
-.tsbuildinfo

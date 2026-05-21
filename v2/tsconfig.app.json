@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "ES2022",
-    "useDefineForClassFields": true,
+    "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "module": "esnext",
+    "types": ["vite/client"],
     "skipLibCheck": true,
 
+    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -14,14 +15,20 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Strict — locked ตาม Yonghua Standard Stack */
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
 
-    "baseUrl": ".",
+    /* Path alias (TS 6+ · paths relative to tsconfig location) */
     "paths": {
       "@/*": ["./src/*"]
     }
