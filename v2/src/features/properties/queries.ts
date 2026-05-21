@@ -1,0 +1,72 @@
+import { useQuery } from "@tanstack/react-query"
+import { supabase } from "@/lib/supabase"
+import type { Property, PropertyData } from "@/features/properties/types"
+
+const TABLE = "properties"
+
+/**
+ * Fetch all properties · sorted by updated_at desc
+ */
+export function useProperties() {
+  return useQuery({
+    queryKey: ["properties"],
+    queryFn: async (): Promise<Property[]> => {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("id, data, created_at, updated_at")
+        .order("updated_at", { ascending: false })
+      if (error) throw error
+      return (data ?? []) as Property[]
+    },
+  })
+}
+
+/**
+ * Fetch single property by ID
+ */
+export function useProperty(id: string | undefined) {
+  return useQuery({
+    queryKey: ["properties", id],
+    queryFn: async (): Promise<Property | null> => {
+      if (!id) return null
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select("id, data, created_at, updated_at")
+        .eq("id", id)
+        .maybeSingle()
+      if (error) throw error
+      return data as Property | null
+    },
+    enabled: !!id,
+  })
+}
+
+/**
+ * Get property display name with fallback
+ */
+export function getPropertyName(p: PropertyData | undefined): string {
+  return p?.name?.trim() || "(ไม่มีชื่อ)"
+}
+
+/**
+ * Get province display (prefer province field, fall back to addr_province)
+ */
+export function getPropertyProvince(p: PropertyData | undefined): string {
+  return (p?.province ?? p?.addr_province ?? "").trim() || "—"
+}
+
+/**
+ * Get short address for table display
+ */
+export function getPropertyAddressShort(p: PropertyData | undefined): string {
+  if (!p) return ""
+  // Prefer location, fall back to address, then titleDeed
+  return (p.location ?? p.address ?? p.titleDeed ?? "").trim() || "—"
+}
+
+/**
+ * Image count (handles undefined safely)
+ */
+export function getPropertyImageCount(p: PropertyData | undefined): number {
+  return p?.images?.length ?? 0
+}
