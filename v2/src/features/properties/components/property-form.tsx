@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ImagePlus, Loader2, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -303,7 +303,7 @@ export function PropertyForm({
           variant="ghost"
           onClick={() => {
             if (isDirty && !confirm("ยังไม่ได้บันทึก · ออกจากหน้านี้?")) return
-            navigate(cancelTo)
+            navigate({ to: cancelTo })
           }}
           disabled={submitting}
         >

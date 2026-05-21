@@ -1,0 +1,176 @@
+/* ============================================================
+   Print system · @page A4 + @media print
+   ใช้ทุก app · import จาก main.tsx
+   Solve: ตัดหน้าผิด · background สีหาย · margin ไม่ตรง · scroll ใน print
+   ============================================================ */
+
+@page {
+  size: A4 portrait;
+  margin: 15mm;
+}
+
+@page landscape {
+  size: A4 landscape;
+}
+
+/* ─── ON SCREEN ─── ตัวอย่าง preview ให้เห็นกระดาษจริง */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+
+  .print-page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 15mm;
+    margin: 1.5rem auto;
+    background: white;
+    color: #000;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+    page-break-after: always;
+  }
+
+  .print-page-landscape {
+    width: 297mm;
+    min-height: 210mm;
+  }
+
+  .print-preview-wrap {
+    background: #e5e5e5;
+    min-height: 100vh;
+    padding: 2rem 0;
+  }
+}
+
+/* ─── ON PRINT ─── ตอน Ctrl+P จริง */
+@media print {
+  /* keep background สี/border ทุกอย่าง */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: #000 !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  /* hide app chrome — sidebar, topbar, toast, etc. */
+  .no-print,
+  aside,
+  header[role="banner"],
+  [data-sonner-toaster],
+  nav[aria-label="primary"],
+  button:not(.print-keep) {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  /* main เต็มกระดาษ · ไม่มี scroll · ไม่มี shadow */
+  main {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .print-page {
+    width: auto;
+    min-height: auto;
+    padding: 0;
+    margin: 0;
+    background: white;
+    box-shadow: none;
+    page-break-after: always;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
+  /* ─── PAGE BREAK CONTROLS ─── */
+  .page-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+  .page-break-after {
+    break-after: page;
+    page-break-after: always;
+  }
+  .page-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ─── HEADINGS — ห้ามขึ้นบรรทัดเดียวก่อนตัดหน้า (orphan) ─── */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* ─── TABLE — ตัดหน้าฉลาด · repeat header/footer ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group; /* repeat ทุกหน้า */
+  }
+
+  tfoot {
+    display: table-footer-group; /* repeat ทุกหน้า */
+  }
+
+  tr {
+    break-inside: avoid; /* row ห้ามตัดกลาง */
+    page-break-inside: avoid;
+  }
+
+  /* table cell wrap text · กัน overflow */
+  td,
+  th {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* ─── IMAGE — กัน overflow ─── */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* ─── LINKS — แสดง URL ใต้ text ─── */
+  a[href]:not(.no-print-url)::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #555;
+  }
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after,
+  a[href^="mailto:"]::after {
+    content: "";
+  }
+
+  /* ─── FORM elements — print เป็น text ไม่ใช่ control ─── */
+  input,
+  textarea,
+  select {
+    border: 1px solid #ddd;
+    background: transparent;
+    color: #000;
+  }
+}

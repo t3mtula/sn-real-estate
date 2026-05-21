@@ -1,94 +1,79 @@
 # Yonghua Starter
 
-Template สำหรับทุก app ของ Yonghua Group · ไม่ต้อง setup framework/auth/Thai utils ใหม่ทุก app
+Template สำหรับทุก app ของ Yonghua Group · base = [satnaing/shadcn-admin](https://github.com/satnaing/shadcn-admin) (10.9k stars · MIT)
+Customized: Yonghua brand · Thai utilities · Supabase Auth · Print system
 
 ## หยิบไปใช้
 
 ```bash
-# 1. clone (copy folder · แล้ว reset git)
-cp -r yonghua-starter ../app-ชื่อใหม่
-cd ../app-ชื่อใหม่
+# 1. clone (copy folder · reset git)
+cp -r yonghua-starter ../app-ใหม่
+cd ../app-ใหม่
 rm -rf node_modules package-lock.json .git
 git init
 
 # 2. ตั้งค่า
 cp .env.example .env.local
-# แก้ค่าใน .env.local (Supabase URL + key)
+# แก้ค่าใน .env.local (Supabase URL + anon key)
 
-# 3. install
+# 3. install + dev
 npm install
-
-# 4. dev
 npm run dev
 # → http://localhost:5173
-
-# 5. deploy
-npm run deploy
 ```
 
 ## มีอะไรพร้อมใช้
 
-- ✅ Vite + React 19 + TypeScript strict
-- ✅ Tailwind v4 + shadcn/ui (25 components · New York · stone)
-- ✅ react-router-dom v7 + TanStack Query + Zustand
-- ✅ Supabase + Google OAuth (option restrict โดเมน)
-- ✅ Forms (react-hook-form + zod)
-- ✅ Tables (@tanstack/react-table)
-- ✅ Charts (recharts + shadcn Chart)
-- ✅ Animation (framer-motion)
-- ✅ Drag-drop (@dnd-kit · touch + a11y)
-- ✅ Toast (sonner)
-- ✅ ⌘K Command palette (cmdk)
-- ✅ Thai utilities (พ.ศ., ฿, เบอร์โทร, เลขประจำตัว 13 หลัก)
-- ✅ AppShell + Sidebar (collapsible · persisted) + TopBar
-- ✅ Biome (lint + format · เร็วกว่า ESLint 10x)
-- ✅ Cloudflare Pages deploy config
+จาก satnaing base:
+- ✅ Vite 7 + React 19 + TypeScript strict
+- ✅ Tailwind v4 + shadcn/ui (50+ components)
+- ✅ TanStack Router (file-based · type-safe) + TanStack Query + Table
+- ✅ react-hook-form + zod
+- ✅ Zustand auth-store + cookies helper
+- ✅ AppShell · Sidebar (collapsible groups · multi-team switcher)
+- ✅ ⌘K Command palette
+- ✅ Dark/light mode toggle
+- ✅ Font + Direction provider (RTL ready)
+- ✅ Auth pages: sign-in · sign-up · forgot-password · OTP
+- ✅ Settings: profile · account · appearance · notifications · display
+- ✅ Error pages: 401 · 403 · 404 · 500 · 503
+- ✅ Feature examples: dashboard · tasks · users · chats · apps · help-center
+- ✅ DataTable: sort/filter/pagination
+
+จาก Yonghua customization:
+- ✅ Sarabun font
+- ✅ Yonghua brand (sidebar, titles)
+- ✅ **Thai utilities**: พ.ศ. dates · ฿ format + spell · เบอร์โทร · เลขประจำตัว 13 หลัก
+- ✅ **Supabase Auth + Google OAuth** (replace Clerk mock)
+- ✅ **YhAuthSync** Supabase session ↔ Zustand
+- ✅ **Print system** (A4, header repeat, ไม่ตัด row, background สีคงไว้)
 
 ## Scripts
 
 | คำสั่ง | ใช้ทำอะไร |
 |---|---|
-| `npm run dev` | dev server (http://localhost:5173) |
+| `npm run dev` | dev server (port 5173) |
 | `npm run build` | build production → `dist/` |
 | `npm run preview` | ดู build local |
-| `npm run typecheck` | TypeScript check |
-| `npm run check` | Biome format + lint + import sort (auto-fix) |
-| `npm run format` | Biome format only |
-| `npm run lint` | Biome lint only (no fix) |
-| `npm run deploy` | build + deploy ไป Cloudflare Pages |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier |
+| `npm run knip` | ตรวจ unused code |
+| `npm test` | Vitest (browser mode) |
 
 ## โครงสร้าง
 
+ดู `CLAUDE.md` · สรุป:
+
 ```
 src/
-├── lib/                  shared utilities · import จาก @/lib/*
-│   ├── thai-date.ts      วันที่ พ.ศ.
-│   ├── thai-money.ts     ฿ format + spell
-│   ├── thai-phone.ts     08x-xxx-xxxx
-│   ├── thai-id.ts        เลขประจำตัว 13 หลัก
-│   ├── supabase.ts       typed client
-│   ├── auth.ts           Google OAuth + useSession
-│   └── utils.ts          cn() helper
-├── components/
-│   ├── ui/               shadcn (อย่าแก้ตรงๆ)
-│   └── yonghua/          AppShell · Sidebar · TopBar · CommandPalette
-├── routes/               หน้าต่างๆ
-├── stores/               zustand global state
-└── index.css             Tailwind v4 + theme tokens
+├── routes/                file-based (TanStack)
+├── features/              feature-organized
+├── components/{ui,layout,yonghua}
+├── lib/{supabase,yh-auth,thai/,utils,use-print}
+├── stores/auth-store
+└── styles/{index,theme,print}.css
 ```
-
-## หลัง clone — ปรับให้เป็น app ใหม่
-
-ดู `CLAUDE.md` (รายละเอียดเต็ม) · checklist:
-
-- [ ] แก้ `package.json` → `name`
-- [ ] แก้ `wrangler.toml` → `name` (กลายเป็น URL)
-- [ ] แก้ `index.html` → `<title>`
-- [ ] แก้ `src/components/yonghua/sidebar.tsx` → brand + nav items
-- [ ] สร้าง `.env.local`
-- [ ] (option) gen Supabase types
-- [ ] (option) override theme colors ใน `src/index.css`
 
 ## License
 
-Internal · Yonghua Group only
+Internal · Yonghua Group only · base = MIT (satnaing/shadcn-admin)
