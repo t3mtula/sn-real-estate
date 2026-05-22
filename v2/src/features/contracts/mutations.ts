@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { parseBE } from '@/lib/thai'
+import { assembleAddress } from '@/lib/thai-address'
 import type { ContractFormValues } from '@/features/contracts/schema'
 import type { ContractData } from '@/features/contracts/types'
 
@@ -55,7 +56,19 @@ function valuesToManagedFields(
     dur: values.dur,
     payment: values.payment.trim(),
     purpose: values.purpose.trim(),
-    madeAt: values.madeAt.trim(),
+    // madeAt = ที่อยู่ 5 ช่อง + assembled string (backward compat กับ v1 + PDF)
+    madeAt_line: values.madeAtLine ?? '',
+    madeAt_subdistrict: values.madeAtSubdistrict ?? '',
+    madeAt_district: values.madeAtDistrict ?? '',
+    madeAt_province: values.madeAtProvince ?? '',
+    madeAt_postal: values.madeAtPostal ?? '',
+    madeAt: assembleAddress({
+      line: values.madeAtLine,
+      subdistrict: values.madeAtSubdistrict,
+      district: values.madeAtDistrict,
+      province: values.madeAtProvince,
+      postal: values.madeAtPostal,
+    }),
     madeDate: values.madeDate.trim(),
     wit1: values.wit1.trim(),
     wit2: values.wit2.trim(),

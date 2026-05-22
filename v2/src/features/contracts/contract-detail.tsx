@@ -221,7 +221,12 @@ function ContractEditing({
     dur: c.dur ?? 0,
     payment: c.payment ?? 'รายเดือน',
     purpose: (c.purpose as string) ?? 'พักอาศัย',
-    madeAt: c.madeAt ?? '',
+    // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line
+    madeAtLine: (c as { madeAt_line?: string }).madeAt_line ?? c.madeAt ?? '',
+    madeAtSubdistrict: (c as { madeAt_subdistrict?: string }).madeAt_subdistrict ?? '',
+    madeAtDistrict: (c as { madeAt_district?: string }).madeAt_district ?? '',
+    madeAtProvince: (c as { madeAt_province?: string }).madeAt_province ?? '',
+    madeAtPostal: (c as { madeAt_postal?: string }).madeAt_postal ?? '',
     madeDate: c.madeDate ?? '',
     wit1: c.wit1 ?? '',
     wit2: c.wit2 ?? '',

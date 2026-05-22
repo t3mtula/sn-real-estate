@@ -25,6 +25,7 @@ import {
 import { useContracts } from '@/features/contracts/queries'
 import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
+import { ThaiAddressInput } from '@/features/properties/components/thai-address-input'
 import { useTenants } from '@/features/tenants/queries'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +72,11 @@ export function ContractForm({
 
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
+  const madeAtLine = form.watch('madeAtLine')
+  const madeAtSubdistrict = form.watch('madeAtSubdistrict')
+  const madeAtDistrict = form.watch('madeAtDistrict')
+  const madeAtProvince = form.watch('madeAtProvince')
+  const madeAtPostal = form.watch('madeAtPostal')
 
   // Auto-suggest landlord จาก property.ownerLandlordId — เฉพาะตอน create + ยังไม่ระบุ landlord
   useEffect(() => {
@@ -430,12 +436,30 @@ export function ContractForm({
           {errors.madeDate && <FieldError>{errors.madeDate.message}</FieldError>}
         </div>
 
-        <div>
-          <Label htmlFor='madeAt'>สถานที่ทำสัญญา</Label>
-          <Input
-            id='madeAt'
-            {...form.register('madeAt')}
-            placeholder='เช่น สำนักงานบ้านโป่ง'
+        <div className='sm:col-span-2'>
+          <div className='mb-3 flex items-baseline justify-between gap-2'>
+            <Label className='text-sm'>สถานที่ทำสัญญา</Label>
+            <span className='text-xs text-muted-foreground'>
+              ค้นตำบลหรือรหัสไปรษณีย์ → ระบบ auto-fill ที่เหลือ
+            </span>
+          </div>
+          <ThaiAddressInput
+            lineValue={madeAtLine}
+            onLineChange={(line) =>
+              form.setValue('madeAtLine', line, { shouldDirty: true })
+            }
+            value={{
+              subdistrict: madeAtSubdistrict,
+              district: madeAtDistrict,
+              province: madeAtProvince,
+              postal: madeAtPostal,
+            }}
+            onChange={(addr) => {
+              form.setValue('madeAtSubdistrict', addr.subdistrict, { shouldDirty: true })
+              form.setValue('madeAtDistrict', addr.district, { shouldDirty: true })
+              form.setValue('madeAtProvince', addr.province, { shouldDirty: true })
+              form.setValue('madeAtPostal', addr.postal, { shouldDirty: true })
+            }}
           />
         </div>
 

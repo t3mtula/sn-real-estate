@@ -62,8 +62,12 @@ export const contractFormSchema = z
     /** วัตถุประสงค์ (e.g. "พักอาศัย", "ค้าขาย") */
     purpose: z.string().trim().max(200),
 
-    /** การลงนาม */
-    madeAt: z.string().trim().max(200),
+    /** การลงนาม · สถานที่ทำสัญญา = ที่อยู่ 5 ช่อง (เหมือนทุก form อื่น) */
+    madeAtLine: z.string().trim().max(200),
+    madeAtSubdistrict: z.string().trim().max(100),
+    madeAtDistrict: z.string().trim().max(100),
+    madeAtProvince: z.string().trim().max(100),
+    madeAtPostal: z.string().trim().max(10),
     madeDate: beDateStr(),
     wit1: z.string().trim().max(200),
     wit2: z.string().trim().max(200),
@@ -96,7 +100,11 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   dur: 0,
   payment: 'รายเดือน',
   purpose: 'พักอาศัย',
-  madeAt: '',
+  madeAtLine: '',
+  madeAtSubdistrict: '',
+  madeAtDistrict: '',
+  madeAtProvince: '',
+  madeAtPostal: '',
   madeDate: '',
   wit1: '',
   wit2: '',
