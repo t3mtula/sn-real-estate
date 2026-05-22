@@ -32,6 +32,26 @@ export function useContracts() {
 }
 
 /**
+ * Fetch child contracts (contracts where parent_contract_id = id)
+ * Used for sublease chain UI: shows "ข ปล่อยเช่าให้ใครบ้าง"
+ */
+export function useChildContracts(parentId: string | undefined) {
+  return useQuery({
+    queryKey: ['contracts', 'children', parentId],
+    queryFn: async (): Promise<Contract[]> => {
+      if (!parentId) return []
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('id, data, created_at, updated_at')
+        .eq('data->>parent_contract_id', parentId)
+      if (error) throw error
+      return (data ?? []) as Contract[]
+    },
+    enabled: !!parentId,
+  })
+}
+
+/**
  * Fetch single contract by ID
  */
 export function useContract(id: string | undefined) {
