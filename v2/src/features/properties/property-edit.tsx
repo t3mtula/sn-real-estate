@@ -72,13 +72,22 @@ export function PropertyEdit({ id }: { id: string }) {
         ) : (
           (() => {
             const p = property.data
+            // Compose addrLine from v1 sub-parts if v2's addr_line is empty
+            const composedLine =
+              p.addr_line ??
+              [p.addr_no, p.addr_moo, p.addr_soi, p.addr_road]
+                .filter(Boolean)
+                .join(' ')
             const defaults: PropertyFormValues = {
               ...PROPERTY_FORM_DEFAULTS,
               name: p.name ?? '',
               type: coerceType(p.type),
               location: p.location ?? '',
-              address: p.address ?? '',
-              province: p.province ?? p.addr_province ?? '',
+              addrLine: composedLine,
+              addrSubdistrict: p.addr_subdistrict ?? '',
+              addrDistrict: p.addr_district ?? '',
+              addrProvince: p.addr_province ?? p.province ?? '',
+              addrPostal: p.addr_postal ?? '',
               titleDeed: p.titleDeed ?? '',
               area: p.area ?? '',
               owner: p.owner ?? '',

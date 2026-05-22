@@ -2,22 +2,46 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
 import type { PropertyFormValues } from "@/features/properties/schema"
 import type { PropertyData } from "@/features/properties/types"
+import { assembleAddress } from "@/lib/thai-address"
 
 const TABLE = "properties"
 const BUCKET = "property-images"
 
-/** Convert form values to PropertyData blob (strip empty optionals) */
-function valuesToData(values: PropertyFormValues, pid: number): PropertyData {
+/**
+ * Convert form values into the keys we manage in JSONB.
+ * Always returns explicit values for every form-controlled key
+ * (empty string = clear) — caller is responsible for spreading these
+ * over existing v1 fields we don't manage.
+ *
+ * Note: `address` is auto-assembled from sub-parts (for v1 backward compat display).
+ * `province` mirrored to `addr_province` for v1 reports + map.
+ */
+function valuesToManagedFields(values: PropertyFormValues, pid: number) {
+  const assembled = assembleAddress({
+    line: values.addrLine,
+    subdistrict: values.addrSubdistrict,
+    district: values.addrDistrict,
+    province: values.addrProvince,
+    postal: values.addrPostal,
+  })
+
   return {
     pid,
     name: values.name,
     type: values.type,
     location: values.location,
-    ...(values.address ? { address: values.address } : {}),
-    ...(values.province ? { province: values.province, addr_province: values.province } : {}),
-    ...(values.titleDeed ? { titleDeed: values.titleDeed } : {}),
-    ...(values.area ? { area: values.area } : {}),
-    ...(values.owner ? { owner: values.owner } : {}),
+    // Structured address parts
+    addr_line: values.addrLine ?? "",
+    addr_subdistrict: values.addrSubdistrict ?? "",
+    addr_district: values.addrDistrict ?? "",
+    addr_province: values.addrProvince ?? "",
+    addr_postal: values.addrPostal ?? "",
+    // Backward compat: assembled string + top-level province
+    address: assembled,
+    province: values.addrProvince ?? "",
+    titleDeed: values.titleDeed ?? "",
+    area: values.area ?? "",
+    owner: values.owner ?? "",
     multiTenant: values.multiTenant,
     images: values.images,
   }
@@ -56,10 +80,10 @@ export function useCreateProperty() {
     mutationFn: async (values: PropertyFormValues) => {
       const pid = Date.now()
       const id = String(pid)
-      const data = valuesToData(values, pid)
+      const managed = valuesToManagedFields(values, pid)
       const { error } = await supabase
         .from(TABLE)
-        .insert({ id, data })
+        .insert({ id, data: managed })
         .select("id")
         .single()
       if (error) throw error
@@ -72,27 +96,39 @@ export function useCreateProperty() {
 }
 
 /**
- * Update existing property
+ * Update existing property — MERGES with existing JSONB
+ * so v1 fields we don't manage (utilities, addr_no, addr_moo, etc.)
+ * are preserved instead of being wiped.
  */
 export function useUpdateProperty(id: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (values: PropertyFormValues) => {
-      // Read existing pid to preserve it
-      const { data: existing } = await supabase
+      // 1. Read existing data blob to preserve v1 fields
+      const { data: existing, error: readError } = await supabase
         .from(TABLE)
         .select("data")
         .eq("id", id)
         .single()
-      const existingData = existing?.data as PropertyData | undefined
-      const pid = existingData?.pid ?? Number.parseInt(id, 10) ?? Date.now()
+      if (readError) throw readError
 
-      const data = valuesToData(values, pid)
-      const { error } = await supabase
+      const existingData = (existing?.data ?? {}) as PropertyData
+      const pid = existingData.pid ?? Number.parseInt(id, 10) ?? Date.now()
+      const managed = valuesToManagedFields(values, pid)
+
+      // 2. Merge: existing v1 fields kept · managed fields overwritten
+      const merged: PropertyData = { ...existingData, ...managed }
+
+      // 3. Update + return updated row to confirm
+      const { data: updated, error } = await supabase
         .from(TABLE)
-        .update({ data, updated_at: new Date().toISOString() })
+        .update({ data: merged, updated_at: new Date().toISOString() })
         .eq("id", id)
+        .select("id")
       if (error) throw error
+      if (!updated || updated.length === 0) {
+        throw new Error("ไม่พบทรัพย์สิน หรือไม่มีสิทธิ์แก้ไข (RLS)")
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["properties"] })

@@ -57,6 +57,8 @@ export type PropertyData = {
   addr_subdistrict?: string;
   addr_district?: string;
   addr_postal?: string;
+  /** v2 — free-text "เลขที่/หมู่/ซอย/ถนน" (รวมแทน addr_no/addr_moo/addr_soi/addr_road สำหรับ form) */
+  addr_line?: string;
 };
 
 /** Property row จาก Supabase */

@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { ThaiAddressInput } from "@/features/properties/components/thai-address-input"
 import { uploadPropertyImage } from "@/features/properties/mutations"
 import {
   PROPERTY_FORM_DEFAULTS,
@@ -58,6 +59,11 @@ export function PropertyForm({
   const images = form.watch("images")
   const multiTenant = form.watch("multiTenant")
   const type = form.watch("type")
+  const addrLine = form.watch("addrLine")
+  const addrSubdistrict = form.watch("addrSubdistrict")
+  const addrDistrict = form.watch("addrDistrict")
+  const addrProvince = form.watch("addrProvince")
+  const addrPostal = form.watch("addrPostal")
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -163,15 +169,6 @@ export function PropertyForm({
           {errors.type && <FieldError>{errors.type.message}</FieldError>}
         </div>
 
-        <div>
-          <Label htmlFor="province">จังหวัด</Label>
-          <Input
-            id="province"
-            {...form.register("province")}
-            placeholder="เช่น ราชบุรี"
-          />
-        </div>
-
         <div className="sm:col-span-2">
           <Label htmlFor="location">
             สถานที่ (โดยย่อ) <span className="text-destructive">*</span>
@@ -185,12 +182,29 @@ export function PropertyForm({
         </div>
 
         <div className="sm:col-span-2">
-          <Label htmlFor="address">ที่อยู่เต็ม</Label>
-          <Textarea
-            id="address"
-            {...form.register("address")}
-            rows={3}
-            placeholder="เลขที่ · หมู่ · ซอย · ถนน · ตำบล · อำเภอ · จังหวัด · รหัสไปรษณีย์"
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <Label className="text-sm">ที่อยู่</Label>
+            <span className="text-xs text-muted-foreground">
+              ค้นตำบลหรือรหัสไปรษณีย์ → ระบบ auto-fill ที่เหลือ
+            </span>
+          </div>
+          <ThaiAddressInput
+            lineValue={addrLine}
+            onLineChange={(line) =>
+              form.setValue("addrLine", line, { shouldDirty: true })
+            }
+            value={{
+              subdistrict: addrSubdistrict,
+              district: addrDistrict,
+              province: addrProvince,
+              postal: addrPostal,
+            }}
+            onChange={(addr) => {
+              form.setValue("addrSubdistrict", addr.subdistrict, { shouldDirty: true })
+              form.setValue("addrDistrict", addr.district, { shouldDirty: true })
+              form.setValue("addrProvince", addr.province, { shouldDirty: true })
+              form.setValue("addrPostal", addr.postal, { shouldDirty: true })
+            }}
           />
         </div>
 
