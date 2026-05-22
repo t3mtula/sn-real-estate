@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { parseBE } from '@/lib/thai'
 import type { ContractFormValues } from '@/features/contracts/schema'
 import type { ContractData } from '@/features/contracts/types'
 
@@ -119,6 +120,39 @@ export function useCreateContract() {
 }
 
 /**
+ * Generic merge-update helper · used by lifecycle mutations
+ * (cancel/restore/move-out) ที่แก้แค่บาง field ของ data jsonb
+ */
+async function mergeUpdateContract(
+  id: string,
+  patch: Partial<ContractData> & Record<string, unknown>,
+) {
+  const { data: existing, error: readError } = await supabase
+    .from(TABLE)
+    .select('data')
+    .eq('id', id)
+    .single()
+  if (readError) throw readError
+
+  const existingData = (existing?.data ?? {}) as ContractData
+  const merged: ContractData = { ...existingData, ...patch }
+  // Remove undefined keys (allow explicit delete via undefined)
+  for (const k of Object.keys(patch)) {
+    if (patch[k] === undefined) delete (merged as Record<string, unknown>)[k]
+  }
+
+  const { data: updated, error } = await supabase
+    .from(TABLE)
+    .update({ data: merged, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!updated || updated.length === 0) {
+    throw new Error('ไม่พบสัญญา หรือไม่มีสิทธิ์แก้ไข (RLS)')
+  }
+}
+
+/**
  * Update existing contract — MERGES with existing JSONB
  * to preserve fields we don't manage (cf, clauseOverrides, notice*, etc.)
  */
@@ -162,6 +196,116 @@ export function useUpdateContract(id: string) {
       qc.invalidateQueries({ queryKey: ['contracts'] })
       qc.invalidateQueries({ queryKey: ['contracts', id] })
       qc.invalidateQueries({ queryKey: ['contracts-match-keys'] })
+    },
+  })
+}
+
+/**
+ * Cancel contract · set cancelled=true + dates + reason · save originalEnd
+ * so we can restore later
+ *
+ * Mirror v1 logic (modules/14-contracts.js cancelContract):
+ *   c.cancelled = true
+ *   c.cancelledDate = cancelDate
+ *   c.cancelledReason = reason
+ *   c.originalEnd = c.originalEnd || c.end
+ *   c.end = cancelDate
+ */
+export function useCancelContract(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { cancelDate: string; reason: string }) => {
+      const { cancelDate, reason } = input
+      if (!parseBE(cancelDate)) {
+        throw new Error('วันที่ยกเลิกไม่ถูกต้อง (รูปแบบ dd/mm/yyyy พ.ศ.)')
+      }
+      // Read first so we can preserve originalEnd
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const c = (existing?.data ?? {}) as ContractData
+      await mergeUpdateContract(id, {
+        cancelled: true,
+        cancelledDate: cancelDate,
+        cancelledReason: reason,
+        originalEnd: c.originalEnd ?? c.end,
+        end: cancelDate,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+      qc.invalidateQueries({ queryKey: ['contracts-match-keys'] })
+    },
+  })
+}
+
+/**
+ * Restore cancelled contract · reverse of cancel
+ *
+ * Mirror v1: restore end from originalEnd · delete cancel fields
+ */
+export function useRestoreContract(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const c = (existing?.data ?? {}) as ContractData
+      await mergeUpdateContract(id, {
+        cancelled: false,
+        cancelledDate: undefined,
+        cancelledReason: undefined,
+        originalEnd: undefined,
+        end: c.originalEnd ?? c.end,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+      qc.invalidateQueries({ queryKey: ['contracts-match-keys'] })
+    },
+  })
+}
+
+/**
+ * Update/set move-out notice · v1: noticeDate + plannedMoveOut + noticeNote
+ * Empty noticeDate = clear notice
+ */
+export function useUpdateMoveOutNotice(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      noticeDate: string
+      plannedMoveOut: string
+      noticeNote: string
+    }) => {
+      const trimmedNotice = input.noticeDate.trim()
+      const trimmedPlanned = input.plannedMoveOut.trim()
+      if (trimmedNotice) {
+        if (!parseBE(trimmedNotice)) {
+          throw new Error('วันแจ้งย้ายออกไม่ถูกต้อง')
+        }
+        if (trimmedPlanned && !parseBE(trimmedPlanned)) {
+          throw new Error('วันที่จะออกจริงไม่ถูกต้อง')
+        }
+      }
+      await mergeUpdateContract(id, {
+        noticeDate: trimmedNotice || undefined,
+        plannedMoveOut: trimmedPlanned || undefined,
+        noticeNote: input.noticeNote.trim() || undefined,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
     },
   })
 }

@@ -5,13 +5,16 @@ import {
   Building2,
   Calendar,
   CreditCard,
+  DoorOpen,
   FileText,
   Landmark,
   Link2,
   Pencil,
+  RotateCcw,
   ScrollText,
   UserRound,
   Users,
+  XCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -22,12 +25,27 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import {
   DuplicateContractNoError,
+  useCancelContract,
+  useRestoreContract,
   useUpdateContract,
+  useUpdateMoveOutNotice,
 } from '@/features/contracts/mutations'
 import {
   getContractDisplay,
@@ -42,6 +60,7 @@ import {
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
+import { todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import type { ContractStatus } from '@/features/contracts/types'
 
@@ -256,6 +275,27 @@ function Content({
   const c = contract.data
   const status = getContractStatus(c)
   const display = getContractDisplay(contract)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [moveOutOpen, setMoveOutOpen] = useState(false)
+  const restore = useRestoreContract(contract.id)
+  const confirm = useConfirm()
+
+  async function handleRestore() {
+    const ok = await confirm({
+      title: 'คืนสถานะสัญญา?',
+      description: `สัญญา ${display} จะกลับมาใช้งาน · วันสิ้นสุดจะคืนเป็นค่าเดิม`,
+      confirmLabel: 'คืนสถานะ',
+    })
+    if (!ok) return
+    try {
+      await restore.mutateAsync()
+      toast.success('คืนสถานะสัญญาแล้ว')
+    } catch (err) {
+      toast.error('คืนสถานะไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
 
   // Resolve linked entities (only if FK present)
   const tenant = useTenant(c.tenant_id)
@@ -297,11 +337,59 @@ function Content({
             </p>
           </div>
         </div>
-        <Button onClick={onEdit}>
-          <Pencil className='size-4' />
-          แก้ไข
-        </Button>
+        <div className='flex flex-wrap gap-2'>
+          {c.cancelled ? (
+            <Button
+              variant='outline'
+              onClick={handleRestore}
+              disabled={restore.isPending}
+            >
+              <RotateCcw className='size-4' />
+              คืนสถานะ
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant='outline'
+                onClick={() => setMoveOutOpen(true)}
+                className='text-amber-700 hover:text-amber-700 dark:text-amber-300'
+              >
+                <DoorOpen className='size-4' />
+                {c.noticeDate ? 'แก้ไขแจ้งออก' : 'แจ้งย้ายออก'}
+              </Button>
+              <Button
+                variant='outline'
+                onClick={() => setCancelOpen(true)}
+                className='text-destructive hover:text-destructive'
+              >
+                <XCircle className='size-4' />
+                ยกเลิกสัญญา
+              </Button>
+            </>
+          )}
+          <Button onClick={onEdit}>
+            <Pencil className='size-4' />
+            แก้ไข
+          </Button>
+        </div>
       </header>
+
+      <CancelDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        contractId={contract.id}
+        display={display}
+      />
+      <MoveOutDialog
+        open={moveOutOpen}
+        onOpenChange={setMoveOutOpen}
+        contractId={contract.id}
+        defaults={{
+          noticeDate: c.noticeDate ?? '',
+          plannedMoveOut: c.plannedMoveOut ?? c.end ?? '',
+          noticeNote: c.noticeNote ?? '',
+        }}
+      />
 
       {c.cancelled && (
         <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
@@ -508,5 +596,199 @@ function Content({
       </div>
 
     </>
+  )
+}
+
+function CancelDialog({
+  open,
+  onOpenChange,
+  contractId,
+  display,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  contractId: string
+  display: string
+}) {
+  const cancel = useCancelContract(contractId)
+  const [cancelDate, setCancelDate] = useState(todayBE())
+  const [reason, setReason] = useState('')
+
+  async function handleConfirm() {
+    try {
+      await cancel.mutateAsync({ cancelDate, reason })
+      toast.success('ยกเลิกสัญญาแล้ว')
+      onOpenChange(false)
+      setReason('')
+    } catch (err) {
+      toast.error('ยกเลิกไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>ยกเลิกสัญญา {display}</DialogTitle>
+          <DialogDescription>
+            สัญญาจะถูกตั้งเป็น "ยกเลิก" · วันสิ้นสุดเดิมจะเก็บไว้สำหรับคืนสถานะภายหลัง
+          </DialogDescription>
+        </DialogHeader>
+        <div className='grid gap-4 py-2'>
+          <div>
+            <Label htmlFor='cancelDate'>วันที่ยกเลิก</Label>
+            <Input
+              id='cancelDate'
+              value={cancelDate}
+              onChange={(e) => setCancelDate(e.target.value)}
+              placeholder='DD/MM/YYYY (พ.ศ.)'
+              className='font-mono'
+            />
+          </div>
+          <div>
+            <Label htmlFor='cancelReason'>เหตุผล</Label>
+            <Textarea
+              id='cancelReason'
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder='เช่น ผู้เช่าย้ายออก · เลิกกิจการ · ผิดสัญญา ฯลฯ'
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button
+            variant='ghost'
+            onClick={() => onOpenChange(false)}
+            disabled={cancel.isPending}
+          >
+            ปิด
+          </Button>
+          <Button
+            variant='destructive'
+            onClick={handleConfirm}
+            disabled={cancel.isPending || !cancelDate.trim()}
+          >
+            ยืนยันยกเลิก
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function MoveOutDialog({
+  open,
+  onOpenChange,
+  contractId,
+  defaults,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  contractId: string
+  defaults: { noticeDate: string; plannedMoveOut: string; noticeNote: string }
+}) {
+  const upd = useUpdateMoveOutNotice(contractId)
+  const [noticeDate, setNoticeDate] = useState(defaults.noticeDate || todayBE())
+  const [plannedMoveOut, setPlannedMoveOut] = useState(defaults.plannedMoveOut)
+  const [noticeNote, setNoticeNote] = useState(defaults.noticeNote)
+
+  async function handleConfirm() {
+    try {
+      await upd.mutateAsync({ noticeDate, plannedMoveOut, noticeNote })
+      toast.success('บันทึกแจ้งย้ายออกแล้ว')
+      onOpenChange(false)
+    } catch (err) {
+      toast.error('บันทึกไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleClear() {
+    try {
+      await upd.mutateAsync({ noticeDate: '', plannedMoveOut: '', noticeNote: '' })
+      toast.success('ล้างแจ้งย้ายออกแล้ว')
+      onOpenChange(false)
+      setNoticeDate(todayBE())
+      setPlannedMoveOut('')
+      setNoticeNote('')
+    } catch (err) {
+      toast.error('ล้างไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>แจ้งย้ายออกล่วงหน้า</DialogTitle>
+          <DialogDescription>
+            บันทึกแจ้งย้ายออก · ใช้เป็น flag เตือนใน dashboard · ไม่ใช่การยกเลิกสัญญา
+          </DialogDescription>
+        </DialogHeader>
+        <div className='grid gap-4 py-2'>
+          <div>
+            <Label htmlFor='noticeDate'>วันที่แจ้ง</Label>
+            <Input
+              id='noticeDate'
+              value={noticeDate}
+              onChange={(e) => setNoticeDate(e.target.value)}
+              placeholder='DD/MM/YYYY (พ.ศ.)'
+              className='font-mono'
+            />
+          </div>
+          <div>
+            <Label htmlFor='plannedMoveOut'>กำหนดออกจริง</Label>
+            <Input
+              id='plannedMoveOut'
+              value={plannedMoveOut}
+              onChange={(e) => setPlannedMoveOut(e.target.value)}
+              placeholder='DD/MM/YYYY (พ.ศ.)'
+              className='font-mono'
+            />
+          </div>
+          <div>
+            <Label htmlFor='noticeNote'>หมายเหตุ</Label>
+            <Textarea
+              id='noticeNote'
+              value={noticeNote}
+              onChange={(e) => setNoticeNote(e.target.value)}
+              rows={3}
+              placeholder='เช่น ติดต่อทาง LINE · ต้องตรวจห้องก่อน ฯลฯ'
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          {defaults.noticeDate && (
+            <Button
+              variant='ghost'
+              onClick={handleClear}
+              disabled={upd.isPending}
+              className='mr-auto text-destructive hover:text-destructive'
+            >
+              ล้างแจ้งออก
+            </Button>
+          )}
+          <Button
+            variant='ghost'
+            onClick={() => onOpenChange(false)}
+            disabled={upd.isPending}
+          >
+            ปิด
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={upd.isPending || !noticeDate.trim()}
+          >
+            บันทึก
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
