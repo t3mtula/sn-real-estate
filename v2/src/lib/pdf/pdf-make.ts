@@ -1,4 +1,5 @@
 import type { TDocumentDefinitions } from 'pdfmake/interfaces'
+import { SARABUN_BOLD_VFS } from './sarabun-bold-vfs'
 
 /**
  * pdfMake instance with Thai fonts (Sarabun/Kanit/Prompt) · lazy-loaded
@@ -32,8 +33,9 @@ async function loadPdfMake() {
     const pdfMake = (pdfMakeModule as any).default ?? pdfMakeModule
 
     // VFS = virtual file system ที่ pdfmake ใช้อ่าน font files
-    const vfs = vfsModule.default?.pdfMake?.vfs ?? vfsModule.pdfMake?.vfs
-    pdfMake.vfs = vfs
+    // addthaifont-pdfmake ขาด Sarabun-Bold + BoldItalic — merge มาจาก local base64
+    const baseVfs = vfsModule.default?.pdfMake?.vfs ?? vfsModule.pdfMake?.vfs ?? {}
+    pdfMake.vfs = { ...baseVfs, ...SARABUN_BOLD_VFS }
 
     // Register Thai fonts (มีให้ใน addthaifont-pdfmake)
     pdfMake.fonts = {
