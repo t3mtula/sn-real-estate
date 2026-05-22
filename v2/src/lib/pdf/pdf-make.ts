@@ -135,12 +135,37 @@ export async function openPdf(doc: TDocumentDefinitions) {
 
 /**
  * Get PDF as Blob · ใช้ upload Supabase Storage · email attach · ฯลฯ
+ *
+ * Wrapped in a timeout because pdfmake's measure loop on large Thai docs
+ * sometimes hangs without calling the callback. Without the timeout the
+ * promise stays pending forever and the UI shows "กำลังสร้าง..." indefinitely.
  */
-export async function getPdfBlob(doc: TDocumentDefinitions): Promise<Blob> {
+export async function getPdfBlob(
+  doc: TDocumentDefinitions,
+  timeoutMs = 30_000,
+): Promise<Blob> {
   const pdf = await createPdf(doc)
-  return new Promise<Blob>((resolve) => {
-    // biome-ignore lint/suspicious/noExplicitAny: pdfmake callback type
-    pdf.getBlob((blob: Blob) => resolve(blob))
+  return new Promise<Blob>((resolve, reject) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject(new Error(`PDF generation timed out after ${timeoutMs / 1000}s`))
+    }, timeoutMs)
+    try {
+      // biome-ignore lint/suspicious/noExplicitAny: pdfmake callback type
+      pdf.getBlob((blob: Blob) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(blob)
+      })
+    } catch (err) {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(err instanceof Error ? err : new Error(String(err)))
+    }
   })
 }
 
