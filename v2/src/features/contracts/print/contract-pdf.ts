@@ -16,6 +16,11 @@ import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
 import { fmtThaiLong } from '@/lib/thai'
+import {
+  DEFAULT_TEMPLATE,
+  htmlToInlineParts,
+  renderTemplateText,
+} from './default-template'
 
 type Refs = {
   contract: Contract
@@ -24,11 +29,6 @@ type Refs = {
   property?: Property | null
   bank?: BankAccount | null
   parent?: Contract | null
-}
-
-function fmtMoney(n: number | undefined): string {
-  if (!n) return '-'
-  return Number(n).toLocaleString('th-TH', { minimumFractionDigits: 0 })
 }
 
 function buildAddress(parts: {
@@ -84,61 +84,66 @@ function propertyAddress(p: Property | null | undefined): string {
 }
 
 /**
- * 8 default clauses · plain text · จะแทนที่ template editor ในอนาคต
+ * Render contract body — intro + clauses (with sub-clauses) + closing.
+ *
+ * Uses the v1 default template (12 ข้อ + sub-clauses) ported verbatim to
+ * `default-template.ts`. Variable placeholders ({{tenant}}, {{landlord}}) and
+ * <strong> tags are processed via renderTemplateText + htmlToInlineParts so
+ * the PDF looks like what users see in v1's print preview.
+ *
+ * Future: read active template from DB (template editor feature · task #16)
+ * and apply per-contract clauseOverrides.
  */
-function clauses(c: Contract, refs: Refs): Content[] {
-  const d = c.data
-  const propName = refs.property?.data?.name?.trim() || (d.pid_property ?? d.pid)?.toString() || '-'
-  const purpose = (d as { purpose?: string }).purpose?.trim() || 'พักอาศัย'
-  const bank = refs.bank
-    ? `${refs.bank.data?.bank} เลขที่ ${refs.bank.data?.acctNo} ชื่อบัญชี ${refs.bank.data?.accountName}`
-    : ''
+function renderClauses(c: Contract): Content[] {
+  const ctx = {
+    landlord: (c.data.landlord ?? '').trim(),
+    tenant: (c.data.tenant ?? '').trim(),
+  }
 
-  return [
-    {
-      ol: [
-        {
-          text: [
-            'ผู้ให้เช่าตกลงให้เช่าและผู้เช่าตกลงเช่าทรัพย์สิน ',
-            { text: propName, bold: true },
-            ' เพื่อใช้ในการ ',
-            { text: purpose, bold: true },
-            ' เท่านั้น',
-          ],
-        },
-        {
-          text: [
-            'อัตราค่าเช่าเดือนละ ',
-            { text: `${fmtMoney(d.rate)} บาท`, bold: true },
-            d.payment ? ` (${d.payment})` : '',
-            bank ? ` · ชำระเข้าบัญชี ${bank}` : '',
-          ],
-        },
-        {
-          text: [
-            'ระยะเวลาเช่า ',
-            { text: `${d.dur ?? '-'} เดือน`, bold: true },
-            ' นับตั้งแต่วันที่ ',
-            { text: d.start || '-', bold: true },
-            ' ถึงวันที่ ',
-            { text: d.end || '-', bold: true },
-          ],
-        },
-        {
-          text: [
-            'ผู้เช่าวางเงินมัดจำเป็นจำนวน ',
-            { text: `${fmtMoney(d.deposit)} บาท`, bold: true },
-            ' ในวันทำสัญญา เพื่อเป็นหลักประกันการปฏิบัติตามสัญญา',
-          ],
-        },
-        'ผู้เช่าต้องดูแลรักษาทรัพย์สินให้อยู่ในสภาพดี · หากเกิดความเสียหายผู้เช่าต้องเป็นผู้รับผิดชอบ ยกเว้นการชำรุดเสื่อมสภาพตามอายุการใช้งานตามปกติ',
-        'หากผู้เช่าผิดสัญญาข้อใดข้อหนึ่ง ผู้ให้เช่ามีสิทธิ์บอกเลิกสัญญาได้ทันทีและริบเงินมัดจำที่วางไว้',
-        'การต่อสัญญา ผู้เช่าต้องแจ้งผู้ให้เช่าทราบล่วงหน้าอย่างน้อย 30 วันก่อนสัญญาสิ้นสุด',
-        'ทรัพย์สินใดที่ผู้เช่าติดตั้งหรือเพิ่มเติม ถือเป็นกรรมสิทธิ์ของผู้ให้เช่าเมื่อสัญญาสิ้นสุดลง เว้นแต่จะมีข้อตกลงเป็นอย่างอื่น',
+  const out: Content[] = []
+
+  // Intro paragraph
+  const introHtml = renderTemplateText(DEFAULT_TEMPLATE.intro, ctx)
+  out.push({
+    text: htmlToInlineParts(introHtml),
+    margin: [0, 0, 0, 10] as [number, number, number, number],
+  })
+
+  // Numbered clauses + sub-clauses
+  DEFAULT_TEMPLATE.clauses.forEach((cl, i) => {
+    const mainHtml = renderTemplateText(cl.text, ctx)
+    out.push({
+      text: [
+        { text: `ข้อ ${i + 1}. `, bold: true, color: '#1e3a5f' },
+        ...htmlToInlineParts(mainHtml),
       ],
-      style: 'clauseList',
-    } as Content,
-  ]
+      margin: [0, 0, 0, 6] as [number, number, number, number],
+    } as Content)
+    ;(cl.sub ?? []).forEach((sub, j) => {
+      const subHtml = renderTemplateText(sub, ctx)
+      out.push({
+        text: [
+          {
+            text: `${i + 1}.${j + 1} `,
+            bold: true,
+            color: '#1e3a5f',
+          },
+          ...htmlToInlineParts(subHtml),
+        ],
+        fontSize: 10.5,
+        margin: [24, 0, 0, 4] as [number, number, number, number],
+      } as Content)
+    })
+  })
+
+  // Closing paragraph
+  const closingHtml = renderTemplateText(DEFAULT_TEMPLATE.closing, ctx)
+  out.push({
+    text: htmlToInlineParts(closingHtml),
+    margin: [0, 12, 0, 0] as [number, number, number, number],
+  })
+
+  return out
 }
 
 function partyBlock(opts: {
@@ -327,15 +332,9 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
         margin: [0, 0, 0, 14] as [number, number, number, number],
       },
 
-      // Clauses
-      { text: 'ข้อตกลงและเงื่อนไข', style: 'sectionTitle' },
-      ...clauses(c, refs),
-
-      // Closing line
-      {
-        text: 'สัญญาฉบับนี้ทำขึ้นเป็นสองฉบับมีข้อความตรงกัน คู่สัญญาทั้งสองฝ่ายได้อ่านและเข้าใจตลอดข้อความแล้วจึงลงลายมือชื่อไว้เป็นสำคัญต่อหน้าพยาน',
-        margin: [0, 12, 0, 20] as [number, number, number, number],
-      },
+      // Body: intro + 12 clauses (with sub-clauses) + closing — from v1 template
+      ...renderClauses(c),
+      { text: '', margin: [0, 8, 0, 0] as [number, number, number, number] },
 
       // Signature blocks · main parties
       {
