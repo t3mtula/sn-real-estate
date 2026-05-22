@@ -3,7 +3,8 @@
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- (ว่าง — เพิ่งจบ Phase 1B-3d-1 Invoices baseline + Audit Phase A (15 findings) deploy แล้ว · รอ Tem confirm phase ต่อไป)
+- **PRINT compare v1 vs v2** (Tem note 22 พ.ค.) — เปิด v1 print preview แล้ว ดู 2 หน้า (สัญญาหลัก + เอกสารแนบท้าย) · เปิด v2 พิมพ์/PDF เจอ **blocker: Sarabun-Bold.ttf not found** → fix 5 commits ต่อกัน (bundle Bold base64, fix vfs shape, pass fonts via doc, workaround bold→Regular, switch open instead of download) · build pass · live deploy แล้ว · ไม่เด้ง exception แล้ว · รอ Tem กดจริงใน Chrome ของตัวเอง (Chrome MCP popup block · ดูใน tab ใหม่ไม่ได้) → save PDF ของ v2 มาเทียบกับ v1
+- หลัง verify v2 print ออก → port gaps จาก v1: appendix page (PARTIES/PROPERTY/LEASE TERMS/PAYMENT ACCOUNT/NOTES sections) · template editor + clauses override · section bars bilingual · proper Sarabun Bold (workaround ใช้ Regular ตอนนี้)
 
 ## 📋 Port v1 → v2 Roadmap (Tem 22 พ.ค. หลัง audit)
 
