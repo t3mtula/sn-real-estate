@@ -9,8 +9,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Plus, Receipt, Search } from 'lucide-react'
+import { Plus, Receipt, Search, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -241,6 +242,7 @@ export function Invoices() {
 
   const totalRows = invoices?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+  const [genOpen, setGenOpen] = useState(false)
 
   return (
     <>
@@ -261,13 +263,21 @@ export function Invoices() {
                 : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ใบ`}
             </p>
           </div>
-          <Button asChild>
-            <Link to='/invoices/new'>
-              <Plus className='size-4' />
-              ออกใบแจ้งหนี้
-            </Link>
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button variant='outline' onClick={() => setGenOpen(true)}>
+              <Sparkles className='size-4' />
+              สร้างรายเดือน
+            </Button>
+            <Button asChild>
+              <Link to='/invoices/new'>
+                <Plus className='size-4' />
+                ออกใบแจ้งหนี้
+              </Link>
+            </Button>
+          </div>
         </div>
+
+        <GenerateMonthlyDialog open={genOpen} onOpenChange={setGenOpen} />
 
         <div className='flex flex-wrap items-center gap-3'>
           <div className='relative max-w-sm flex-1'>

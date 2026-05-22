@@ -1,11 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { fmtBE, parseBE } from '@/lib/thai'
-import type { Contract } from '@/features/contracts/types'
-import type { Landlord } from '@/features/landlords/types'
+import type { Contract, ContractData } from '@/features/contracts/types'
+import type { Landlord, LandlordData } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
-import { getInvoiceAmount, getPaymentFreq } from '@/features/invoices/queries'
+import {
+  getInvoiceAmount,
+  getPaymentFreq,
+  isContractDueForMonth,
+} from '@/features/invoices/queries'
 import type { GenerateInvoiceFormValues } from '@/features/invoices/schema'
 import type {
   Invoice,
@@ -381,6 +385,272 @@ export function useUpdateInvoice(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/* ---------- batch: generate all monthly invoices ---------- */
+
+export type BatchGeneratePreview = {
+  month: string
+  willCreate: Array<{
+    contractId: string
+    contractNo: string
+    tenant: string
+    property: string
+    amount: number
+  }>
+  willSkip: Array<{
+    contractId: string
+    contractNo: string
+    reason: 'existing' | 'cancelled' | 'not_due' | 'no_dates' | 'no_rate'
+    existingNo?: string
+  }>
+}
+
+/** Inspect what would happen if we run batch-gen for the given month */
+export function useBatchGeneratePreview(month: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<BatchGeneratePreview> => {
+      if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+        throw new Error('เดือนไม่ถูกต้อง (YYYY-MM)')
+      }
+      const [contractsRes, invsRes] = await Promise.all([
+        supabase.from('contracts').select('id, data'),
+        supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
+      ])
+      if (contractsRes.error) throw contractsRes.error
+      if (invsRes.error) throw invsRes.error
+      const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
+      const existingByContract = new Map<string, { invoiceNo: string }>()
+      for (const inv of (invsRes.data ?? []) as Invoice[]) {
+        if ((inv.status ?? '').toLowerCase() === 'voided') continue
+        const cat = (inv.category ?? inv.data?.category ?? 'rent').toLowerCase()
+        if (cat !== 'rent') continue
+        if (inv.contract_id) {
+          existingByContract.set(inv.contract_id, {
+            invoiceNo: (inv.data?.invoiceNo ?? '').trim() || `#${inv.id}`,
+          })
+        }
+      }
+
+      const willCreate: BatchGeneratePreview['willCreate'] = []
+      const willSkip: BatchGeneratePreview['willSkip'] = []
+      for (const c of contracts) {
+        const d = c.data ?? {}
+        const contractNo = (d.no ?? '').trim() || `#${c.id}`
+        const tenant = ((d.tenant as string | undefined) ?? '').trim() || '—'
+        const property = (String(d.property ?? '') as string).trim() || '—'
+        if (d.cancelled) {
+          willSkip.push({ contractId: c.id, contractNo, reason: 'cancelled' })
+          continue
+        }
+        if (!d.start || !d.end) {
+          willSkip.push({ contractId: c.id, contractNo, reason: 'no_dates' })
+          continue
+        }
+        if (!isContractDueForMonth(d, month)) {
+          willSkip.push({ contractId: c.id, contractNo, reason: 'not_due' })
+          continue
+        }
+        const existing = existingByContract.get(c.id)
+        if (existing) {
+          willSkip.push({
+            contractId: c.id,
+            contractNo,
+            reason: 'existing',
+            existingNo: existing.invoiceNo,
+          })
+          continue
+        }
+        const amount = getInvoiceAmount(
+          d.rate as number | undefined,
+          d.payment as string | undefined,
+        )
+        if (!amount || amount <= 0) {
+          willSkip.push({ contractId: c.id, contractNo, reason: 'no_rate' })
+          continue
+        }
+        willCreate.push({
+          contractId: c.id,
+          contractNo,
+          tenant,
+          property,
+          amount,
+        })
+      }
+      return { month, willCreate, willSkip }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
+export type BatchGenerateResult = {
+  month: string
+  created: number
+  skipped: number
+  errors: Array<{ contractNo: string; message: string }>
+}
+
+/**
+ * Bulk-generate monthly invoices · port of v1 generateAllInvoices()
+ *
+ * - Reuses isContractDueForMonth + getInvoiceAmount
+ * - Skips contracts that already have a non-voided rent invoice for the month
+ * - Reserves invoice numbers locally (single starting offset · then increment)
+ *   to avoid race-y per-row count queries
+ * - Sequential insert (await each) — small batches (typically <200 contracts)
+ *   so latency is acceptable + we get predictable ordering
+ */
+export function useGenerateMonthlyInvoices() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { month: string; dueDay?: number }): Promise<BatchGenerateResult> => {
+      const month = input.month
+      if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+        throw new Error('เดือนไม่ถูกต้อง (YYYY-MM)')
+      }
+      const dueDay = Math.min(Math.max(1, input.dueDay ?? 5), 31)
+
+      const [contractsRes, invsRes, landlordsRes] = await Promise.all([
+        supabase.from('contracts').select('id, data'),
+        supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
+        supabase.from('landlords').select('id, data'),
+      ])
+      if (contractsRes.error) throw contractsRes.error
+      if (invsRes.error) throw invsRes.error
+      if (landlordsRes.error) throw landlordsRes.error
+
+      const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
+      const landlordById = new Map<string, LandlordData>()
+      for (const l of (landlordsRes.data ?? []) as Array<{ id: string; data: LandlordData }>) {
+        landlordById.set(l.id, l.data)
+      }
+      const existingByContract = new Set<string>()
+      let maxNum = 0
+      for (const inv of (invsRes.data ?? []) as Invoice[]) {
+        const no = (inv.data?.invoiceNo ?? '').trim()
+        const m = no.match(/^INV-.*-(\d+)$/)
+        if (m) {
+          const n = Number.parseInt(m[1], 10)
+          if (Number.isFinite(n) && n > maxNum) maxNum = n
+        }
+        if ((inv.status ?? '').toLowerCase() === 'voided') continue
+        const cat = (inv.category ?? inv.data?.category ?? 'rent').toLowerCase()
+        if (cat !== 'rent') continue
+        if (inv.contract_id) existingByContract.add(inv.contract_id)
+      }
+
+      const [yStr, moStr] = month.split('-')
+      const yNum = Number.parseInt(yStr, 10)
+      const moNum = Number.parseInt(moStr, 10)
+      const lastDay = new Date(yNum, moNum, 0).getDate()
+      const today = fmtBE(new Date())
+
+      let created = 0
+      let skipped = 0
+      const errors: BatchGenerateResult['errors'] = []
+      let nextNum = maxNum + 1
+
+      for (const c of contracts) {
+        const d = c.data ?? {}
+        const contractNo = (d.no ?? '').trim() || `#${c.id}`
+        if (d.cancelled) {
+          skipped++
+          continue
+        }
+        if (!isContractDueForMonth(d, month)) {
+          skipped++
+          continue
+        }
+        if (existingByContract.has(c.id)) {
+          skipped++
+          continue
+        }
+        const baseAmount = getInvoiceAmount(
+          d.rate as number | undefined,
+          d.payment as string | undefined,
+        )
+        if (!baseAmount || baseAmount <= 0) {
+          skipped++
+          continue
+        }
+
+        const landlordId = (d.landlord_id ?? '') as string
+        const landlord = landlordId ? landlordById.get(landlordId) : undefined
+        const vatMode = (landlord?.vatMode as InvoiceData['vatMode']) ?? 'none'
+        const vatRate = Number(landlord?.vatRate) || 0
+        const total =
+          vatMode === 'exclusive' && vatRate > 0
+            ? Number((baseAmount * (1 + vatRate / 100)).toFixed(2))
+            : baseAmount
+
+        const freq = getPaymentFreq(d.payment as string | undefined)
+        const invoiceNo = `INV-${month}-${String(nextNum).padStart(4, '0')}`
+        nextNum++
+
+        const contractDueDay = Number(d.dueDay) || dueDay
+        const day = Math.min(Math.max(1, contractDueDay), lastDay)
+        const dueDate = fmtBE(new Date(yNum, moNum - 1, day))
+
+        const items: InvoiceItem[] = [
+          {
+            desc: buildItemDescription(freq.type, month, 'rent'),
+            amount: total,
+          },
+        ]
+        const pid = Date.now() + created
+        const id = String(pid)
+        const data: InvoiceData = {
+          id: pid,
+          cid: d.pid ?? c.id,
+          pid: d.pid_property,
+          month,
+          invoiceNo,
+          date: today,
+          dueDate,
+          items,
+          total,
+          bankAccountId: d.bankAccountId as string | undefined,
+          headerId: d.invHeaderId as string | undefined,
+          freqType: freq.type,
+          freqLabel: freq.label,
+          vatMode,
+          vatRate: vatMode === 'none' ? 0 : vatRate,
+          vatBase: baseAmount,
+          status: 'draft',
+          paidAmount: 0,
+          remainingAmount: total,
+          payments: [],
+          tenant: (d.tenant as string | undefined) ?? '',
+          property: (d.property as string | undefined) ?? '',
+          landlord: landlord?.name ?? (d.landlord as string | undefined) ?? '',
+          category: 'rent',
+          createdAt: new Date().toISOString(),
+        }
+        const { error } = await supabase
+          .from(TABLE)
+          .insert({
+            id,
+            contract_id: c.id,
+            status: 'draft',
+            category: 'rent',
+            data,
+          })
+        if (error) {
+          errors.push({ contractNo, message: error.message })
+        } else {
+          created++
+          existingByContract.add(c.id)
+        }
+      }
+      return { month, created, skipped, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
     },
   })
 }
