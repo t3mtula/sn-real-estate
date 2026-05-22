@@ -30,6 +30,9 @@ export type ContractMatchRow = {
     tenant_id?: string | null
     taxId?: string | null
     tenant?: string | null
+    pid_property?: number | null
+    pid?: number | null
+    cancelled?: boolean | null
   }
 }
 
@@ -43,7 +46,7 @@ export function useContractMatchKeys() {
       const { data, error } = await supabase
         .from('contracts')
         .select(
-          'id, data->landlord_id, data->invHeaderId, data->landlord, data->tenant_id, data->taxId, data->tenant',
+          'id, data->landlord_id, data->invHeaderId, data->landlord, data->tenant_id, data->taxId, data->tenant, data->pid_property, data->pid, data->cancelled',
         )
       if (error) throw error
       // PostgREST returns each `data->key` as a flat field — re-nest under `data`
@@ -56,6 +59,9 @@ export function useContractMatchKeys() {
         tenant_id?: string | null
         taxId?: string | null
         tenant?: string | null
+        pid_property?: number | null
+        pid?: number | null
+        cancelled?: boolean | null
       }
       const rows = (data ?? []) as Flat[]
       return rows.map((r) => ({
@@ -67,6 +73,9 @@ export function useContractMatchKeys() {
           tenant_id: r.tenant_id ?? null,
           taxId: r.taxId ?? null,
           tenant: r.tenant ?? null,
+          pid_property: r.pid_property ?? null,
+          pid: r.pid ?? null,
+          cancelled: r.cancelled ?? null,
         },
       }))
     },

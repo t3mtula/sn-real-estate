@@ -94,13 +94,16 @@ export function Tenants() {
         cell: ({ row }) => {
           const t = row.original.data
           const Icon = t.partyType === 'company' ? Building2 : UserRound
+          const name = getTenantName(t)
           return (
             <div className='flex items-start gap-2'>
               <Icon className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
               <div className='flex min-w-0 flex-col'>
-                <span className='font-medium'>{getTenantName(t)}</span>
+                <span className='truncate font-medium' title={name}>
+                  {name}
+                </span>
                 {t.phone && (
-                  <span className='text-xs text-muted-foreground'>
+                  <span className='truncate text-xs text-muted-foreground'>
                     📞 {t.phone}
                   </span>
                 )}
@@ -148,11 +151,14 @@ export function Tenants() {
         header: ({ column }) => (
           <SortableHeader column={column}>จังหวัด</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>
-            {row.original.data?.addrProvince?.trim() || '—'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.addrProvince?.trim() || '—'
+          return (
+            <span className='block max-w-[160px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'contracts',
@@ -279,8 +285,8 @@ export function Tenants() {
           </div>
         )}
 
-        <div className='rounded-md border bg-card'>
-          <Table>
+        <div className='overflow-x-auto rounded-md border bg-card'>
+          <Table className='min-w-[760px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>

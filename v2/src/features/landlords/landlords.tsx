@@ -38,7 +38,6 @@ import {
 import {
   fmtTaxId,
   getLandlordName,
-  getLandlordShortName,
   useLandlords,
 } from '@/features/landlords/queries'
 import { PARTY_TYPES, type Landlord } from '@/features/landlords/types'
@@ -115,6 +114,9 @@ export function Landlords() {
         cell: ({ row }) => {
           const t = row.original.data
           const Icon = t.partyType === 'company' ? Building2 : UserRound
+          const shortName = (t.shortName ?? '').trim()
+          const fullName = (t.name ?? '').trim()
+          const showSecondLine = shortName && shortName !== fullName
           return (
             <div className='flex items-start gap-2'>
               {t.logo ? (
@@ -127,10 +129,20 @@ export function Landlords() {
                 <Icon className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
               )}
               <div className='flex min-w-0 flex-col'>
-                <span className='font-medium'>{getLandlordShortName(t)}</span>
-                <span className='truncate text-xs text-muted-foreground'>
-                  {t.name}
+                <span
+                  className='truncate font-medium'
+                  title={fullName}
+                >
+                  {showSecondLine ? shortName : fullName || '(ไม่มีชื่อ)'}
                 </span>
+                {showSecondLine && (
+                  <span
+                    className='truncate text-xs text-muted-foreground'
+                    title={fullName}
+                  >
+                    {fullName}
+                  </span>
+                )}
               </div>
             </div>
           )
@@ -191,11 +203,14 @@ export function Landlords() {
         header: ({ column }) => (
           <SortableHeader column={column}>จังหวัด</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>
-            {row.original.data?.addrProvince?.trim() || '—'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.addrProvince?.trim() || '—'
+          return (
+            <span className='block max-w-[160px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'contracts',
@@ -323,8 +338,8 @@ export function Landlords() {
           </div>
         )}
 
-        <div className='rounded-md border bg-card'>
-          <Table>
+        <div className='overflow-x-auto rounded-md border bg-card'>
+          <Table className='min-w-[800px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>

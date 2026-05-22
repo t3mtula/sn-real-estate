@@ -405,7 +405,7 @@ function Content({
             </div>
             {t.invoiceHeaderId && (
               <div className='flex justify-between gap-3'>
-                <span className='text-muted-foreground'>v1 invoice header</span>
+                <span className='text-muted-foreground'>รหัสอ้างอิงเดิม</span>
                 <span className='font-mono text-xs'>{t.invoiceHeaderId}</span>
               </div>
             )}
@@ -589,6 +589,17 @@ function Content({
                     end?: string
                     status?: string
                   }
+                  const tenantText = cd.tenant?.trim()
+                  const propText = cd.property?.trim()
+                  const startText = cd.start?.trim()
+                  const endText = cd.end?.trim()
+                  const meta = [
+                    tenantText || null,
+                    propText || null,
+                    startText || endText
+                      ? `${startText || '?'} → ${endText || '?'}`
+                      : null,
+                  ].filter(Boolean)
                   return (
                     <li
                       key={c.id}
@@ -596,10 +607,15 @@ function Content({
                     >
                       <div className='min-w-0'>
                         <p className='font-medium'>{cd.no ?? `#${c.id}`}</p>
-                        <p className='truncate text-xs text-muted-foreground'>
-                          {cd.tenant ?? '—'} · {cd.property ?? '—'} ·{' '}
-                          {cd.start ?? '—'} → {cd.end ?? '—'}
-                        </p>
+                        {meta.length > 0 ? (
+                          <p className='truncate text-xs text-muted-foreground'>
+                            {meta.join(' · ')}
+                          </p>
+                        ) : (
+                          <p className='truncate text-xs italic text-muted-foreground'>
+                            ยังไม่มีรายละเอียดสัญญา
+                          </p>
+                        )}
                       </div>
                       {cd.status && (
                         <Badge

@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Building2,
@@ -7,9 +7,11 @@ import {
   Pencil,
   Ruler,
   ScrollText,
+  Trash2,
   Users,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -18,16 +20,21 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useConfirm } from '@/hooks/use-confirm'
 import { useLandlord } from '@/features/landlords/queries'
 import { PropertyForm } from '@/features/properties/components/property-form'
 import { PropertyImages } from '@/features/properties/components/property-images'
-import { useUpdateProperty } from '@/features/properties/mutations'
+import {
+  useDeleteProperty,
+  useUpdateProperty,
+} from '@/features/properties/mutations'
 import {
   getPropertyAddressShort,
   getPropertyName,
   getPropertyProvince,
   useProperty,
 } from '@/features/properties/queries'
+import { useContractMatchKeys } from '@/lib/queries/contract-match'
 import {
   PROPERTY_FORM_DEFAULTS,
   type PropertyFormValues,
@@ -91,7 +98,46 @@ function formatDate(value: string | null | undefined): string {
 
 export function PropertyDetail({ id }: { id: string }) {
   const { data: property, isLoading, error } = useProperty(id)
+  const { data: contractKeys } = useContractMatchKeys()
+  const del = useDeleteProperty()
+  const confirm = useConfirm()
+  const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
+
+  const linkedCount = useMemo(() => {
+    if (!property || !contractKeys) return 0
+    const pid = property.data?.pid ?? Number.parseInt(property.id, 10)
+    const n = Number(pid)
+    if (Number.isNaN(n)) return 0
+    return contractKeys.filter((c) => {
+      const cpid = c.data?.pid_property ?? c.data?.pid
+      return cpid != null && Number(cpid) === n
+    }).length
+  }, [property, contractKeys])
+
+  async function handleDelete() {
+    if (!property) return
+    const name = getPropertyName(property.data)
+    const ok = await confirm({
+      title: `ลบทรัพย์สิน "${name}"?`,
+      description:
+        linkedCount > 0
+          ? `ทรัพย์สินนี้มี ${linkedCount} สัญญาผูกอยู่ · ลบแล้วสัญญายังอยู่แต่จะหาทรัพย์ไม่เจอ`
+          : 'ลบแล้วเรียกคืนไม่ได้',
+      confirmLabel: 'ลบ',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await del.mutateAsync(property.id)
+      toast.success('ลบทรัพย์สินแล้ว')
+      navigate({ to: '/properties' })
+    } catch (err) {
+      toast.error('ลบไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
 
   return (
     <>
@@ -149,6 +195,8 @@ export function PropertyDetail({ id }: { id: string }) {
           <PropertyContent
             property={property}
             onEdit={() => setIsEditing(true)}
+            onDelete={handleDelete}
+            deleting={del.isPending}
           />
         )}
       </Main>
@@ -213,9 +261,13 @@ function PropertyEditing({
 function PropertyContent({
   property,
   onEdit,
+  onDelete,
+  deleting,
 }: {
   property: NonNullable<ReturnType<typeof useProperty>['data']>
   onEdit: () => void
+  onDelete: () => Promise<void>
+  deleting: boolean
 }) {
   const p = property.data
   const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
@@ -243,7 +295,7 @@ function PropertyContent({
               {p.multiTenant && (
                 <Badge
                   variant='outline'
-                  className='border-accent/40 bg-accent/10 font-normal text-accent-foreground'
+                  className='border-accent/40 bg-accent/10 font-normal text-accent'
                 >
                   <Users className='size-3' />
                   หลายผู้เช่า
@@ -258,10 +310,16 @@ function PropertyContent({
             </p>
           </div>
         </div>
-        <Button onClick={onEdit}>
-          <Pencil className='size-4' />
-          แก้ไข
-        </Button>
+        <div className='flex gap-2'>
+          <Button variant='outline' onClick={onDelete} disabled={deleting}>
+            <Trash2 className='size-4' />
+            ลบ
+          </Button>
+          <Button onClick={onEdit}>
+            <Pencil className='size-4' />
+            แก้ไข
+          </Button>
+        </div>
       </header>
 
       <div className='grid gap-6 lg:grid-cols-3'>
@@ -301,9 +359,16 @@ function PropertyContent({
                 </div>
               </div>
             </div>
-            {p.owner?.trim() && ownerLandlord && (
-              <InfoRow icon={Users} label='เจ้าของอื่น (หมายเหตุ)' value={p.owner} />
-            )}
+            {(() => {
+              const ownerNote = p.owner?.trim() ?? ''
+              if (!ownerNote || !ownerLandlord) return null
+              const lname = (ownerLandlord.data?.name ?? '').trim()
+              const sname = (ownerLandlord.data?.shortName ?? '').trim()
+              if (ownerNote === lname || (sname && ownerNote === sname)) return null
+              return (
+                <InfoRow icon={Users} label='เจ้าของอื่น (หมายเหตุ)' value={ownerNote} />
+              )
+            })()}
             <div className='sm:col-span-2'>
               <InfoRow
                 icon={ScrollText}

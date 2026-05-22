@@ -12,7 +12,9 @@ type AuthenticatedLayoutProps = {
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-  const defaultOpen = getCookie('sidebar_state') !== 'false'
+  // Default to expanded on first visit · honor user toggle via cookie afterwards
+  const stored = getCookie('sidebar_state')
+  const defaultOpen = stored === null || stored === '' ? true : stored !== 'false'
   return (
     <SearchProvider>
       <LayoutProvider>

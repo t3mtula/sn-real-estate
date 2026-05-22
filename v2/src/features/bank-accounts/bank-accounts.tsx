@@ -39,6 +39,48 @@ import { useBankAccounts } from '@/features/bank-accounts/queries'
 import type { BankAccount } from '@/features/bank-accounts/types'
 import { cn } from '@/lib/utils'
 
+/**
+ * Bank brand color map — bank.bank แต่ละธนาคารใช้ visual ต่างกันใน list
+ * เพื่อกัน visual noise (icon ทุก row identical)
+ */
+const BANK_VISUALS: Record<
+  string,
+  { color: string; bg: string; abbr: string }
+> = {
+  'ธ.กรุงเทพ': { color: '#1A3168', bg: '#1A316820', abbr: 'BBL' },
+  'ธ.กสิกรไทย': { color: '#138F2D', bg: '#138F2D20', abbr: 'KBANK' },
+  'ธ.ไทยพาณิชย์': { color: '#4E2A84', bg: '#4E2A8420', abbr: 'SCB' },
+  'ธ.กรุงไทย': { color: '#00A0E8', bg: '#00A0E820', abbr: 'KTB' },
+  'ธ.กรุงศรีอยุธยา': { color: '#FEC10D', bg: '#FEC10D20', abbr: 'BAY' },
+  'ธ.ทหารไทยธนชาต': { color: '#FE5000', bg: '#FE500020', abbr: 'TTB' },
+  'ธ.ออมสิน': { color: '#EB1379', bg: '#EB137920', abbr: 'GSB' },
+  'ธ.อิสลามแห่งประเทศไทย': { color: '#127E40', bg: '#127E4020', abbr: 'IBANK' },
+  'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร': {
+    color: '#00A95F',
+    bg: '#00A95F20',
+    abbr: 'BAAC',
+  },
+  'ธ.อาคารสงเคราะห์': { color: '#F37021', bg: '#F3702120', abbr: 'GHB' },
+  'ธ.ซีไอเอ็มบีไทย': { color: '#A41E22', bg: '#A41E2220', abbr: 'CIMB' },
+  'ธ.ยูโอบี': { color: '#005BAA', bg: '#005BAA20', abbr: 'UOB' },
+  'ธ.แลนด์ แอนด์ เฮ้าส์': { color: '#7F2779', bg: '#7F277920', abbr: 'LHBANK' },
+}
+
+function getBankVisual(name: string | undefined | null) {
+  if (!name) return null
+  const trimmed = name.trim()
+  if (!trimmed) return null
+  if (BANK_VISUALS[trimmed]) return BANK_VISUALS[trimmed]
+  // Partial-match fallback (เผื่อสะกดต่างนิดหน่อย)
+  const hit = Object.entries(BANK_VISUALS).find(([k]) => trimmed.includes(k) || k.includes(trimmed))
+  if (hit) return hit[1]
+  // Generate stable color from name hash
+  let hash = 0
+  for (let i = 0; i < trimmed.length; i++) hash = (hash * 31 + trimmed.charCodeAt(i)) | 0
+  const hue = Math.abs(hash) % 360
+  return { color: `hsl(${hue} 60% 35%)`, bg: `hsl(${hue} 60% 90%)`, abbr: trimmed.replace(/^ธ\./, '').slice(0, 4) }
+}
+
 export function BankAccounts() {
   const { data: rows, isLoading, error } = useBankAccounts()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -69,11 +111,27 @@ export function BankAccounts() {
         ),
         cell: ({ row }) => {
           const b = row.original.data
+          const visual = getBankVisual(b.bank)
           return (
             <div className='flex items-start gap-2'>
-              <Landmark className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
+              {visual ? (
+                <span
+                  className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold tabular-nums'
+                  style={{ color: visual.color, backgroundColor: visual.bg }}
+                  title={b.bank ?? ''}
+                >
+                  {visual.abbr}
+                </span>
+              ) : (
+                <Landmark className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
+              )}
               <div className='flex min-w-0 flex-col'>
-                <span className='font-medium'>{b.bank || '—'}</span>
+                <span
+                  className='truncate font-medium'
+                  title={b.bank ?? ''}
+                >
+                  {b.bank || '—'}
+                </span>
                 {b.label && (
                   <Badge variant='outline' className='mt-1 w-fit font-normal'>
                     {b.label}
@@ -112,11 +170,14 @@ export function BankAccounts() {
         header: ({ column }) => (
           <SortableHeader column={column}>ชื่อบัญชี</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>
-            {row.original.data?.accountName || '—'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.accountName?.trim() || '—'
+          return (
+            <span className='block max-w-[240px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'owner',
@@ -124,11 +185,14 @@ export function BankAccounts() {
         header: ({ column }) => (
           <SortableHeader column={column}>ผูกกับผู้ให้เช่า</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>
-            {row.original.data?.ownerLandlordName || '—'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.ownerLandlordName?.trim() || '—'
+          return (
+            <span className='block max-w-[200px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
           return row.original.data?.ownerLandlordId === value
@@ -259,8 +323,8 @@ export function BankAccounts() {
           </div>
         )}
 
-        <div className='rounded-md border bg-card'>
-          <Table>
+        <div className='overflow-x-auto rounded-md border bg-card'>
+          <Table className='min-w-[820px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>

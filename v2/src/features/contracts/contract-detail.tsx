@@ -39,7 +39,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
-import { useBankAccount } from '@/features/bank-accounts/queries'
+import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import {
@@ -59,9 +59,9 @@ import {
   CONTRACT_FORM_DEFAULTS,
   type ContractFormValues,
 } from '@/features/contracts/schema'
-import { useLandlord } from '@/features/landlords/queries'
+import { useLandlord, useLandlords } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
-import { useTenant } from '@/features/tenants/queries'
+import { useTenant, useTenants } from '@/features/tenants/queries'
 import { usePdf } from '@/lib/pdf'
 import { todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -206,13 +206,74 @@ function ContractEditing({
   const navigate = useNavigate()
   const c = contract.data
 
+  // Legacy contracts (v1 imports) ไม่มี FK → resolve จาก inline strings + invoiceHeaderId match
+  const { data: tenants } = useTenants()
+  const { data: landlords } = useLandlords()
+  const { data: bankAccounts } = useBankAccounts()
+
+  const resolvedTenantId = (() => {
+    if (c.tenant_id) return c.tenant_id
+    if (!tenants) return ''
+    const tax = (c.taxId ?? '').trim()
+    const nm = (c.tenant ?? '').trim()
+    if (tax) {
+      const byTax = tenants.find((t) => (t.data?.taxId ?? '').trim() === tax)
+      if (byTax) return byTax.id
+    }
+    if (nm) {
+      const byName = tenants.find((t) => (t.data?.name ?? '').trim() === nm)
+      if (byName) return byName.id
+    }
+    return ''
+  })()
+
+  const resolvedLandlordId = (() => {
+    if (c.landlord_id) return c.landlord_id
+    if (!landlords) return ''
+    const headerId = (c.invHeaderId ?? '').trim()
+    const nm = (c.landlord ?? '').trim()
+    if (headerId) {
+      const byHeader = landlords.find(
+        (l) => (l.data?.invoiceHeaderId ?? '').trim() === headerId,
+      )
+      if (byHeader) return byHeader.id
+    }
+    if (nm) {
+      const byName = landlords.find((l) => (l.data?.name ?? '').trim() === nm)
+      if (byName) return byName.id
+    }
+    return ''
+  })()
+
+  const resolvedBankAccountId = (() => {
+    if (c.bankAccountId) return c.bankAccountId
+    if (!bankAccounts || !resolvedLandlordId) return ''
+    // Legacy ไม่มี FK · ถ้า landlord มีบัญชีเดียวที่ active → auto-pick
+    const ownBanks = bankAccounts.filter(
+      (b) => b.data?.ownerLandlordId === resolvedLandlordId && b.data?.active !== false,
+    )
+    if (ownBanks.length === 1) return ownBanks[0].id
+    return ''
+  })()
+
+  // รอ queries โหลดก่อน (กัน flash defaults ว่าง → re-mount form ตอน data มา)
+  const loading = !tenants || !landlords || !bankAccounts
+  if (loading) {
+    return (
+      <>
+        <Skeleton className='h-12 w-72' />
+        <Skeleton className='h-64 w-full' />
+      </>
+    )
+  }
+
   const defaults: ContractFormValues = {
     ...CONTRACT_FORM_DEFAULTS,
     no: c.no ?? '',
     pid_property: (c.pid_property ?? c.pid)?.toString() ?? '',
-    tenant_id: c.tenant_id ?? '',
-    landlord_id: c.landlord_id ?? '',
-    bankAccountId: c.bankAccountId ?? '',
+    tenant_id: resolvedTenantId,
+    landlord_id: resolvedLandlordId,
+    bankAccountId: resolvedBankAccountId,
     parent_contract_id: c.parent_contract_id ?? '',
     start: c.start ?? '',
     end: c.end ?? '',
@@ -514,8 +575,21 @@ function Content({
                 >
                   {bank.data.data?.bank} · {bank.data.data?.acctNo}
                 </Link>
+              ) : landlord.data ? (
+                <span className='text-xs italic text-muted-foreground'>
+                  ยังไม่เลือก ·{' '}
+                  <button
+                    type='button'
+                    onClick={onEdit}
+                    className='text-primary underline-offset-4 hover:underline'
+                  >
+                    เลือกบัญชีในสัญญา
+                  </button>
+                </span>
               ) : (
-                <span className='text-muted-foreground'>—</span>
+                <span className='text-xs italic text-muted-foreground'>
+                  ยังไม่เลือก
+                </span>
               )}
             </InfoRow>
 

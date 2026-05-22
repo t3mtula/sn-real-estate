@@ -97,6 +97,23 @@ export function useCreateProperty() {
 }
 
 /**
+ * Delete property (hard delete)
+ * ⚠ ถ้ามีสัญญาผูกอยู่ → caller ควรเตือนก่อน
+ */
+export function useDeleteProperty() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from(TABLE).delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["properties"] })
+    },
+  })
+}
+
+/**
  * Update existing property — MERGES with existing JSONB
  * so v1 fields we don't manage (utilities, addr_no, addr_moo, etc.)
  * are preserved instead of being wiped.

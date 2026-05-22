@@ -92,9 +92,14 @@ export function Contracts() {
         header: ({ column }) => (
           <SortableHeader column={column}>เลขที่สัญญา</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='font-medium'>{getContractDisplay(row.original)}</span>
-        ),
+        cell: ({ row }) => {
+          const v = getContractDisplay(row.original)
+          return (
+            <span className='block max-w-[140px] truncate font-medium' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'tenant',
@@ -102,9 +107,14 @@ export function Contracts() {
         header: ({ column }) => (
           <SortableHeader column={column}>ผู้เช่า</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>{row.original.data?.tenant?.trim() || '—'}</span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.tenant?.trim() || '—'
+          return (
+            <span className='block max-w-[180px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'landlord',
@@ -112,9 +122,14 @@ export function Contracts() {
         header: ({ column }) => (
           <SortableHeader column={column}>ผู้ให้เช่า</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm'>{row.original.data?.landlord?.trim() || '—'}</span>
-        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.landlord?.trim() || '—'
+          return (
+            <span className='block max-w-[180px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
       },
       {
         id: 'start',
@@ -123,7 +138,9 @@ export function Contracts() {
           <SortableHeader column={column}>วันเริ่ม</SortableHeader>
         ),
         cell: ({ row }) => (
-          <span className='text-sm tabular-nums'>{row.original.data?.start?.trim() || '—'}</span>
+          <span className='text-sm tabular-nums'>
+            {row.original.data?.start?.trim() || '—'}
+          </span>
         ),
       },
       {
@@ -133,7 +150,9 @@ export function Contracts() {
           <SortableHeader column={column}>วันสิ้นสุด</SortableHeader>
         ),
         cell: ({ row }) => (
-          <span className='text-sm tabular-nums'>{row.original.data?.end?.trim() || '—'}</span>
+          <span className='text-sm tabular-nums'>
+            {row.original.data?.end?.trim() || '—'}
+          </span>
         ),
       },
       {
@@ -291,8 +310,8 @@ export function Contracts() {
           </div>
         )}
 
-        <div className='rounded-md border bg-card'>
-          <Table>
+        <div className='overflow-x-auto rounded-md border bg-card'>
+          <Table className='min-w-[800px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>

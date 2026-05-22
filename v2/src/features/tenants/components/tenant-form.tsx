@@ -13,6 +13,7 @@ import {
   type TenantFormValues,
   tenantFormSchema,
 } from '@/features/tenants/schema'
+import { fmtTaxId } from '@/features/tenants/queries'
 import { PARTY_TYPES } from '@/features/tenants/types'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +41,10 @@ export function TenantForm({
 
   const partyType = form.watch('partyType')
   const isCompany = partyType === 'company'
+  const taxIdValue = form.watch('taxId') ?? ''
+  const taxIdFormatted = fmtTaxId(taxIdValue)
+  const showTaxIdPreview =
+    taxIdValue.trim().length > 0 && taxIdFormatted !== taxIdValue.trim()
 
   const addrLine = form.watch('addrLine')
   const addrSubdistrict = form.watch('addrSubdistrict')
@@ -140,10 +145,18 @@ export function TenantForm({
             {...form.register('taxId')}
             placeholder={isCompany ? '13 หลัก เช่น 0715552000301' : '13 หลัก หรือ Passport'}
             aria-invalid={!!errors.taxId}
+            className='font-mono'
           />
-          <p className='mt-1 text-xs text-muted-foreground'>
-            ใส่ได้ทั้งเลขประจำตัวประชาชน (13 หลัก) หรือเลข passport · เว้นว่างได้ถ้าไม่มี
-          </p>
+          {showTaxIdPreview ? (
+            <p className='mt-1 text-xs text-muted-foreground'>
+              จะแสดงเป็น{' '}
+              <span className='font-mono text-foreground'>{taxIdFormatted}</span>
+            </p>
+          ) : (
+            <p className='mt-1 text-xs text-muted-foreground'>
+              ใส่ได้ทั้งเลขประจำตัวประชาชน (13 หลัก) หรือเลข passport · เว้นว่างได้ถ้าไม่มี
+            </p>
+          )}
           {errors.taxId && <FieldError>{errors.taxId.message}</FieldError>}
         </div>
 

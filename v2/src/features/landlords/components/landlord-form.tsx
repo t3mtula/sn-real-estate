@@ -16,6 +16,7 @@ import {
   type LandlordFormValues,
   landlordFormSchema,
 } from '@/features/landlords/schema'
+import { fmtTaxId } from '@/features/landlords/queries'
 import { PARTY_TYPES } from '@/features/landlords/types'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +47,10 @@ export function LandlordForm({
   const isCompany = partyType === 'company'
   const logo = form.watch('logo') ?? ''
   const vatRegistered = form.watch('vatRegistered')
+  const taxIdValue = form.watch('taxId') ?? ''
+  const taxIdFormatted = fmtTaxId(taxIdValue)
+  const showTaxIdPreview =
+    taxIdValue.trim().length > 0 && taxIdFormatted !== taxIdValue.trim()
 
   const addrLine = form.watch('addrLine')
   const addrSubdistrict = form.watch('addrSubdistrict')
@@ -247,7 +252,14 @@ export function LandlordForm({
               {...form.register('taxId')}
               placeholder='13 หลัก หรือ passport'
               aria-invalid={!!errors.taxId}
+              className='font-mono'
             />
+            {showTaxIdPreview && (
+              <p className='mt-1 text-xs text-muted-foreground'>
+                จะแสดงเป็น{' '}
+                <span className='font-mono text-foreground'>{taxIdFormatted}</span>
+              </p>
+            )}
             {errors.taxId && <FieldError>{errors.taxId.message}</FieldError>}
           </div>
 

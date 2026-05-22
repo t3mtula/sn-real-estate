@@ -11,13 +11,14 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Building2,
+  FileText,
   Image as ImageIcon,
   Plus,
   Search,
   Users,
 } from 'lucide-react'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -49,6 +50,7 @@ import {
   useProperties,
 } from '@/features/properties/queries'
 import { PROPERTY_TYPES, type Property } from '@/features/properties/types'
+import { useContractMatchKeys } from '@/lib/queries/contract-match'
 import { cn } from '@/lib/utils'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
@@ -60,102 +62,171 @@ function typeLabel(value: string | undefined): string {
   return TYPE_LABEL[value] ?? value
 }
 
-const columns: ColumnDef<Property>[] = [
-  {
-    id: 'name',
-    accessorFn: (row) => getPropertyName(row.data),
-    header: ({ column }) => (
-      <SortableHeader column={column}>ชื่อทรัพย์สิน</SortableHeader>
-    ),
-    cell: ({ row }) => {
-      const p = row.original.data
-      return (
-        <div className='flex flex-col'>
-          <span className='font-medium'>{getPropertyName(p)}</span>
-          <span className='line-clamp-1 text-xs text-muted-foreground'>
-            {getPropertyAddressShort(p)}
-          </span>
-        </div>
-      )
-    },
-  },
-  {
-    id: 'type',
-    accessorFn: (row) => row.data?.type ?? '',
-    header: ({ column }) => (
-      <SortableHeader column={column}>ประเภท</SortableHeader>
-    ),
-    cell: ({ row }) => (
-      <Badge variant='secondary' className='font-normal'>
-        {typeLabel(row.original.data?.type)}
-      </Badge>
-    ),
-    filterFn: (row, _id, value) => {
-      if (!value || value === 'all') return true
-      return row.original.data?.type === value
-    },
-  },
-  {
-    id: 'province',
-    accessorFn: (row) => getPropertyProvince(row.data),
-    header: ({ column }) => (
-      <SortableHeader column={column}>จังหวัด</SortableHeader>
-    ),
-    cell: ({ row }) => (
-      <span className='text-sm'>{getPropertyProvince(row.original.data)}</span>
-    ),
-  },
-  {
-    id: 'area',
-    accessorFn: (row) => row.data?.area ?? '',
-    header: ({ column }) => (
-      <SortableHeader column={column}>เนื้อที่</SortableHeader>
-    ),
-    cell: ({ row }) => (
-      <span className='text-sm text-muted-foreground'>
-        {row.original.data?.area ?? '—'}
-      </span>
-    ),
-  },
-  {
-    id: 'extras',
-    header: '',
-    enableSorting: false,
-    cell: ({ row }) => {
-      const p = row.original.data
-      const imgCount = getPropertyImageCount(p)
-      return (
-        <div className='flex items-center gap-2 text-xs text-muted-foreground'>
-          {p?.multiTenant && (
-            <span
-              className='inline-flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-accent-foreground'
-              title='หลายผู้เช่าได้พร้อมกัน'
-            >
-              <Users className='size-3' />
-              หลายผู้เช่า
-            </span>
-          )}
-          {imgCount > 0 && (
-            <span className='inline-flex items-center gap-1'>
-              <ImageIcon className='size-3' />
-              {imgCount}
-            </span>
-          )}
-        </div>
-      )
-    },
-  },
-]
+type Row = Property & { _contractCount: number }
 
 export function Properties() {
   const { data: properties, isLoading, error } = useProperties()
+  const { data: contractKeys } = useContractMatchKeys()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
 
+  // Count active (non-cancelled) contracts per property — match by pid_property or legacy pid
+  const contractCountByPid = useMemo(() => {
+    const map = new Map<number, number>()
+    if (!contractKeys) return map
+    contractKeys.forEach((c) => {
+      if (c.data?.cancelled) return
+      const pid = c.data?.pid_property ?? c.data?.pid
+      if (pid == null) return
+      const n = Number(pid)
+      if (Number.isNaN(n)) return
+      map.set(n, (map.get(n) ?? 0) + 1)
+    })
+    return map
+  }, [contractKeys])
+
+  const rows = useMemo<Row[]>(() => {
+    if (!properties) return []
+    return properties.map((p) => {
+      const pid = p.data?.pid ?? Number.parseInt(p.id, 10)
+      return {
+        ...p,
+        _contractCount: contractCountByPid.get(Number(pid)) ?? 0,
+      }
+    })
+  }, [properties, contractCountByPid])
+
+  const columns = useMemo<ColumnDef<Row>[]>(
+    () => [
+      {
+        id: 'name',
+        accessorFn: (row) => getPropertyName(row.data),
+        header: ({ column }) => (
+          <SortableHeader column={column}>ชื่อทรัพย์สิน</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const p = row.original.data
+          const fullName = getPropertyName(p)
+          const addr = getPropertyAddressShort(p)
+          return (
+            <div className='flex min-w-0 flex-col'>
+              <span className='truncate font-medium' title={fullName}>
+                {fullName}
+              </span>
+              <span
+                className='truncate text-xs text-muted-foreground'
+                title={addr}
+              >
+                {addr}
+              </span>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'type',
+        accessorFn: (row) => row.data?.type ?? '',
+        header: ({ column }) => (
+          <SortableHeader column={column}>ประเภท</SortableHeader>
+        ),
+        cell: ({ row }) => (
+          <Badge variant='secondary' className='font-normal'>
+            {typeLabel(row.original.data?.type)}
+          </Badge>
+        ),
+        filterFn: (row, _id, value) => {
+          if (!value || value === 'all') return true
+          return row.original.data?.type === value
+        },
+      },
+      {
+        id: 'province',
+        accessorFn: (row) => getPropertyProvince(row.data),
+        header: ({ column }) => (
+          <SortableHeader column={column}>จังหวัด</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const v = getPropertyProvince(row.original.data)
+          return (
+            <span className='block max-w-[160px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'area',
+        accessorFn: (row) => row.data?.area ?? '',
+        header: ({ column }) => (
+          <SortableHeader column={column}>เนื้อที่</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const v = row.original.data?.area?.trim() || '—'
+          return (
+            <span
+              className='block max-w-[180px] truncate text-sm text-muted-foreground'
+              title={v}
+            >
+              {v}
+            </span>
+          )
+        },
+      },
+      {
+        id: 'contracts',
+        accessorFn: (row) => row._contractCount,
+        header: ({ column }) => (
+          <SortableHeader column={column}>สัญญา</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const n = row.original._contractCount
+          return (
+            <Badge
+              variant={n > 0 ? 'default' : 'outline'}
+              className='font-normal'
+            >
+              <FileText className='mr-1 size-3' />
+              {n.toLocaleString('th-TH')}
+            </Badge>
+          )
+        },
+      },
+      {
+        id: 'extras',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => {
+          const p = row.original.data
+          const imgCount = getPropertyImageCount(p)
+          return (
+            <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+              {p?.multiTenant && (
+                <span
+                  className='inline-flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-accent'
+                  title='หลายผู้เช่าได้พร้อมกัน'
+                >
+                  <Users className='size-3' />
+                  หลายผู้เช่า
+                </span>
+              )}
+              {imgCount > 0 && (
+                <span className='inline-flex items-center gap-1'>
+                  <ImageIcon className='size-3' />
+                  {imgCount}
+                </span>
+              )}
+            </div>
+          )
+        },
+      },
+    ],
+    [],
+  )
+
   const table = useReactTable({
-    data: properties ?? [],
+    data: rows,
     columns,
     state: { sorting, columnFilters, globalFilter },
     onSortingChange: setSorting,
@@ -261,8 +332,8 @@ export function Properties() {
         )}
 
         {/* Table */}
-        <div className='rounded-md border bg-card'>
-          <Table>
+        <div className='overflow-x-auto rounded-md border bg-card'>
+          <Table className='min-w-[820px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>
