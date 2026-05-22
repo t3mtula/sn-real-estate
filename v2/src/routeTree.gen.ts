@@ -37,6 +37,7 @@ import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_auth
 import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authenticated/properties/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
 import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
@@ -197,6 +198,12 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContractsNewRoute =
+  AuthenticatedContractsNewRouteImport.update({
+    id: '/contracts/new',
+    path: '/contracts/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBankAccountsNewRoute =
   AuthenticatedBankAccountsNewRouteImport.update({
     id: '/bank-accounts/new',
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
+  '/contracts/new': typeof AuthenticatedContractsNewRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
+  '/contracts/new': typeof AuthenticatedContractsNewRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
+  '/_authenticated/contracts/new': typeof AuthenticatedContractsNewRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/_authenticated/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/bank-accounts/new'
+    | '/contracts/new'
     | '/errors/$error'
     | '/landlords/new'
     | '/properties/new'
@@ -391,6 +402,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/'
     | '/bank-accounts/new'
+    | '/contracts/new'
     | '/errors/$error'
     | '/landlords/new'
     | '/properties/new'
@@ -427,6 +439,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/bank-accounts/new'
+    | '/_authenticated/contracts/new'
     | '/_authenticated/errors/$error'
     | '/_authenticated/landlords/new'
     | '/_authenticated/properties/new'
@@ -661,6 +674,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contracts/new': {
+      id: '/_authenticated/contracts/new'
+      path: '/contracts/new'
+      fullPath: '/contracts/new'
+      preLoaderRoute: typeof AuthenticatedContractsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bank-accounts/new': {
       id: '/_authenticated/bank-accounts/new'
       path: '/bank-accounts/new'
@@ -733,6 +753,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBankAccountsNewRoute: typeof AuthenticatedBankAccountsNewRoute
+  AuthenticatedContractsNewRoute: typeof AuthenticatedContractsNewRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
   AuthenticatedPropertiesNewRoute: typeof AuthenticatedPropertiesNewRoute
@@ -753,6 +774,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBankAccountsNewRoute: AuthenticatedBankAccountsNewRoute,
+  AuthenticatedContractsNewRoute: AuthenticatedContractsNewRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
   AuthenticatedPropertiesNewRoute: AuthenticatedPropertiesNewRoute,

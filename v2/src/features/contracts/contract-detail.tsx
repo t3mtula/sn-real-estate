@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertCircle,
   ArrowLeft,
@@ -8,10 +8,13 @@ import {
   FileText,
   Landmark,
   Link2,
+  Pencil,
   ScrollText,
   UserRound,
   Users,
 } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -21,12 +24,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBankAccount } from '@/features/bank-accounts/queries'
+import { ContractForm } from '@/features/contracts/components/contract-form'
+import {
+  DuplicateContractNoError,
+  useUpdateContract,
+} from '@/features/contracts/mutations'
 import {
   getContractDisplay,
   getContractStatus,
   getStatusMeta,
   useContract,
 } from '@/features/contracts/queries'
+import {
+  CONTRACT_FORM_DEFAULTS,
+  type ContractFormValues,
+} from '@/features/contracts/schema'
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
@@ -96,6 +108,7 @@ function fmtMoney(n: number | undefined): string {
 
 export function ContractDetail({ id }: { id: string }) {
   const { data: contract, isLoading, error } = useContract(id)
+  const [isEditing, setIsEditing] = useState(false)
 
   return (
     <>
@@ -144,18 +157,101 @@ export function ContractDetail({ id }: { id: string }) {
               </CardContent>
             </Card>
           </>
+        ) : isEditing ? (
+          <ContractEditing
+            contract={contract}
+            onDone={() => setIsEditing(false)}
+          />
         ) : (
-          <Content contract={contract} />
+          <Content
+            contract={contract}
+            onEdit={() => setIsEditing(true)}
+          />
         )}
       </Main>
     </>
   )
 }
 
-function Content({
+function ContractEditing({
   contract,
+  onDone,
 }: {
   contract: NonNullable<ReturnType<typeof useContract>['data']>
+  onDone: () => void
+}) {
+  const update = useUpdateContract(contract.id)
+  const navigate = useNavigate()
+  const c = contract.data
+
+  const defaults: ContractFormValues = {
+    ...CONTRACT_FORM_DEFAULTS,
+    no: c.no ?? '',
+    pid_property: (c.pid_property ?? c.pid)?.toString() ?? '',
+    tenant_id: c.tenant_id ?? '',
+    landlord_id: c.landlord_id ?? '',
+    bankAccountId: c.bankAccountId ?? '',
+    parent_contract_id: c.parent_contract_id ?? '',
+    start: c.start ?? '',
+    end: c.end ?? '',
+    rate: c.rate ?? 0,
+    deposit: c.deposit ?? 0,
+    dur: c.dur ?? 0,
+    payment: c.payment ?? 'รายเดือน',
+    purpose: (c.purpose as string) ?? 'พักอาศัย',
+    madeAt: c.madeAt ?? '',
+    madeDate: c.madeDate ?? '',
+    wit1: c.wit1 ?? '',
+    wit2: c.wit2 ?? '',
+  }
+
+  return (
+    <>
+      <header className='flex items-center gap-3'>
+        <h1 className='text-2xl font-semibold tracking-tight'>แก้ไขสัญญา</h1>
+        <p className='text-sm text-muted-foreground'>
+          {c.no || `ID: ${contract.id}`}
+        </p>
+      </header>
+      <ContractForm
+        mode='edit'
+        contractId={contract.id}
+        defaultValues={defaults}
+        submitting={update.isPending}
+        onCancel={onDone}
+        onSubmit={async (values, inline) => {
+          try {
+            await update.mutateAsync({ values, inline })
+            onDone()
+          } catch (err) {
+            if (err instanceof DuplicateContractNoError) {
+              toast.error('เลขสัญญาซ้ำ', {
+                description: `เลขนี้อยู่ในสัญญาของ "${err.conflictTenant}"`,
+                action: {
+                  label: 'ดู',
+                  onClick: () =>
+                    navigate({
+                      to: '/contracts/$id',
+                      params: { id: err.conflictId },
+                    }),
+                },
+              })
+              return
+            }
+            throw err
+          }
+        }}
+      />
+    </>
+  )
+}
+
+function Content({
+  contract,
+  onEdit,
+}: {
+  contract: NonNullable<ReturnType<typeof useContract>['data']>
+  onEdit: () => void
 }) {
   const c = contract.data
   const status = getContractStatus(c)
@@ -201,6 +297,10 @@ function Content({
             </p>
           </div>
         </div>
+        <Button onClick={onEdit}>
+          <Pencil className='size-4' />
+          แก้ไข
+        </Button>
       </header>
 
       {c.cancelled && (
@@ -407,13 +507,6 @@ function Content({
         </Card>
       </div>
 
-      <div className='rounded-md border border-dashed bg-muted/30 p-4 text-sm text-muted-foreground'>
-        <p>
-          <span className='font-medium text-foreground'>หมายเหตุ:</span>{' '}
-          หน้านี้เป็น <span className='font-medium'>read-only</span> ใน Phase 1B-3c ขั้นแรก ·
-          สร้างสัญญาใหม่ + แก้ไข + ยกเลิก + พิมพ์ จะเปิดใน Phase 1B-3c ขั้นถัดไป
-        </p>
-      </div>
     </>
   )
 }

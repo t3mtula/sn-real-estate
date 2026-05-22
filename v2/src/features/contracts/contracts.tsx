@@ -8,14 +8,15 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { useNavigate } from '@tanstack/react-router'
-import { FileText, Search } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { FileText, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -249,6 +250,12 @@ export function Contracts() {
                 : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ใบ`}
             </p>
           </div>
+          <Button asChild>
+            <Link to='/contracts/new'>
+              <Plus className='size-4' />
+              สร้างสัญญา
+            </Link>
+          </Button>
         </div>
 
         <div className='flex flex-wrap items-center gap-3'>
