@@ -136,28 +136,8 @@ export function Tenants() {
         ),
         cell: ({ row }) => {
           const tax = row.original.data?.taxId ?? ''
-          if (!tax)
-            return (
-              <span className='text-xs italic text-muted-foreground'>
-                — ไม่ระบุ —
-              </span>
-            )
+          if (!tax) return <span className='text-sm text-muted-foreground'>—</span>
           return <span className='font-mono text-sm'>{fmtTaxId(tax)}</span>
-        },
-      },
-      {
-        id: 'province',
-        accessorFn: (row) => row.data?.addrProvince ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>จังหวัด</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const v = row.original.data?.addrProvince?.trim() || '—'
-          return (
-            <span className='block max-w-[160px] truncate text-sm' title={v}>
-              {v}
-            </span>
-          )
         },
       },
       {
@@ -257,7 +237,7 @@ export function Tenants() {
           <div className='relative max-w-sm flex-1'>
             <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
             <Input
-              placeholder='ค้น ชื่อ · เลขผู้เสียภาษี · เบอร์ · จังหวัด...'
+              placeholder='ค้น ชื่อ · เลขผู้เสียภาษี · เบอร์...'
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className='pl-9'

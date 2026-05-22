@@ -145,7 +145,6 @@ export function BankAccountDetail({ id }: { id: string }) {
           <BankAccountEditing ba={ba} onDone={() => setIsEditing(false)} />
         ) : (
           <Content
-            id={ba.id}
             data={ba.data}
             createdAt={ba.created_at}
             updatedAt={ba.updated_at}
@@ -204,7 +203,6 @@ function BankAccountEditing({
 }
 
 function Content({
-  id,
   data,
   createdAt,
   updatedAt,
@@ -212,7 +210,6 @@ function Content({
   deleting,
   onEdit,
 }: {
-  id: string
   data: NonNullable<ReturnType<typeof useBankAccount>['data']>['data']
   createdAt: string | null
   updatedAt: string | null
@@ -250,14 +247,15 @@ function Content({
               )}
             </div>
             <p className='mt-1 font-mono text-lg'>{data.acctNo}</p>
-            <p className='mt-1 text-sm text-muted-foreground'>
-              ID:{' '}
-              <code className='rounded bg-muted px-1.5 py-0.5'>{id}</code>
-            </p>
           </div>
         </div>
         <div className='flex gap-2'>
-          <Button variant='outline' onClick={onDelete} disabled={deleting}>
+          <Button
+            variant='ghost'
+            onClick={onDelete}
+            disabled={deleting}
+            className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+          >
             <Trash2 className='size-4' />
             ลบ
           </Button>
@@ -292,10 +290,6 @@ function Content({
             <CardTitle className='text-base'>ข้อมูลระบบ</CardTitle>
           </CardHeader>
           <CardContent className='space-y-3 text-sm'>
-            <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>รหัส (pid)</span>
-              <span className='font-medium'>{data.pid ?? '—'}</span>
-            </div>
             <div className='flex justify-between gap-3'>
               <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
               <span className='font-medium'>{formatDate(createdAt)}</span>

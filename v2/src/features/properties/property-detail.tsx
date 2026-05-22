@@ -302,16 +302,15 @@ function PropertyContent({
                 </Badge>
               )}
             </div>
-            <p className='mt-1 text-sm text-muted-foreground'>
-              ID:{' '}
-              <code className='rounded bg-muted px-1.5 py-0.5'>
-                {property.id}
-              </code>
-            </p>
           </div>
         </div>
         <div className='flex gap-2'>
-          <Button variant='outline' onClick={onDelete} disabled={deleting}>
+          <Button
+            variant='ghost'
+            onClick={onDelete}
+            disabled={deleting}
+            className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+          >
             <Trash2 className='size-4' />
             ลบ
           </Button>
@@ -384,10 +383,6 @@ function PropertyContent({
             <CardTitle className='text-base'>ข้อมูลระบบ</CardTitle>
           </CardHeader>
           <CardContent className='space-y-3 text-sm'>
-            <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>รหัส (legacy pid)</span>
-              <span className='font-medium'>{p.pid ?? '—'}</span>
-            </div>
             <div className='flex justify-between gap-3'>
               <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
               <span className='font-medium'>

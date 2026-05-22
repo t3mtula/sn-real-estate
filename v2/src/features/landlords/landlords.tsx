@@ -172,12 +172,7 @@ export function Landlords() {
         ),
         cell: ({ row }) => {
           const tax = row.original.data?.taxId ?? ''
-          if (!tax)
-            return (
-              <span className='text-xs italic text-muted-foreground'>
-                — ไม่ระบุ —
-              </span>
-            )
+          if (!tax) return <span className='text-sm text-muted-foreground'>—</span>
           return <span className='font-mono text-sm'>{fmtTaxId(tax)}</span>
         },
       },

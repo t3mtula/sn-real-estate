@@ -328,16 +328,15 @@ function Content({
                 ชื่อย่อ: {t.shortName}
               </p>
             )}
-            <p className='mt-1 text-sm text-muted-foreground'>
-              ID:{' '}
-              <code className='rounded bg-muted px-1.5 py-0.5'>
-                {landlord.id}
-              </code>
-            </p>
           </div>
         </div>
         <div className='flex gap-2'>
-          <Button variant='outline' onClick={onDelete} disabled={deleting}>
+          <Button
+            variant='ghost'
+            onClick={onDelete}
+            disabled={deleting}
+            className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+          >
             <Trash2 className='size-4' />
             ลบ
           </Button>
@@ -389,10 +388,6 @@ function Content({
           </CardHeader>
           <CardContent className='space-y-3 text-sm'>
             <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>รหัส (pid)</span>
-              <span className='font-medium'>{t.pid ?? '—'}</span>
-            </div>
-            <div className='flex justify-between gap-3'>
               <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
               <span className='font-medium'>
                 {formatDate(landlord.created_at)}
@@ -404,7 +399,7 @@ function Content({
                 {formatDate(landlord.updated_at)}
               </span>
             </div>
-            {t.invoiceHeaderId && (
+            {t.invoiceHeaderId && String(t.invoiceHeaderId) !== String(landlord.id) && (
               <div className='flex justify-between gap-3'>
                 <span className='text-muted-foreground'>รหัสอ้างอิงเดิม</span>
                 <span className='font-mono text-xs'>{t.invoiceHeaderId}</span>

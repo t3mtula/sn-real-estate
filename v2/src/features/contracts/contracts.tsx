@@ -41,6 +41,7 @@ import {
   getStatusMeta,
   useContracts,
 } from '@/features/contracts/queries'
+import { amt } from '@/lib/thai'
 import {
   CONTRACT_STATUSES,
   type Contract,
@@ -73,7 +74,7 @@ function StatusBadge({ status }: { status: ContractStatus }) {
 export function Contracts() {
   const { data: contracts, isLoading, error } = useContracts()
   const [sorting, setSorting] = useState<SortingState>([
-    { id: 'updated', desc: true },
+    { id: 'end', desc: true },
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -157,18 +158,27 @@ export function Contracts() {
       },
       {
         id: 'rate',
-        accessorFn: (row) => row.data?.rate ?? 0,
+        // v1 legacy data ships rate as messy string. amt() loose-parses it.
+        accessorFn: (row) => {
+          const formatted = amt(row.data?.rate as number | string | undefined, {
+            symbol: false,
+            decimal: 0,
+            emDash: false,
+          })
+          return formatted ? Number(formatted.replace(/[,\s]/g, '')) : 0
+        },
         header: ({ column }) => (
           <SortableHeader column={column}>ค่าเช่า</SortableHeader>
         ),
         cell: ({ row }) => {
-          const rate = row.original.data?.rate
-          if (!rate) return <span className='text-sm text-muted-foreground'>—</span>
-          return (
-            <span className='text-sm tabular-nums'>
-              {Number(rate).toLocaleString('th-TH')}
-            </span>
-          )
+          const formatted = amt(row.original.data?.rate as number | string | undefined, {
+            symbol: false,
+            decimal: 0,
+          })
+          if (formatted === '—') {
+            return <span className='text-sm text-muted-foreground'>—</span>
+          }
+          return <span className='text-sm tabular-nums'>{formatted}</span>
         },
       },
       {
@@ -181,28 +191,6 @@ export function Contracts() {
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
           return row.original._status === value
-        },
-      },
-      {
-        id: 'updated',
-        accessorFn: (row) => row.updated_at ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>อัปเดต</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const at = row.original.updated_at
-          if (!at) return <span className='text-muted-foreground text-xs'>—</span>
-          try {
-            const d = new Date(at)
-            const beYear = d.getFullYear() + 543
-            return (
-              <span className='text-xs text-muted-foreground tabular-nums'>
-                {d.getDate()}/{d.getMonth() + 1}/{String(beYear).slice(2)}
-              </span>
-            )
-          } catch {
-            return <span className='text-muted-foreground text-xs'>—</span>
-          }
         },
       },
     ],

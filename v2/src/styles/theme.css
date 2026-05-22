@@ -14,7 +14,9 @@
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: #0a0a0a;
   --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
+  /* Lowered from 0.554 → 0.45 to hit WCAG AA 4.5:1 on white card backgrounds
+   * for 12-14px body labels (was 4.14:1 → now ~5.5:1). */
+  --muted-foreground: oklch(0.45 0.046 257.417);
   --accent: #c77d49;
   --accent-foreground: #ffffff;
   --destructive: oklch(0.577 0.245 27.325);

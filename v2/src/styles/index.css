@@ -6,7 +6,7 @@
 
 @theme inline {
   --font-sans:
-    'Sarabun', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    'Sarabun', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 @custom-variant dark (&:is(.dark *));

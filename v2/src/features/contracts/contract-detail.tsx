@@ -11,6 +11,7 @@ import {
   Link2,
   Pencil,
   Printer,
+  Receipt,
   RotateCcw,
   ScrollText,
   UserRound,
@@ -63,7 +64,7 @@ import { useLandlord, useLandlords } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant, useTenants } from '@/features/tenants/queries'
 import { usePdf } from '@/lib/pdf'
-import { todayBE } from '@/lib/thai'
+import { amt, todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import type { ContractStatus } from '@/features/contracts/types'
 
@@ -123,9 +124,24 @@ function InfoRow({
   )
 }
 
-function fmtMoney(n: number | undefined): string {
-  if (n == null || n === 0) return '—'
-  return Number(n).toLocaleString('th-TH')
+function fmtMoney(n: number | string | undefined | null): string {
+  // v1 legacy data ships rate/deposit as messy strings like
+  // "เดือนละ 1,300 บาท (หนึ่งพันสามร้อยบาทถ้วน)". Use amt(symbol:false) which
+  // now loose-parses strings → number, or returns "—" if unparseable.
+  return amt(n, { symbol: false, decimal: 0 })
+}
+
+/**
+ * Format contract duration. v1 stores `dur` as free-text like "6 เดือน",
+ * "2 ปี 10 เดือน", or just "12". Avoid appending "เดือน" when the string
+ * already carries a unit — that's the "ระยะ 6 เดือน เดือน" bug.
+ */
+function fmtDuration(d: number | string | undefined | null): string {
+  if (d == null || d === '') return ''
+  const s = String(d).trim()
+  if (!s) return ''
+  if (/(ปี|เดือน|วัน)/.test(s)) return s
+  return `${s} เดือน`
 }
 
 export function ContractDetail({ id }: { id: string }) {
@@ -410,10 +426,6 @@ function Content({
                 </Badge>
               )}
             </div>
-            <p className='mt-1 text-sm text-muted-foreground'>
-              ID:{' '}
-              <code className='rounded bg-muted px-1.5 py-0.5'>{contract.id}</code>
-            </p>
           </div>
         </div>
         <div className='flex flex-wrap gap-2'>
@@ -425,6 +437,23 @@ function Content({
             <Printer className='size-4' />
             {pdf.generating ? 'กำลังสร้าง...' : 'พิมพ์/PDF'}
           </Button>
+          {!c.cancelled && (
+            <Button variant='outline' asChild>
+              <Link
+                to='/invoices/new'
+                search={{
+                  contract: contract.id,
+                  month: (() => {
+                    const d = new Date()
+                    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+                  })(),
+                }}
+              >
+                <Receipt className='size-4' />
+                ออกใบแจ้งเดือนนี้
+              </Link>
+            </Button>
+          )}
           {c.cancelled ? (
             <Button
               variant='outline'
@@ -624,9 +653,9 @@ function Content({
               <span className='tabular-nums'>
                 {c.start || '—'} → {c.end || '—'}
               </span>
-              {c.dur && (
+              {fmtDuration(c.dur) && (
                 <span className='block text-xs text-muted-foreground'>
-                  ระยะ {c.dur} เดือน
+                  ระยะ {fmtDuration(c.dur)}
                 </span>
               )}
             </InfoRow>

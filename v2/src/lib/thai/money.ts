@@ -34,7 +34,7 @@ export function amt(value: number | string | null | undefined, options: AmtOptio
   const { symbol = true, decimal = 2, emDash = true } = options
 
   if (value === null || value === undefined || value === "") return emDash ? "—" : ""
-  const num = typeof value === "string" ? Number.parseFloat(value) : value
+  const num = typeof value === "string" ? parseAmtLoose(value) : value
   if (!Number.isFinite(num)) return emDash ? "—" : ""
 
   const formatted = getFormatter(decimal).format(num)
@@ -49,6 +49,34 @@ export function parseAmt(input: string | null | undefined): number {
   const cleaned = input.replace(/[฿,\s]/g, "")
   const num = Number.parseFloat(cleaned)
   return Number.isFinite(num) ? num : Number.NaN
+}
+
+/**
+ * Loose-parse a money-ish string from v1 legacy data.
+ * Extracts the first numeric token from messy text like
+ *   "เดือนละ 1,300 บาท (หนึ่งพันสามร้อยบาทถ้วน)"
+ *   "1,320,000 บาท ( หนึ่งล้านสามแสนสองหมื่นบาทถ้วน)"
+ *   "3 ปี=234,000 บาท ..."
+ * Returns NaN if no parseable number is found (e.g. pure text like
+ *   "ชำระค่าเช่าหมดเรียบร้อยแล้ว").
+ */
+export function parseAmtLoose(input: number | string | null | undefined): number {
+  if (input === null || input === undefined || input === "") return Number.NaN
+  if (typeof input === "number") return Number.isFinite(input) ? input : Number.NaN
+  // Strip commas + currency + whitespace, then grab the first number we see.
+  // Prefer the LARGEST number in the string (often the lump-sum or total),
+  // not the leading "3 ปี".
+  const cleaned = String(input).replace(/[฿,\s]/g, "")
+  const matches = cleaned.match(/-?\d+(?:\.\d+)?/g)
+  if (!matches || matches.length === 0) return Number.NaN
+  // Pick the largest number found (avoids "3 ปี" beating "234,000")
+  let best = Number.NaN
+  for (const m of matches) {
+    const n = Number.parseFloat(m)
+    if (!Number.isFinite(n)) continue
+    if (!Number.isFinite(best) || n > best) best = n
+  }
+  return best
 }
 
 /**
