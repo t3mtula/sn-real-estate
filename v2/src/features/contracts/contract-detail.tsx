@@ -40,6 +40,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
+import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
@@ -733,6 +734,7 @@ function Content({
         </Card>
       </div>
 
+      <EntityAuditPanel entity='contracts' entityId={contract.id} />
     </>
   )
 }
