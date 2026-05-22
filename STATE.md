@@ -2,6 +2,52 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
+## ✅ Overnight 2026-05-22 → 2026-05-23 (sleep run · "ทำที่ค้างให้จบ")
+
+ลุยตามที่ค้าง · all live · all commits on main · CI auto-deploy
+
+1. **3e-1 Renewals page** (`/contracts/renewals`)
+   - 5 KPI buckets (หมดแล้ว / 30 / 90 / 180 / ทั้งหมด) · progress bar per contract · sidebar entry "สัญญาใกล้หมด"
+
+2. **3d-3 Batch monthly invoice gen** + bulk ops
+   - "สร้างรายเดือน" dialog on /invoices · preview จะสร้าง/จะข้าม · เหตุผลข้าม (existing/cancelled/not_due/no_dates/no_rate) · reserve numbers locally to avoid race
+   - Checkbox column + floating bulk action bar: บันทึกส่ง (drafts) · ยกเลิก (with reason)
+
+3. **3d-4 Dashboard** (`/dashboard` · now landing page)
+   - 8 KPI cards: ยอดเช่าต่อเดือน · ค้างชำระ · เกินกำหนด · occupancy · active · expiring · expired · ยังไม่ออกใบเดือนนี้
+   - Top 5 overdue + Top 5 expiring drill-downs · ทุก card link ไปหน้าที่เกี่ยวข้อง
+   - (Thailand map deferred to follow-up)
+
+4. **3h-1 Activity log viewer** + wire audit into 6 entities
+   - `/activity-log` route + sidebar entry "บันทึกกิจกรรม" · filter action + entity + search · typed Link to entity row
+   - `logActivity` wired into mutations: contracts (create/update/cancel/restore) · tenants · landlords · properties · bank_accounts · contract_templates · invoices (create/cancel/restore/markSent/batch_generate/batch_void/batch_markSent)
+   - **EntityAuditPanel** compact timeline on invoice detail + contract detail right rail
+
+5. **3j Sublease chain UI** (ก→ข→ค)
+   - Vertical chain on contract detail · current contract highlighted · ancestors (parent + grandparent) + direct children
+   - New `useChildContracts` query (parent_contract_id eq) · auto-hides when no chain
+
+6. **3g-2 Excel export** (5 lists)
+   - Export Excel button on invoices · contracts · tenants · landlords · properties · aging report · Thai headers · BE stamp filename
+   - Exports currently filtered/sorted rows
+
+7. **3i Invoice PDF print** (`/invoices/$id/print`)
+   - Build pdfmake doc · A4 portrait · landlord header + recipient + items + VAT totals + spell-amount + bank account + signatures · iframe preview + ดาวน์โหลด/สั่งพิมพ์
+   - Route restructure: `invoices/$id.tsx` → `invoices/$id/index.tsx` + `invoices/$id/print.tsx`
+
+8. **PRINT-3 Template editor** (shipped earlier in this session, kept)
+
+**Build:** `tsc -b && vite build` pass · routeTree regen ผ่าน vite dev fast-loop · pushed to main 12+ commits · CI deploy
+
+**ยังไม่ทำ overnight:**
+- 3d-2 Payments + Reconciliation (big · ต้อง design กับ Tem)
+- 3e-2 Meters น้ำ/ไฟ (ใหม่ทั้งระบบ)
+- 3f-1 / 3f-2 (deposit return + move-out inspection — ต้อง flow design)
+- 3h-2 Notification engine (LINE Notify needs backend setup)
+- 3h-5 BE Date picker rewiring (needs careful per-form testing)
+- 3l Address inline-edit (already mostly there in property form)
+- 3k Pipeline Kanban (need Tem confirm ก่อน)
+
 ## 🎯 ตอนนี้กำลังทำอะไร
 - **PRINT compare v1 vs v2** (Tem note 22 พ.ค.) — เปิด v1 print preview แล้ว ดู 2 หน้า (สัญญาหลัก + เอกสารแนบท้าย) · เปิด v2 พิมพ์/PDF เจอ **blocker: Sarabun-Bold.ttf not found** → fix 5 commits ต่อกัน (bundle Bold base64, fix vfs shape, pass fonts via doc, workaround bold→Regular, switch open instead of download) · build pass · live deploy แล้ว · ไม่เด้ง exception แล้ว · รอ Tem กดจริงใน Chrome ของตัวเอง (Chrome MCP popup block · ดูใน tab ใหม่ไม่ได้) → save PDF ของ v2 มาเทียบกับ v1
 - หลัง verify v2 print ออก → port gaps จาก v1: appendix page (PARTIES/PROPERTY/LEASE TERMS/PAYMENT ACCOUNT/NOTES sections) · template editor + clauses override · section bars bilingual · proper Sarabun Bold (workaround ใช้ Regular ตอนนี้)
