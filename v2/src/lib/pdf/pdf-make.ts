@@ -54,33 +54,7 @@ async function loadPdfMake() {
       {}
     pdfMake.vfs = { ...baseVfs, ...SARABUN_BOLD_VFS }
 
-    // WORKAROUND: pdfmake บอก 'File ... not found' แม้ว่า pdfMake.vfs จะมี
-    // Sarabun-Bold.ttf อยู่จริงตอน probe (total=14 keys, hasBold=true). น่าจะ
-    // base64 encoding ของ TTF ที่ผม inject ไม่ตรงรูปแบบ pdfmake's PDFKit
-    // expects (อาจต้อง decode → buffer ก่อน). ระหว่างนี้ map bold/italics ไปยัง
-    // Regular/Italic ที่ใน vfs จริง — ปริ้นได้ทันที (bold ไม่หนาเท่าเดิม แต่
-    // คุณภาพยังพอใช้). ต่อ session ลอง pdfMake.addVirtualFileSystem(vfs) หรือ
-    // ใช้ pdfmake-thaifonts-prebuilt ที่มี Bold ครบ.
-    pdfMake.fonts = {
-      Sarabun: {
-        normal: 'Sarabun-Regular.ttf',
-        bold: 'Sarabun-Regular.ttf',
-        italics: 'Sarabun-Italic.ttf',
-        bolditalics: 'Sarabun-Italic.ttf',
-      },
-      Kanit: {
-        normal: 'Kanit-Regular.ttf',
-        bold: 'Kanit-Regular.ttf',
-        italics: 'Kanit-Italic.ttf',
-        bolditalics: 'Kanit-Italic.ttf',
-      },
-      Prompt: {
-        normal: 'Prompt-Regular.ttf',
-        bold: 'Prompt-Regular.ttf',
-        italics: 'Prompt-Italic.ttf',
-        bolditalics: 'Prompt-Italic.ttf',
-      },
-    }
+    pdfMake.fonts = FONTS_BUNDLED
 
     return pdfMake
   })()
@@ -90,7 +64,33 @@ async function loadPdfMake() {
 
 /**
  * Helper · merge defaults ให้ใช้ Sarabun + A4 + page margin ปกติ
+ *
+ * NOTE: pdfmake snapshots its font dict on first createPdf call (not on
+ * subsequent .fonts assignment), so we ALSO pass `fonts` through the doc
+ * definition itself. Otherwise pdfmake keeps resolving Sarabun bold →
+ * 'Sarabun-Bold.ttf' (its built-in default) even after we override.
  */
+const FONTS_BUNDLED = {
+  Sarabun: {
+    normal: 'Sarabun-Regular.ttf',
+    bold: 'Sarabun-Regular.ttf',
+    italics: 'Sarabun-Italic.ttf',
+    bolditalics: 'Sarabun-Italic.ttf',
+  },
+  Kanit: {
+    normal: 'Kanit-Regular.ttf',
+    bold: 'Kanit-Regular.ttf',
+    italics: 'Kanit-Italic.ttf',
+    bolditalics: 'Kanit-Italic.ttf',
+  },
+  Prompt: {
+    normal: 'Prompt-Regular.ttf',
+    bold: 'Prompt-Regular.ttf',
+    italics: 'Prompt-Italic.ttf',
+    bolditalics: 'Prompt-Italic.ttf',
+  },
+}
+
 function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
   return {
     pageSize: doc.pageSize ?? 'A4',
@@ -101,6 +101,10 @@ function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
       ...doc.defaultStyle,
     },
     ...doc,
+    // Must override AFTER spread so caller can't accidentally re-introduce
+    // the missing Sarabun-Bold.ttf reference.
+    // biome-ignore lint/suspicious/noExplicitAny: pdfmake fonts type narrow
+    fonts: { ...(doc as any).fonts, ...FONTS_BUNDLED } as any,
   }
 }
 
