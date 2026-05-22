@@ -1,0 +1,402 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { fmtBE, parseBE } from '@/lib/thai'
+import type { Contract } from '@/features/contracts/types'
+import type { Landlord } from '@/features/landlords/types'
+import type { Property } from '@/features/properties/types'
+import type { Tenant } from '@/features/tenants/types'
+import { getInvoiceAmount, getPaymentFreq } from '@/features/invoices/queries'
+import type { GenerateInvoiceFormValues } from '@/features/invoices/schema'
+import type {
+  Invoice,
+  InvoiceCategory,
+  InvoiceData,
+  InvoiceItem,
+} from '@/features/invoices/types'
+
+const TABLE = 'invoices'
+
+const TH_MONTHS_FULL = [
+  'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+]
+const TH_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+]
+
+export class DuplicateInvoiceError extends Error {
+  conflictId: string
+  conflictNo: string
+  constructor(conflictId: string, conflictNo: string) {
+    super(`มีใบแจ้งหนี้ของเดือนนี้อยู่แล้ว (${conflictNo})`)
+    this.name = 'DuplicateInvoiceError'
+    this.conflictId = conflictId
+    this.conflictNo = conflictNo
+  }
+}
+
+/** Compose item description based on frequency · month context */
+function buildItemDescription(
+  freqType: InvoiceData['freqType'],
+  month: string,
+  category: InvoiceCategory,
+): string {
+  if (category === 'deposit') return 'เงินประกัน'
+  const [yStr, moStr] = month.split('-')
+  const monthNum = Number.parseInt(moStr, 10)
+  const yearBE = Number.parseInt(yStr, 10) + 543
+  if (freqType === 'monthly') {
+    return `ค่าเช่าประจำเดือน ${TH_MONTHS_FULL[monthNum - 1]} ${yearBE}`
+  }
+  if (freqType === 'quarterly') {
+    const qNum = Math.ceil(monthNum / 3)
+    const startMo = TH_MONTHS_SHORT[(qNum - 1) * 3]
+    const endMo = TH_MONTHS_SHORT[Math.min(qNum * 3 - 1, 11)]
+    return `ค่าเช่าไตรมาสที่ ${qNum} (${startMo}-${endMo} ${yearBE})`
+  }
+  if (freqType === 'semi') {
+    const hNum = monthNum <= 6 ? 1 : 2
+    const startMo = hNum === 1 ? 'ม.ค.' : 'ก.ค.'
+    const endMo = hNum === 1 ? 'มิ.ย.' : 'ธ.ค.'
+    return `ค่าเช่าครึ่งปีที่ ${hNum} (${startMo}-${endMo} ${yearBE})`
+  }
+  if (freqType === 'yearly') {
+    return `ค่าเช่าประจำปี ${yearBE}`
+  }
+  return 'ค่าเช่า (ชำระครั้งเดียว)'
+}
+
+/** Reserve next invoice number for a month · "INV-YYYY-MM-NNNN" or "DEP-..." */
+async function nextInvoiceNumber(
+  month: string,
+  prefix: 'INV' | 'DEP',
+): Promise<string> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('data')
+    .eq('data->>month', month)
+  if (error) throw error
+  const nums = (data ?? [])
+    .map((r: { data: InvoiceData }) => {
+      const no = (r.data?.invoiceNo ?? '').trim()
+      if (!no.startsWith(`${prefix}-`)) return 0
+      const m = no.match(/-(\d+)$/)
+      return m ? Number.parseInt(m[1], 10) : 0
+    })
+    .filter((n: number) => Number.isFinite(n))
+  const next = (nums.length === 0 ? 0 : Math.max(...nums)) + 1
+  return `${prefix}-${month}-${String(next).padStart(4, '0')}`
+}
+
+/** Check duplicate (same contract · same month · same category · not voided) */
+async function checkDuplicateInvoice(
+  contractId: string,
+  month: string,
+  category: InvoiceCategory,
+): Promise<{ id: string; no: string } | null> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('id, status, category, data')
+    .eq('contract_id', contractId)
+    .eq('data->>month', month)
+  if (error) throw error
+  const conflict = (data ?? []).find((r: {
+    id: string
+    status: string | null
+    category: string | null
+    data: InvoiceData
+  }) => {
+    if ((r.status ?? '').toLowerCase() === 'voided') return false
+    const cat = (r.category ?? r.data?.category ?? 'rent').toLowerCase()
+    return cat === category
+  })
+  if (!conflict) return null
+  return {
+    id: conflict.id,
+    no: ((conflict as { data: InvoiceData }).data?.invoiceNo ?? '').trim(),
+  }
+}
+
+/**
+ * Generate invoice from contract · port of v1 generateInvoice()
+ *
+ * Caller passes the linked contract / landlord / tenant / property so this
+ * mutation stays DB-bounded (no extra fetches).  Mirror v1 behavior:
+ *   - reserve invoiceNo per month
+ *   - snapshot tenant / landlord / property / VAT mode at issue time
+ *   - status starts at 'draft' · paidAmount 0 · remainingAmount = total
+ */
+export function useGenerateInvoiceFromContract() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      values: GenerateInvoiceFormValues
+      contract: Contract
+      tenant?: Tenant | null
+      landlord?: Landlord | null
+      property?: Property | null
+    }): Promise<{ id: string }> => {
+      const { values, contract, tenant, landlord, property } = input
+      const month = values.month
+      const category = values.category ?? 'rent'
+
+      const dup = await checkDuplicateInvoice(contract.id, month, category)
+      if (dup) throw new DuplicateInvoiceError(dup.id, dup.no || `#${dup.id}`)
+
+      const prefix = category === 'deposit' ? 'DEP' : 'INV'
+      const invoiceNo = await nextInvoiceNumber(month, prefix)
+
+      const freq = getPaymentFreq(contract.data?.payment)
+      const baseAmount =
+        category === 'deposit'
+          ? Number(contract.data?.deposit) || 0
+          : (values.amount ??
+            getInvoiceAmount(
+              contract.data?.rate as number | undefined,
+              contract.data?.payment,
+            ))
+
+      // VAT snapshot from landlord (v2)
+      const vatMode = (landlord?.data?.vatMode as InvoiceData['vatMode']) ?? 'none'
+      const vatRate = Number(landlord?.data?.vatRate) || 0
+      const total =
+        vatMode === 'exclusive' && vatRate > 0
+          ? Number((baseAmount * (1 + vatRate / 100)).toFixed(2))
+          : baseAmount
+
+      const items: InvoiceItem[] = [
+        {
+          desc: values.note?.trim() || buildItemDescription(freq.type, month, category),
+          amount: total,
+        },
+      ]
+
+      // Due date: month + dueDay (clamped to last day of month)
+      const [yStr, moStr] = month.split('-')
+      const yNum = Number.parseInt(yStr, 10)
+      const moNum = Number.parseInt(moStr, 10)
+      const lastDay = new Date(yNum, moNum, 0).getDate()
+      const dueDay = Math.min(
+        Math.max(1, Number(values.dueDay) || 5),
+        lastDay,
+      )
+      const dueDate = fmtBE(new Date(yNum, moNum - 1, dueDay))
+      const today = fmtBE(new Date())
+
+      const pid = Date.now()
+      const id = String(pid)
+      const data: InvoiceData = {
+        id: pid,
+        cid: contract.data?.pid ?? contract.id,
+        pid: contract.data?.pid_property,
+        month,
+        invoiceNo,
+        date: today,
+        dueDate,
+        items,
+        total,
+        bankAccountId:
+          values.bankAccountId?.trim() ||
+          (contract.data?.bankAccountId as string | undefined),
+        headerId:
+          (contract.data?.invHeaderId as string | undefined) ?? undefined,
+        freqType: freq.type,
+        freqLabel: category === 'deposit' ? 'เงินประกัน' : freq.label,
+        vatMode,
+        vatRate: vatMode === 'none' ? 0 : vatRate,
+        vatBase: baseAmount,
+        status: 'draft',
+        paidAmount: 0,
+        remainingAmount: total,
+        payments: [],
+        tenant: tenant?.data?.name ?? (contract.data?.tenant as string | undefined) ?? '',
+        property: property?.data?.name ?? (contract.data?.property as string | undefined) ?? '',
+        landlord: landlord?.data?.name ?? (contract.data?.landlord as string | undefined) ?? '',
+        category,
+        createdAt: new Date().toISOString(),
+      }
+
+      const { error } = await supabase
+        .from(TABLE)
+        .insert({
+          id,
+          contract_id: contract.id,
+          status: 'draft',
+          category,
+          data,
+        })
+        .select('id')
+        .single()
+      if (error) throw error
+      return { id }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
+/** Generic merge helper · used by cancel/update */
+async function mergeUpdateInvoice(
+  id: string,
+  patch: {
+    data?: Partial<InvoiceData>
+    status?: string
+    category?: string
+  },
+): Promise<void> {
+  const { data: existing, error: readError } = await supabase
+    .from(TABLE)
+    .select('data, status, category')
+    .eq('id', id)
+    .single()
+  if (readError) throw readError
+
+  const existingData = (existing?.data ?? {}) as InvoiceData
+  const update: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (patch.data) {
+    const merged: InvoiceData = { ...existingData, ...patch.data }
+    for (const k of Object.keys(patch.data)) {
+      if ((patch.data as Record<string, unknown>)[k] === undefined) {
+        delete (merged as Record<string, unknown>)[k]
+      }
+    }
+    update.data = merged
+  }
+  if (patch.status !== undefined) update.status = patch.status
+  if (patch.category !== undefined) update.category = patch.category
+
+  const { data: updated, error } = await supabase
+    .from(TABLE)
+    .update(update)
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!updated || updated.length === 0) {
+    throw new Error('ไม่พบใบแจ้งหนี้ หรือไม่มีสิทธิ์แก้ไข (RLS)')
+  }
+}
+
+/** Mark invoice as voided · keep original data + audit reason */
+export function useCancelInvoice(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { reason: string }) => {
+      const today = fmtBE(new Date())
+      await mergeUpdateInvoice(id, {
+        status: 'voided',
+        data: {
+          status: 'voided',
+          voidedAt: today,
+          voidedReason: input.reason?.trim() || '',
+        } as Partial<InvoiceData>,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/** Restore voided invoice */
+export function useRestoreInvoice(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const c = (existing?.data ?? {}) as InvoiceData
+      const prevStatus =
+        (c.paidAmount ?? 0) >= (c.total ?? 0) && (c.total ?? 0) > 0
+          ? 'paid'
+          : (c.paidAmount ?? 0) > 0
+          ? 'partial'
+          : 'sent'
+      await mergeUpdateInvoice(id, {
+        status: prevStatus,
+        data: {
+          status: prevStatus,
+          voidedAt: undefined,
+          voidedReason: undefined,
+        } as Partial<InvoiceData>,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/** Mark invoice as sent (draft → sent) */
+export function useMarkInvoiceSent(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => {
+      await mergeUpdateInvoice(id, {
+        status: 'sent',
+        data: { status: 'sent' } as Partial<InvoiceData>,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/** Inline edit · update editable fields (dueDate · bankAccountId · note) */
+export function useUpdateInvoice(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      dueDate?: string
+      bankAccountId?: string
+      note?: string
+    }) => {
+      const patch: Partial<InvoiceData> = {}
+      if (input.dueDate !== undefined) {
+        const trimmed = input.dueDate.trim()
+        if (trimmed && !parseBE(trimmed)) {
+          throw new Error('วันครบกำหนดไม่ถูกต้อง')
+        }
+        patch.dueDate = trimmed || undefined
+      }
+      if (input.bankAccountId !== undefined) {
+        patch.bankAccountId = input.bankAccountId.trim() || undefined
+      }
+      if (input.note !== undefined) {
+        patch.note = input.note.trim() || undefined
+      }
+      await mergeUpdateInvoice(id, { data: patch })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/** Hard delete (rare · prefer void) — for cleaning up mistakes */
+export function useDeleteInvoice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from(TABLE).delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
+export type { Invoice }
