@@ -1,37 +1,30 @@
 -- Property data cleanup
 --
--- 1. Split legacy "โฉนดเลขที่ XXX" pattern out of addr_line into titleDeed
---    Some properties imported from v1 ended up with title deed numbers mixed
---    into the address line. Move them to titleDeed and clean up addr_line.
+-- 1. Strip leftover "โฉนดเลขที่ NNNN" pattern from addr_line.
+--    Inspection showed: titleDeed field is ALREADY populated with full info
+--    (e.g. "โฉนดเลขที่ 95921 ต.บ้านโป่ง อ.บ้านโป่ง จ.ราชบุรี") for affected
+--    rows. The only issue is the pattern leaked into addr_line as well.
+--    → Just clean addr_line · leave titleDeed alone (don't risk duplicates).
 --
--- 2. Remove dummy "test" row created during initial dev (name='test', location='Test')
+-- 2. Rebuild assembled "address" string so detail view doesn't show
+--    "โฉนดเลขที่ NNNN" in the address row.
+--
+-- 3. Remove dummy "test" row created during initial dev.
 --
 -- Idempotent: only updates rows where the pattern actually exists.
 
--- Step 1: Move "โฉนดเลขที่ NNNN" from addr_line → titleDeed (preserve existing titleDeed)
+-- Step 1: Strip "โฉนดเลขที่ NNNN" pattern from addr_line
 UPDATE properties p
 SET
   data = jsonb_set(
-    jsonb_set(
-      p.data,
-      '{titleDeed}',
-      to_jsonb(
-        CASE
-          WHEN COALESCE(NULLIF(trim(p.data->>'titleDeed'), ''), '') = ''
-            THEN substring(p.data->>'addr_line' from 'โฉนดเลขที่\s*[0-9]+')
-          ELSE
-            trim(p.data->>'titleDeed') || ' · ' || substring(p.data->>'addr_line' from 'โฉนดเลขที่\s*[0-9]+')
-        END
-      ),
-      true
-    ),
+    p.data,
     '{addr_line}',
-    to_jsonb(trim(regexp_replace(p.data->>'addr_line', 'โฉนดเลขที่\s*[0-9]+', '', 'g')))
+    to_jsonb(trim(regexp_replace(coalesce(p.data->>'addr_line',''), 'โฉนดเลขที่[^,]*', '', 'g')))
   ),
   updated_at = now()
-WHERE p.data->>'addr_line' ~ 'โฉนดเลขที่\s*[0-9]+';
+WHERE p.data->>'addr_line' ~ 'โฉนดเลขที่';
 
--- Step 2: Cascade — rebuild assembled "address" string so card view shows clean address
+-- Step 2: Rebuild assembled address (so card view doesn't include โฉนด text)
 UPDATE properties p
 SET
   data = jsonb_set(
@@ -40,30 +33,22 @@ SET
     to_jsonb(
       trim(
         concat_ws(' ',
-          NULLIF(trim(p.data->>'addr_line'), ''),
-          CASE WHEN NULLIF(trim(p.data->>'addr_subdistrict'), '') IS NOT NULL
+          NULLIF(trim(coalesce(p.data->>'addr_line','')), ''),
+          CASE WHEN NULLIF(trim(coalesce(p.data->>'addr_subdistrict','')), '') IS NOT NULL
             THEN 'ต.' || trim(p.data->>'addr_subdistrict') END,
-          CASE WHEN NULLIF(trim(p.data->>'addr_district'), '') IS NOT NULL
+          CASE WHEN NULLIF(trim(coalesce(p.data->>'addr_district','')), '') IS NOT NULL
             THEN 'อ.' || trim(p.data->>'addr_district') END,
-          CASE WHEN NULLIF(trim(p.data->>'addr_province'), '') IS NOT NULL
+          CASE WHEN NULLIF(trim(coalesce(p.data->>'addr_province','')), '') IS NOT NULL
             THEN 'จ.' || trim(p.data->>'addr_province') END,
-          NULLIF(trim(p.data->>'addr_postal'), '')
+          NULLIF(trim(coalesce(p.data->>'addr_postal','')), '')
         )
       )
-    ),
-    true
+    )
   ),
   updated_at = now()
-WHERE p.data->>'addr_line' IS NOT NULL
-  AND p.data->>'address' IS NOT NULL;
+WHERE p.data ? 'addr_line';
 
--- Step 3: Delete dummy "test" property created during initial dev
+-- Step 3: Delete dummy "test" property
 DELETE FROM properties
-WHERE (
-    lower(trim(coalesce(data->>'name',''))) IN ('test', 'tests')
-    AND lower(trim(coalesce(data->>'location',''))) IN ('test', 'tests', '')
-  )
-   OR (
-    lower(trim(coalesce(data->>'name',''))) = 'test'
-    AND lower(trim(coalesce(data->>'location',''))) = 'test'
-  );
+WHERE lower(trim(coalesce(data->>'name',''))) = 'test'
+  AND lower(trim(coalesce(data->>'location',''))) = 'test';
