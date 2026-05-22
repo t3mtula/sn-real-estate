@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import type { BankAccountFormValues } from '@/features/bank-accounts/schema'
 import type { BankAccountData } from '@/features/bank-accounts/types'
@@ -60,6 +61,13 @@ export function useCreateBankAccount() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'bank_accounts',
+        entity_id: id,
+        description: `เพิ่มบัญชีธนาคาร ${managed.bank} · ${managed.acctNo}`,
+        after: { bank: managed.bank, acctNo: managed.acctNo, ownerLandlordName: managed.ownerLandlordName },
+      })
       return { id, pid }
     },
     onSuccess: () => {
@@ -97,6 +105,14 @@ export function useUpdateBankAccount(id: string) {
       if (!updated || updated.length === 0) {
         throw new Error('ไม่พบบัญชีธนาคาร หรือไม่มีสิทธิ์แก้ไข (RLS)')
       }
+      void logActivity({
+        action: 'update',
+        entity: 'bank_accounts',
+        entity_id: id,
+        description: `แก้บัญชีธนาคาร ${merged.bank} · ${merged.acctNo}`,
+        before: { acctNo: existingData.acctNo, bank: existingData.bank },
+        after: { acctNo: merged.acctNo, bank: merged.bank },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bank_accounts'] })
@@ -113,8 +129,21 @@ export function useDeleteBankAccount() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      const d = existing?.data as BankAccountData | undefined
+      void logActivity({
+        action: 'delete',
+        entity: 'bank_accounts',
+        entity_id: id,
+        description: `ลบบัญชีธนาคาร ${d?.bank ?? ''} · ${d?.acctNo ?? '#' + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bank_accounts'] })

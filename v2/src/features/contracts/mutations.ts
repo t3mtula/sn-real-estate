@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import { parseBE } from '@/lib/thai'
 import { assembleAddress } from '@/lib/thai-address'
@@ -124,6 +125,13 @@ export function useCreateContract() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'contracts',
+        entity_id: id,
+        description: `สร้างสัญญา ${managed.no ?? '#' + id} · ${managed.tenant ?? '—'}`,
+        after: { no: managed.no, tenant: managed.tenant, start: managed.start, end: managed.end },
+      })
       return { id, pid }
     },
     onSuccess: () => {
@@ -205,6 +213,14 @@ export function useUpdateContract(id: string) {
       if (!updated || updated.length === 0) {
         throw new Error('ไม่พบสัญญา หรือไม่มีสิทธิ์แก้ไข (RLS)')
       }
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `แก้สัญญา ${merged.no ?? '#' + id} · ${merged.tenant ?? '—'}`,
+        before: { no: existingData.no, rate: existingData.rate, start: existingData.start, end: existingData.end },
+        after: { no: merged.no, rate: merged.rate, start: merged.start, end: merged.end },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
@@ -248,6 +264,13 @@ export function useCancelContract(id: string) {
         originalEnd: c.originalEnd ?? c.end,
         end: cancelDate,
       })
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `ยกเลิกสัญญา ${c.no ?? '#' + id} · เหตุผล: ${reason?.trim() || '(ไม่ระบุ)'}`,
+        after: { cancelled: true, cancelledDate: cancelDate, cancelledReason: reason },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
@@ -279,6 +302,13 @@ export function useRestoreContract(id: string) {
         cancelledReason: undefined,
         originalEnd: undefined,
         end: c.originalEnd ?? c.end,
+      })
+      void logActivity({
+        action: 'restore',
+        entity: 'contracts',
+        entity_id: id,
+        description: `คืนสภาพสัญญา ${c.no ?? '#' + id}`,
+        after: { cancelled: false, end: c.originalEnd ?? c.end },
       })
     },
     onSuccess: () => {

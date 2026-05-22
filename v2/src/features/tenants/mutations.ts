@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import type { TenantFormValues } from '@/features/tenants/schema'
 import type { TenantData } from '@/features/tenants/types'
@@ -80,6 +81,13 @@ export function useCreateTenant() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'tenants',
+        entity_id: id,
+        description: `เพิ่มผู้เช่า ${managed.name}`,
+        after: { name: managed.name, taxId: managed.taxId },
+      })
       return { id, pid }
     },
     onSuccess: () => {
@@ -123,6 +131,14 @@ export function useUpdateTenant(id: string) {
       if (!updated || updated.length === 0) {
         throw new Error('ไม่พบผู้เช่า หรือไม่มีสิทธิ์แก้ไข (RLS)')
       }
+      void logActivity({
+        action: 'update',
+        entity: 'tenants',
+        entity_id: id,
+        description: `แก้ผู้เช่า ${merged.name}`,
+        before: { name: existingData.name, phone: existingData.phone },
+        after: { name: merged.name, phone: merged.phone },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] })
@@ -139,8 +155,20 @@ export function useDeleteTenant() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      void logActivity({
+        action: 'delete',
+        entity: 'tenants',
+        entity_id: id,
+        description: `ลบผู้เช่า ${(existing?.data as TenantData | undefined)?.name ?? '#' + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tenants'] })

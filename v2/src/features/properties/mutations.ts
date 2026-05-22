@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { logActivity } from "@/lib/audit-log"
 import { supabase } from "@/lib/supabase"
 import type { PropertyFormValues } from "@/features/properties/schema"
 import type { PropertyData } from "@/features/properties/types"
@@ -88,6 +89,13 @@ export function useCreateProperty() {
         .select("id")
         .single()
       if (error) throw error
+      void logActivity({
+        action: "create",
+        entity: "properties",
+        entity_id: id,
+        description: `เพิ่มทรัพย์สิน ${managed.name}`,
+        after: { name: managed.name, type: managed.type, province: managed.province },
+      })
       return { id, pid }
     },
     onSuccess: () => {
@@ -104,8 +112,20 @@ export function useDeleteProperty() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select("data")
+        .eq("id", id)
+        .maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq("id", id)
       if (error) throw error
+      void logActivity({
+        action: "delete",
+        entity: "properties",
+        entity_id: id,
+        description: `ลบทรัพย์สิน ${(existing?.data as PropertyData | undefined)?.name ?? "#" + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["properties"] })
@@ -147,6 +167,14 @@ export function useUpdateProperty(id: string) {
       if (!updated || updated.length === 0) {
         throw new Error("ไม่พบทรัพย์สิน หรือไม่มีสิทธิ์แก้ไข (RLS)")
       }
+      void logActivity({
+        action: "update",
+        entity: "properties",
+        entity_id: id,
+        description: `แก้ทรัพย์สิน ${merged.name}`,
+        before: { name: existingData.name, province: existingData.province },
+        after: { name: merged.name, province: merged.province },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["properties"] })

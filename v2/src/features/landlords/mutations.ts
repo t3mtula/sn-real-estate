@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import type { LandlordFormValues } from '@/features/landlords/schema'
 import type { LandlordData } from '@/features/landlords/types'
@@ -85,6 +86,13 @@ export function useCreateLandlord() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'landlords',
+        entity_id: id,
+        description: `เพิ่มผู้ให้เช่า ${managed.name}`,
+        after: { name: managed.name, taxId: managed.taxId },
+      })
       return { id, pid }
     },
     onSuccess: () => {
@@ -125,6 +133,14 @@ export function useUpdateLandlord(id: string) {
       if (!updated || updated.length === 0) {
         throw new Error('ไม่พบผู้ให้เช่า หรือไม่มีสิทธิ์แก้ไข (RLS)')
       }
+      void logActivity({
+        action: 'update',
+        entity: 'landlords',
+        entity_id: id,
+        description: `แก้ผู้ให้เช่า ${merged.name}`,
+        before: { name: existingData.name },
+        after: { name: merged.name },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['landlords'] })
@@ -141,8 +157,20 @@ export function useDeleteLandlord() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      void logActivity({
+        action: 'delete',
+        entity: 'landlords',
+        entity_id: id,
+        description: `ลบผู้ให้เช่า ${(existing?.data as LandlordData | undefined)?.name ?? '#' + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['landlords'] })
