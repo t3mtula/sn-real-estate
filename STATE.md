@@ -3,7 +3,50 @@
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- (ว่าง — เพิ่งจบ Phase 1B-3b Property Owner + migration apply (Tem run SQL ผ่าน Supabase dashboard) · verify บน production จริง: นายสมบัติ พิษณุไวศยวาท มี 7 ทรัพย์สิน + 3 บัญชี + 7 สัญญาขึ้นครบใน landlord detail · ใช้งานได้)
+- (ว่าง — เพิ่งจบ Phase 1B-3d-1 Invoices baseline + Audit Phase A (15 findings) deploy แล้ว · รอ Tem confirm phase ต่อไป)
+
+## 📋 Port v1 → v2 Roadmap (Tem 22 พ.ค. หลัง audit)
+
+**กฎ Tem:** ทุก function v1 ต้อง port มา v2 · แต่ก่อน port ต้อง design ใหม่ให้ดีกว่า · ไม่ลอก v1 ตรงๆ แบบโง่ๆ · ทุก modal/overlay ต้องเปลี่ยนเป็น page route (no overlay rule)
+
+**Coverage v2 vs v1 ตอนนี้ ≈ 30-35%** (audit agent run 22 พ.ค. · เห็นทั้ง 22 modules)
+
+### Sprint หน้า (must-have ก่อน v1 retire)
+- **3d-2** Payments + Reconciliation core (รับเงิน · slip · SlipOK · QR PromptPay · ใบเสร็จ · ค้างชำระข้ามเดือน) — port modules/19-invoices.js · ลูกน้องใช้ทุกวัน — **task #2**
+- **3d-3** Invoice ops ครบ (generate รายเดือนทั้งระบบ · void · audit log viewer · monthly summary) — task #7
+- **3d-4** Dashboard + แผนที่ TH + KPI (port modules/12-dashboard.js + TH_PATHS) — task #3
+- **Audit Phase B** modal → page route (ลบ/ยกเลิก/แจ้งออก/void · 8-10 routes ใหม่) — task #6
+
+### Sprint ถัดไป (ลูกน้องใช้บ่อย)
+- **3e-1** Renewals page + renew/copy contract — task #8
+- **3e-2** Meters น้ำ/ไฟ (grid + paste Excel) — task #9
+- **3g-1** Aging + Outstanding + Follow-up reports — task #12
+- **3g-2** Excel import + export — task #13
+- **3h-1** Activity log viewer (audit_log ม data อยู่แล้ว) — task #14
+- **3h-2** Notification engine + LINE Notify — task #15
+- **3h-5** BE Date picker (ปัจจุบันแสดง พ.ศ. แต่ picker ยัง AD) — task #18
+
+### Backlog (long-tail)
+- 3f-1 คืนเงินประกัน · 3f-2 ตรวจรับคืนทรัพย์ — task #10, #11
+- 3h-3 Template editor (clause สัญญา) — task #16
+- 3h-4 Batch operations (print/sign/generate multiple) — task #17
+- 3i Print system ครบ (invoice/receipt/deposit/inspection PDF) — task #19
+- 3j Sublease chain UI (parent_contract_id) — task #20
+- 3l Address inline-edit + property images (Supabase Storage) — task #22
+- 3k Pipeline Kanban — ⚠️ ขอ confirm Tem ก่อนทำ — task #21
+
+### Skip
+- Auto-backup IDB (Supabase backup เอง)
+- Data fix tool (v2 schema เคร่งจาก zod)
+- Onboarding tour
+- PIN login (Google OAuth แทน)
+
+### Working principle (task #23 · apply ทุก task)
+1. อ่าน v1 module ที่เกี่ยวข้องทั้งไฟล์
+2. List edge case + business rule v1 ที่ implicit
+3. เทียบกับ Tem rule (no overlay · page-based · ไทย · ลูกน้องใช้ทุกวัน)
+4. Propose v2 design ที่ดีกว่า (ไม่ลอก 1:1 · ปรับ flow ให้ shorter/clearer)
+5. ขอ Tem confirm ก่อน implement
 
 ## ⏳ งานค้าง / Next
 - **🐛 v2 Mobile Chrome iOS bug — `/tenants` + `/properties` + `/landlords` แสดง 0/0 ราย** (PC desktop ใช้ได้ปกติ) · 2026-05-22 พบครั้งแรก · iPhone Chrome (CriOS) · Tem login Google ผ่าน · API logs ตอบ HTTP 200 · เดา: supabase-js v2 session restore ไม่ทำงานบน iOS Chrome (มี [Lesson Hunza](https://www.notion.so/366fdba535ca81218a09f29d7e7cd4e1) · workaround = wrap supabase.from() ด้วย direct fetch + Bearer token จาก onAuthStateChange) · **Tem ผ่านได้เพราะใช้ PC เป็นหลัก · debug รอบหน้า**
