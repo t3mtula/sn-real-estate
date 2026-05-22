@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { BankLogo } from '@/components/yonghua/bank-logo'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -230,9 +231,9 @@ function Content({
               <ArrowLeft className='size-4' />
             </Link>
           </Button>
+          <BankLogo name={data.bank} size='lg' className='mt-0.5' />
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
-              <Landmark className='size-5 text-muted-foreground' />
               <h1 className='text-2xl font-semibold tracking-tight'>
                 {data.bank || '(ไม่มีชื่อธนาคาร)'}
               </h1>

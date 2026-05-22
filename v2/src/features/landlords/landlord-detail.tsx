@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { BankLogo } from '@/components/yonghua/bank-logo'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -440,15 +441,18 @@ function Content({
                       key={ba.id}
                       className='grid gap-2 py-3 sm:grid-cols-[1fr_120px_180px_1fr_auto] sm:items-center sm:gap-4'
                     >
-                      <div>
-                        <p className='text-xs text-muted-foreground'>ธนาคาร</p>
-                        <Link
-                          to='/bank-accounts/$id'
-                          params={{ id: ba.id }}
-                          className='text-sm font-medium hover:underline'
-                        >
-                          {b.bank || '—'}
-                        </Link>
+                      <div className='flex items-center gap-2'>
+                        <BankLogo name={b.bank} size='md' />
+                        <div className='min-w-0'>
+                          <p className='text-xs text-muted-foreground'>ธนาคาร</p>
+                          <Link
+                            to='/bank-accounts/$id'
+                            params={{ id: ba.id }}
+                            className='block truncate text-sm font-medium hover:underline'
+                          >
+                            {b.bank || '—'}
+                          </Link>
+                        </div>
                       </div>
                       <div>
                         <p className='text-xs text-muted-foreground'>สาขา</p>

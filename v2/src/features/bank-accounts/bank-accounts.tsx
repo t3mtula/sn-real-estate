@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Landmark, Plus, Search } from 'lucide-react'
+import { BankLogo } from '@/components/yonghua/bank-logo'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -39,47 +40,6 @@ import { useBankAccounts } from '@/features/bank-accounts/queries'
 import type { BankAccount } from '@/features/bank-accounts/types'
 import { cn } from '@/lib/utils'
 
-/**
- * Bank brand color map — bank.bank แต่ละธนาคารใช้ visual ต่างกันใน list
- * เพื่อกัน visual noise (icon ทุก row identical)
- */
-const BANK_VISUALS: Record<
-  string,
-  { color: string; bg: string; abbr: string }
-> = {
-  'ธ.กรุงเทพ': { color: '#1A3168', bg: '#1A316820', abbr: 'BBL' },
-  'ธ.กสิกรไทย': { color: '#138F2D', bg: '#138F2D20', abbr: 'KBANK' },
-  'ธ.ไทยพาณิชย์': { color: '#4E2A84', bg: '#4E2A8420', abbr: 'SCB' },
-  'ธ.กรุงไทย': { color: '#00A0E8', bg: '#00A0E820', abbr: 'KTB' },
-  'ธ.กรุงศรีอยุธยา': { color: '#FEC10D', bg: '#FEC10D20', abbr: 'BAY' },
-  'ธ.ทหารไทยธนชาต': { color: '#FE5000', bg: '#FE500020', abbr: 'TTB' },
-  'ธ.ออมสิน': { color: '#EB1379', bg: '#EB137920', abbr: 'GSB' },
-  'ธ.อิสลามแห่งประเทศไทย': { color: '#127E40', bg: '#127E4020', abbr: 'IBANK' },
-  'ธ.เพื่อการเกษตรและสหกรณ์การเกษตร': {
-    color: '#00A95F',
-    bg: '#00A95F20',
-    abbr: 'BAAC',
-  },
-  'ธ.อาคารสงเคราะห์': { color: '#F37021', bg: '#F3702120', abbr: 'GHB' },
-  'ธ.ซีไอเอ็มบีไทย': { color: '#A41E22', bg: '#A41E2220', abbr: 'CIMB' },
-  'ธ.ยูโอบี': { color: '#005BAA', bg: '#005BAA20', abbr: 'UOB' },
-  'ธ.แลนด์ แอนด์ เฮ้าส์': { color: '#7F2779', bg: '#7F277920', abbr: 'LHBANK' },
-}
-
-function getBankVisual(name: string | undefined | null) {
-  if (!name) return null
-  const trimmed = name.trim()
-  if (!trimmed) return null
-  if (BANK_VISUALS[trimmed]) return BANK_VISUALS[trimmed]
-  // Partial-match fallback (เผื่อสะกดต่างนิดหน่อย)
-  const hit = Object.entries(BANK_VISUALS).find(([k]) => trimmed.includes(k) || k.includes(trimmed))
-  if (hit) return hit[1]
-  // Generate stable color from name hash
-  let hash = 0
-  for (let i = 0; i < trimmed.length; i++) hash = (hash * 31 + trimmed.charCodeAt(i)) | 0
-  const hue = Math.abs(hash) % 360
-  return { color: `hsl(${hue} 60% 35%)`, bg: `hsl(${hue} 60% 90%)`, abbr: trimmed.replace(/^ธ\./, '').slice(0, 4) }
-}
 
 export function BankAccounts() {
   const { data: rows, isLoading, error } = useBankAccounts()
@@ -111,20 +71,9 @@ export function BankAccounts() {
         ),
         cell: ({ row }) => {
           const b = row.original.data
-          const visual = getBankVisual(b.bank)
           return (
             <div className='flex items-start gap-2'>
-              {visual ? (
-                <span
-                  className='mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold tabular-nums'
-                  style={{ color: visual.color, backgroundColor: visual.bg }}
-                  title={b.bank ?? ''}
-                >
-                  {visual.abbr}
-                </span>
-              ) : (
-                <Landmark className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
-              )}
+              <BankLogo name={b.bank} size='md' className='mt-0.5' />
               <div className='flex min-w-0 flex-col'>
                 <span
                   className='truncate font-medium'
