@@ -1,17 +1,12 @@
 import type { TDocumentDefinitions } from 'pdfmake/interfaces'
-import { SARABUN_BOLD_VFS } from './sarabun-bold-vfs'
 
 /**
- * pdfMake instance with Thai fonts (Sarabun/Kanit/Prompt) · lazy-loaded
+ * pdfMake instance — DEBUG VARIANT
  *
- * Lazy load = ไม่กิน main bundle · เปิด chunk เฉพาะตอนกดปริ้น
- *
- * Usage:
- *   await downloadPdf(doc, 'contract.pdf')
- *   await openPdf(doc)            // เปิดใน tab ใหม่
- *   const blob = await getPdfBlob(doc)  // upload · email · etc.
- *
- * doc definition ตัวอย่างดู src/lib/pdf/examples/
+ * Stripped ทุก Thai font registration · ใช้ Helvetica built-in only.
+ * เพื่อ confirm ว่า pdfmake pipeline + getBlob callback ทำงาน
+ * ถ้าตอนนี้ generate ออก → ปัญหาคือ addthaifont registration
+ * ถ้ายัง hang → pdfmake library/Vite chunk เสีย
  */
 
 // biome-ignore lint/suspicious/noExplicitAny: pdfmake instance type ไม่ครบใน @types
@@ -21,125 +16,40 @@ async function loadPdfMake() {
   if (pdfMakePromise) return pdfMakePromise
 
   pdfMakePromise = (async () => {
-    const [pdfMakeModule, vfsModule] = await Promise.all([
-      import('pdfmake/build/pdfmake'),
-      // @ts-expect-error · vfs ไม่มี types
-      import('addthaifont-pdfmake/build/vfs_fonts'),
-    ])
+    const pdfMakeModule = await import('pdfmake/build/pdfmake')
     // biome-ignore lint/suspicious/noExplicitAny: pdfmake's runtime shape differs from typed
     const pdfMake = (pdfMakeModule as any).default ?? pdfMakeModule
-
-    // VFS = virtual file system ที่ pdfmake ใช้อ่าน font files
-    // addthaifont-pdfmake@0.1.3-alpha ใช้ CJS `module.exports = vfs` (vfs เป็น
-    // font dict ตรงๆ · ไม่ได้ห่อใน `pdfMake.vfs`) → Vite ESM interop แปลงเป็น
-    // `{ default: <vfs dict> }`. ลอง shape ทั้ง 3 แบบ + fallback ว่าง.
-    //
-    // นอกจากนี้ package ตัวนี้ขาด Sarabun-Bold + BoldItalic ดังนั้นต้อง merge
-    // SARABUN_BOLD_VFS (base64 จาก cadsondemak SIL OFL) เข้าไปเสมอ.
-    // biome-ignore lint/suspicious/noExplicitAny: vfsModule's runtime shape varies
-    const m = vfsModule as any
-    const rawDefault = m.default
-    const isFontDict = (o: unknown): o is Record<string, string> =>
-      !!o &&
-      typeof o === 'object' &&
-      Object.values(o as Record<string, unknown>).every((v) => typeof v === 'string')
-    const baseVfs: Record<string, string> =
-      // shape A · UMD: { pdfMake: { vfs: {...} } }
-      rawDefault?.pdfMake?.vfs ||
-      m.pdfMake?.vfs ||
-      // shape B · CJS direct: default is the dict
-      (isFontDict(rawDefault) ? rawDefault : {}) ||
-      // shape C · ESM namespace exports the dict at top level (no .default)
-      (isFontDict(m) ? m : {}) ||
-      {}
-    pdfMake.vfs = { ...baseVfs, ...SARABUN_BOLD_VFS }
-
-    pdfMake.fonts = FONTS_BUNDLED
-
+    // No vfs, no fonts assignment — pdfmake should fall back to built-in
+    // Roboto/Helvetica from its own internal vfs.
     return pdfMake
   })()
 
   return pdfMakePromise
 }
 
-/**
- * Helper · merge defaults ให้ใช้ Sarabun + A4 + page margin ปกติ
- *
- * NOTE: pdfmake snapshots its font dict on first createPdf call (not on
- * subsequent .fonts assignment), so we ALSO pass `fonts` through the doc
- * definition itself. Otherwise pdfmake keeps resolving Sarabun bold →
- * 'Sarabun-Bold.ttf' (its built-in default) even after we override.
- */
-const FONTS_BUNDLED = {
-  Sarabun: {
-    normal: 'Sarabun-Regular.ttf',
-    bold: 'Sarabun-Regular.ttf',
-    italics: 'Sarabun-Italic.ttf',
-    bolditalics: 'Sarabun-Italic.ttf',
-  },
-  Kanit: {
-    normal: 'Kanit-Regular.ttf',
-    bold: 'Kanit-Regular.ttf',
-    italics: 'Kanit-Italic.ttf',
-    bolditalics: 'Kanit-Italic.ttf',
-  },
-  Prompt: {
-    normal: 'Prompt-Regular.ttf',
-    bold: 'Prompt-Regular.ttf',
-    italics: 'Prompt-Italic.ttf',
-    bolditalics: 'Prompt-Italic.ttf',
-  },
-}
-
 function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
-  const base: TDocumentDefinitions = {
+  return {
     pageSize: doc.pageSize ?? 'A4',
     pageMargins: doc.pageMargins ?? [40, 60, 40, 60],
-    defaultStyle: {
-      font: 'Sarabun',
-      fontSize: 12,
-      ...doc.defaultStyle,
-    },
     ...doc,
   }
-  // Inject `fonts` at runtime (the TDocumentDefinitions type doesn't
-  // include the optional `fonts` field, but pdfmake reads it.)
-  // biome-ignore lint/suspicious/noExplicitAny: pdfmake fonts type narrow
-  ;(base as any).fonts = { ...(doc as any).fonts, ...FONTS_BUNDLED }
-  return base
 }
 
-/**
- * createPdf · low-level · ใช้กับ pdf.download() / open() / getBlob() เอง
- */
 export async function createPdf(doc: TDocumentDefinitions) {
   const pdfMake = await loadPdfMake()
   return pdfMake.createPdf(withDefaults(doc))
 }
 
-/**
- * Download PDF เป็น file
- */
 export async function downloadPdf(doc: TDocumentDefinitions, filename: string) {
   const pdf = await createPdf(doc)
   pdf.download(filename.endsWith('.pdf') ? filename : `${filename}.pdf`)
 }
 
-/**
- * Open PDF ใน tab ใหม่ (browser PDF viewer)
- */
 export async function openPdf(doc: TDocumentDefinitions) {
   const pdf = await createPdf(doc)
   pdf.open()
 }
 
-/**
- * Get PDF as Blob · ใช้ upload Supabase Storage · email attach · ฯลฯ
- *
- * Wrapped in a timeout because pdfmake's measure loop on large Thai docs
- * sometimes hangs without calling the callback. Without the timeout the
- * promise stays pending forever and the UI shows "กำลังสร้าง..." indefinitely.
- */
 export async function getPdfBlob(
   doc: TDocumentDefinitions,
   timeoutMs = 30_000,
@@ -169,9 +79,6 @@ export async function getPdfBlob(
   })
 }
 
-/**
- * Get PDF as base64 string · บางครั้งใช้กับ API
- */
 export async function getPdfBase64(doc: TDocumentDefinitions): Promise<string> {
   const pdf = await createPdf(doc)
   return new Promise<string>((resolve) => {
