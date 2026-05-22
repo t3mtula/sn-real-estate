@@ -9,8 +9,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Plus, Receipt, Search, Sparkles } from 'lucide-react'
+import { Download, Plus, Receipt, Search, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useExportCSV } from '@/hooks/use-csv'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -243,6 +244,33 @@ export function Invoices() {
   const totalRows = invoices?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
   const [genOpen, setGenOpen] = useState(false)
+  const { exportXLSX } = useExportCSV()
+
+  function handleExport() {
+    const visibleRows = table.getRowModel().rows.map((r) => {
+      const inv = r.original
+      const meta = getStatusMeta(inv._status)
+      return {
+        เลขที่: getInvoiceDisplay(inv),
+        เดือน: formatMonth(inv.data?.month),
+        วันที่ออก: inv.data?.date ?? '',
+        วันครบกำหนด: inv.data?.dueDate ?? '',
+        ผู้เช่า: inv.data?.tenant ?? '',
+        ผู้ให้เช่า: inv.data?.landlord ?? '',
+        ทรัพย์สิน: inv.data?.property ?? '',
+        ยอด: Number(inv.data?.total) || 0,
+        ชำระแล้ว: Number(inv.data?.paidAmount) || 0,
+        คงเหลือ: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
+        สถานะ: meta.label,
+        เกินกำหนด: inv._overdue > 0 ? inv._overdue : '',
+      }
+    })
+    const month = new Date()
+    const stamp = `${month.getFullYear()}${String(month.getMonth() + 1).padStart(2, '0')}${String(month.getDate()).padStart(2, '0')}`
+    exportXLSX(visibleRows, `invoices-${stamp}.xlsx`, {
+      sheetName: 'ใบแจ้งหนี้',
+    })
+  }
 
   return (
     <>
@@ -264,6 +292,14 @@ export function Invoices() {
             </p>
           </div>
           <div className='flex flex-wrap items-center gap-2'>
+            <Button
+              variant='outline'
+              onClick={handleExport}
+              disabled={filteredRows === 0}
+            >
+              <Download className='size-4' />
+              Export Excel
+            </Button>
             <Button variant='outline' onClick={() => setGenOpen(true)}>
               <Sparkles className='size-4' />
               สร้างรายเดือน

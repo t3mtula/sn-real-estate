@@ -9,8 +9,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { FileText, Plus, Search } from 'lucide-react'
+import { Download, FileText, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useExportCSV } from '@/hooks/use-csv'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -238,6 +239,31 @@ export function Contracts() {
 
   const totalRows = contracts?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+  const { exportXLSX } = useExportCSV()
+
+  function handleExport() {
+    const visible = table.getRowModel().rows.map((r) => {
+      const c = r.original
+      const d = c.data
+      const meta = getStatusMeta(getContractStatus(d))
+      return {
+        เลขที่: getContractDisplay(c),
+        ผู้เช่า: d?.tenant ?? '',
+        ผู้ให้เช่า: d?.landlord ?? '',
+        ทรัพย์สิน: String(d?.property ?? ''),
+        เริ่ม: d?.start ?? '',
+        สิ้นสุด: d?.end ?? '',
+        ระยะ: d?.dur ?? '',
+        ค่าเช่า: Number(d?.rate) || 0,
+        มัดจำ: Number(d?.deposit) || 0,
+        การชำระ: d?.payment ?? '',
+        สถานะ: meta.label,
+      }
+    })
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    exportXLSX(visible, `contracts-${stamp}.xlsx`, { sheetName: 'สัญญาเช่า' })
+  }
 
   return (
     <>
@@ -258,12 +284,22 @@ export function Contracts() {
                 : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ใบ`}
             </p>
           </div>
-          <Button asChild>
-            <Link to='/contracts/new'>
-              <Plus className='size-4' />
-              สร้างสัญญา
-            </Link>
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button
+              variant='outline'
+              onClick={handleExport}
+              disabled={filteredRows === 0}
+            >
+              <Download className='size-4' />
+              Export Excel
+            </Button>
+            <Button asChild>
+              <Link to='/contracts/new'>
+                <Plus className='size-4' />
+                สร้างสัญญา
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className='flex flex-wrap items-center gap-3'>
