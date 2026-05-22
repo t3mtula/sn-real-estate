@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { useLandlords } from "@/features/landlords/queries"
 import { ThaiAddressInput } from "@/features/properties/components/thai-address-input"
 import { uploadPropertyImage } from "@/features/properties/mutations"
 import {
@@ -56,9 +57,12 @@ export function PropertyForm({
   const navigate = useNavigate()
   const [uploading, setUploading] = useState(false)
 
+  const { data: landlords } = useLandlords()
+
   const images = form.watch("images")
   const multiTenant = form.watch("multiTenant")
   const type = form.watch("type")
+  const ownerLandlordId = form.watch("ownerLandlordId")
   const addrLine = form.watch("addrLine")
   const addrSubdistrict = form.watch("addrSubdistrict")
   const addrDistrict = form.watch("addrDistrict")
@@ -228,11 +232,38 @@ export function PropertyForm({
         </div>
 
         <div>
-          <Label htmlFor="owner">เจ้าของ</Label>
+          <Label htmlFor="ownerLandlordId">ผู้ให้เช่า (เจ้าของในระบบ)</Label>
+          <Select
+            value={ownerLandlordId || "none"}
+            onValueChange={(v) =>
+              form.setValue("ownerLandlordId", v === "none" ? "" : v, {
+                shouldDirty: true,
+              })
+            }
+          >
+            <SelectTrigger id="ownerLandlordId">
+              <SelectValue placeholder="— ไม่ระบุ —" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">— ไม่ระบุ —</SelectItem>
+              {(landlords ?? []).map((l) => (
+                <SelectItem key={l.id} value={l.id}>
+                  {l.data?.name ?? "(ไม่มีชื่อ)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            ผู้ให้เช่าตามสัญญาเลือกได้อิสระ · field นี้คือเจ้าของจริงของทรัพย์
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="owner">เจ้าของอื่น (กรณีไม่อยู่ในระบบ)</Label>
           <Input
             id="owner"
             {...form.register("owner")}
-            placeholder="ชื่อบุคคล / นิติบุคคล"
+            placeholder="เช่น บุคคลภายนอก · เก่า · ไม่ได้สร้างเป็น landlord"
           />
         </div>
 

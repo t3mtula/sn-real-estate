@@ -42,6 +42,7 @@ function valuesToManagedFields(values: PropertyFormValues, pid: number) {
     titleDeed: values.titleDeed ?? "",
     area: values.area ?? "",
     owner: values.owner ?? "",
+    ownerLandlordId: values.ownerLandlordId ?? "",
     multiTenant: values.multiTenant,
     images: values.images,
   }

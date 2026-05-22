@@ -27,6 +27,8 @@ export const propertyFormSchema = z.object({
   titleDeed: z.string().trim().max(500),
   area: z.string().trim().max(200),
   owner: z.string().trim().max(200),
+  /** Link ไป landlords.id · '' = ไม่ระบุ (เก็บเป็น free-text owner แทน) */
+  ownerLandlordId: z.string().trim().max(50),
   multiTenant: z.boolean(),
   images: z.array(z.string().url().or(z.string().startsWith('data:'))),
 })
@@ -45,6 +47,7 @@ export const PROPERTY_FORM_DEFAULTS: PropertyFormValues = {
   titleDeed: '',
   area: '',
   owner: '',
+  ownerLandlordId: '',
   multiTenant: false,
   images: [],
 }

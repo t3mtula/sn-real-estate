@@ -35,8 +35,14 @@ export type PropertyData = {
   titleDeed?: string;
   /** เนื้อที่ free-text เช่น "2 ไร่ 1 งาน 50 ตร.วา" */
   area?: string;
-  /** เจ้าของ */
+  /** เจ้าของ (free-text · legacy v1 · ใช้กรณี landlord ไม่มีในระบบ หรือเจ้าของนอกระบบ) */
   owner?: string;
+  /**
+   * เจ้าของจริงในระบบ — link ไป landlords.id (text)
+   * ต่างจาก contract.data.landlord_id (ผู้ให้เช่าตามสัญญา) · รองรับ sublease chain
+   * เช่น property A: owner = ก (เจ้าของจริง) · contract #1 ก→ข (เช่าหลัก) · contract #2 ข→ค (เช่าช่วง)
+   */
+  ownerLandlordId?: string;
   /** ทรัพย์สินแบ่งได้หลายผู้เช่าพร้อมกัน (default true ถ้า type=rooftop_tower) */
   multiTenant?: boolean;
   /** Status field (legacy v1 · ตอนนี้ derive จาก contracts จริงๆ) */

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Building2,
+  Landmark,
   MapPin,
   Pencil,
   Ruler,
@@ -16,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useLandlord } from '@/features/landlords/queries'
 import { PropertyImages } from '@/features/properties/components/property-images'
 import {
   getPropertyAddressShort,
@@ -133,6 +135,7 @@ function PropertyContent({
   const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
   const province = getPropertyProvince(p)
   const address = getPropertyAddressShort(p)
+  const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)
 
   return (
     <>
@@ -192,7 +195,34 @@ function PropertyContent({
               <InfoRow icon={MapPin} label='ที่อยู่' value={address} />
             </div>
             <InfoRow icon={Ruler} label='เนื้อที่' value={p.area} />
-            <InfoRow icon={Users} label='เจ้าของ' value={p.owner} />
+            <div>
+              <div className='flex gap-3'>
+                <div className='mt-0.5'>
+                  <Landmark className='size-4 text-muted-foreground' />
+                </div>
+                <div className='min-w-0 flex-1'>
+                  <p className='text-xs uppercase tracking-wider text-muted-foreground'>
+                    ผู้ให้เช่า (เจ้าของในระบบ)
+                  </p>
+                  {ownerLandlord ? (
+                    <Link
+                      to='/landlords/$id'
+                      params={{ id: ownerLandlord.id }}
+                      className='text-sm text-primary underline-offset-4 hover:underline'
+                    >
+                      {ownerLandlord.data?.name ?? '(ไม่มีชื่อ)'}
+                    </Link>
+                  ) : (
+                    <p className='text-sm text-muted-foreground'>
+                      {p.owner?.trim() || '—'}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            {p.owner?.trim() && ownerLandlord && (
+              <InfoRow icon={Users} label='เจ้าของอื่น (หมายเหตุ)' value={p.owner} />
+            )}
             <div className='sm:col-span-2'>
               <InfoRow
                 icon={ScrollText}

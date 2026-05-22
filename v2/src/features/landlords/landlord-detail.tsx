@@ -34,6 +34,12 @@ import {
 } from '@/features/landlords/queries'
 import { useDeleteLandlord } from '@/features/landlords/mutations'
 import { useBankAccountsByOwner } from '@/features/bank-accounts/queries'
+import { getPropertyAddressShort, useProperties } from '@/features/properties/queries'
+import { PROPERTY_TYPES } from '@/features/properties/types'
+
+const PROP_TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  PROPERTY_TYPES.map((t) => [t.value, t.label]),
+)
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -76,6 +82,9 @@ export function LandlordDetail({ id }: { id: string }) {
   const { data: landlord, isLoading, error } = useLandlord(id)
   const contracts = useLandlordContracts(landlord ?? null)
   const banks = useBankAccountsByOwner(id)
+  const allProperties = useProperties()
+  const ownedProperties =
+    allProperties.data?.filter((p) => p.data?.ownerLandlordId === id) ?? []
   const del = useDeleteLandlord()
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -156,6 +165,7 @@ export function LandlordDetail({ id }: { id: string }) {
             landlord={landlord}
             contracts={contracts.data ?? []}
             banks={banks.data ?? []}
+            ownedProperties={ownedProperties}
             onDelete={handleDelete}
             deleting={del.isPending}
           />
@@ -169,12 +179,14 @@ function Content({
   landlord,
   contracts,
   banks,
+  ownedProperties,
   onDelete,
   deleting,
 }: {
   landlord: NonNullable<ReturnType<typeof useLandlord>['data']>
   contracts: Array<{ id: string; data: Record<string, unknown> }>
   banks: NonNullable<ReturnType<typeof useBankAccountsByOwner>['data']>
+  ownedProperties: NonNullable<ReturnType<typeof useProperties>['data']>
   onDelete: () => Promise<void>
   deleting: boolean
 }) {
@@ -406,6 +418,63 @@ function Content({
             </CardContent>
           </Card>
         )}
+
+        <Card className='lg:col-span-3'>
+          <CardHeader>
+            <CardTitle className='text-base'>
+              <Building2 className='-mt-0.5 mr-1 inline size-4' />
+              ทรัพย์สินที่เป็นเจ้าของ ({ownedProperties.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ownedProperties.length === 0 ? (
+              <p className='text-sm text-muted-foreground'>
+                รายนี้ยังไม่ได้ผูกเป็นเจ้าของของทรัพย์สินใด · เลือกเจ้าของในหน้าทรัพย์สิน
+              </p>
+            ) : (
+              <ul className='divide-y'>
+                {ownedProperties.map((p) => {
+                  const pd = p.data
+                  const typeLabel = pd.type
+                    ? (PROP_TYPE_LABEL[pd.type] ?? pd.type)
+                    : '—'
+                  return (
+                    <li
+                      key={p.id}
+                      className='grid gap-2 py-3 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-center sm:gap-4'
+                    >
+                      <div>
+                        <p className='text-xs text-muted-foreground'>ทรัพย์สิน</p>
+                        <Link
+                          to='/properties/$id'
+                          params={{ id: p.id }}
+                          className='text-sm font-medium hover:underline'
+                        >
+                          {pd.name?.trim() || '(ไม่มีชื่อ)'}
+                        </Link>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>ประเภท</p>
+                        <p className='text-sm'>{typeLabel}</p>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>ที่อยู่</p>
+                        <p className='truncate text-sm'>{getPropertyAddressShort(pd)}</p>
+                      </div>
+                      <div>
+                        {pd.multiTenant && (
+                          <Badge variant='outline' className='font-normal'>
+                            หลายผู้เช่า
+                          </Badge>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className='lg:col-span-3'>
           <CardHeader>

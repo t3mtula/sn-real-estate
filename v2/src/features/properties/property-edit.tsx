@@ -91,6 +91,7 @@ export function PropertyEdit({ id }: { id: string }) {
               titleDeed: p.titleDeed ?? '',
               area: p.area ?? '',
               owner: p.owner ?? '',
+              ownerLandlordId: p.ownerLandlordId ?? '',
               multiTenant: p.multiTenant === true,
               images: (p.images ?? []).filter(Boolean),
             }
