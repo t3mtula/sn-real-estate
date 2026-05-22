@@ -9,12 +9,8 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  ArrowUpDown,
-  Landmark,
-  Plus,
-  Search,
-} from 'lucide-react'
+import { Landmark, Plus, Search } from 'lucide-react'
+import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -69,15 +65,7 @@ export function BankAccounts() {
         id: 'bank',
         accessorFn: (row) => row.data?.bank ?? '',
         header: ({ column }) => (
-          <Button
-            variant='ghost'
-            size='sm'
-            className='-ml-2 h-8 px-2 hover:bg-muted/60'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            ธนาคาร + สาขา
-            <ArrowUpDown className='ml-1.5 size-3.5 text-muted-foreground/70' />
-          </Button>
+          <SortableHeader column={column}>ธนาคาร</SortableHeader>
         ),
         cell: ({ row }) => {
           const b = row.original.data
@@ -97,9 +85,21 @@ export function BankAccounts() {
         },
       },
       {
+        id: 'branch',
+        accessorFn: (row) => row.data?.branch ?? '',
+        header: ({ column }) => (
+          <SortableHeader column={column}>สาขา</SortableHeader>
+        ),
+        cell: ({ row }) => (
+          <span className='text-sm'>{row.original.data?.branch || '—'}</span>
+        ),
+      },
+      {
         id: 'acctNo',
         accessorFn: (row) => row.data?.acctNo ?? '',
-        header: 'เลขบัญชี',
+        header: ({ column }) => (
+          <SortableHeader column={column}>เลขบัญชี</SortableHeader>
+        ),
         cell: ({ row }) => (
           <span className='font-mono text-sm'>
             {row.original.data?.acctNo || '—'}
@@ -109,7 +109,9 @@ export function BankAccounts() {
       {
         id: 'accountName',
         accessorFn: (row) => row.data?.accountName ?? '',
-        header: 'ชื่อบัญชี',
+        header: ({ column }) => (
+          <SortableHeader column={column}>ชื่อบัญชี</SortableHeader>
+        ),
         cell: ({ row }) => (
           <span className='text-sm'>
             {row.original.data?.accountName || '—'}
@@ -118,8 +120,10 @@ export function BankAccounts() {
       },
       {
         id: 'owner',
-        accessorFn: (row) => row.data?.ownerLandlordId ?? '',
-        header: 'เจ้าของ',
+        accessorFn: (row) => row.data?.ownerLandlordName ?? '',
+        header: ({ column }) => (
+          <SortableHeader column={column}>ผูกกับผู้ให้เช่า</SortableHeader>
+        ),
         cell: ({ row }) => (
           <span className='text-sm'>
             {row.original.data?.ownerLandlordName || '—'}
@@ -133,7 +137,9 @@ export function BankAccounts() {
       {
         id: 'active',
         accessorFn: (row) => (row.data?.active === false ? '0' : '1'),
-        header: 'สถานะ',
+        header: ({ column }) => (
+          <SortableHeader column={column}>สถานะ</SortableHeader>
+        ),
         cell: ({ row }) => {
           const active = row.original.data?.active !== false
           return (
@@ -165,6 +171,7 @@ export function BankAccounts() {
       const b = row.original.data
       const haystack = [
         b?.bank,
+        b?.branch,
         b?.acctNo,
         b?.accountName,
         b?.label,

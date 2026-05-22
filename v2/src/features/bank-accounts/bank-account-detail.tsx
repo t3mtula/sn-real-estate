@@ -216,13 +216,14 @@ function Content({
             <CardTitle className='text-base'>ข้อมูลบัญชี</CardTitle>
           </CardHeader>
           <CardContent className='grid gap-5 sm:grid-cols-2'>
-            <InfoRow icon={Landmark} label='ธนาคาร + สาขา' value={data.bank} />
+            <InfoRow icon={Landmark} label='ธนาคาร' value={data.bank} />
+            <InfoRow icon={Landmark} label='สาขา' value={data.branch} />
             <InfoRow icon={CreditCard} label='เลขบัญชี' value={data.acctNo} />
             <InfoRow icon={UserRound} label='ชื่อบัญชี' value={data.accountName} />
             <InfoRow icon={Landmark} label='ป้ายกำกับ' value={data.label} />
             <InfoRow
               icon={UserRound}
-              label='เจ้าของบัญชี'
+              label='ผูกกับผู้ให้เช่า'
               value={data.ownerLandlordName}
             />
           </CardContent>

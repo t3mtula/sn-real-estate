@@ -29,6 +29,7 @@ function valuesToManagedFields(
   return {
     pid,
     bank: values.bank,
+    branch: values.branch ?? '',
     acctNo: values.acctNo,
     accountName: values.accountName ?? '',
     label: values.label ?? '',

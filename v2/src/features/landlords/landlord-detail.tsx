@@ -335,7 +335,7 @@ function Content({
                   return (
                     <li
                       key={ba.id}
-                      className='grid gap-2 py-3 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-center sm:gap-4'
+                      className='grid gap-2 py-3 sm:grid-cols-[1fr_120px_180px_1fr_auto] sm:items-center sm:gap-4'
                     >
                       <div>
                         <p className='text-xs text-muted-foreground'>ธนาคาร</p>
@@ -346,6 +346,10 @@ function Content({
                         >
                           {b.bank || '—'}
                         </Link>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>สาขา</p>
+                        <p className='text-sm'>{b.branch || '—'}</p>
                       </div>
                       <div>
                         <p className='text-xs text-muted-foreground'>เลขบัญชี</p>

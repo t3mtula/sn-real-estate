@@ -9,6 +9,7 @@ import { z } from 'zod'
 export const bankAccountFormSchema = z
   .object({
     bank: z.string().trim().min(1, 'ระบุชื่อธนาคาร').max(200),
+    branch: z.string().trim().max(100),
     acctNo: z.string().trim().min(1, 'ระบุเลขบัญชี').max(50),
     accountName: z.string().trim().max(200),
     label: z.string().trim().max(50),
@@ -21,6 +22,7 @@ export type BankAccountFormValues = z.infer<typeof bankAccountFormSchema>
 
 export const BANK_ACCOUNT_FORM_DEFAULTS: BankAccountFormValues = {
   bank: '',
+  branch: '',
   acctNo: '',
   accountName: '',
   label: '',

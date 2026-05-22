@@ -10,14 +10,8 @@ import {
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import {
-  ArrowUpDown,
-  Building2,
-  Landmark,
-  Plus,
-  Search,
-  UserRound,
-} from 'lucide-react'
+import { Building2, Landmark, Plus, Search, UserRound } from 'lucide-react'
+import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -132,15 +126,7 @@ export function Landlords() {
         id: 'name',
         accessorFn: (row) => getLandlordName(row.data),
         header: ({ column }) => (
-          <Button
-            variant='ghost'
-            size='sm'
-            className='-ml-2 h-8 px-2 hover:bg-muted/60'
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            ชื่อผู้ให้เช่า
-            <ArrowUpDown className='ml-1.5 size-3.5 text-muted-foreground/70' />
-          </Button>
+          <SortableHeader column={column}>ชื่อผู้ให้เช่า</SortableHeader>
         ),
         cell: ({ row }) => {
           const t = row.original.data
@@ -169,7 +155,9 @@ export function Landlords() {
       {
         id: 'partyType',
         accessorFn: (row) => row.data?.partyType ?? '',
-        header: 'ประเภท',
+        header: ({ column }) => (
+          <SortableHeader column={column}>ประเภท</SortableHeader>
+        ),
         cell: ({ row }) => (
           <Badge variant='secondary' className='font-normal'>
             {PARTY_LABEL[row.original.data?.partyType ?? ''] ?? '—'}
@@ -183,7 +171,9 @@ export function Landlords() {
       {
         id: 'taxId',
         accessorFn: (row) => row.data?.taxId ?? '',
-        header: 'เลขผู้เสียภาษี',
+        header: ({ column }) => (
+          <SortableHeader column={column}>เลขผู้เสียภาษี</SortableHeader>
+        ),
         cell: ({ row }) => {
           const tax = row.original.data?.taxId ?? ''
           if (!tax)
@@ -198,7 +188,9 @@ export function Landlords() {
       {
         id: 'banks',
         accessorFn: (row) => row._bankCount,
-        header: 'บัญชี',
+        header: ({ column }) => (
+          <SortableHeader column={column}>บัญชี</SortableHeader>
+        ),
         cell: ({ row }) => {
           const n = row.original._bankCount
           return (
@@ -212,7 +204,9 @@ export function Landlords() {
       {
         id: 'province',
         accessorFn: (row) => row.data?.addrProvince ?? '',
-        header: 'จังหวัด',
+        header: ({ column }) => (
+          <SortableHeader column={column}>จังหวัด</SortableHeader>
+        ),
         cell: ({ row }) => (
           <span className='text-sm'>
             {row.original.data?.addrProvince?.trim() || '—'}
@@ -222,7 +216,9 @@ export function Landlords() {
       {
         id: 'contracts',
         accessorFn: (row) => row._contractCount,
-        header: 'สัญญา',
+        header: ({ column }) => (
+          <SortableHeader column={column}>สัญญา</SortableHeader>
+        ),
         cell: ({ row }) => {
           const n = row.original._contractCount
           return (

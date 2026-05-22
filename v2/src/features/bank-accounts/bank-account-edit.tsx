@@ -66,6 +66,7 @@ export function BankAccountEdit({ id }: { id: string }) {
               const defaults: BankAccountFormValues = {
                 ...BANK_ACCOUNT_FORM_DEFAULTS,
                 bank: b.bank ?? '',
+                branch: b.branch ?? '',
                 acctNo: b.acctNo ?? '',
                 accountName: b.accountName ?? '',
                 label: b.label ?? '',

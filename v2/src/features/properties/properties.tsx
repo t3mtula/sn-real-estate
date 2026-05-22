@@ -10,13 +10,13 @@ import {
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowUpDown,
   Building2,
   Image as ImageIcon,
   Plus,
   Search,
   Users,
 } from 'lucide-react'
+import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -65,15 +65,7 @@ const columns: ColumnDef<Property>[] = [
     id: 'name',
     accessorFn: (row) => getPropertyName(row.data),
     header: ({ column }) => (
-      <Button
-        variant='ghost'
-        size='sm'
-        className='-ml-2 h-8 px-2 hover:bg-muted/60'
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      >
-        ชื่อทรัพย์สิน
-        <ArrowUpDown className='ml-1.5 size-3.5 text-muted-foreground/70' />
-      </Button>
+      <SortableHeader column={column}>ชื่อทรัพย์สิน</SortableHeader>
     ),
     cell: ({ row }) => {
       const p = row.original.data
@@ -90,7 +82,9 @@ const columns: ColumnDef<Property>[] = [
   {
     id: 'type',
     accessorFn: (row) => row.data?.type ?? '',
-    header: 'ประเภท',
+    header: ({ column }) => (
+      <SortableHeader column={column}>ประเภท</SortableHeader>
+    ),
     cell: ({ row }) => (
       <Badge variant='secondary' className='font-normal'>
         {typeLabel(row.original.data?.type)}
@@ -105,15 +99,7 @@ const columns: ColumnDef<Property>[] = [
     id: 'province',
     accessorFn: (row) => getPropertyProvince(row.data),
     header: ({ column }) => (
-      <Button
-        variant='ghost'
-        size='sm'
-        className='-ml-2 h-8 px-2 hover:bg-muted/60'
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      >
-        จังหวัด
-        <ArrowUpDown className='ml-1.5 size-3.5 text-muted-foreground/70' />
-      </Button>
+      <SortableHeader column={column}>จังหวัด</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className='text-sm'>{getPropertyProvince(row.original.data)}</span>
@@ -122,7 +108,9 @@ const columns: ColumnDef<Property>[] = [
   {
     id: 'area',
     accessorFn: (row) => row.data?.area ?? '',
-    header: 'เนื้อที่',
+    header: ({ column }) => (
+      <SortableHeader column={column}>เนื้อที่</SortableHeader>
+    ),
     cell: ({ row }) => (
       <span className='text-sm text-muted-foreground'>
         {row.original.data?.area ?? '—'}

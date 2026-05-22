@@ -13,8 +13,10 @@
 export type BankAccountData = {
   /** Primary key inside JSON · epoch ms */
   pid?: number
-  /** ชื่อธนาคาร + สาขา (เช่น "ธนาคารกรุงเทพ สาขาบ้านโป่ง") */
+  /** ชื่อธนาคาร (เช่น "ธนาคารกรุงเทพ") · ไม่รวมสาขา */
   bank: string
+  /** สาขา (เช่น "บ้านโป่ง") · ว่างได้ */
+  branch?: string
   /** เลขบัญชี (display value with dashes) */
   acctNo: string
   /** ชื่อบัญชี (อาจไม่ตรงกับเจ้าของบัญชี — เช่น บัญชีของกรรมการ) */

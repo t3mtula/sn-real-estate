@@ -89,19 +89,26 @@ export function BankAccountForm({
       }}
     >
       <section className='grid gap-4 sm:grid-cols-2'>
-        <div className='sm:col-span-2'>
+        <div>
           <Label htmlFor='bank'>
-            ธนาคาร + สาขา <span className='text-destructive'>*</span>
+            ธนาคาร <span className='text-destructive'>*</span>
           </Label>
           <Input
             id='bank'
             {...form.register('bank')}
-            placeholder='เช่น ธนาคารกรุงเทพ สาขาบ้านโป่ง'
+            placeholder='เช่น ธนาคารกรุงเทพ'
             aria-invalid={!!errors.bank}
           />
-          {errors.bank && (
-            <FieldError>{errors.bank.message}</FieldError>
-          )}
+          {errors.bank && <FieldError>{errors.bank.message}</FieldError>}
+        </div>
+
+        <div>
+          <Label htmlFor='branch'>สาขา</Label>
+          <Input
+            id='branch'
+            {...form.register('branch')}
+            placeholder='เช่น บ้านโป่ง'
+          />
         </div>
 
         <div>
@@ -132,15 +139,12 @@ export function BankAccountForm({
         </div>
 
         <div className='sm:col-span-2'>
-          <Label htmlFor='accountName'>ชื่อบัญชี</Label>
+          <Label htmlFor='accountName'>ชื่อบัญชี (ในสมุด)</Label>
           <Input
             id='accountName'
             {...form.register('accountName')}
-            placeholder='ชื่อตามสมุดบัญชี (อาจไม่ตรงกับเจ้าของบัญชี)'
+            placeholder='ชื่อตามสมุดบัญชี · ปรากฏในใบแจ้งหนี้ / slip'
           />
-          <p className='mt-1 text-xs text-muted-foreground'>
-            เช่น บัญชีในนามกรรมการแม้บริษัทเป็นเจ้าของบัญชี · ปรากฏใน contract
-          </p>
         </div>
       </section>
 
