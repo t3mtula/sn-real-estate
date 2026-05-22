@@ -27,6 +27,7 @@ import { Route as AuthenticatedTenantsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPropertiesIndexRouteImport } from './routes/_authenticated/properties/index'
 import { Route as AuthenticatedLandlordsIndexRouteImport } from './routes/_authenticated/landlords/index'
+import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
 import { Route as AuthenticatedBankAccountsIndexRouteImport } from './routes/_authenticated/bank-accounts/index'
 import { Route as AuthenticatedTenantsNewRouteImport } from './routes/_authenticated/tenants/new'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
@@ -40,6 +41,7 @@ import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_auth
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
+import { Route as AuthenticatedContractsIdIndexRouteImport } from './routes/_authenticated/contracts/$id/index'
 import { Route as AuthenticatedBankAccountsIdIndexRouteImport } from './routes/_authenticated/bank-accounts/$id/index'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -136,6 +138,12 @@ const AuthenticatedLandlordsIndexRoute =
     path: '/landlords/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContractsIndexRoute =
+  AuthenticatedContractsIndexRouteImport.update({
+    id: '/contracts/',
+    path: '/contracts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBankAccountsIndexRoute =
   AuthenticatedBankAccountsIndexRouteImport.update({
     id: '/bank-accounts/',
@@ -213,6 +221,12 @@ const AuthenticatedLandlordsIdIndexRoute =
     path: '/landlords/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContractsIdIndexRoute =
+  AuthenticatedContractsIdIndexRouteImport.update({
+    id: '/contracts/$id/',
+    path: '/contracts/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBankAccountsIdIndexRoute =
   AuthenticatedBankAccountsIdIndexRouteImport.update({
     id: '/bank-accounts/$id/',
@@ -244,11 +258,13 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
+  '/contracts/': typeof AuthenticatedContractsIndexRoute
   '/landlords/': typeof AuthenticatedLandlordsIndexRoute
   '/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
+  '/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
@@ -276,11 +292,13 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts': typeof AuthenticatedBankAccountsIndexRoute
+  '/contracts': typeof AuthenticatedContractsIndexRoute
   '/landlords': typeof AuthenticatedLandlordsIndexRoute
   '/properties': typeof AuthenticatedPropertiesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
   '/bank-accounts/$id': typeof AuthenticatedBankAccountsIdIndexRoute
+  '/contracts/$id': typeof AuthenticatedContractsIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
@@ -311,11 +329,13 @@ export interface FileRoutesById {
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/_authenticated/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
+  '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
   '/_authenticated/landlords/': typeof AuthenticatedLandlordsIndexRoute
   '/_authenticated/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/_authenticated/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
+  '/_authenticated/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
@@ -346,11 +366,13 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/tenants/new'
     | '/bank-accounts/'
+    | '/contracts/'
     | '/landlords/'
     | '/properties/'
     | '/settings/'
     | '/tenants/'
     | '/bank-accounts/$id/'
+    | '/contracts/$id/'
     | '/landlords/$id/'
     | '/properties/$id/'
     | '/tenants/$id/'
@@ -378,11 +400,13 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/tenants/new'
     | '/bank-accounts'
+    | '/contracts'
     | '/landlords'
     | '/properties'
     | '/settings'
     | '/tenants'
     | '/bank-accounts/$id'
+    | '/contracts/$id'
     | '/landlords/$id'
     | '/properties/$id'
     | '/tenants/$id'
@@ -412,11 +436,13 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/notifications'
     | '/_authenticated/tenants/new'
     | '/_authenticated/bank-accounts/'
+    | '/_authenticated/contracts/'
     | '/_authenticated/landlords/'
     | '/_authenticated/properties/'
     | '/_authenticated/settings/'
     | '/_authenticated/tenants/'
     | '/_authenticated/bank-accounts/$id/'
+    | '/_authenticated/contracts/$id/'
     | '/_authenticated/landlords/$id/'
     | '/_authenticated/properties/$id/'
     | '/_authenticated/tenants/$id/'
@@ -565,6 +591,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLandlordsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contracts/': {
+      id: '/_authenticated/contracts/'
+      path: '/contracts'
+      fullPath: '/contracts/'
+      preLoaderRoute: typeof AuthenticatedContractsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bank-accounts/': {
       id: '/_authenticated/bank-accounts/'
       path: '/bank-accounts'
@@ -656,6 +689,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLandlordsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contracts/$id/': {
+      id: '/_authenticated/contracts/$id/'
+      path: '/contracts/$id'
+      fullPath: '/contracts/$id/'
+      preLoaderRoute: typeof AuthenticatedContractsIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/bank-accounts/$id/': {
       id: '/_authenticated/bank-accounts/$id/'
       path: '/bank-accounts/$id'
@@ -698,10 +738,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPropertiesNewRoute: typeof AuthenticatedPropertiesNewRoute
   AuthenticatedTenantsNewRoute: typeof AuthenticatedTenantsNewRoute
   AuthenticatedBankAccountsIndexRoute: typeof AuthenticatedBankAccountsIndexRoute
+  AuthenticatedContractsIndexRoute: typeof AuthenticatedContractsIndexRoute
   AuthenticatedLandlordsIndexRoute: typeof AuthenticatedLandlordsIndexRoute
   AuthenticatedPropertiesIndexRoute: typeof AuthenticatedPropertiesIndexRoute
   AuthenticatedTenantsIndexRoute: typeof AuthenticatedTenantsIndexRoute
   AuthenticatedBankAccountsIdIndexRoute: typeof AuthenticatedBankAccountsIdIndexRoute
+  AuthenticatedContractsIdIndexRoute: typeof AuthenticatedContractsIdIndexRoute
   AuthenticatedLandlordsIdIndexRoute: typeof AuthenticatedLandlordsIdIndexRoute
   AuthenticatedPropertiesIdIndexRoute: typeof AuthenticatedPropertiesIdIndexRoute
   AuthenticatedTenantsIdIndexRoute: typeof AuthenticatedTenantsIdIndexRoute
@@ -716,10 +758,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPropertiesNewRoute: AuthenticatedPropertiesNewRoute,
   AuthenticatedTenantsNewRoute: AuthenticatedTenantsNewRoute,
   AuthenticatedBankAccountsIndexRoute: AuthenticatedBankAccountsIndexRoute,
+  AuthenticatedContractsIndexRoute: AuthenticatedContractsIndexRoute,
   AuthenticatedLandlordsIndexRoute: AuthenticatedLandlordsIndexRoute,
   AuthenticatedPropertiesIndexRoute: AuthenticatedPropertiesIndexRoute,
   AuthenticatedTenantsIndexRoute: AuthenticatedTenantsIndexRoute,
   AuthenticatedBankAccountsIdIndexRoute: AuthenticatedBankAccountsIdIndexRoute,
+  AuthenticatedContractsIdIndexRoute: AuthenticatedContractsIdIndexRoute,
   AuthenticatedLandlordsIdIndexRoute: AuthenticatedLandlordsIdIndexRoute,
   AuthenticatedPropertiesIdIndexRoute: AuthenticatedPropertiesIdIndexRoute,
   AuthenticatedTenantsIdIndexRoute: AuthenticatedTenantsIdIndexRoute,
