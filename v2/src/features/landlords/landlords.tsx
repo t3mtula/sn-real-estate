@@ -9,7 +9,8 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Building2, Landmark, Plus, Search, UserRound } from 'lucide-react'
+import { Building2, Download, Landmark, Plus, Search, UserRound } from 'lucide-react'
+import { useExportCSV } from '@/hooks/use-csv'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -272,6 +273,27 @@ export function Landlords() {
 
   const totalRows = landlords?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+  const { exportXLSX } = useExportCSV()
+
+  function handleExport() {
+    const visible = table.getRowModel().rows.map((r) => {
+      const d = r.original.data
+      return {
+        ชื่อ: d?.name ?? '',
+        ชื่อย่อ: d?.shortName ?? '',
+        ประเภท: d?.partyType === 'company' ? 'นิติบุคคล' : 'บุคคลธรรมดา',
+        เลขผู้เสียภาษี: d?.taxId ?? '',
+        เบอร์: d?.phone ?? '',
+        VAT: d?.vatRegistered ? `${d?.vatRate ?? 7}%` : '-',
+        ที่อยู่: [d?.addrLine, d?.addrSubdistrict, d?.addrDistrict, d?.addrProvince, d?.addrPostal]
+          .filter(Boolean)
+          .join(' '),
+      }
+    })
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    exportXLSX(visible, `landlords-${stamp}.xlsx`, { sheetName: 'ผู้ให้เช่า' })
+  }
 
   return (
     <>
@@ -292,12 +314,22 @@ export function Landlords() {
                 : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ราย`}
             </p>
           </div>
-          <Button asChild>
-            <Link to='/landlords/new'>
-              <Plus className='size-4' />
-              เพิ่มผู้ให้เช่า
-            </Link>
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button
+              variant='outline'
+              onClick={handleExport}
+              disabled={filteredRows === 0}
+            >
+              <Download className='size-4' />
+              Export Excel
+            </Button>
+            <Button asChild>
+              <Link to='/landlords/new'>
+                <Plus className='size-4' />
+                เพิ่มผู้ให้เช่า
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}

@@ -11,12 +11,14 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Building2,
+  Download,
   FileText,
   Image as ImageIcon,
   Plus,
   Search,
   Users,
 } from 'lucide-react'
+import { useExportCSV } from '@/hooks/use-csv'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -269,6 +271,29 @@ export function Properties() {
 
   const totalRows = properties?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+  const { exportXLSX } = useExportCSV()
+
+  function handleExport() {
+    const visible = table.getRowModel().rows.map((r) => {
+      const d = r.original.data
+      return {
+        ชื่อ: d?.name ?? '',
+        ประเภท: d?.type ?? '',
+        จังหวัด: d?.province ?? d?.addr_province ?? '',
+        ที่อยู่:
+          d?.address ??
+          [d?.addr_line, d?.addr_subdistrict, d?.addr_district, d?.addr_province, d?.addr_postal]
+            .filter(Boolean)
+            .join(' '),
+        ขนาด: d?.area ?? '',
+        เจ้าของ: d?.owner ?? '',
+        โฉนด: d?.titleDeed ?? '',
+      }
+    })
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    exportXLSX(visible, `properties-${stamp}.xlsx`, { sheetName: 'ทรัพย์สิน' })
+  }
 
   return (
     <>
@@ -289,12 +314,22 @@ export function Properties() {
                 : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} รายการ`}
             </p>
           </div>
-          <Button asChild>
-            <Link to='/properties/new'>
-              <Plus className='size-4' />
-              เพิ่มทรัพย์สิน
-            </Link>
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button
+              variant='outline'
+              onClick={handleExport}
+              disabled={filteredRows === 0}
+            >
+              <Download className='size-4' />
+              Export Excel
+            </Button>
+            <Button asChild>
+              <Link to='/properties/new'>
+                <Plus className='size-4' />
+                เพิ่มทรัพย์สิน
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
