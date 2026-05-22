@@ -3,7 +3,7 @@
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- (ว่าง — เพิ่งจบ v2 perf fix: ลบ starter cruft (5 features + 6 route groups) + ปิด devtools 2 ตัว + redirect / → /properties · ลด dev mode lag/ค้าง ตามที่ Tem feedback · ระบบลื่นขึ้น · รอ Tem hard reload เช็คใน Chrome · ถ้ายัง lag ค่อย profile devtools Performance tab)
+- (ว่าง — เพิ่งจบ Phase 1B-3b Property Owner + migration apply (Tem run SQL ผ่าน Supabase dashboard) · verify บน production จริง: นายสมบัติ พิษณุไวศยวาท มี 7 ทรัพย์สิน + 3 บัญชี + 7 สัญญาขึ้นครบใน landlord detail · ใช้งานได้)
 
 ## ⏳ งานค้าง / Next
 - **🐛 v2 Mobile Chrome iOS bug — `/tenants` + `/properties` + `/landlords` แสดง 0/0 ราย** (PC desktop ใช้ได้ปกติ) · 2026-05-22 พบครั้งแรก · iPhone Chrome (CriOS) · Tem login Google ผ่าน · API logs ตอบ HTTP 200 · เดา: supabase-js v2 session restore ไม่ทำงานบน iOS Chrome (มี [Lesson Hunza](https://www.notion.so/366fdba535ca81218a09f29d7e7cd4e1) · workaround = wrap supabase.from() ด้วย direct fetch + Bearer token จาก onAuthStateChange) · **Tem ผ่านได้เพราะใช้ PC เป็นหลัก · debug รอบหน้า**
@@ -28,16 +28,25 @@
 - 3 hardcoded prefix lists ใน html ยังไม่ unified (preexisting v1)
 - ถ้าอยากเร็วกว่านี้: แยก backups ออกจาก re_config เป็น table แยก (Phase 3)
 
+## ✅ งานที่จบในรอบล่าสุด (2026-05-22 session #5)
+1. **v2 Phase 1B-3b — Property Owner field (ownerLandlordId)**
+   - **Schema**: เพิ่ม `PropertyData.ownerLandlordId?: string` เก็บใน jsonb data field (ไม่ต้อง column ใหม่)
+   - **Form**: Select dropdown "ผู้ให้เช่า (เจ้าของในระบบ)" จาก useLandlords() · pattern เลียน bank-account-form · sentinel "none" = ไม่ระบุ · เก็บ field "เจ้าของอื่น" free-text (owner) เป็น fallback legacy
+   - **Property detail**: แสดงชื่อ owner landlord + clickable link ไป /landlords/$id · ถ้าไม่ตั้งแสดง owner free-text แทน · มี secondary row "เจ้าของอื่น (หมายเหตุ)" ถ้ามีทั้ง 2
+   - **Landlord detail**: เพิ่ม card "ทรัพย์สินที่เป็นเจ้าของ" (filter properties.data.ownerLandlordId === landlord.id) · empty state + ul list (ทรัพย์/ประเภท/ที่อยู่/multi-tenant badge)
+   - **Migration SQL** (`20260522000001_seed_property_owner_landlord.sql` · commit f52c656 fix int→bigint): seed จาก most-frequent landlord ของ active contracts · 3-fallback match (landlord_id direct / invoiceHeaderId / name) · idempotent · cast `::bigint` (v2 pid = Date.now() ~13 หลัก) · **Tem apply ผ่าน Supabase dashboard เพราะ MCP ตาย session นี้**
+   - **Verify production จริง**: นายสมบัติ พิษณุไวศยวาท (1777947942182) มี 7 ทรัพย์สิน + 3 บัญชี + 7 สัญญาขึ้นครบใน landlord-detail page · seed match ทำงาน ✓
+   - **Commit**: 1026c3e push main · CI deploy v2 · f52c656 fix migration cast
+   - **ยังไม่ทำ**: Sublease chain UI (รอ Phase 1B-3c contracts มี parent_contract_id)
+
 ## ✅ งานที่จบในรอบล่าสุด (2026-05-22 session #4)
-1. **v2 perf — ลบ yonghua-starter cruft + ปิด devtools** (Tem feedback ว่า v2 ใน Chrome รู้สึก lag/ค้าง)
-   - Root cause: TanStack file-router pre-load ทุก route ตอน boot รวม starter placeholders ที่ไม่ใช้ + Router/Query devtools auto-mount กิน main thread
-   - **ลบ features**: apps, chats, dashboard, tasks, users
-   - **ลบ routes**: _authenticated/{apps, chats, tasks, users, help-center}
-   - **routes/_authenticated/index.tsx**: rewrite จาก mount Dashboard → `beforeLoad: redirect({ to: '/properties' })`
-   - **sidebar-data.ts**: ลบ nav item "หน้าแรก" + LayoutDashboard icon (ไม่ต้อง redirect 2 ชั้นใน UI)
-   - **__root.tsx**: ลบ ReactQueryDevtools + TanStackRouterDevtools imports + dev-only block
-   - **Verify**: build pass 16.25s · routeTree.gen.ts regenerate ไม่มี ref ของ deleted routes · dev preview test: / → /properties redirect ✓ · /landlords navigate ✓ · console clean · 0 failed requests · screenshot ยืนยัน sidebar update + devtools buttons หาย
-   - **commit pending** — รอ Tem hard reload เช็คเอง
+1. **v2 perf — fix YhAuthSync re-subscribe loop + ลบ starter cruft** (Tem feedback: เปิดทิ้งไว้แป้ปนึงค้าง)
+   - **Root cause หลัก**: YhAuthSync effect dep `[auth]` + `useAuthStore()` แบบ full subscribe → ทุก setState ทำให้ `auth` ref change → effect re-run → unsub+resub Supabase listener · callback เรียก `setUser` + `setAccessToken` อีก 2 setState → leak listeners + setState loop → idle freeze
+   - **แก้**: ย้าย store access ไปอ่านใน effect body + callback ผ่าน `useAuthStore.getState()` · เปลี่ยน dep เป็น `[]` · subscribe ครั้งเดียวตอน mount
+   - **Round 1 (เสริม)**: ลบ starter cruft features (apps, chats, dashboard, tasks, users) + routes (apps, chats, tasks, users, help-center) · redirect `/` → `/properties` · ลบ "หน้าแรก" nav + LayoutDashboard icon · ปิด ReactQueryDevtools + TanStackRouterDevtools ใน __root.tsx
+   - **Verify**: build pass 17.88s · routeTree.gen.ts regen · dev preview: / → /properties redirect ✓ · /landlords navigate ✓ · console clean · 0 failed requests · screenshot ยืนยัน sidebar + devtools หาย
+   - **Commit**: 27a4af8 push main · CI auto-deploy v2 Cloudflare Pages (~2-3 นาที)
+   - **รอ Tem ทดสอบหลัง deploy** — ถ้าเปิดทิ้งไว้แล้วไม่ค้าง = root cause ถูก · ถ้ายังค้าง = profile Chrome DevTools Performance + Memory tab ต่อ
 
 ## ✅ งานที่จบในรอบล่าสุด (2026-05-22 session #3)
 1. **v2 Phase 1B-3a Bank Accounts module** — first-class entity แยก (ตาม design rule ที่ Tem note)
