@@ -5,6 +5,7 @@ import {
   CreditCard,
   FileText,
   GalleryVerticalEnd,
+  LayoutDashboard,
   Landmark,
   Palette,
   Receipt,
@@ -31,6 +32,11 @@ export const sidebarData: SidebarData = {
     {
       title: 'หลัก',
       items: [
+        {
+          title: 'แดชบอร์ด',
+          url: '/dashboard',
+          icon: LayoutDashboard,
+        },
         {
           title: 'ทรัพย์สิน',
           url: '/properties',
