@@ -1,6 +1,7 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -9,10 +10,35 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Download, Plus, Receipt, Search, Sparkles } from 'lucide-react'
+import {
+  Ban,
+  Download,
+  Loader2,
+  Plus,
+  Receipt,
+  Search,
+  Send,
+  Sparkles,
+  X,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { useExportCSV } from '@/hooks/use-csv'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
+import { useBatchMarkSent, useBatchVoid } from '@/features/invoices/mutations'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -77,6 +103,7 @@ export function Invoices() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'month', desc: true }])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const navigate = useNavigate()
 
   const rows = useMemo<Row[]>(() => {
@@ -99,6 +126,33 @@ export function Invoices() {
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
+      {
+        id: 'select',
+        size: 28,
+        enableSorting: false,
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected()
+                ? true
+                : table.getIsSomePageRowsSelected()
+                ? 'indeterminate'
+                : false
+            }
+            onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+            aria-label='เลือกทั้งหมดในหน้า'
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(v) => row.toggleSelected(!!v)}
+            aria-label='เลือก'
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+      },
       {
         id: 'no',
         accessorFn: (row) => getInvoiceDisplay(row),
@@ -197,7 +251,10 @@ export function Invoices() {
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    enableRowSelection: true,
+    getRowId: (row) => row.id,
+    state: { sorting, columnFilters, globalFilter, rowSelection },
+    onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
@@ -244,7 +301,64 @@ export function Invoices() {
   const totalRows = invoices?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
   const [genOpen, setGenOpen] = useState(false)
+  const [voidOpen, setVoidOpen] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
   const { exportXLSX } = useExportCSV()
+  const batchMarkSent = useBatchMarkSent()
+  const batchVoid = useBatchVoid()
+
+  const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
+  const selectedIds = selectedRows.map((r) => r.id)
+  const selectedCount = selectedIds.length
+  const sumSelected = selectedRows.reduce(
+    (s, r) => s + (Number(r.data?.total) || 0),
+    0,
+  )
+  const draftSelectedIds = selectedRows
+    .filter((r) => r._status === 'draft')
+    .map((r) => r.id)
+  const voidableSelectedIds = selectedRows
+    .filter((r) => r._status !== 'voided')
+    .map((r) => r.id)
+
+  async function handleBatchMarkSent() {
+    if (draftSelectedIds.length === 0) return
+    try {
+      const res = await batchMarkSent.mutateAsync(draftSelectedIds)
+      if (res.errors.length === 0) {
+        toast.success(`บันทึกส่งแล้ว ${res.done} ใบ`)
+      } else {
+        toast.warning(`สำเร็จ ${res.done} · ผิดพลาด ${res.errors.length}`)
+      }
+      setRowSelection({})
+    } catch (err) {
+      toast.error('บันทึกส่งไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleBatchVoid() {
+    if (voidableSelectedIds.length === 0) return
+    try {
+      const res = await batchVoid.mutateAsync({
+        ids: voidableSelectedIds,
+        reason: voidReason,
+      })
+      if (res.errors.length === 0) {
+        toast.success(`ยกเลิกแล้ว ${res.done} ใบ`)
+      } else {
+        toast.warning(`สำเร็จ ${res.done} · ผิดพลาด ${res.errors.length}`)
+      }
+      setVoidOpen(false)
+      setVoidReason('')
+      setRowSelection({})
+    } catch (err) {
+      toast.error('ยกเลิกไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
 
   function handleExport() {
     const visibleRows = table.getRowModel().rows.map((r) => {
@@ -427,6 +541,88 @@ export function Invoices() {
           </Table>
         </div>
       </Main>
+
+      {/* Floating bulk action bar */}
+      {selectedCount > 0 && (
+        <div className='pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
+          <div className='pointer-events-auto flex flex-wrap items-center gap-3 rounded-full border bg-card/95 px-4 py-2 shadow-lg backdrop-blur'>
+            <span className='text-sm font-semibold'>
+              เลือก {selectedCount.toLocaleString('th-TH')} ใบ
+            </span>
+            <span className='text-xs text-muted-foreground tabular-nums'>
+              · รวม {amt(sumSelected, { decimal: 0 })}
+            </span>
+            <span className='h-4 w-px bg-border' />
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={draftSelectedIds.length === 0 || batchMarkSent.isPending}
+              onClick={handleBatchMarkSent}
+            >
+              {batchMarkSent.isPending ? (
+                <Loader2 className='size-4 animate-spin' />
+              ) : (
+                <Send className='size-4' />
+              )}
+              บันทึกส่ง
+              {draftSelectedIds.length > 0 && ` (${draftSelectedIds.length})`}
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={voidableSelectedIds.length === 0 || batchVoid.isPending}
+              onClick={() => setVoidOpen(true)}
+            >
+              <Ban className='size-4' />
+              ยกเลิก
+              {voidableSelectedIds.length > 0 && ` (${voidableSelectedIds.length})`}
+            </Button>
+            <span className='h-4 w-px bg-border' />
+            <Button
+              size='sm'
+              variant='ghost'
+              onClick={() => setRowSelection({})}
+              aria-label='ล้างการเลือก'
+            >
+              <X className='size-4' />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              ยกเลิกใบแจ้งหนี้ {voidableSelectedIds.length} ใบ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ใบที่ถูกยกเลิกแล้วจะถูกข้าม · กู้คืนได้ภายหลัง
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className='space-y-2'>
+            <Label htmlFor='batchVoidReason'>เหตุผล</Label>
+            <Textarea
+              id='batchVoidReason'
+              rows={3}
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              placeholder='เช่น ออกใบใหม่ · ผู้เช่ายกเลิกสัญญา · จ่ายแล้วช่องทางอื่น...'
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={batchVoid.isPending}>ปิด</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={batchVoid.isPending}
+              onClick={handleBatchVoid}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              {batchVoid.isPending && <Loader2 className='size-4 animate-spin' />}
+              ยกเลิก {voidableSelectedIds.length} ใบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

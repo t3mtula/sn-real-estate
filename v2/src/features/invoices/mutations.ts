@@ -694,6 +694,82 @@ export function useGenerateMonthlyInvoices() {
   })
 }
 
+/* ---------- batch: mark sent + void ---------- */
+
+export type BatchActionResult = {
+  done: number
+  errors: Array<{ id: string; message: string }>
+}
+
+export function useBatchMarkSent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]): Promise<BatchActionResult> => {
+      let done = 0
+      const errors: BatchActionResult['errors'] = []
+      for (const id of ids) {
+        try {
+          await mergeUpdateInvoice(id, {
+            status: 'sent',
+            data: { status: 'sent' } as Partial<InvoiceData>,
+          })
+          done++
+        } catch (err) {
+          errors.push({ id, message: err instanceof Error ? err.message : String(err) })
+        }
+      }
+      if (done > 0) {
+        void logActivity({
+          action: 'update',
+          entity: 'invoices',
+          description: `บันทึกส่งใบแจ้งหนี้ ${done} ใบ` + (errors.length ? ` · ผิดพลาด ${errors.length}` : ''),
+        })
+      }
+      return { done, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
+export function useBatchVoid() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { ids: string[]; reason: string }): Promise<BatchActionResult> => {
+      const today = fmtBE(new Date())
+      let done = 0
+      const errors: BatchActionResult['errors'] = []
+      for (const id of input.ids) {
+        try {
+          await mergeUpdateInvoice(id, {
+            status: 'voided',
+            data: {
+              status: 'voided',
+              voidedAt: today,
+              voidedReason: input.reason?.trim() || '',
+            } as Partial<InvoiceData>,
+          })
+          done++
+        } catch (err) {
+          errors.push({ id, message: err instanceof Error ? err.message : String(err) })
+        }
+      }
+      if (done > 0) {
+        void logActivity({
+          action: 'update',
+          entity: 'invoices',
+          description: `ยกเลิกใบแจ้งหนี้ ${done} ใบ · เหตุผล: ${input.reason?.trim() || '(ไม่ระบุ)'}`,
+        })
+      }
+      return { done, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
 /** Hard delete (rare · prefer void) — for cleaning up mistakes */
 export function useDeleteInvoice() {
   const qc = useQueryClient()
