@@ -6,6 +6,7 @@ import {
   Palette,
   Settings,
   UserCog,
+  Users,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -35,6 +36,11 @@ export const sidebarData: SidebarData = {
           title: 'ทรัพย์สิน',
           url: '/properties',
           icon: Building2,
+        },
+        {
+          title: 'ผู้เช่า',
+          url: '/tenants',
+          icon: Users,
         },
         {
           title: 'สัญญาเช่า',
