@@ -1,0 +1,54 @@
+name: Deploy v2 to Cloudflare Pages
+
+# Trigger เฉพาะ push ที่แตะ v2/ subfolder · ไม่ build ทุก commit ของ v1
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'v2/**'
+      - '.github/workflows/deploy-v2.yml'
+  workflow_dispatch:  # ปุ่ม run manual ใน Actions tab
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'  # Vite 7 ต้องการ 22.12+ (Tem local 22.11 แสดง warning · CI ใช้ใหม่กว่า)
+          cache: 'npm'
+          cache-dependency-path: v2/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Vite อ่าน VITE_* envs ตอน build · ใส่ไว้ใน repo secrets
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_AUTH_ALLOWED_DOMAIN: ${{ secrets.VITE_AUTH_ALLOWED_DOMAIN }}
+          VITE_APP_NAME: ${{ secrets.VITE_APP_NAME }}
+          VITE_APP_VERSION: ${{ secrets.VITE_APP_VERSION }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: v2
+          # --branch=main เพราะ v2 ใช้ main = production
+          # commit-message ASCII เพราะ Cloudflare API ไม่รับ UTF-8 (lesson เก่า)
+          command: pages deploy dist --project-name=sn-real-estate-v2 --branch=main --commit-dirty=true --commit-hash=${{ github.sha }} --commit-message="Auto-deploy ${{ github.sha }}"
