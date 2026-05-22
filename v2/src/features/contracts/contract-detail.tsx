@@ -10,6 +10,7 @@ import {
   Landmark,
   Link2,
   Pencil,
+  Printer,
   RotateCcw,
   ScrollText,
   UserRound,
@@ -40,6 +41,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { ContractForm } from '@/features/contracts/components/contract-form'
+import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import {
   DuplicateContractNoError,
   useCancelContract,
@@ -60,6 +62,7 @@ import {
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
+import { usePdf } from '@/lib/pdf'
 import { todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import type { ContractStatus } from '@/features/contracts/types'
@@ -301,13 +304,23 @@ function Content({
   const tenant = useTenant(c.tenant_id)
   const landlord = useLandlord(c.landlord_id)
   const bank = useBankAccount(c.bankAccountId)
-  // Resolve property by data.pid_property → properties.data.pid lookup
-  // For now, use legacy contract.data.pid (v1) which maps to property.data.pid
-  // (Property feature has no useProperty-by-pid · skip for subphase 1)
   const propertyId = (c.pid_property ?? c.pid)?.toString() ?? ''
   const property = useProperty(propertyId)
-
   const parent = useContract(c.parent_contract_id)
+
+  const pdf = usePdf()
+  async function handlePrint() {
+    const doc = buildContractPdf({
+      contract,
+      tenant: tenant.data,
+      landlord: landlord.data,
+      bank: bank.data,
+      property: property.data,
+      parent: parent.data,
+    })
+    const safeName = (c.no ?? `#${contract.id}`).replace(/[/\\?%*:|"<>]/g, '_')
+    await pdf.download(doc, `สัญญาเช่า-${safeName}`)
+  }
 
   return (
     <>
@@ -338,6 +351,14 @@ function Content({
           </div>
         </div>
         <div className='flex flex-wrap gap-2'>
+          <Button
+            variant='outline'
+            onClick={handlePrint}
+            disabled={pdf.generating}
+          >
+            <Printer className='size-4' />
+            {pdf.generating ? 'กำลังสร้าง...' : 'พิมพ์/PDF'}
+          </Button>
           {c.cancelled ? (
             <Button
               variant='outline'
