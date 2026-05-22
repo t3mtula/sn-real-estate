@@ -27,7 +27,6 @@ import {
   daysOverdue,
   formatMonth,
   getInvoiceDisplay,
-  getPaymentFreq,
   isContractDueForMonth,
 } from '@/features/invoices/queries'
 import type { Contract } from '@/features/contracts/types'
@@ -40,13 +39,18 @@ function currentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-/** Compute monthly revenue from contract (ported from v1 monthlyRev) */
+/**
+ * Monthly revenue per contract.
+ *
+ * v2 convention (locked by getInvoiceAmount in invoices/queries.ts):
+ *   contract.data.rate === per-month rate.
+ *   Invoice amount for non-monthly contract = rate × freq.months.
+ *
+ * So monthly rev is just `rate` directly — do NOT divide by freq.months,
+ * which would under-state quarterly (÷3) / semi (÷6) / yearly (÷12).
+ */
 function monthlyRev(c: Contract): number {
-  const r = Number(c.data?.rate) || 0
-  if (!r) return 0
-  const freq = getPaymentFreq(c.data?.payment)
-  if (!freq.months || freq.months <= 0) return r
-  return r / freq.months
+  return Number(c.data?.rate) || 0
 }
 
 type KpiTone = 'primary' | 'success' | 'warning' | 'destructive' | 'info' | 'neutral'
