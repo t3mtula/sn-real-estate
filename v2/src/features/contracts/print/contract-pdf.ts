@@ -37,23 +37,27 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
 
     content: [
       {
-        text: 'TEST CONTRACT',
-        fontSize: 22,
+        text: 'สัญญาเช่า',
+        fontSize: 24,
         bold: true,
+        color: '#0f4c5c',
         alignment: 'center',
+        margin: [0, 0, 0, 4],
       },
       {
-        text: `No. ${contractNo}`,
+        text: `เลขที่ ${contractNo}`,
         alignment: 'center',
-        fontSize: 12,
-        margin: [0, 8, 0, 0],
+        fontSize: 14,
+        color: '#475569',
+        margin: [0, 0, 0, 24],
+      },
+      {
+        text: 'ทดสอบ Thai content · ระบบสร้าง PDF ได้สำเร็จ',
+        fontSize: 14,
+        alignment: 'center',
+        italics: true,
+        color: '#64748b',
       },
     ],
-
-    defaultStyle: {
-      // Helvetica is pdfmake's built-in default · doesn't need vfs
-      font: 'Helvetica',
-      fontSize: 11,
-    },
   }
 }
