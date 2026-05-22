@@ -401,7 +401,11 @@ function Content({
       parent: parent.data,
     })
     const safeName = (c.no ?? `#${contract.id}`).replace(/[/\\?%*:|"<>]/g, '_')
-    await pdf.download(doc, `สัญญาเช่า-${safeName}`)
+    // open() เปิดใน tab ใหม่ → ลูกน้องเห็น preview + save จาก PDF viewer ของ
+    // browser ได้ · ดีกว่า download() ที่ไม่มี preview · ตรงตามที่ v1 ทำ
+    // (HTML overlay ก่อนกด save PDF)
+    void safeName
+    await pdf.open(doc)
   }
 
   return (
