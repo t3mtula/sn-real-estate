@@ -15,7 +15,7 @@ WITH contract_to_landlord AS (
   -- 1. ต่อ contract → landlord_id (resolved ผ่าน 3 fallback)
   SELECT
     c.id AS contract_id,
-    (c.data->>'pid')::int AS contract_pid,
+    (c.data->>'pid')::bigint AS contract_pid,
     COALESCE(
       -- (1) direct landlord_id
       NULLIF(c.data->>'landlord_id', ''),
@@ -57,7 +57,7 @@ SET
   data = jsonb_set(p.data, '{ownerLandlordId}', to_jsonb(ptl.landlord_id), TRUE),
   updated_at = now()
 FROM property_top_landlord ptl
-WHERE (p.data->>'pid')::int = ptl.contract_pid
+WHERE (p.data->>'pid')::bigint = ptl.contract_pid
   AND COALESCE(NULLIF(p.data->>'ownerLandlordId', ''), NULL) IS NULL;
 
 -- รายงานผล: นับว่า property กี่ตัวมี ownerLandlordId แล้ว
