@@ -38,6 +38,7 @@ import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authent
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated/invoices/new'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated/invoices/$id'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedContractsRenewalsRouteImport } from './routes/_authenticated/contracts/renewals'
 import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
 import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
@@ -208,6 +209,12 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContractsRenewalsRoute =
+  AuthenticatedContractsRenewalsRouteImport.update({
+    id: '/contracts/renewals',
+    path: '/contracts/renewals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedContractsNewRoute =
   AuthenticatedContractsNewRouteImport.update({
     id: '/contracts/new',
@@ -291,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -331,6 +339,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -374,6 +383,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/_authenticated/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/_authenticated/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/bank-accounts/new'
     | '/contracts/new'
+    | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/$id'
     | '/invoices/new'
@@ -457,6 +468,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bank-accounts/new'
     | '/contracts/new'
+    | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/$id'
     | '/invoices/new'
@@ -499,6 +511,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/bank-accounts/new'
     | '/_authenticated/contracts/new'
+    | '/_authenticated/contracts/renewals'
     | '/_authenticated/errors/$error'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/new'
@@ -745,6 +758,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contracts/renewals': {
+      id: '/_authenticated/contracts/renewals'
+      path: '/contracts/renewals'
+      fullPath: '/contracts/renewals'
+      preLoaderRoute: typeof AuthenticatedContractsRenewalsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/contracts/new': {
       id: '/_authenticated/contracts/new'
       path: '/contracts/new'
@@ -855,6 +875,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBankAccountsNewRoute: typeof AuthenticatedBankAccountsNewRoute
   AuthenticatedContractsNewRoute: typeof AuthenticatedContractsNewRoute
+  AuthenticatedContractsRenewalsRoute: typeof AuthenticatedContractsRenewalsRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvoicesIdRoute: typeof AuthenticatedInvoicesIdRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
@@ -881,6 +902,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBankAccountsNewRoute: AuthenticatedBankAccountsNewRoute,
   AuthenticatedContractsNewRoute: AuthenticatedContractsNewRoute,
+  AuthenticatedContractsRenewalsRoute: AuthenticatedContractsRenewalsRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,

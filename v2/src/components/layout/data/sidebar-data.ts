@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  CalendarClock,
   CreditCard,
   FileText,
   GalleryVerticalEnd,
@@ -54,6 +55,11 @@ export const sidebarData: SidebarData = {
           title: 'สัญญาเช่า',
           url: '/contracts',
           icon: FileText,
+        },
+        {
+          title: 'สัญญาใกล้หมด',
+          url: '/contracts/renewals',
+          icon: CalendarClock,
         },
         {
           title: 'ใบแจ้งหนี้',
