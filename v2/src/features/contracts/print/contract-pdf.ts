@@ -16,11 +16,6 @@ import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
 import { fmtThaiLong } from '@/lib/thai'
-import {
-  DEFAULT_TEMPLATE,
-  htmlToInlineParts,
-  renderTemplateText,
-} from './default-template'
 
 type Refs = {
   contract: Contract
@@ -94,56 +89,17 @@ function propertyAddress(p: Property | null | undefined): string {
  * Future: read active template from DB (template editor feature · task #16)
  * and apply per-contract clauseOverrides.
  */
+// DEBUG: temporarily return empty/short to isolate pdfmake hang
 function renderClauses(c: Contract): Content[] {
-  const ctx = {
-    landlord: (c.data.landlord ?? '').trim(),
-    tenant: (c.data.tenant ?? '').trim(),
-  }
-
-  const out: Content[] = []
-
-  // Intro paragraph
-  const introHtml = renderTemplateText(DEFAULT_TEMPLATE.intro, ctx)
-  out.push({
-    text: htmlToInlineParts(introHtml),
-    margin: [0, 0, 0, 10] as [number, number, number, number],
-  })
-
-  // Numbered clauses + sub-clauses
-  DEFAULT_TEMPLATE.clauses.forEach((cl, i) => {
-    const mainHtml = renderTemplateText(cl.text, ctx)
-    out.push({
-      text: [
-        { text: `ข้อ ${i + 1}. `, bold: true, color: '#1e3a5f' },
-        ...htmlToInlineParts(mainHtml),
-      ],
-      margin: [0, 0, 0, 6] as [number, number, number, number],
-    } as Content)
-    ;(cl.sub ?? []).forEach((sub, j) => {
-      const subHtml = renderTemplateText(sub, ctx)
-      out.push({
-        text: [
-          {
-            text: `${i + 1}.${j + 1} `,
-            bold: true,
-            color: '#1e3a5f',
-          },
-          ...htmlToInlineParts(subHtml),
-        ],
-        fontSize: 10.5,
-        margin: [24, 0, 0, 4] as [number, number, number, number],
-      } as Content)
-    })
-  })
-
-  // Closing paragraph
-  const closingHtml = renderTemplateText(DEFAULT_TEMPLATE.closing, ctx)
-  out.push({
-    text: htmlToInlineParts(closingHtml),
-    margin: [0, 12, 0, 0] as [number, number, number, number],
-  })
-
-  return out
+  void c
+  return [
+    {
+      text: '[DEBUG: clauses body removed to isolate pdfmake hang]',
+      italics: true,
+      color: '#9ca3af',
+      margin: [0, 12, 0, 12] as [number, number, number, number],
+    },
+  ]
 }
 
 function partyBlock(opts: {
