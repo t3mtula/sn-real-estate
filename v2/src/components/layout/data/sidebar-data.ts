@@ -2,6 +2,7 @@ import {
   Building2,
   FileText,
   GalleryVerticalEnd,
+  Landmark,
   LayoutDashboard,
   Palette,
   Settings,
@@ -41,6 +42,11 @@ export const sidebarData: SidebarData = {
           title: 'ผู้เช่า',
           url: '/tenants',
           icon: Users,
+        },
+        {
+          title: 'ผู้ให้เช่า',
+          url: '/landlords',
+          icon: Landmark,
         },
         {
           title: 'สัญญาเช่า',
