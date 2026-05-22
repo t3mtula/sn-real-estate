@@ -1,6 +1,8 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { ArrowLeft, Download, FileText } from 'lucide-react'
 import { useMemo } from 'react'
+import { useExportCSV } from '@/hooks/use-csv'
+import { Button } from '@/components/ui/button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -90,6 +92,28 @@ export function AgingReport() {
   const totalOutstanding = buckets.reduce((s, b) => s + sumBucket(b), 0)
   const totalCount = buckets.reduce((s, b) => s + b.invoices.length, 0)
 
+  const { exportXLSX } = useExportCSV()
+  function handleExport() {
+    const rows: Array<Record<string, unknown>> = []
+    for (const b of buckets) {
+      for (const inv of b.invoices) {
+        rows.push({
+          กลุ่ม: b.label,
+          เลขที่: getInvoiceDisplay(inv),
+          เดือน: formatMonth(inv.data?.month),
+          ผู้เช่า: inv.data?.tenant ?? '',
+          ทรัพย์สิน: inv.data?.property ?? '',
+          วันครบกำหนด: inv.data?.dueDate ?? '',
+          ค้างชำระ: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
+          เกิน: daysOverdue(inv) > 0 ? daysOverdue(inv) : '',
+        })
+      }
+    }
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+    exportXLSX(rows, `aging-${stamp}.xlsx`, { sheetName: 'อายุหนี้' })
+  }
+
   return (
     <>
       <Header fixed>
@@ -100,22 +124,32 @@ export function AgingReport() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-6'>
-        <header className='flex items-center gap-3'>
-          <button
-            type='button'
-            onClick={() => navigate({ to: '/invoices' })}
-            className='inline-flex size-9 items-center justify-center rounded-md hover:bg-muted'
-            aria-label='กลับ'
-          >
-            <ArrowLeft className='size-4' />
-          </button>
-          <div>
-            <h1 className='text-2xl font-bold tracking-tight'>รายงานอายุหนี้</h1>
-            <p className='text-sm text-muted-foreground'>
-              ลูกหนี้ค้างชำระจัดกลุ่มตามวันที่เกินกำหนด · ไม่นับใบที่ชำระแล้ว
-              หรือยกเลิก
-            </p>
+        <header className='flex flex-wrap items-center justify-between gap-3'>
+          <div className='flex items-center gap-3'>
+            <button
+              type='button'
+              onClick={() => navigate({ to: '/invoices' })}
+              className='inline-flex size-9 items-center justify-center rounded-md hover:bg-muted'
+              aria-label='กลับ'
+            >
+              <ArrowLeft className='size-4' />
+            </button>
+            <div>
+              <h1 className='text-2xl font-bold tracking-tight'>รายงานอายุหนี้</h1>
+              <p className='text-sm text-muted-foreground'>
+                ลูกหนี้ค้างชำระจัดกลุ่มตามวันที่เกินกำหนด · ไม่นับใบที่ชำระแล้ว
+                หรือยกเลิก
+              </p>
+            </div>
           </div>
+          <Button
+            variant='outline'
+            onClick={handleExport}
+            disabled={totalCount === 0}
+          >
+            <Download className='size-4' />
+            Export Excel
+          </Button>
         </header>
 
         {isLoading ? (
