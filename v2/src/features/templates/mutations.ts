@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import {
   DEFAULT_CLAUSES,
@@ -43,6 +44,13 @@ export function useCreateTemplate() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'contract_templates',
+        entity_id: id,
+        description: `สร้างฟอร์มสัญญา ${input.data.name}`,
+        after: { name: input.data.name, version: input.data.version, active: !!input.active },
+      })
       return { id }
     },
     onSuccess: () => {
@@ -71,6 +79,12 @@ export function useUpdateTemplate(id: string) {
         .update({ data: merged, updated_at: new Date().toISOString() })
         .eq('id', id)
       if (error) throw error
+      void logActivity({
+        action: 'update',
+        entity: 'contract_templates',
+        entity_id: id,
+        description: `แก้ฟอร์มสัญญา ${merged.name}`,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract_templates'] })
@@ -92,6 +106,12 @@ export function useActivateTemplate() {
         .update({ is_active: true })
         .eq('id', id)
       if (error) throw error
+      void logActivity({
+        action: 'update',
+        entity: 'contract_templates',
+        entity_id: id,
+        description: 'ตั้งฟอร์มสัญญานี้เป็นฟอร์มที่ใช้งาน',
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract_templates'] })
@@ -140,8 +160,21 @@ export function useDeleteTemplate() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      const d = existing?.data as TemplateData | undefined
+      void logActivity({
+        action: 'delete',
+        entity: 'contract_templates',
+        entity_id: id,
+        description: `ลบฟอร์มสัญญา ${d?.name ?? '#' + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract_templates'] })
