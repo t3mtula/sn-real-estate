@@ -92,7 +92,7 @@ const FONTS_BUNDLED = {
 }
 
 function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
-  return {
+  const base: TDocumentDefinitions = {
     pageSize: doc.pageSize ?? 'A4',
     pageMargins: doc.pageMargins ?? [40, 60, 40, 60],
     defaultStyle: {
@@ -101,11 +101,12 @@ function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
       ...doc.defaultStyle,
     },
     ...doc,
-    // Must override AFTER spread so caller can't accidentally re-introduce
-    // the missing Sarabun-Bold.ttf reference.
-    // biome-ignore lint/suspicious/noExplicitAny: pdfmake fonts type narrow
-    fonts: { ...(doc as any).fonts, ...FONTS_BUNDLED } as any,
   }
+  // Inject `fonts` at runtime (the TDocumentDefinitions type doesn't
+  // include the optional `fonts` field, but pdfmake reads it.)
+  // biome-ignore lint/suspicious/noExplicitAny: pdfmake fonts type narrow
+  ;(base as any).fonts = { ...(doc as any).fonts, ...FONTS_BUNDLED }
+  return base
 }
 
 /**
