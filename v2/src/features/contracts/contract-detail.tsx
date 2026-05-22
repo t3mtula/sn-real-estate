@@ -360,6 +360,7 @@ function Content({
   const c = contract.data
   const status = getContractStatus(c)
   const display = getContractDisplay(contract)
+  const navigate = useNavigate()
   const [cancelOpen, setCancelOpen] = useState(false)
   const [moveOutOpen, setMoveOutOpen] = useState(false)
   const restore = useRestoreContract(contract.id)
@@ -401,16 +402,15 @@ function Content({
       parent: parent.data,
     })
     const safeName = (c.no ?? `#${contract.id}`).replace(/[/\\?%*:|"<>]/g, '_')
-    // Generate blob → navigate tab เดิมไป blob URL · Chrome PDF viewer
-    // จะ render inline · กด save/ปริ้นจาก viewer + กด back กลับสัญญา
-    // ตรงตาม Tem rule "ทุกหน้าเปลี่ยนหน้า · ไม่ overlay" (v1 ใช้ HTML overlay ทาง
-    // เดิม · v2 ให้เป็น page-based แทน) + MCP/หน้า preview เห็น PDF จริงได้
+    // ปุ่ม "พิมพ์/PDF" → navigate ไป /contracts/$id/print (preview page route)
+    // ทำที่นั่นเพราะ:
+    //   1. Tem rule "ทุกหน้าเปลี่ยนหน้า · ไม่ overlay"
+    //   2. Chrome MCP / lookเห็น PDF inline ผ่าน iframe (popup blocker friendly)
+    //   3. ลูกน้องเห็น preview + ปุ่ม "สั่งพิมพ์" / "ดาวน์โหลด" ใน toolbar
+    // doc + safeName ไม่ได้ใช้แล้ว — ก่อนหน้านี้ใช้ทำ blob/download ที่นี่.
+    void doc
     void safeName
-    const blob = await pdf.blob(doc)
-    if (blob) {
-      const url = URL.createObjectURL(blob)
-      window.location.assign(url)
-    }
+    navigate({ to: '/contracts/$id/print', params: { id: contract.id } })
   }
 
   return (
