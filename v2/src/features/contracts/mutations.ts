@@ -57,11 +57,12 @@ function valuesToManagedFields(
     payment: values.payment.trim(),
     purpose: values.purpose.trim(),
     // madeAt = ที่อยู่ 5 ช่อง + assembled string (backward compat กับ v1 + PDF)
-    madeAt_line: values.madeAtLine ?? '',
-    madeAt_subdistrict: values.madeAtSubdistrict ?? '',
-    madeAt_district: values.madeAtDistrict ?? '',
-    madeAt_province: values.madeAtProvince ?? '',
-    madeAt_postal: values.madeAtPostal ?? '',
+    // camelCase ตาม Tenant/Landlord convention
+    madeAtLine: values.madeAtLine ?? '',
+    madeAtSubdistrict: values.madeAtSubdistrict ?? '',
+    madeAtDistrict: values.madeAtDistrict ?? '',
+    madeAtProvince: values.madeAtProvince ?? '',
+    madeAtPostal: values.madeAtPostal ?? '',
     madeAt: assembleAddress({
       line: values.madeAtLine,
       subdistrict: values.madeAtSubdistrict,

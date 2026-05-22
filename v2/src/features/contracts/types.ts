@@ -82,8 +82,17 @@ export type ContractData = {
   plannedMoveOut?: string
   noticeNote?: string
 
-  /** Where + when signed */
+  /**
+   * Where + when signed
+   * `madeAt` = assembled address string · เก็บไว้สำหรับ v1 backward compat + PDF
+   * แยกเป็น 5 sub-fields ที่ user กรอกผ่าน ThaiAddressInput (camelCase ตาม Tenant/Landlord)
+   */
   madeAt?: string
+  madeAtLine?: string
+  madeAtSubdistrict?: string
+  madeAtDistrict?: string
+  madeAtProvince?: string
+  madeAtPostal?: string
   madeDate?: string
 
   /** Witnesses */

@@ -208,6 +208,7 @@ export function Contracts() {
         d?.start,
         d?.end,
         d?.taxId,
+        d?.madeAt,
       ]
         .filter(Boolean)
         .join(' ')

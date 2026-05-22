@@ -425,13 +425,13 @@ export function ContractForm({
 
       {/* Section 3: การลงนาม */}
       <section className='grid gap-4 sm:grid-cols-2'>
-        <div>
+        <div className='sm:col-span-2'>
           <Label htmlFor='madeDate'>วันที่ทำสัญญา</Label>
           <Input
             id='madeDate'
             {...form.register('madeDate')}
             placeholder='DD/MM/YYYY (พ.ศ.)'
-            className={cn('font-mono', errors.madeDate && 'border-destructive')}
+            className={cn('font-mono max-w-[280px]', errors.madeDate && 'border-destructive')}
           />
           {errors.madeDate && <FieldError>{errors.madeDate.message}</FieldError>}
         </div>
