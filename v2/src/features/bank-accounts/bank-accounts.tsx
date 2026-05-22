@@ -9,14 +9,11 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import {
   ArrowUpDown,
-  Building2,
   Landmark,
   Plus,
   Search,
-  UserRound,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -42,95 +39,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { supabase } from '@/lib/supabase'
-import {
-  fmtTaxId,
-  getLandlordName,
-  getLandlordShortName,
-  useLandlords,
-} from '@/features/landlords/queries'
-import { PARTY_TYPES, type Landlord } from '@/features/landlords/types'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
+import type { BankAccount } from '@/features/bank-accounts/types'
 import { cn } from '@/lib/utils'
 
-const PARTY_LABEL: Record<string, string> = Object.fromEntries(
-  PARTY_TYPES.map((p) => [p.value, p.label]),
-)
-
-/**
- * Derive contract count per landlord — single query for all contracts,
- * matched by landlord_id / invHeaderId / name fallback.
- */
-function useContractCounts() {
-  return useQuery({
-    queryKey: ['landlord-contract-counts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('id, data')
-      if (error) throw error
-      const rows = (data ?? []) as Array<{
-        id: string
-        data: { landlord_id?: string; invHeaderId?: string; landlord?: string }
-      }>
-      return rows
-    },
-  })
-}
-
-function countContracts(
-  landlord: Landlord,
-  contracts: Array<{
-    data: { landlord_id?: string; invHeaderId?: string; landlord?: string }
-  }>,
-): number {
-  const headerId = (landlord.data.invoiceHeaderId ?? '').trim()
-  const nm = (landlord.data.name ?? '').trim()
-  return contracts.filter((c) => {
-    if (c.data.landlord_id === landlord.id) return true
-    if (headerId && c.data.invHeaderId === headerId) return true
-    if (c.data.landlord === nm) return true
-    return false
-  }).length
-}
-
-export function Landlords() {
-  const { data: landlords, isLoading, error } = useLandlords()
-  const { data: contracts } = useContractCounts()
-  const { data: allBanks } = useBankAccounts()
+export function BankAccounts() {
+  const { data: rows, isLoading, error } = useBankAccounts()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
 
-  // Count banks per landlord (owner)
-  const bankCountByOwner = useMemo(() => {
-    const map = new Map<string, number>()
-    if (!allBanks) return map
-    allBanks.forEach((b) => {
-      const owner = (b.data?.ownerLandlordId ?? '').trim()
-      if (!owner) return
-      map.set(owner, (map.get(owner) ?? 0) + 1)
+  const owners = useMemo(() => {
+    if (!rows) return [] as Array<{ id: string; name: string }>
+    const map = new Map<string, string>()
+    rows.forEach((r) => {
+      const id = (r.data?.ownerLandlordId ?? '').trim()
+      if (id && !map.has(id))
+        map.set(id, r.data?.ownerLandlordName ?? '(ไม่มีชื่อ)')
     })
-    return map
-  }, [allBanks])
+    return Array.from(map.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+  }, [rows])
 
-  const rows = useMemo(() => {
-    if (!landlords) return []
-    return landlords.map((l) => ({
-      ...l,
-      _contractCount: contracts ? countContracts(l, contracts) : 0,
-      _bankCount: bankCountByOwner.get(l.id) ?? 0,
-    }))
-  }, [landlords, contracts, bankCountByOwner])
-
-  const columns = useMemo<
-    ColumnDef<Landlord & { _contractCount: number; _bankCount: number }>[]
-  >(
+  const columns = useMemo<ColumnDef<BankAccount>[]>(
     () => [
       {
-        id: 'name',
-        accessorFn: (row) => getLandlordName(row.data),
+        id: 'bank',
+        accessorFn: (row) => row.data?.bank ?? '',
         header: ({ column }) => (
           <Button
             variant='ghost'
@@ -138,99 +75,73 @@ export function Landlords() {
             className='-ml-2 h-8 px-2 hover:bg-muted/60'
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
           >
-            ชื่อผู้ให้เช่า
+            ธนาคาร + สาขา
             <ArrowUpDown className='ml-1.5 size-3.5 text-muted-foreground/70' />
           </Button>
         ),
         cell: ({ row }) => {
-          const t = row.original.data
-          const Icon = t.partyType === 'company' ? Building2 : UserRound
+          const b = row.original.data
           return (
             <div className='flex items-start gap-2'>
-              {t.logo ? (
-                <img
-                  src={t.logo}
-                  alt='โลโก้'
-                  className='mt-0.5 size-6 shrink-0 rounded-sm border object-contain'
-                />
-              ) : (
-                <Icon className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
-              )}
+              <Landmark className='mt-0.5 size-4 shrink-0 text-muted-foreground' />
               <div className='flex min-w-0 flex-col'>
-                <span className='font-medium'>{getLandlordShortName(t)}</span>
-                <span className='truncate text-xs text-muted-foreground'>
-                  {t.name}
-                </span>
+                <span className='font-medium'>{b.bank || '—'}</span>
+                {b.label && (
+                  <Badge variant='outline' className='mt-1 w-fit font-normal'>
+                    {b.label}
+                  </Badge>
+                )}
               </div>
             </div>
           )
         },
       },
       {
-        id: 'partyType',
-        accessorFn: (row) => row.data?.partyType ?? '',
-        header: 'ประเภท',
+        id: 'acctNo',
+        accessorFn: (row) => row.data?.acctNo ?? '',
+        header: 'เลขบัญชี',
         cell: ({ row }) => (
-          <Badge variant='secondary' className='font-normal'>
-            {PARTY_LABEL[row.original.data?.partyType ?? ''] ?? '—'}
-          </Badge>
-        ),
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          return row.original.data?.partyType === value
-        },
-      },
-      {
-        id: 'taxId',
-        accessorFn: (row) => row.data?.taxId ?? '',
-        header: 'เลขผู้เสียภาษี',
-        cell: ({ row }) => {
-          const tax = row.original.data?.taxId ?? ''
-          if (!tax)
-            return (
-              <span className='text-xs italic text-muted-foreground'>
-                — ไม่ระบุ —
-              </span>
-            )
-          return <span className='font-mono text-sm'>{fmtTaxId(tax)}</span>
-        },
-      },
-      {
-        id: 'banks',
-        accessorFn: (row) => row._bankCount,
-        header: 'บัญชี',
-        cell: ({ row }) => {
-          const n = row.original._bankCount
-          return (
-            <Badge variant='outline' className='font-normal'>
-              <Landmark className='mr-1 size-3' />
-              {n.toLocaleString('th-TH')}
-            </Badge>
-          )
-        },
-      },
-      {
-        id: 'province',
-        accessorFn: (row) => row.data?.addrProvince ?? '',
-        header: 'จังหวัด',
-        cell: ({ row }) => (
-          <span className='text-sm'>
-            {row.original.data?.addrProvince?.trim() || '—'}
+          <span className='font-mono text-sm'>
+            {row.original.data?.acctNo || '—'}
           </span>
         ),
       },
       {
-        id: 'contracts',
-        accessorFn: (row) => row._contractCount,
-        header: 'สัญญา',
+        id: 'accountName',
+        accessorFn: (row) => row.data?.accountName ?? '',
+        header: 'ชื่อบัญชี',
+        cell: ({ row }) => (
+          <span className='text-sm'>
+            {row.original.data?.accountName || '—'}
+          </span>
+        ),
+      },
+      {
+        id: 'owner',
+        accessorFn: (row) => row.data?.ownerLandlordId ?? '',
+        header: 'เจ้าของ',
+        cell: ({ row }) => (
+          <span className='text-sm'>
+            {row.original.data?.ownerLandlordName || '—'}
+          </span>
+        ),
+        filterFn: (row, _id, value) => {
+          if (!value || value === 'all') return true
+          return row.original.data?.ownerLandlordId === value
+        },
+      },
+      {
+        id: 'active',
+        accessorFn: (row) => (row.data?.active === false ? '0' : '1'),
+        header: 'สถานะ',
         cell: ({ row }) => {
-          const n = row.original._contractCount
+          const active = row.original.data?.active !== false
           return (
             <Badge
-              variant={n > 0 ? 'default' : 'outline'}
+              variant={active ? 'default' : 'outline'}
               className='font-normal'
             >
-              {n.toLocaleString('th-TH')} ใบ
+              {active ? 'เปิด' : 'ปิด'}
             </Badge>
           )
         },
@@ -240,7 +151,7 @@ export function Landlords() {
   )
 
   const table = useReactTable({
-    data: rows,
+    data: rows ?? [],
     columns,
     state: { sorting, columnFilters, globalFilter },
     onSortingChange: setSorting,
@@ -251,15 +162,13 @@ export function Landlords() {
         .toLowerCase()
         .trim()
       if (!v) return true
-      const t = row.original.data
+      const b = row.original.data
       const haystack = [
-        t?.name,
-        t?.shortName,
-        t?.taxId,
-        t?.phone,
-        t?.addrProvince,
-        t?.addrDistrict,
-        t?.addrSubdistrict,
+        b?.bank,
+        b?.acctNo,
+        b?.accountName,
+        b?.label,
+        b?.ownerLandlordName,
       ]
         .filter(Boolean)
         .join(' ')
@@ -271,16 +180,16 @@ export function Landlords() {
     getFilteredRowModel: getFilteredRowModel(),
   })
 
-  const partyFilter =
-    (columnFilters.find((f) => f.id === 'partyType')?.value as string) ?? 'all'
-  const setPartyFilter = (value: string) => {
+  const ownerFilter =
+    (columnFilters.find((f) => f.id === 'owner')?.value as string) ?? 'all'
+  const setOwnerFilter = (value: string) => {
     setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'partyType'),
-      ...(value && value !== 'all' ? [{ id: 'partyType', value }] : []),
+      ...prev.filter((f) => f.id !== 'owner'),
+      ...(value && value !== 'all' ? [{ id: 'owner', value }] : []),
     ])
   }
 
-  const totalRows = landlords?.length ?? 0
+  const totalRows = rows?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
 
   return (
@@ -295,17 +204,17 @@ export function Landlords() {
       <Main className='flex flex-1 flex-col gap-4 sm:gap-6'>
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
-            <h2 className='text-2xl font-bold tracking-tight'>ผู้ให้เช่า</h2>
+            <h2 className='text-2xl font-bold tracking-tight'>บัญชีธนาคาร</h2>
             <p className='text-muted-foreground text-sm'>
               {isLoading
                 ? 'กำลังโหลด...'
-                : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ราย`}
+                : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} บัญชี`}
             </p>
           </div>
           <Button asChild>
-            <Link to='/landlords/new'>
+            <Link to='/bank-accounts/new'>
               <Plus className='size-4' />
-              เพิ่มผู้ให้เช่า
+              เพิ่มบัญชี
             </Link>
           </Button>
         </div>
@@ -315,21 +224,21 @@ export function Landlords() {
           <div className='relative max-w-sm flex-1'>
             <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
             <Input
-              placeholder='ค้น ชื่อ · เลขผู้เสียภาษี · ธนาคาร · จังหวัด...'
+              placeholder='ค้น ธนาคาร · เลขบัญชี · ชื่อบัญชี · เจ้าของ...'
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className='pl-9'
             />
           </div>
-          <Select value={partyFilter} onValueChange={setPartyFilter}>
-            <SelectTrigger className='w-[180px]'>
-              <SelectValue placeholder='ทุกประเภท' />
+          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+            <SelectTrigger className='w-[240px]'>
+              <SelectValue placeholder='ทุกเจ้าของ' />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>ทุกประเภท</SelectItem>
-              {PARTY_TYPES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
+              <SelectItem value='all'>ทุกเจ้าของ</SelectItem>
+              {owners.map((o) => (
+                <SelectItem key={o.id} value={o.id}>
+                  {o.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -381,12 +290,12 @@ export function Landlords() {
                       <Landmark className='size-8' />
                       <p>
                         {totalRows === 0
-                          ? 'ยังไม่มีผู้ให้เช่า'
-                          : 'ไม่พบผู้ให้เช่าที่ตรงกับเงื่อนไข'}
+                          ? 'ยังไม่มีบัญชีธนาคาร'
+                          : 'ไม่พบบัญชีที่ตรงกับเงื่อนไข'}
                       </p>
                       {totalRows === 0 && (
                         <Button asChild variant='link' className='h-auto p-0'>
-                          <Link to='/landlords/new'>เพิ่มผู้ให้เช่ารายแรก</Link>
+                          <Link to='/bank-accounts/new'>เพิ่มบัญชีแรก</Link>
                         </Button>
                       )}
                     </div>
@@ -399,7 +308,7 @@ export function Landlords() {
                     className={cn('cursor-pointer', 'hover:bg-muted/40')}
                     onClick={() =>
                       navigate({
-                        to: '/landlords/$id',
+                        to: '/bank-accounts/$id',
                         params: { id: row.original.id },
                       })
                     }

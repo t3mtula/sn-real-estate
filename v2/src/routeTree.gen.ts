@@ -31,6 +31,7 @@ import { Route as AuthenticatedPropertiesIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedLandlordsIndexRouteImport } from './routes/_authenticated/landlords/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedChatsIndexRouteImport } from './routes/_authenticated/chats/index'
+import { Route as AuthenticatedBankAccountsIndexRouteImport } from './routes/_authenticated/bank-accounts/index'
 import { Route as AuthenticatedAppsIndexRouteImport } from './routes/_authenticated/apps/index'
 import { Route as AuthenticatedTenantsNewRouteImport } from './routes/_authenticated/tenants/new'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
@@ -40,12 +41,15 @@ import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_auth
 import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authenticated/properties/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
+import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
+import { Route as AuthenticatedBankAccountsIdIndexRouteImport } from './routes/_authenticated/bank-accounts/$id/index'
 import { Route as AuthenticatedTenantsIdEditRouteImport } from './routes/_authenticated/tenants/$id/edit'
 import { Route as AuthenticatedPropertiesIdEditRouteImport } from './routes/_authenticated/properties/$id/edit'
 import { Route as AuthenticatedLandlordsIdEditRouteImport } from './routes/_authenticated/landlords/$id/edit'
+import { Route as AuthenticatedBankAccountsIdEditRouteImport } from './routes/_authenticated/bank-accounts/$id/edit'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -162,6 +166,12 @@ const AuthenticatedChatsIndexRoute = AuthenticatedChatsIndexRouteImport.update({
   path: '/chats/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBankAccountsIndexRoute =
+  AuthenticatedBankAccountsIndexRouteImport.update({
+    id: '/bank-accounts/',
+    path: '/bank-accounts/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAppsIndexRoute = AuthenticatedAppsIndexRouteImport.update({
   id: '/apps/',
   path: '/apps/',
@@ -214,6 +224,12 @@ const AuthenticatedErrorsErrorRoute =
     path: '/errors/$error',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBankAccountsNewRoute =
+  AuthenticatedBankAccountsNewRouteImport.update({
+    id: '/bank-accounts/new',
+    path: '/bank-accounts/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTenantsIdIndexRoute =
   AuthenticatedTenantsIdIndexRouteImport.update({
     id: '/tenants/$id/',
@@ -230,6 +246,12 @@ const AuthenticatedLandlordsIdIndexRoute =
   AuthenticatedLandlordsIdIndexRouteImport.update({
     id: '/landlords/$id/',
     path: '/landlords/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedBankAccountsIdIndexRoute =
+  AuthenticatedBankAccountsIdIndexRouteImport.update({
+    id: '/bank-accounts/$id/',
+    path: '/bank-accounts/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedTenantsIdEditRoute =
@@ -250,6 +272,12 @@ const AuthenticatedLandlordsIdEditRoute =
     path: '/landlords/$id/edit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBankAccountsIdEditRoute =
+  AuthenticatedBankAccountsIdEditRouteImport.update({
+    id: '/bank-accounts/$id/edit',
+    path: '/bank-accounts/$id/edit',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -265,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/404': typeof errors404Route
   '/500': typeof errors500Route
   '/503': typeof errors503Route
+  '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -274,6 +303,7 @@ export interface FileRoutesByFullPath {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/apps/': typeof AuthenticatedAppsIndexRoute
+  '/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/chats/': typeof AuthenticatedChatsIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/landlords/': typeof AuthenticatedLandlordsIndexRoute
@@ -282,9 +312,11 @@ export interface FileRoutesByFullPath {
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
+  '/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
   '/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
   '/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
   '/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
+  '/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
@@ -302,6 +334,7 @@ export interface FileRoutesByTo {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
+  '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -311,6 +344,7 @@ export interface FileRoutesByTo {
   '/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/apps': typeof AuthenticatedAppsIndexRoute
+  '/bank-accounts': typeof AuthenticatedBankAccountsIndexRoute
   '/chats': typeof AuthenticatedChatsIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/landlords': typeof AuthenticatedLandlordsIndexRoute
@@ -319,9 +353,11 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
+  '/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
   '/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
   '/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
   '/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
+  '/bank-accounts/$id': typeof AuthenticatedBankAccountsIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
@@ -342,6 +378,7 @@ export interface FileRoutesById {
   '/(errors)/500': typeof errors500Route
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/_authenticated/properties/new': typeof AuthenticatedPropertiesNewRoute
@@ -351,6 +388,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/notifications': typeof AuthenticatedSettingsNotificationsRoute
   '/_authenticated/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/_authenticated/apps/': typeof AuthenticatedAppsIndexRoute
+  '/_authenticated/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/_authenticated/chats/': typeof AuthenticatedChatsIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/landlords/': typeof AuthenticatedLandlordsIndexRoute
@@ -359,9 +397,11 @@ export interface FileRoutesById {
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
+  '/_authenticated/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
   '/_authenticated/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
   '/_authenticated/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
   '/_authenticated/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
+  '/_authenticated/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
@@ -382,6 +422,7 @@ export interface FileRouteTypes {
     | '/404'
     | '/500'
     | '/503'
+    | '/bank-accounts/new'
     | '/errors/$error'
     | '/landlords/new'
     | '/properties/new'
@@ -391,6 +432,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/tenants/new'
     | '/apps/'
+    | '/bank-accounts/'
     | '/chats/'
     | '/help-center/'
     | '/landlords/'
@@ -399,9 +441,11 @@ export interface FileRouteTypes {
     | '/tasks/'
     | '/tenants/'
     | '/users/'
+    | '/bank-accounts/$id/edit'
     | '/landlords/$id/edit'
     | '/properties/$id/edit'
     | '/tenants/$id/edit'
+    | '/bank-accounts/$id/'
     | '/landlords/$id/'
     | '/properties/$id/'
     | '/tenants/$id/'
@@ -419,6 +463,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/'
+    | '/bank-accounts/new'
     | '/errors/$error'
     | '/landlords/new'
     | '/properties/new'
@@ -428,6 +473,7 @@ export interface FileRouteTypes {
     | '/settings/notifications'
     | '/tenants/new'
     | '/apps'
+    | '/bank-accounts'
     | '/chats'
     | '/help-center'
     | '/landlords'
@@ -436,9 +482,11 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/tenants'
     | '/users'
+    | '/bank-accounts/$id/edit'
     | '/landlords/$id/edit'
     | '/properties/$id/edit'
     | '/tenants/$id/edit'
+    | '/bank-accounts/$id'
     | '/landlords/$id'
     | '/properties/$id'
     | '/tenants/$id'
@@ -458,6 +506,7 @@ export interface FileRouteTypes {
     | '/(errors)/500'
     | '/(errors)/503'
     | '/_authenticated/'
+    | '/_authenticated/bank-accounts/new'
     | '/_authenticated/errors/$error'
     | '/_authenticated/landlords/new'
     | '/_authenticated/properties/new'
@@ -467,6 +516,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/notifications'
     | '/_authenticated/tenants/new'
     | '/_authenticated/apps/'
+    | '/_authenticated/bank-accounts/'
     | '/_authenticated/chats/'
     | '/_authenticated/help-center/'
     | '/_authenticated/landlords/'
@@ -475,9 +525,11 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks/'
     | '/_authenticated/tenants/'
     | '/_authenticated/users/'
+    | '/_authenticated/bank-accounts/$id/edit'
     | '/_authenticated/landlords/$id/edit'
     | '/_authenticated/properties/$id/edit'
     | '/_authenticated/tenants/$id/edit'
+    | '/_authenticated/bank-accounts/$id/'
     | '/_authenticated/landlords/$id/'
     | '/_authenticated/properties/$id/'
     | '/_authenticated/tenants/$id/'
@@ -654,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChatsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bank-accounts/': {
+      id: '/_authenticated/bank-accounts/'
+      path: '/bank-accounts'
+      fullPath: '/bank-accounts/'
+      preLoaderRoute: typeof AuthenticatedBankAccountsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/apps/': {
       id: '/_authenticated/apps/'
       path: '/apps'
@@ -717,6 +776,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedErrorsErrorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bank-accounts/new': {
+      id: '/_authenticated/bank-accounts/new'
+      path: '/bank-accounts/new'
+      fullPath: '/bank-accounts/new'
+      preLoaderRoute: typeof AuthenticatedBankAccountsNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tenants/$id/': {
       id: '/_authenticated/tenants/$id/'
       path: '/tenants/$id'
@@ -738,6 +804,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLandlordsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bank-accounts/$id/': {
+      id: '/_authenticated/bank-accounts/$id/'
+      path: '/bank-accounts/$id'
+      fullPath: '/bank-accounts/$id/'
+      preLoaderRoute: typeof AuthenticatedBankAccountsIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tenants/$id/edit': {
       id: '/_authenticated/tenants/$id/edit'
       path: '/tenants/$id/edit'
@@ -757,6 +830,13 @@ declare module '@tanstack/react-router' {
       path: '/landlords/$id/edit'
       fullPath: '/landlords/$id/edit'
       preLoaderRoute: typeof AuthenticatedLandlordsIdEditRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bank-accounts/$id/edit': {
+      id: '/_authenticated/bank-accounts/$id/edit'
+      path: '/bank-accounts/$id/edit'
+      fullPath: '/bank-accounts/$id/edit'
+      preLoaderRoute: typeof AuthenticatedBankAccountsIdEditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -788,11 +868,13 @@ const AuthenticatedSettingsRouteRouteWithChildren =
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedBankAccountsNewRoute: typeof AuthenticatedBankAccountsNewRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
   AuthenticatedPropertiesNewRoute: typeof AuthenticatedPropertiesNewRoute
   AuthenticatedTenantsNewRoute: typeof AuthenticatedTenantsNewRoute
   AuthenticatedAppsIndexRoute: typeof AuthenticatedAppsIndexRoute
+  AuthenticatedBankAccountsIndexRoute: typeof AuthenticatedBankAccountsIndexRoute
   AuthenticatedChatsIndexRoute: typeof AuthenticatedChatsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedLandlordsIndexRoute: typeof AuthenticatedLandlordsIndexRoute
@@ -800,9 +882,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedTenantsIndexRoute: typeof AuthenticatedTenantsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
+  AuthenticatedBankAccountsIdEditRoute: typeof AuthenticatedBankAccountsIdEditRoute
   AuthenticatedLandlordsIdEditRoute: typeof AuthenticatedLandlordsIdEditRoute
   AuthenticatedPropertiesIdEditRoute: typeof AuthenticatedPropertiesIdEditRoute
   AuthenticatedTenantsIdEditRoute: typeof AuthenticatedTenantsIdEditRoute
+  AuthenticatedBankAccountsIdIndexRoute: typeof AuthenticatedBankAccountsIdIndexRoute
   AuthenticatedLandlordsIdIndexRoute: typeof AuthenticatedLandlordsIdIndexRoute
   AuthenticatedPropertiesIdIndexRoute: typeof AuthenticatedPropertiesIdIndexRoute
   AuthenticatedTenantsIdIndexRoute: typeof AuthenticatedTenantsIdIndexRoute
@@ -811,11 +895,13 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedBankAccountsNewRoute: AuthenticatedBankAccountsNewRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
   AuthenticatedPropertiesNewRoute: AuthenticatedPropertiesNewRoute,
   AuthenticatedTenantsNewRoute: AuthenticatedTenantsNewRoute,
   AuthenticatedAppsIndexRoute: AuthenticatedAppsIndexRoute,
+  AuthenticatedBankAccountsIndexRoute: AuthenticatedBankAccountsIndexRoute,
   AuthenticatedChatsIndexRoute: AuthenticatedChatsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedLandlordsIndexRoute: AuthenticatedLandlordsIndexRoute,
@@ -823,9 +909,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedTenantsIndexRoute: AuthenticatedTenantsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
+  AuthenticatedBankAccountsIdEditRoute: AuthenticatedBankAccountsIdEditRoute,
   AuthenticatedLandlordsIdEditRoute: AuthenticatedLandlordsIdEditRoute,
   AuthenticatedPropertiesIdEditRoute: AuthenticatedPropertiesIdEditRoute,
   AuthenticatedTenantsIdEditRoute: AuthenticatedTenantsIdEditRoute,
+  AuthenticatedBankAccountsIdIndexRoute: AuthenticatedBankAccountsIdIndexRoute,
   AuthenticatedLandlordsIdIndexRoute: AuthenticatedLandlordsIdIndexRoute,
   AuthenticatedPropertiesIdIndexRoute: AuthenticatedPropertiesIdIndexRoute,
   AuthenticatedTenantsIdIndexRoute: AuthenticatedTenantsIdIndexRoute,

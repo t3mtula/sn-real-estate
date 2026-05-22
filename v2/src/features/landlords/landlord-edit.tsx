@@ -15,7 +15,6 @@ import {
   useUpdateLandlord,
 } from '@/features/landlords/mutations'
 import {
-  EMPTY_BANK_ROW,
   LANDLORD_FORM_DEFAULTS,
   type LandlordFormValues,
 } from '@/features/landlords/schema'
@@ -68,12 +67,6 @@ export function LandlordEdit({ id }: { id: string }) {
           ) : (
             (() => {
               const t = landlord.data.data
-              const banksFromData = (t.banks ?? []).map((b) => ({
-                bank: b.bank ?? '',
-                acctNo: b.acctNo ?? '',
-                accountName: b.accountName ?? '',
-                label: b.label ?? '',
-              }))
               const defaults: LandlordFormValues = {
                 ...LANDLORD_FORM_DEFAULTS,
                 name: t.name ?? '',
@@ -90,10 +83,6 @@ export function LandlordEdit({ id }: { id: string }) {
                 addrDistrict: t.addrDistrict ?? '',
                 addrProvince: t.addrProvince ?? '',
                 addrPostal: t.addrPostal ?? '',
-                banks:
-                  banksFromData.length > 0
-                    ? banksFromData
-                    : [{ ...EMPTY_BANK_ROW }],
                 vatRegistered: !!t.vatRegistered,
                 vatRate: t.vatRate ?? 7,
                 promptPayId: t.promptPayId ?? '',

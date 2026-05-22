@@ -1,38 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { LandlordFormValues } from '@/features/landlords/schema'
-import type { LandlordBank, LandlordData } from '@/features/landlords/types'
+import type { LandlordData } from '@/features/landlords/types'
 
 const TABLE = 'landlords'
 
 /**
- * Filter out empty bank rows + trim
- */
-function cleanBanks(banks: LandlordFormValues['banks']): LandlordBank[] {
-  return (banks ?? [])
-    .map((b) => ({
-      bank: (b.bank ?? '').trim(),
-      acctNo: (b.acctNo ?? '').trim(),
-      accountName: (b.accountName ?? '').trim(),
-      label: (b.label ?? '').trim(),
-    }))
-    .filter((b) => b.bank || b.acctNo || b.accountName)
-    .map((b) => {
-      // Drop label key when blank to keep JSON clean
-      const out: LandlordBank = {
-        bank: b.bank,
-        acctNo: b.acctNo,
-        accountName: b.accountName,
-      }
-      if (b.label) out.label = b.label
-      return out
-    })
-}
-
-/**
  * Convert form values into the keys we manage in JSONB.
- * NOTE: ค่าจาก form ที่อาจ override field เดิมใน landlord.data — เก็บไว้ใน managed object
- * แล้ว merge กับ existing data ตอน update (เพื่อ preserve v1 fields ที่เรายังไม่ใช้)
+ * NOTE (Phase 1B-3a): banks[] ย้ายออก → table bank_accounts แล้ว · ไม่ manage ที่นี่
  */
 function valuesToManagedFields(values: LandlordFormValues, pid: number) {
   return {
@@ -51,7 +26,6 @@ function valuesToManagedFields(values: LandlordFormValues, pid: number) {
     addrDistrict: values.addrDistrict ?? '',
     addrProvince: values.addrProvince ?? '',
     addrPostal: values.addrPostal ?? '',
-    banks: cleanBanks(values.banks),
     vatRegistered: !!values.vatRegistered,
     vatRate: values.vatRegistered ? (values.vatRate ?? 7) : 0,
     promptPayId: values.promptPayId ?? '',

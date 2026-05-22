@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Loader2, Upload, X } from 'lucide-react'
 import { useRef } from 'react'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { ThaiAddressInput } from '@/features/properties/components/thai-address-input'
 import { useConfirm } from '@/hooks/use-confirm'
 import {
-  EMPTY_BANK_ROW,
   LANDLORD_FORM_DEFAULTS,
   type LandlordFormValues,
   landlordFormSchema,
@@ -55,8 +54,6 @@ export function LandlordForm({
   const addrDistrict = form.watch('addrDistrict')
   const addrProvince = form.watch('addrProvince')
   const addrPostal = form.watch('addrPostal')
-
-  const banksFA = useFieldArray({ control: form.control, name: 'banks' })
 
   async function handleSubmit(values: LandlordFormValues) {
     try {
@@ -329,106 +326,6 @@ export function LandlordForm({
             form.setValue('addrPostal', addr.postal, { shouldDirty: true })
           }}
         />
-      </section>
-
-      {/* Banks */}
-      <section className='rounded-md border bg-card p-4'>
-        <div className='mb-3 flex items-baseline justify-between gap-2'>
-          <div>
-            <p className='text-sm font-medium'>บัญชีธนาคาร</p>
-            <p className='text-xs text-muted-foreground'>
-              1 ราย มีได้หลายบัญชี · สัญญาเลือกได้ว่าจะให้โอนบัญชีไหน
-            </p>
-          </div>
-          <Button
-            type='button'
-            variant='outline'
-            size='sm'
-            onClick={() => banksFA.append({ ...EMPTY_BANK_ROW })}
-            disabled={banksFA.fields.length >= 10}
-          >
-            <Plus className='size-3' />
-            เพิ่มบัญชี
-          </Button>
-        </div>
-        <div className='flex flex-col gap-3'>
-          {banksFA.fields.map((field, idx) => (
-            <div
-              key={field.id}
-              className='grid gap-2 rounded-md border bg-background p-3 sm:grid-cols-[1fr_180px_1fr_160px_auto] sm:gap-2'
-            >
-              <div>
-                <Label
-                  className='text-[10px] uppercase tracking-wider text-muted-foreground'
-                  htmlFor={`banks-${idx}-bank`}
-                >
-                  ธนาคาร + สาขา
-                </Label>
-                <Input
-                  id={`banks-${idx}-bank`}
-                  {...form.register(`banks.${idx}.bank`)}
-                  placeholder='ธ.กรุงเทพ สาขาบ้านโป่ง'
-                />
-              </div>
-              <div>
-                <Label
-                  className='text-[10px] uppercase tracking-wider text-muted-foreground'
-                  htmlFor={`banks-${idx}-acctNo`}
-                >
-                  เลขบัญชี
-                </Label>
-                <Input
-                  id={`banks-${idx}-acctNo`}
-                  {...form.register(`banks.${idx}.acctNo`)}
-                  placeholder='276-428500-9'
-                />
-              </div>
-              <div>
-                <Label
-                  className='text-[10px] uppercase tracking-wider text-muted-foreground'
-                  htmlFor={`banks-${idx}-accountName`}
-                >
-                  ชื่อบัญชี
-                </Label>
-                <Input
-                  id={`banks-${idx}-accountName`}
-                  {...form.register(`banks.${idx}.accountName`)}
-                  placeholder='ชื่อตามสมุดบัญชี'
-                />
-              </div>
-              <div>
-                <Label
-                  className='text-[10px] uppercase tracking-wider text-muted-foreground'
-                  htmlFor={`banks-${idx}-label`}
-                >
-                  ป้ายกำกับ
-                </Label>
-                <Input
-                  id={`banks-${idx}-label`}
-                  {...form.register(`banks.${idx}.label`)}
-                  placeholder='หลัก / ค่าน้ำค่าไฟ'
-                />
-              </div>
-              <div className='flex items-end justify-end'>
-                <Button
-                  type='button'
-                  variant='ghost'
-                  size='icon'
-                  onClick={() => banksFA.remove(idx)}
-                  aria-label='ลบบัญชี'
-                  disabled={banksFA.fields.length <= 1}
-                >
-                  <Trash2 className='size-4' />
-                </Button>
-              </div>
-            </div>
-          ))}
-          {banksFA.fields.length === 0 && (
-            <p className='py-2 text-center text-xs text-muted-foreground'>
-              ยังไม่มีบัญชี · กด "เพิ่มบัญชี" เพื่อเริ่ม
-            </p>
-          )}
-        </div>
       </section>
 
       {/* VAT */}

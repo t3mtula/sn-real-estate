@@ -1,5 +1,6 @@
 import {
   Building2,
+  CreditCard,
   FileText,
   GalleryVerticalEnd,
   Landmark,
@@ -47,6 +48,11 @@ export const sidebarData: SidebarData = {
           title: 'ผู้ให้เช่า',
           url: '/landlords',
           icon: Landmark,
+        },
+        {
+          title: 'บัญชีธนาคาร',
+          url: '/bank-accounts',
+          icon: CreditCard,
         },
         {
           title: 'สัญญาเช่า',

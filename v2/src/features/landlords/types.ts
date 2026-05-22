@@ -17,21 +17,10 @@ export const PARTY_TYPES = [
 export type PartyType = (typeof PARTY_TYPES)[number]['value']
 
 /**
- * บัญชีธนาคารของ landlord (1 landlord มีได้หลายบัญชี เช่น โอนค่าเช่า / โอนค่าน้ำค่าไฟ แยกกัน)
- */
-export type LandlordBank = {
-  /** ชื่อธนาคาร + สาขา (เช่น "ธนาคารกรุงเทพ สาขาบ้านโป่ง") */
-  bank: string
-  /** เลขบัญชี (เช่น "276-428500-9") */
-  acctNo: string
-  /** ชื่อบัญชี (อาจไม่ตรงกับ landlord.name ถ้าโอนเข้าบัญชีบุคคลอื่น) */
-  accountName: string
-  /** label สั้น สำหรับ dropdown / contract form (เช่น "บัญชีหลัก", "บัญชีค่าน้ำค่าไฟ") */
-  label?: string
-}
-
-/**
  * Landlord data (stored in `landlords.data` JSONB)
+ *
+ * NOTE (Phase 1B-3a): `banks` field deprecated — ย้ายไป table `bank_accounts` แล้ว
+ *   query บัญชีของ landlord ผ่าน useBankAccountsByOwner(landlord.id)
  */
 export type LandlordData = {
   /** Primary key inside JSON · epoch ms */
@@ -60,8 +49,8 @@ export type LandlordData = {
   addrDistrict?: string
   addrProvince?: string
   addrPostal?: string
-  /** บัญชีธนาคาร (เก็บเป็น array · 1 landlord มีได้หลายบัญชี) */
-  banks?: LandlordBank[]
+  /** @deprecated Phase 1B-3a — ย้ายไป table `bank_accounts` (legacy data preserved for rollback) */
+  banks?: Array<{ bank: string; acctNo: string; accountName: string; label?: string }>
   /** จด VAT หรือไม่ */
   vatRegistered?: boolean
   /** อัตรา VAT % (default 7) */

@@ -8,6 +8,7 @@ import {
   Pencil,
   Percent,
   Phone,
+  Plus,
   QrCode,
   ScrollText,
   Trash2,
@@ -32,6 +33,7 @@ import {
   useLandlordContracts,
 } from '@/features/landlords/queries'
 import { useDeleteLandlord } from '@/features/landlords/mutations'
+import { useBankAccountsByOwner } from '@/features/bank-accounts/queries'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -73,6 +75,7 @@ function InfoRow({
 export function LandlordDetail({ id }: { id: string }) {
   const { data: landlord, isLoading, error } = useLandlord(id)
   const contracts = useLandlordContracts(landlord ?? null)
+  const banks = useBankAccountsByOwner(id)
   const del = useDeleteLandlord()
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -152,6 +155,7 @@ export function LandlordDetail({ id }: { id: string }) {
           <Content
             landlord={landlord}
             contracts={contracts.data ?? []}
+            banks={banks.data ?? []}
             onDelete={handleDelete}
             deleting={del.isPending}
           />
@@ -164,11 +168,13 @@ export function LandlordDetail({ id }: { id: string }) {
 function Content({
   landlord,
   contracts,
+  banks,
   onDelete,
   deleting,
 }: {
   landlord: NonNullable<ReturnType<typeof useLandlord>['data']>
   contracts: Array<{ id: string; data: Record<string, unknown> }>
+  banks: NonNullable<ReturnType<typeof useBankAccountsByOwner>['data']>
   onDelete: () => Promise<void>
   deleting: boolean
 }) {
@@ -176,9 +182,6 @@ function Content({
   const isCompany = t.partyType === 'company'
   const Icon = isCompany ? Building2 : UserRound
   const addr = getLandlordAddrShort(t)
-  const banks = (t.banks ?? []).filter(
-    (b) => (b.bank ?? '').trim() || (b.acctNo ?? '').trim(),
-  )
 
   return (
     <>
@@ -307,44 +310,66 @@ function Content({
         </Card>
 
         <Card className='lg:col-span-3'>
-          <CardHeader>
+          <CardHeader className='flex flex-row items-center justify-between gap-2 space-y-0'>
             <CardTitle className='text-base'>
               <Landmark className='-mt-0.5 mr-1 inline size-4' />
               บัญชีธนาคาร ({banks.length})
             </CardTitle>
+            <Button asChild variant='outline' size='sm'>
+              <Link to='/bank-accounts/new' search={{ owner: landlord.id }}>
+                <Plus className='size-3' />
+                เพิ่มบัญชี
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {banks.length === 0 ? (
               <p className='text-sm text-muted-foreground'>
-                ยังไม่มีบัญชีธนาคาร · กดแก้ไขเพื่อเพิ่ม
+                ยังไม่มีบัญชีธนาคารผูกกับผู้ให้เช่ารายนี้ · กด "เพิ่มบัญชี" เพื่อเริ่ม
               </p>
             ) : (
               <ul className='divide-y'>
-                {banks.map((b, i) => (
-                  <li
-                    // biome-ignore lint/suspicious/noArrayIndexKey: banks index is stable per render
-                    key={i}
-                    className='grid gap-2 py-3 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-center sm:gap-4'
-                  >
-                    <div>
-                      <p className='text-xs text-muted-foreground'>ธนาคาร</p>
-                      <p className='text-sm font-medium'>{b.bank || '—'}</p>
-                    </div>
-                    <div>
-                      <p className='text-xs text-muted-foreground'>เลขบัญชี</p>
-                      <p className='font-mono text-sm'>{b.acctNo || '—'}</p>
-                    </div>
-                    <div>
-                      <p className='text-xs text-muted-foreground'>ชื่อบัญชี</p>
-                      <p className='text-sm'>{b.accountName || '—'}</p>
-                    </div>
-                    {b.label && (
-                      <Badge variant='outline' className='justify-self-start font-normal'>
-                        {b.label}
-                      </Badge>
-                    )}
-                  </li>
-                ))}
+                {banks.map((ba) => {
+                  const b = ba.data
+                  const active = b.active !== false
+                  return (
+                    <li
+                      key={ba.id}
+                      className='grid gap-2 py-3 sm:grid-cols-[1fr_180px_1fr_auto] sm:items-center sm:gap-4'
+                    >
+                      <div>
+                        <p className='text-xs text-muted-foreground'>ธนาคาร</p>
+                        <Link
+                          to='/bank-accounts/$id'
+                          params={{ id: ba.id }}
+                          className='text-sm font-medium hover:underline'
+                        >
+                          {b.bank || '—'}
+                        </Link>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>เลขบัญชี</p>
+                        <p className='font-mono text-sm'>{b.acctNo || '—'}</p>
+                      </div>
+                      <div>
+                        <p className='text-xs text-muted-foreground'>ชื่อบัญชี</p>
+                        <p className='text-sm'>{b.accountName || '—'}</p>
+                      </div>
+                      <div className='flex gap-1'>
+                        {b.label && (
+                          <Badge variant='outline' className='font-normal'>
+                            {b.label}
+                          </Badge>
+                        )}
+                        {!active && (
+                          <Badge variant='outline' className='font-normal text-muted-foreground'>
+                            ปิด
+                          </Badge>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </CardContent>

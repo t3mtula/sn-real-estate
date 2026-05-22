@@ -133,9 +133,4 @@ export function getLandlordAddrShort(t: LandlordData | undefined): string {
   return parts.join(' ').trim() || '—'
 }
 
-/** Bank count (รวมเฉพาะ rows ที่มีข้อมูลจริง) */
-export function getLandlordBankCount(t: LandlordData | undefined): number {
-  if (!t?.banks) return 0
-  return t.banks.filter((b) => (b.bank ?? '').trim() || (b.acctNo ?? '').trim())
-    .length
-}
+/** @deprecated Phase 1B-3a — banks ย้ายไป bank_accounts table · ใช้ useBankAccountsByOwner แทน */
