@@ -40,10 +40,13 @@ import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenti
 import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
 import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
+import { Route as AuthenticatedSettingsTemplatesIndexRouteImport } from './routes/_authenticated/settings/templates/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
 import { Route as AuthenticatedContractsIdIndexRouteImport } from './routes/_authenticated/contracts/$id/index'
 import { Route as AuthenticatedBankAccountsIdIndexRouteImport } from './routes/_authenticated/bank-accounts/$id/index'
+import { Route as AuthenticatedSettingsTemplatesNewRouteImport } from './routes/_authenticated/settings/templates/new'
+import { Route as AuthenticatedSettingsTemplatesIdRouteImport } from './routes/_authenticated/settings/templates/$id'
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -216,6 +219,12 @@ const AuthenticatedTenantsIdIndexRoute =
     path: '/tenants/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSettingsTemplatesIndexRoute =
+  AuthenticatedSettingsTemplatesIndexRouteImport.update({
+    id: '/templates/',
+    path: '/templates/',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedPropertiesIdIndexRoute =
   AuthenticatedPropertiesIdIndexRouteImport.update({
     id: '/properties/$id/',
@@ -239,6 +248,18 @@ const AuthenticatedBankAccountsIdIndexRoute =
     id: '/bank-accounts/$id/',
     path: '/bank-accounts/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSettingsTemplatesNewRoute =
+  AuthenticatedSettingsTemplatesNewRouteImport.update({
+    id: '/templates/new',
+    path: '/templates/new',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedSettingsTemplatesIdRoute =
+  AuthenticatedSettingsTemplatesIdRouteImport.update({
+    id: '/templates/$id',
+    path: '/templates/$id',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 const AuthenticatedContractsIdPrintRoute =
   AuthenticatedContractsIdPrintRouteImport.update({
@@ -278,10 +299,13 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
+  '/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
+  '/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
+  '/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -314,10 +338,13 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
+  '/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
+  '/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/bank-accounts/$id': typeof AuthenticatedBankAccountsIdIndexRoute
   '/contracts/$id': typeof AuthenticatedContractsIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
+  '/settings/templates': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesById {
@@ -353,10 +380,13 @@ export interface FileRoutesById {
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/_authenticated/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
+  '/_authenticated/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
+  '/_authenticated/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/_authenticated/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/_authenticated/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
+  '/_authenticated/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -392,10 +422,13 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/tenants/'
     | '/contracts/$id/print'
+    | '/settings/templates/$id'
+    | '/settings/templates/new'
     | '/bank-accounts/$id/'
     | '/contracts/$id/'
     | '/landlords/$id/'
     | '/properties/$id/'
+    | '/settings/templates/'
     | '/tenants/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -428,10 +461,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tenants'
     | '/contracts/$id/print'
+    | '/settings/templates/$id'
+    | '/settings/templates/new'
     | '/bank-accounts/$id'
     | '/contracts/$id'
     | '/landlords/$id'
     | '/properties/$id'
+    | '/settings/templates'
     | '/tenants/$id'
   id:
     | '__root__'
@@ -466,10 +502,13 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/'
     | '/_authenticated/tenants/'
     | '/_authenticated/contracts/$id/print'
+    | '/_authenticated/settings/templates/$id'
+    | '/_authenticated/settings/templates/new'
     | '/_authenticated/bank-accounts/$id/'
     | '/_authenticated/contracts/$id/'
     | '/_authenticated/landlords/$id/'
     | '/_authenticated/properties/$id/'
+    | '/_authenticated/settings/templates/'
     | '/_authenticated/tenants/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -707,6 +746,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTenantsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/templates/': {
+      id: '/_authenticated/settings/templates/'
+      path: '/templates'
+      fullPath: '/settings/templates/'
+      preLoaderRoute: typeof AuthenticatedSettingsTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/properties/$id/': {
       id: '/_authenticated/properties/$id/'
       path: '/properties/$id'
@@ -735,6 +781,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankAccountsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/templates/new': {
+      id: '/_authenticated/settings/templates/new'
+      path: '/templates/new'
+      fullPath: '/settings/templates/new'
+      preLoaderRoute: typeof AuthenticatedSettingsTemplatesNewRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/settings/templates/$id': {
+      id: '/_authenticated/settings/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/settings/templates/$id'
+      preLoaderRoute: typeof AuthenticatedSettingsTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/contracts/$id/print': {
       id: '/_authenticated/contracts/$id/print'
       path: '/contracts/$id/print'
@@ -748,12 +808,21 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+  AuthenticatedSettingsTemplatesIdRoute: typeof AuthenticatedSettingsTemplatesIdRoute
+  AuthenticatedSettingsTemplatesNewRoute: typeof AuthenticatedSettingsTemplatesNewRoute
+  AuthenticatedSettingsTemplatesIndexRoute: typeof AuthenticatedSettingsTemplatesIndexRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+    AuthenticatedSettingsTemplatesIdRoute:
+      AuthenticatedSettingsTemplatesIdRoute,
+    AuthenticatedSettingsTemplatesNewRoute:
+      AuthenticatedSettingsTemplatesNewRoute,
+    AuthenticatedSettingsTemplatesIndexRoute:
+      AuthenticatedSettingsTemplatesIndexRoute,
   }
 
 const AuthenticatedSettingsRouteRouteWithChildren =

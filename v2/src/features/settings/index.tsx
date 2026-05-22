@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { Palette, UserCog } from 'lucide-react'
+import { FileText, Palette, UserCog } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -12,6 +12,11 @@ const sidebarNavItems = [
     title: 'บัญชี',
     href: '/settings',
     icon: <UserCog size={18} />,
+  },
+  {
+    title: 'ฟอร์มสัญญา',
+    href: '/settings/templates',
+    icon: <FileText size={18} />,
   },
   {
     title: 'หน้าตา',

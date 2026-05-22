@@ -7,6 +7,7 @@ import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
+import { useActiveContractTemplate } from '@/features/templates/queries'
 import { useTenant } from '@/features/tenants/queries'
 import { getPdfBlob } from '@/lib/pdf'
 
@@ -31,6 +32,7 @@ export function ContractPrint({ id }: { id: string }) {
   const { data: bank } = useBankAccount(bankAccountId)
   const { data: property } = useProperty(propertyKey)
   const { data: parent } = useContract(parentId)
+  const { data: template } = useActiveContractTemplate()
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfErr, setPdfErr] = useState<string | null>(null)
@@ -50,6 +52,7 @@ export function ContractPrint({ id }: { id: string }) {
           bank: bank ?? null,
           property: property ?? null,
           parent: parent ?? null,
+          template: template ?? null,
         })
         const blob = await getPdfBlob(doc)
         if (cancelled) return
@@ -65,7 +68,7 @@ export function ContractPrint({ id }: { id: string }) {
     return () => {
       cancelled = true
     }
-  }, [contract, tenant, landlord, bank, property, parent])
+  }, [contract, tenant, landlord, bank, property, parent, template])
 
   // Cleanup blob URL on unmount/change
   useEffect(() => {

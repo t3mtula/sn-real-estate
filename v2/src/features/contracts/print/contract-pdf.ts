@@ -19,6 +19,7 @@ import type { Contract } from '@/features/contracts/types'
 import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
+import type { ContractTemplate } from '@/features/templates/types'
 import { fmtBE, fmtThaiLong, parseBE } from '@/lib/thai'
 import {
   DEFAULT_TEMPLATE,
@@ -33,6 +34,8 @@ type Refs = {
   property?: Property | null
   bank?: BankAccount | null
   parent?: Contract | null
+  /** Optional active template loaded from Supabase. Falls back to DEFAULT_TEMPLATE. */
+  template?: ContractTemplate | null
 }
 
 /* ─────────── colors + spacing ─────────── */
@@ -341,35 +344,53 @@ function dateStrip(refs: Refs): Content {
   }
 }
 
-/** Body: intro + 12 clauses (with sub-clauses) + closing */
+/** Body: intro + clauses (with sub-clauses) + closing — uses active template or default */
 function clausesBody(refs: Refs): Content[] {
   const c = refs.contract.data
   const ctx = {
     landlord: (refs.landlord?.data?.name ?? c.landlord ?? '').trim(),
     tenant: (refs.tenant?.data?.name ?? c.tenant ?? '').trim(),
   }
+  // Use active template from DB if provided, else fall back to v1 default
+  const tpl = refs.template?.data
+    ? {
+        intro: refs.template.data.intro ?? DEFAULT_TEMPLATE.intro,
+        clauses: refs.template.data.clauses ?? DEFAULT_TEMPLATE.clauses,
+        closing: refs.template.data.closing ?? DEFAULT_TEMPLATE.closing,
+      }
+    : DEFAULT_TEMPLATE
+
+  // Per-contract clause overrides (v1 c.clauseOverrides{"0":text, "0.1":text}…)
+  const overrides =
+    ((c as { clauseOverrides?: Record<string, string> }).clauseOverrides ?? {}) as
+      Record<string, string>
+
   const out: Content[] = []
 
   out.push({
-    text: htmlToInlineParts(renderTemplateText(DEFAULT_TEMPLATE.intro, ctx)),
+    text: htmlToInlineParts(renderTemplateText(tpl.intro, ctx)),
     alignment: 'justify',
     margin: [0, 0, 0, 8] as [number, number, number, number],
   })
 
-  DEFAULT_TEMPLATE.clauses.forEach((cl, i) => {
+  tpl.clauses.forEach((cl, i) => {
+    // Override key "i" replaces the whole clause text
+    const mainText = overrides[String(i)] ?? cl.text
     out.push({
       text: [
         { text: `ข้อ ${i + 1}. `, bold: true, color: C.brand },
-        ...htmlToInlineParts(renderTemplateText(cl.text, ctx)),
+        ...htmlToInlineParts(renderTemplateText(mainText, ctx)),
       ],
       alignment: 'justify',
       margin: [0, 0, 0, 5] as [number, number, number, number],
     } as Content)
     ;(cl.sub ?? []).forEach((sub, j) => {
+      // Override key "i.j" replaces a sub-clause
+      const subText = overrides[`${i}.${j}`] ?? sub
       out.push({
         text: [
           { text: `${i + 1}.${j + 1} `, bold: true, color: C.brand },
-          ...htmlToInlineParts(renderTemplateText(sub, ctx)),
+          ...htmlToInlineParts(renderTemplateText(subText, ctx)),
         ],
         alignment: 'justify',
         fontSize: 12,
@@ -379,7 +400,7 @@ function clausesBody(refs: Refs): Content[] {
   })
 
   out.push({
-    text: htmlToInlineParts(renderTemplateText(DEFAULT_TEMPLATE.closing, ctx)),
+    text: htmlToInlineParts(renderTemplateText(tpl.closing, ctx)),
     alignment: 'justify',
     margin: [0, 10, 0, 0] as [number, number, number, number],
   })
