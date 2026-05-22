@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   Building2,
   CreditCard,
   FileText,
@@ -58,6 +59,11 @@ export const sidebarData: SidebarData = {
           title: 'ใบแจ้งหนี้',
           url: '/invoices',
           icon: Receipt,
+        },
+        {
+          title: 'รายงานอายุหนี้',
+          url: '/reports/aging',
+          icon: BarChart3,
         },
       ],
     },
