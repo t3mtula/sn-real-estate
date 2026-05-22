@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
 import { fmtBE, parseBE } from '@/lib/thai'
 import type { Contract, ContractData } from '@/features/contracts/types'
@@ -233,6 +234,13 @@ export function useGenerateInvoiceFromContract() {
         .select('id')
         .single()
       if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'invoices',
+        entity_id: id,
+        description: `ออกใบแจ้งหนี้ ${invoiceNo} · ${data.tenant || '—'} · ${month}`,
+        after: { invoiceNo, total, contract_id: contract.id, month, category },
+      })
       return { id }
     },
     onSuccess: () => {
@@ -298,6 +306,13 @@ export function useCancelInvoice(id: string) {
           voidedReason: input.reason?.trim() || '',
         } as Partial<InvoiceData>,
       })
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: `ยกเลิกใบแจ้งหนี้ · เหตุผล: ${input.reason?.trim() || '(ไม่ระบุ)'}`,
+        after: { status: 'voided', voidedReason: input.reason ?? '' },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
@@ -332,6 +347,13 @@ export function useRestoreInvoice(id: string) {
           voidedReason: undefined,
         } as Partial<InvoiceData>,
       })
+      void logActivity({
+        action: 'restore',
+        entity: 'invoices',
+        entity_id: id,
+        description: `คืนสถานะใบแจ้งหนี้ → ${prevStatus}`,
+        after: { status: prevStatus },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
@@ -348,6 +370,13 @@ export function useMarkInvoiceSent(id: string) {
       await mergeUpdateInvoice(id, {
         status: 'sent',
         data: { status: 'sent' } as Partial<InvoiceData>,
+      })
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: 'บันทึกส่งใบแจ้งหนี้ (draft → sent)',
+        after: { status: 'sent' },
       })
     },
     onSuccess: () => {
@@ -646,6 +675,16 @@ export function useGenerateMonthlyInvoices() {
           created++
           existingByContract.add(c.id)
         }
+      }
+      if (created > 0) {
+        void logActivity({
+          action: 'create',
+          entity: 'invoices',
+          entity_id: month,
+          description: `สร้างใบแจ้งหนี้รายเดือน ${month} · ${created} ใบ`
+            + (errors.length > 0 ? ` · ผิดพลาด ${errors.length} ใบ` : ''),
+          after: { month, created, skipped, errors: errors.length },
+        })
       }
       return { month, created, skipped, errors }
     },

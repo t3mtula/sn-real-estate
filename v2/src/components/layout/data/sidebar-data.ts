@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   Building2,
   CalendarClock,
@@ -82,6 +83,11 @@ export const sidebarData: SidebarData = {
     {
       title: 'อื่น',
       items: [
+        {
+          title: 'บันทึกกิจกรรม',
+          url: '/activity-log',
+          icon: Activity,
+        },
         {
           title: 'ตั้งค่า',
           icon: Settings,
