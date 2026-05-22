@@ -4,7 +4,6 @@ import {
   FileText,
   GalleryVerticalEnd,
   Landmark,
-  LayoutDashboard,
   Palette,
   Settings,
   UserCog,
@@ -29,11 +28,6 @@ export const sidebarData: SidebarData = {
     {
       title: 'หลัก',
       items: [
-        {
-          title: 'หน้าแรก',
-          url: '/',
-          icon: LayoutDashboard,
-        },
         {
           title: 'ทรัพย์สิน',
           url: '/properties',

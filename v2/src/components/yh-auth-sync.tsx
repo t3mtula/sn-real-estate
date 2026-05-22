@@ -13,10 +13,11 @@ import { useAuthStore } from '@/stores/auth-store'
  * นี่คือ "bridge" ระหว่าง satnaing auth-store + Yonghua Supabase Auth
  */
 export function YhAuthSync() {
-  const { auth } = useAuthStore()
-
+  // อ่าน store ผ่าน getState() ใน callback — ห้าม subscribe ที่ component level
+  // ไม่งั้น auth ref change ทุก setState → effect re-run → leak Supabase listener
   useEffect(() => {
     let mounted = true
+    const { auth } = useAuthStore.getState()
 
     // Initial sync — ตรวจ session ที่อาจมีอยู่แล้ว
     supabase.auth.getSession().then(({ data }) => {
@@ -38,20 +39,21 @@ export function YhAuthSync() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return
+      const { auth: currentAuth } = useAuthStore.getState()
 
       if (event === 'SIGNED_OUT' || !session) {
-        auth.reset()
+        currentAuth.reset()
         return
       }
 
       if (session?.user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
-        auth.setUser({
+        currentAuth.setUser({
           accountNo: session.user.id,
           email: session.user.email ?? '',
           role: (session.user.app_metadata?.role as string[]) ?? ['user'],
           exp: session.expires_at ? session.expires_at * 1000 : Date.now() + 86400000,
         })
-        auth.setAccessToken(session.access_token)
+        currentAuth.setAccessToken(session.access_token)
       }
     })
 
@@ -59,7 +61,7 @@ export function YhAuthSync() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [auth])
+  }, [])
 
   return null
 }
