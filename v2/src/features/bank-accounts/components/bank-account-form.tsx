@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,7 +27,7 @@ type BankAccountFormProps = {
   defaultValues?: BankAccountFormValues
   onSubmit: (values: BankAccountFormValues) => Promise<void> | void
   submitting?: boolean
-  cancelTo: string
+  onCancel: () => void
 }
 
 export function BankAccountForm({
@@ -36,14 +35,13 @@ export function BankAccountForm({
   defaultValues,
   onSubmit,
   submitting = false,
-  cancelTo,
+  onCancel,
 }: BankAccountFormProps) {
   const form = useForm<BankAccountFormValues>({
     resolver: zodResolver(bankAccountFormSchema),
     defaultValues: defaultValues ?? BANK_ACCOUNT_FORM_DEFAULTS,
     mode: 'onBlur',
   })
-  const navigate = useNavigate()
   const confirm = useConfirm()
   const { data: landlords } = useLandlords()
 
@@ -67,13 +65,13 @@ export function BankAccountForm({
     if (form.formState.isDirty) {
       const ok = await confirm({
         title: 'ยังไม่ได้บันทึก',
-        description: 'ออกจากหน้านี้จะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
+        description: 'ออกจะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
         confirmLabel: 'ออก',
         destructive: true,
       })
       if (!ok) return
     }
-    navigate({ to: cancelTo })
+    onCancel()
   }
 
   const errors = form.formState.errors

@@ -7,6 +7,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -17,8 +18,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
+import { BankAccountForm } from '@/features/bank-accounts/components/bank-account-form'
 import { useBankAccount } from '@/features/bank-accounts/queries'
-import { useDeleteBankAccount } from '@/features/bank-accounts/mutations'
+import {
+  useDeleteBankAccount,
+  useUpdateBankAccount,
+} from '@/features/bank-accounts/mutations'
+import {
+  BANK_ACCOUNT_FORM_DEFAULTS,
+  type BankAccountFormValues,
+} from '@/features/bank-accounts/schema'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -62,6 +71,7 @@ export function BankAccountDetail({ id }: { id: string }) {
   const del = useDeleteBankAccount()
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [isEditing, setIsEditing] = useState(false)
 
   async function handleDelete() {
     if (!ba) return
@@ -130,6 +140,8 @@ export function BankAccountDetail({ id }: { id: string }) {
               </CardContent>
             </Card>
           </>
+        ) : isEditing ? (
+          <BankAccountEditing ba={ba} onDone={() => setIsEditing(false)} />
         ) : (
           <Content
             id={ba.id}
@@ -138,9 +150,54 @@ export function BankAccountDetail({ id }: { id: string }) {
             updatedAt={ba.updated_at}
             onDelete={handleDelete}
             deleting={del.isPending}
+            onEdit={() => setIsEditing(true)}
           />
         )}
       </Main>
+    </>
+  )
+}
+
+function BankAccountEditing({
+  ba,
+  onDone,
+}: {
+  ba: NonNullable<ReturnType<typeof useBankAccount>['data']>
+  onDone: () => void
+}) {
+  const update = useUpdateBankAccount(ba.id)
+  const b = ba.data
+  const defaults: BankAccountFormValues = {
+    ...BANK_ACCOUNT_FORM_DEFAULTS,
+    bank: b.bank ?? '',
+    branch: b.branch ?? '',
+    acctNo: b.acctNo ?? '',
+    accountName: b.accountName ?? '',
+    label: b.label ?? '',
+    ownerLandlordId: b.ownerLandlordId ?? '',
+    active: b.active !== false,
+    notes: b.notes ?? '',
+  }
+  return (
+    <>
+      <header className='flex items-center gap-3'>
+        <h1 className='text-2xl font-semibold tracking-tight'>
+          แก้ไขบัญชีธนาคาร
+        </h1>
+        <p className='text-sm text-muted-foreground'>
+          {b.bank || `ID: ${ba.id}`}
+        </p>
+      </header>
+      <BankAccountForm
+        mode='edit'
+        defaultValues={defaults}
+        submitting={update.isPending}
+        onCancel={onDone}
+        onSubmit={async (values) => {
+          await update.mutateAsync(values)
+          onDone()
+        }}
+      />
     </>
   )
 }
@@ -152,6 +209,7 @@ function Content({
   updatedAt,
   onDelete,
   deleting,
+  onEdit,
 }: {
   id: string
   data: NonNullable<ReturnType<typeof useBankAccount>['data']>['data']
@@ -159,6 +217,7 @@ function Content({
   updatedAt: string | null
   onDelete: () => Promise<void>
   deleting: boolean
+  onEdit: () => void
 }) {
   const active = data.active !== false
 
@@ -201,11 +260,9 @@ function Content({
             <Trash2 className='size-4' />
             ลบ
           </Button>
-          <Button asChild>
-            <Link to='/bank-accounts/$id/edit' params={{ id }}>
-              <Pencil className='size-4' />
-              แก้ไข
-            </Link>
+          <Button onClick={onEdit}>
+            <Pencil className='size-4' />
+            แก้ไข
           </Button>
         </div>
       </header>

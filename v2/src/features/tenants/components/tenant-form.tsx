@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,7 +21,7 @@ type TenantFormProps = {
   defaultValues?: TenantFormValues
   onSubmit: (values: TenantFormValues) => Promise<void> | void
   submitting?: boolean
-  cancelTo: string
+  onCancel: () => void
 }
 
 export function TenantForm({
@@ -30,14 +29,13 @@ export function TenantForm({
   defaultValues,
   onSubmit,
   submitting = false,
-  cancelTo,
+  onCancel,
 }: TenantFormProps) {
   const form = useForm<TenantFormValues>({
     resolver: zodResolver(tenantFormSchema),
     defaultValues: defaultValues ?? TENANT_FORM_DEFAULTS,
     mode: 'onBlur',
   })
-  const navigate = useNavigate()
   const confirm = useConfirm()
 
   const partyType = form.watch('partyType')
@@ -64,13 +62,13 @@ export function TenantForm({
     if (form.formState.isDirty) {
       const ok = await confirm({
         title: 'ยังไม่ได้บันทึก',
-        description: 'ออกจากหน้านี้จะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
+        description: 'ออกจะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
         confirmLabel: 'ออก',
         destructive: true,
       })
       if (!ok) return
     }
-    navigate({ to: cancelTo })
+    onCancel()
   }
 
   const errors = form.formState.errors

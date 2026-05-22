@@ -9,6 +9,7 @@ import {
   ScrollText,
   Users,
 } from 'lucide-react'
+import { useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -18,18 +19,38 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useLandlord } from '@/features/landlords/queries'
+import { PropertyForm } from '@/features/properties/components/property-form'
 import { PropertyImages } from '@/features/properties/components/property-images'
+import { useUpdateProperty } from '@/features/properties/mutations'
 import {
   getPropertyAddressShort,
   getPropertyName,
   getPropertyProvince,
   useProperty,
 } from '@/features/properties/queries'
-import { PROPERTY_TYPES } from '@/features/properties/types'
+import {
+  PROPERTY_FORM_DEFAULTS,
+  type PropertyFormValues,
+} from '@/features/properties/schema'
+import { PROPERTY_TYPES, type PropertyTypeValue } from '@/features/properties/types'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
   PROPERTY_TYPES.map((t) => [t.value, t.label])
 )
+
+const VALID_TYPES = new Set<string>([
+  'shophouse',
+  'land_with_house',
+  'vacant_land',
+  'rooftop_tower',
+  'apartment',
+  'other',
+])
+
+function coerceType(value: string | undefined): PropertyTypeValue {
+  if (value && VALID_TYPES.has(value)) return value as PropertyTypeValue
+  return 'other'
+}
 
 function InfoRow({
   icon: Icon,
@@ -70,6 +91,7 @@ function formatDate(value: string | null | undefined): string {
 
 export function PropertyDetail({ id }: { id: string }) {
   const { data: property, isLoading, error } = useProperty(id)
+  const [isEditing, setIsEditing] = useState(false)
 
   return (
     <>
@@ -118,18 +140,82 @@ export function PropertyDetail({ id }: { id: string }) {
               </CardContent>
             </Card>
           </>
+        ) : isEditing ? (
+          <PropertyEditing
+            property={property}
+            onDone={() => setIsEditing(false)}
+          />
         ) : (
-          <PropertyContent property={property} />
+          <PropertyContent
+            property={property}
+            onEdit={() => setIsEditing(true)}
+          />
         )}
       </Main>
     </>
   )
 }
 
-function PropertyContent({
+function PropertyEditing({
   property,
+  onDone,
 }: {
   property: NonNullable<ReturnType<typeof useProperty>['data']>
+  onDone: () => void
+}) {
+  const update = useUpdateProperty(property.id)
+  const p = property.data
+  const composedLine =
+    p.addr_line ??
+    [p.addr_no, p.addr_moo, p.addr_soi, p.addr_road].filter(Boolean).join(' ')
+  const defaults: PropertyFormValues = {
+    ...PROPERTY_FORM_DEFAULTS,
+    name: p.name ?? '',
+    type: coerceType(p.type),
+    location: p.location ?? '',
+    addrLine: composedLine,
+    addrSubdistrict: p.addr_subdistrict ?? '',
+    addrDistrict: p.addr_district ?? '',
+    addrProvince: p.addr_province ?? p.province ?? '',
+    addrPostal: p.addr_postal ?? '',
+    titleDeed: p.titleDeed ?? '',
+    area: p.area ?? '',
+    owner: p.owner ?? '',
+    ownerLandlordId: p.ownerLandlordId ?? '',
+    multiTenant: p.multiTenant === true,
+    images: (p.images ?? []).filter(Boolean),
+  }
+  return (
+    <>
+      <header className='flex items-center gap-3'>
+        <h1 className='text-2xl font-semibold tracking-tight'>
+          แก้ไขทรัพย์สิน
+        </h1>
+        <p className='text-sm text-muted-foreground'>
+          {p.name || `ID: ${property.id}`}
+        </p>
+      </header>
+      <PropertyForm
+        mode='edit'
+        propertyId={property.id}
+        defaultValues={defaults}
+        submitting={update.isPending}
+        onCancel={onDone}
+        onSubmit={async (values) => {
+          await update.mutateAsync(values)
+          onDone()
+        }}
+      />
+    </>
+  )
+}
+
+function PropertyContent({
+  property,
+  onEdit,
+}: {
+  property: NonNullable<ReturnType<typeof useProperty>['data']>
+  onEdit: () => void
 }) {
   const p = property.data
   const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
@@ -172,14 +258,9 @@ function PropertyContent({
             </p>
           </div>
         </div>
-        <Button asChild>
-          <Link
-            to='/properties/$id/edit'
-            params={{ id: property.id }}
-          >
-            <Pencil className='size-4' />
-            แก้ไข
-          </Link>
+        <Button onClick={onEdit}>
+          <Pencil className='size-4' />
+          แก้ไข
         </Button>
       </header>
 

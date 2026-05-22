@@ -40,7 +40,7 @@ export function TenantNew() {
         <div className='max-w-4xl'>
           <TenantForm
             mode='create'
-            cancelTo='/tenants'
+            onCancel={() => navigate({ to: '/tenants' })}
             submitting={create.isPending}
             onSubmit={async (values) => {
               try {

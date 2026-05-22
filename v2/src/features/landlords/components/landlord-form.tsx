@@ -2,7 +2,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Upload, X } from 'lucide-react'
 import { useRef } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +24,7 @@ type LandlordFormProps = {
   defaultValues?: LandlordFormValues
   onSubmit: (values: LandlordFormValues) => Promise<void> | void
   submitting?: boolean
-  cancelTo: string
+  onCancel: () => void
 }
 
 export function LandlordForm({
@@ -33,14 +32,13 @@ export function LandlordForm({
   defaultValues,
   onSubmit,
   submitting = false,
-  cancelTo,
+  onCancel,
 }: LandlordFormProps) {
   const form = useForm<LandlordFormValues>({
     resolver: zodResolver(landlordFormSchema),
     defaultValues: defaultValues ?? LANDLORD_FORM_DEFAULTS,
     mode: 'onBlur',
   })
-  const navigate = useNavigate()
   const confirm = useConfirm()
   const logoInputRef = useRef<HTMLInputElement>(null)
 
@@ -70,13 +68,13 @@ export function LandlordForm({
     if (form.formState.isDirty) {
       const ok = await confirm({
         title: 'ยังไม่ได้บันทึก',
-        description: 'ออกจากหน้านี้จะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
+        description: 'ออกจะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?',
         confirmLabel: 'ออก',
         destructive: true,
       })
       if (!ok) return
     }
-    navigate({ to: cancelTo })
+    onCancel()
   }
 
   async function handleLogoFile(file: File) {

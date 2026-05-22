@@ -53,7 +53,7 @@ export function BankAccountNew() {
         <div className='max-w-3xl'>
           <BankAccountForm
             mode='create'
-            cancelTo='/bank-accounts'
+            onCancel={() => navigate({ to: '/bank-accounts' })}
             defaultValues={defaults}
             submitting={create.isPending}
             onSubmit={async (values) => {

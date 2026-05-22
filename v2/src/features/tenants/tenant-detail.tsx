@@ -9,6 +9,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
+import { TenantForm } from '@/features/tenants/components/tenant-form'
 import {
   fmtTaxId,
   getPartyLabel,
@@ -27,7 +29,15 @@ import {
   useTenant,
   useTenantContracts,
 } from '@/features/tenants/queries'
-import { useDeleteTenant } from '@/features/tenants/mutations'
+import {
+  DuplicateTaxIdError,
+  useDeleteTenant,
+  useUpdateTenant,
+} from '@/features/tenants/mutations'
+import {
+  TENANT_FORM_DEFAULTS,
+  type TenantFormValues,
+} from '@/features/tenants/schema'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -72,6 +82,7 @@ export function TenantDetail({ id }: { id: string }) {
   const del = useDeleteTenant()
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [isEditing, setIsEditing] = useState(false)
 
   async function handleDelete() {
     if (!tenant) return
@@ -143,10 +154,81 @@ export function TenantDetail({ id }: { id: string }) {
               </CardContent>
             </Card>
           </>
+        ) : isEditing ? (
+          <TenantEditing tenant={tenant} onDone={() => setIsEditing(false)} />
         ) : (
-          <Content tenant={tenant} contracts={contracts.data ?? []} onDelete={handleDelete} deleting={del.isPending} />
+          <Content
+            tenant={tenant}
+            contracts={contracts.data ?? []}
+            onDelete={handleDelete}
+            deleting={del.isPending}
+            onEdit={() => setIsEditing(true)}
+          />
         )}
       </Main>
+    </>
+  )
+}
+
+function TenantEditing({
+  tenant,
+  onDone,
+}: {
+  tenant: NonNullable<ReturnType<typeof useTenant>['data']>
+  onDone: () => void
+}) {
+  const update = useUpdateTenant(tenant.id)
+  const navigate = useNavigate()
+  const t = tenant.data
+  const defaults: TenantFormValues = {
+    ...TENANT_FORM_DEFAULTS,
+    name: t.name ?? '',
+    partyType: t.partyType === 'company' ? 'company' : 'person',
+    taxId: t.taxId ?? '',
+    branch: t.branch ?? '00000',
+    phone: t.phone ?? '',
+    signerName: t.signerName ?? '',
+    signerTitle: t.signerTitle ?? '',
+    addrLine: t.addrLine ?? '',
+    addrSubdistrict: t.addrSubdistrict ?? '',
+    addrDistrict: t.addrDistrict ?? '',
+    addrProvince: t.addrProvince ?? '',
+    addrPostal: t.addrPostal ?? '',
+  }
+  return (
+    <>
+      <header className='flex items-center gap-3'>
+        <h1 className='text-2xl font-semibold tracking-tight'>แก้ไขข้อมูลผู้เช่า</h1>
+        <p className='text-sm text-muted-foreground'>{t.name || `ID: ${tenant.id}`}</p>
+      </header>
+      <TenantForm
+        mode='edit'
+        defaultValues={defaults}
+        submitting={update.isPending}
+        onCancel={onDone}
+        onSubmit={async (values) => {
+          try {
+            await update.mutateAsync(values)
+            onDone()
+          } catch (err) {
+            if (err instanceof DuplicateTaxIdError) {
+              toast.error('เลขผู้เสียภาษีซ้ำ', {
+                description: `มีอยู่แล้วในชื่อ "${err.conflictName}"`,
+                action: {
+                  label: 'ดู',
+                  onClick: () =>
+                    navigate({
+                      to: '/tenants/$id',
+                      params: { id: err.conflictId },
+                    }),
+                },
+              })
+              return
+            }
+            throw err
+          }
+        }}
+      />
     </>
   )
 }
@@ -156,11 +238,13 @@ function Content({
   contracts,
   onDelete,
   deleting,
+  onEdit,
 }: {
   tenant: NonNullable<ReturnType<typeof useTenant>['data']>
   contracts: Array<{ id: string; data: Record<string, unknown> }>
   onDelete: () => Promise<void>
   deleting: boolean
+  onEdit: () => void
 }) {
   const t = tenant.data
   const isCompany = t.partyType === 'company'
@@ -197,11 +281,9 @@ function Content({
             <Trash2 className='size-4' />
             ลบ
           </Button>
-          <Button asChild>
-            <Link to='/tenants/$id/edit' params={{ id: tenant.id }}>
-              <Pencil className='size-4' />
-              แก้ไข
-            </Link>
+          <Button onClick={onEdit}>
+            <Pencil className='size-4' />
+            แก้ไข
           </Button>
         </div>
       </header>

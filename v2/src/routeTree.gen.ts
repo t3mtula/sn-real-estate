@@ -41,10 +41,6 @@ import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
 import { Route as AuthenticatedBankAccountsIdIndexRouteImport } from './routes/_authenticated/bank-accounts/$id/index'
-import { Route as AuthenticatedTenantsIdEditRouteImport } from './routes/_authenticated/tenants/$id/edit'
-import { Route as AuthenticatedPropertiesIdEditRouteImport } from './routes/_authenticated/properties/$id/edit'
-import { Route as AuthenticatedLandlordsIdEditRouteImport } from './routes/_authenticated/landlords/$id/edit'
-import { Route as AuthenticatedBankAccountsIdEditRouteImport } from './routes/_authenticated/bank-accounts/$id/edit'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -223,30 +219,6 @@ const AuthenticatedBankAccountsIdIndexRoute =
     path: '/bank-accounts/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedTenantsIdEditRoute =
-  AuthenticatedTenantsIdEditRouteImport.update({
-    id: '/tenants/$id/edit',
-    path: '/tenants/$id/edit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedPropertiesIdEditRoute =
-  AuthenticatedPropertiesIdEditRouteImport.update({
-    id: '/properties/$id/edit',
-    path: '/properties/$id/edit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedLandlordsIdEditRoute =
-  AuthenticatedLandlordsIdEditRouteImport.update({
-    id: '/landlords/$id/edit',
-    path: '/landlords/$id/edit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedBankAccountsIdEditRoute =
-  AuthenticatedBankAccountsIdEditRouteImport.update({
-    id: '/bank-accounts/$id/edit',
-    path: '/bank-accounts/$id/edit',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -276,10 +248,6 @@ export interface FileRoutesByFullPath {
   '/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
-  '/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
-  '/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
-  '/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
-  '/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
   '/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
@@ -312,10 +280,6 @@ export interface FileRoutesByTo {
   '/properties': typeof AuthenticatedPropertiesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
-  '/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
-  '/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
-  '/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
-  '/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
   '/bank-accounts/$id': typeof AuthenticatedBankAccountsIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
@@ -351,10 +315,6 @@ export interface FileRoutesById {
   '/_authenticated/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
-  '/_authenticated/bank-accounts/$id/edit': typeof AuthenticatedBankAccountsIdEditRoute
-  '/_authenticated/landlords/$id/edit': typeof AuthenticatedLandlordsIdEditRoute
-  '/_authenticated/properties/$id/edit': typeof AuthenticatedPropertiesIdEditRoute
-  '/_authenticated/tenants/$id/edit': typeof AuthenticatedTenantsIdEditRoute
   '/_authenticated/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
@@ -390,10 +350,6 @@ export interface FileRouteTypes {
     | '/properties/'
     | '/settings/'
     | '/tenants/'
-    | '/bank-accounts/$id/edit'
-    | '/landlords/$id/edit'
-    | '/properties/$id/edit'
-    | '/tenants/$id/edit'
     | '/bank-accounts/$id/'
     | '/landlords/$id/'
     | '/properties/$id/'
@@ -426,10 +382,6 @@ export interface FileRouteTypes {
     | '/properties'
     | '/settings'
     | '/tenants'
-    | '/bank-accounts/$id/edit'
-    | '/landlords/$id/edit'
-    | '/properties/$id/edit'
-    | '/tenants/$id/edit'
     | '/bank-accounts/$id'
     | '/landlords/$id'
     | '/properties/$id'
@@ -464,10 +416,6 @@ export interface FileRouteTypes {
     | '/_authenticated/properties/'
     | '/_authenticated/settings/'
     | '/_authenticated/tenants/'
-    | '/_authenticated/bank-accounts/$id/edit'
-    | '/_authenticated/landlords/$id/edit'
-    | '/_authenticated/properties/$id/edit'
-    | '/_authenticated/tenants/$id/edit'
     | '/_authenticated/bank-accounts/$id/'
     | '/_authenticated/landlords/$id/'
     | '/_authenticated/properties/$id/'
@@ -715,34 +663,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankAccountsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tenants/$id/edit': {
-      id: '/_authenticated/tenants/$id/edit'
-      path: '/tenants/$id/edit'
-      fullPath: '/tenants/$id/edit'
-      preLoaderRoute: typeof AuthenticatedTenantsIdEditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/properties/$id/edit': {
-      id: '/_authenticated/properties/$id/edit'
-      path: '/properties/$id/edit'
-      fullPath: '/properties/$id/edit'
-      preLoaderRoute: typeof AuthenticatedPropertiesIdEditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/landlords/$id/edit': {
-      id: '/_authenticated/landlords/$id/edit'
-      path: '/landlords/$id/edit'
-      fullPath: '/landlords/$id/edit'
-      preLoaderRoute: typeof AuthenticatedLandlordsIdEditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/bank-accounts/$id/edit': {
-      id: '/_authenticated/bank-accounts/$id/edit'
-      path: '/bank-accounts/$id/edit'
-      fullPath: '/bank-accounts/$id/edit'
-      preLoaderRoute: typeof AuthenticatedBankAccountsIdEditRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
   }
 }
 
@@ -781,10 +701,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLandlordsIndexRoute: typeof AuthenticatedLandlordsIndexRoute
   AuthenticatedPropertiesIndexRoute: typeof AuthenticatedPropertiesIndexRoute
   AuthenticatedTenantsIndexRoute: typeof AuthenticatedTenantsIndexRoute
-  AuthenticatedBankAccountsIdEditRoute: typeof AuthenticatedBankAccountsIdEditRoute
-  AuthenticatedLandlordsIdEditRoute: typeof AuthenticatedLandlordsIdEditRoute
-  AuthenticatedPropertiesIdEditRoute: typeof AuthenticatedPropertiesIdEditRoute
-  AuthenticatedTenantsIdEditRoute: typeof AuthenticatedTenantsIdEditRoute
   AuthenticatedBankAccountsIdIndexRoute: typeof AuthenticatedBankAccountsIdIndexRoute
   AuthenticatedLandlordsIdIndexRoute: typeof AuthenticatedLandlordsIdIndexRoute
   AuthenticatedPropertiesIdIndexRoute: typeof AuthenticatedPropertiesIdIndexRoute
@@ -803,10 +719,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLandlordsIndexRoute: AuthenticatedLandlordsIndexRoute,
   AuthenticatedPropertiesIndexRoute: AuthenticatedPropertiesIndexRoute,
   AuthenticatedTenantsIndexRoute: AuthenticatedTenantsIndexRoute,
-  AuthenticatedBankAccountsIdEditRoute: AuthenticatedBankAccountsIdEditRoute,
-  AuthenticatedLandlordsIdEditRoute: AuthenticatedLandlordsIdEditRoute,
-  AuthenticatedPropertiesIdEditRoute: AuthenticatedPropertiesIdEditRoute,
-  AuthenticatedTenantsIdEditRoute: AuthenticatedTenantsIdEditRoute,
   AuthenticatedBankAccountsIdIndexRoute: AuthenticatedBankAccountsIdIndexRoute,
   AuthenticatedLandlordsIdIndexRoute: AuthenticatedLandlordsIdIndexRoute,
   AuthenticatedPropertiesIdIndexRoute: AuthenticatedPropertiesIdIndexRoute,

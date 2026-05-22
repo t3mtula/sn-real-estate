@@ -45,7 +45,7 @@ export function LandlordNew() {
         <div className='max-w-4xl'>
           <LandlordForm
             mode='create'
-            cancelTo='/landlords'
+            onCancel={() => navigate({ to: '/landlords' })}
             submitting={create.isPending}
             onSubmit={async (values) => {
               try {

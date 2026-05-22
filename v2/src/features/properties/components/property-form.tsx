@@ -2,8 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { ImagePlus, Loader2, Trash2 } from "lucide-react"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
+import { useConfirm } from "@/hooks/use-confirm"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -37,8 +37,8 @@ type PropertyFormProps = {
   onSubmit: (values: PropertyFormValues) => Promise<void> | void
   /** Submitting state from parent mutation */
   submitting?: boolean
-  /** Cancel URL (back to detail or list) */
-  cancelTo: string
+  /** Cancel handler — caller decides what cancel means (navigate or exit edit mode) */
+  onCancel: () => void
 }
 
 export function PropertyForm({
@@ -47,14 +47,14 @@ export function PropertyForm({
   defaultValues,
   onSubmit,
   submitting = false,
-  cancelTo,
+  onCancel,
 }: PropertyFormProps) {
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: defaultValues ?? PROPERTY_FORM_DEFAULTS,
     mode: "onBlur",
   })
-  const navigate = useNavigate()
+  const confirm = useConfirm()
   const [uploading, setUploading] = useState(false)
 
   const { data: landlords } = useLandlords()
@@ -346,9 +346,17 @@ export function PropertyForm({
         <Button
           type="button"
           variant="ghost"
-          onClick={() => {
-            if (isDirty && !confirm("ยังไม่ได้บันทึก · ออกจากหน้านี้?")) return
-            navigate({ to: cancelTo })
+          onClick={async () => {
+            if (isDirty) {
+              const ok = await confirm({
+                title: "ยังไม่ได้บันทึก",
+                description: "ออกจะเสียข้อมูลที่กรอกไว้ · ออกจริงไหม?",
+                confirmLabel: "ออก",
+                destructive: true,
+              })
+              if (!ok) return
+            }
+            onCancel()
           }}
           disabled={submitting}
         >

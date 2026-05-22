@@ -39,8 +39,8 @@ export function PropertyNew() {
         <div className='max-w-4xl'>
           <PropertyForm
             mode='create'
-            cancelTo='/properties'
             submitting={create.isPending}
+            onCancel={() => navigate({ to: '/properties' })}
             onSubmit={async (values) => {
               const { id } = await create.mutateAsync(values)
               navigate({ to: '/properties/$id', params: { id } })

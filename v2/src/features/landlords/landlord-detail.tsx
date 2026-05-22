@@ -14,6 +14,7 @@ import {
   Trash2,
   UserRound,
 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -24,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
+import { LandlordForm } from '@/features/landlords/components/landlord-form'
 import {
   fmtTaxId,
   getLandlordAddrShort,
@@ -32,7 +34,15 @@ import {
   useLandlord,
   useLandlordContracts,
 } from '@/features/landlords/queries'
-import { useDeleteLandlord } from '@/features/landlords/mutations'
+import {
+  DuplicateTaxIdError,
+  useDeleteLandlord,
+  useUpdateLandlord,
+} from '@/features/landlords/mutations'
+import {
+  LANDLORD_FORM_DEFAULTS,
+  type LandlordFormValues,
+} from '@/features/landlords/schema'
 import { useBankAccountsByOwner } from '@/features/bank-accounts/queries'
 import { getPropertyAddressShort, useProperties } from '@/features/properties/queries'
 import { PROPERTY_TYPES } from '@/features/properties/types'
@@ -88,6 +98,7 @@ export function LandlordDetail({ id }: { id: string }) {
   const del = useDeleteLandlord()
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [isEditing, setIsEditing] = useState(false)
 
   async function handleDelete() {
     if (!landlord) return
@@ -161,16 +172,96 @@ export function LandlordDetail({ id }: { id: string }) {
             </Card>
           </>
         ) : (
-          <Content
-            landlord={landlord}
-            contracts={contracts.data ?? []}
-            banks={banks.data ?? []}
-            ownedProperties={ownedProperties}
-            onDelete={handleDelete}
-            deleting={del.isPending}
-          />
+          isEditing ? (
+            <LandlordEditing landlord={landlord} onDone={() => setIsEditing(false)} />
+          ) : (
+            <Content
+              landlord={landlord}
+              contracts={contracts.data ?? []}
+              banks={banks.data ?? []}
+              ownedProperties={ownedProperties}
+              onDelete={handleDelete}
+              deleting={del.isPending}
+              onEdit={() => setIsEditing(true)}
+            />
+          )
         )}
       </Main>
+    </>
+  )
+}
+
+function LandlordEditing({
+  landlord,
+  onDone,
+}: {
+  landlord: NonNullable<ReturnType<typeof useLandlord>['data']>
+  onDone: () => void
+}) {
+  const update = useUpdateLandlord(landlord.id)
+  const navigate = useNavigate()
+  const t = landlord.data
+  const defaults: LandlordFormValues = {
+    ...LANDLORD_FORM_DEFAULTS,
+    name: t.name ?? '',
+    shortName: t.shortName ?? '',
+    partyType: t.partyType === 'company' ? 'company' : 'person',
+    taxId: t.taxId ?? '',
+    branch: t.branch ?? '00000',
+    phone: t.phone ?? '',
+    signerName: t.signerName ?? '',
+    signerTitle: t.signerTitle ?? '',
+    logo: t.logo ?? '',
+    addrLine: t.addrLine ?? '',
+    addrSubdistrict: t.addrSubdistrict ?? '',
+    addrDistrict: t.addrDistrict ?? '',
+    addrProvince: t.addrProvince ?? '',
+    addrPostal: t.addrPostal ?? '',
+    vatRegistered: !!t.vatRegistered,
+    vatRate: t.vatRate ?? 7,
+    promptPayId: t.promptPayId ?? '',
+    promptPayBank: t.promptPayBank ?? '',
+    promptPayName: t.promptPayName ?? '',
+    notes: t.notes ?? '',
+  }
+  return (
+    <>
+      <header className='flex items-center gap-3'>
+        <h1 className='text-2xl font-semibold tracking-tight'>
+          แก้ไขข้อมูลผู้ให้เช่า
+        </h1>
+        <p className='text-sm text-muted-foreground'>
+          {t.name || `ID: ${landlord.id}`}
+        </p>
+      </header>
+      <LandlordForm
+        mode='edit'
+        defaultValues={defaults}
+        submitting={update.isPending}
+        onCancel={onDone}
+        onSubmit={async (values) => {
+          try {
+            await update.mutateAsync(values)
+            onDone()
+          } catch (err) {
+            if (err instanceof DuplicateTaxIdError) {
+              toast.error('เลขผู้เสียภาษีซ้ำ', {
+                description: `มีอยู่แล้วในชื่อ "${err.conflictName}"`,
+                action: {
+                  label: 'ดู',
+                  onClick: () =>
+                    navigate({
+                      to: '/landlords/$id',
+                      params: { id: err.conflictId },
+                    }),
+                },
+              })
+              return
+            }
+            throw err
+          }
+        }}
+      />
     </>
   )
 }
@@ -182,6 +273,7 @@ function Content({
   ownedProperties,
   onDelete,
   deleting,
+  onEdit,
 }: {
   landlord: NonNullable<ReturnType<typeof useLandlord>['data']>
   contracts: Array<{ id: string; data: Record<string, unknown> }>
@@ -189,6 +281,7 @@ function Content({
   ownedProperties: NonNullable<ReturnType<typeof useProperties>['data']>
   onDelete: () => Promise<void>
   deleting: boolean
+  onEdit: () => void
 }) {
   const t = landlord.data
   const isCompany = t.partyType === 'company'
@@ -247,11 +340,9 @@ function Content({
             <Trash2 className='size-4' />
             ลบ
           </Button>
-          <Button asChild>
-            <Link to='/landlords/$id/edit' params={{ id: landlord.id }}>
-              <Pencil className='size-4' />
-              แก้ไข
-            </Link>
+          <Button onClick={onEdit}>
+            <Pencil className='size-4' />
+            แก้ไข
           </Button>
         </div>
       </header>
