@@ -401,11 +401,16 @@ function Content({
       parent: parent.data,
     })
     const safeName = (c.no ?? `#${contract.id}`).replace(/[/\\?%*:|"<>]/g, '_')
-    // open() เปิดใน tab ใหม่ → ลูกน้องเห็น preview + save จาก PDF viewer ของ
-    // browser ได้ · ดีกว่า download() ที่ไม่มี preview · ตรงตามที่ v1 ทำ
-    // (HTML overlay ก่อนกด save PDF)
+    // Generate blob → navigate tab เดิมไป blob URL · Chrome PDF viewer
+    // จะ render inline · กด save/ปริ้นจาก viewer + กด back กลับสัญญา
+    // ตรงตาม Tem rule "ทุกหน้าเปลี่ยนหน้า · ไม่ overlay" (v1 ใช้ HTML overlay ทาง
+    // เดิม · v2 ให้เป็น page-based แทน) + MCP/หน้า preview เห็น PDF จริงได้
     void safeName
-    await pdf.open(doc)
+    const blob = await pdf.blob(doc)
+    if (blob) {
+      const url = URL.createObjectURL(blob)
+      window.location.assign(url)
+    }
   }
 
   return (
