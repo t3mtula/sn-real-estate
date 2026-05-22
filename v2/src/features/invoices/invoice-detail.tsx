@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileText,
   Landmark,
+  Printer,
   Receipt,
   RotateCcw,
   Send,
@@ -180,6 +181,12 @@ export function InvoiceDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className='flex flex-wrap gap-2'>
+            <Button size='sm' variant='outline' asChild>
+              <Link to='/invoices/$id/print' params={{ id }}>
+                <Printer className='size-4' />
+                พิมพ์/PDF
+              </Link>
+            </Button>
             {isDraft && (
               <Button
                 size='sm'
