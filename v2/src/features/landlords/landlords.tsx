@@ -9,7 +9,6 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { Building2, Landmark, Plus, Search, UserRound } from 'lucide-react'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
@@ -36,7 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { supabase } from '@/lib/supabase'
 import {
   fmtTaxId,
   getLandlordName,
@@ -45,6 +43,10 @@ import {
 } from '@/features/landlords/queries'
 import { PARTY_TYPES, type Landlord } from '@/features/landlords/types'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
+import {
+  type ContractMatchRow,
+  useContractMatchKeys,
+} from '@/lib/queries/contract-match'
 import { cn } from '@/lib/utils'
 
 const PARTY_LABEL: Record<string, string> = Object.fromEntries(
@@ -52,31 +54,13 @@ const PARTY_LABEL: Record<string, string> = Object.fromEntries(
 )
 
 /**
- * Derive contract count per landlord — single query for all contracts,
- * matched by landlord_id / invHeaderId / name fallback.
+ * Derive contract count per landlord — matched by landlord_id / invHeaderId /
+ * name fallback. Uses the shared lightweight match-keys query (cache shared
+ * across landlords list, tenants list, and detail pages).
  */
-function useContractCounts() {
-  return useQuery({
-    queryKey: ['landlord-contract-counts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('id, data')
-      if (error) throw error
-      const rows = (data ?? []) as Array<{
-        id: string
-        data: { landlord_id?: string; invHeaderId?: string; landlord?: string }
-      }>
-      return rows
-    },
-  })
-}
-
 function countContracts(
   landlord: Landlord,
-  contracts: Array<{
-    data: { landlord_id?: string; invHeaderId?: string; landlord?: string }
-  }>,
+  contracts: ContractMatchRow[],
 ): number {
   const headerId = (landlord.data.invoiceHeaderId ?? '').trim()
   const nm = (landlord.data.name ?? '').trim()
@@ -90,7 +74,7 @@ function countContracts(
 
 export function Landlords() {
   const { data: landlords, isLoading, error } = useLandlords()
-  const { data: contracts } = useContractCounts()
+  const { data: contracts } = useContractMatchKeys()
   const { data: allBanks } = useBankAccounts()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])

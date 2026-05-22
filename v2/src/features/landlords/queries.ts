@@ -5,6 +5,7 @@ import {
   type Landlord,
   type LandlordData,
 } from '@/features/landlords/types'
+import { useContractMatchKeys } from '@/lib/queries/contract-match'
 
 const TABLE = 'landlords'
 
@@ -55,39 +56,24 @@ export function useLandlord(id: string | undefined) {
  *   3. contract.data.landlord === landlord.data.name → fallback ชื่อตรงกัน
  */
 export function useLandlordContracts(landlord: Landlord | null | undefined) {
-  return useQuery({
-    queryKey: [
-      'landlord-contracts',
-      landlord?.id,
-      landlord?.data.invoiceHeaderId,
-      landlord?.data.name,
-    ],
-    queryFn: async () => {
-      if (!landlord)
-        return [] as Array<{ id: string; data: Record<string, unknown> }>
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('id, data')
-      if (error) throw error
-      const all = (data ?? []) as Array<{
-        id: string
-        data: Record<string, unknown> & {
-          landlord_id?: string
-          invHeaderId?: string
-          landlord?: string
-        }
-      }>
-      const headerId = (landlord.data.invoiceHeaderId ?? '').trim()
-      const nm = (landlord.data.name ?? '').trim()
-      return all.filter((c) => {
-        if (c.data.landlord_id === landlord.id) return true
-        if (headerId && c.data.invHeaderId === headerId) return true
-        if (c.data.landlord === nm) return true
-        return false
-      })
-    },
-    enabled: !!landlord,
-  })
+  // Shared lightweight query — reused by landlords list, landlord-detail, etc.
+  // (See lib/queries/contract-match.ts for the why.)
+  const match = useContractMatchKeys()
+  return {
+    ...match,
+    data: !landlord
+      ? []
+      : (() => {
+          const headerId = (landlord.data.invoiceHeaderId ?? '').trim()
+          const nm = (landlord.data.name ?? '').trim()
+          return (match.data ?? []).filter((c) => {
+            if (c.data.landlord_id === landlord.id) return true
+            if (headerId && c.data.invHeaderId === headerId) return true
+            if (c.data.landlord === nm) return true
+            return false
+          })
+        })(),
+  }
 }
 
 /* ---------- helpers ---------- */

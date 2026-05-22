@@ -35,14 +35,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { supabase } from '@/lib/supabase'
 import {
   fmtTaxId,
   getTenantName,
   useTenants,
 } from '@/features/tenants/queries'
 import { PARTY_TYPES, type Tenant } from '@/features/tenants/types'
-import { useQuery } from '@tanstack/react-query'
+import {
+  type ContractMatchRow,
+  useContractMatchKeys,
+} from '@/lib/queries/contract-match'
 import { cn } from '@/lib/utils'
 
 const PARTY_LABEL: Record<string, string> = Object.fromEntries(
@@ -50,31 +52,12 @@ const PARTY_LABEL: Record<string, string> = Object.fromEntries(
 )
 
 /**
- * Derive contract count per tenant — single query for all contracts,
- * matched by tenant_id / taxId / name fallback.
+ * Derive contract count per tenant — uses shared lightweight match-keys query.
+ * (See lib/queries/contract-match.ts for the why.)
  */
-function useContractCounts() {
-  return useQuery({
-    queryKey: ['tenant-contract-counts'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('id, data')
-      if (error) throw error
-      const rows = (data ?? []) as Array<{
-        id: string
-        data: { tenant_id?: string; taxId?: string; tenant?: string }
-      }>
-      return rows
-    },
-  })
-}
-
 function countContracts(
   tenant: Tenant,
-  contracts: Array<{
-    data: { tenant_id?: string; taxId?: string; tenant?: string }
-  }>,
+  contracts: ContractMatchRow[],
 ): number {
   const tax = (tenant.data.taxId ?? '').trim()
   const nm = (tenant.data.name ?? '').trim()
@@ -88,7 +71,7 @@ function countContracts(
 
 export function Tenants() {
   const { data: tenants, isLoading, error } = useTenants()
-  const { data: contracts } = useContractCounts()
+  const { data: contracts } = useContractMatchKeys()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')

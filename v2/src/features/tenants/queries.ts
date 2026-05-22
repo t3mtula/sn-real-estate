@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { PARTY_TYPES, type Tenant, type TenantData } from '@/features/tenants/types'
+import { useContractMatchKeys } from '@/lib/queries/contract-match'
 
 const TABLE = 'tenants'
 
@@ -54,33 +55,23 @@ export function useTenant(id: string | undefined) {
  * Return: contracts ทั้งหมดที่ match (อาจซ้อนกัน)
  */
 export function useTenantContracts(tenant: Tenant | null | undefined) {
-  return useQuery({
-    queryKey: ['tenant-contracts', tenant?.id],
-    queryFn: async () => {
-      if (!tenant) return [] as Array<{ id: string; data: Record<string, unknown> }>
-      const { data, error } = await supabase
-        .from('contracts')
-        .select('id, data')
-      if (error) throw error
-      const all = (data ?? []) as Array<{
-        id: string
-        data: Record<string, unknown> & {
-          tenant_id?: string
-          taxId?: string
-          tenant?: string
-        }
-      }>
-      const tax = (tenant.data.taxId ?? '').trim()
-      const nm = (tenant.data.name ?? '').trim()
-      return all.filter((c) => {
-        if (c.data.tenant_id === tenant.id) return true
-        if (tax && c.data.taxId === tax) return true
-        if (!tax && c.data.tenant === nm) return true
-        return false
-      })
-    },
-    enabled: !!tenant,
-  })
+  // Shared lightweight query — see lib/queries/contract-match.ts
+  const match = useContractMatchKeys()
+  return {
+    ...match,
+    data: !tenant
+      ? []
+      : (() => {
+          const tax = (tenant.data.taxId ?? '').trim()
+          const nm = (tenant.data.name ?? '').trim()
+          return (match.data ?? []).filter((c) => {
+            if (c.data.tenant_id === tenant.id) return true
+            if (tax && c.data.taxId === tax) return true
+            if (!tax && c.data.tenant === nm) return true
+            return false
+          })
+        })(),
+  }
 }
 
 /* ---------- helpers ---------- */

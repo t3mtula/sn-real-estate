@@ -40,7 +40,8 @@ const queryClient = new QueryClient({
         )
       },
       refetchOnWindowFocus: import.meta.env.PROD,
-      staleTime: 10 * 1000, // 10s
+      staleTime: 10 * 1000, // 10s — fresh window before any refetch
+      gcTime: 60 * 1000, // 60s — drop cached data after unused (default 5min · cut leak)
     },
     mutations: {
       onError: (error) => {
