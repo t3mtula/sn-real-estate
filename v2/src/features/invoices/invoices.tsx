@@ -9,7 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Ban,
   Download,
@@ -73,6 +73,7 @@ import {
   getStatusMeta,
   useInvoices,
 } from '@/features/invoices/queries'
+import { InvoiceSheet } from '@/features/invoices/invoice-sheet'
 import {
   INVOICE_STATUSES,
   type Invoice,
@@ -112,6 +113,15 @@ export function Invoices() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
+  const search = useSearch({ from: '/_authenticated/invoices/' })
+  const sheetId = search.id ?? null
+
+  function openSheet(id: string) {
+    navigate({ to: '/invoices', search: { id }, replace: false })
+  }
+  function closeSheet() {
+    navigate({ to: '/invoices', search: {}, replace: false })
+  }
 
   const rows = useMemo<Row[]>(() => {
     if (!invoices) return []
@@ -591,10 +601,9 @@ export function Invoices() {
                           row.original._overdue > 0
                             ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
                             : 'hover:bg-muted/40',
+                          sheetId === row.original.id && 'bg-muted/60',
                         )}
-                        onClick={() =>
-                          navigate({ to: '/invoices/$id', params: { id: row.original.id } })
-                        }
+                        onClick={() => openSheet(row.original.id)}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <TableCell key={cell.id} className='py-3'>
@@ -614,6 +623,8 @@ export function Invoices() {
           </TabsContent>
         </Tabs>
       </Main>
+
+      <InvoiceSheet id={sheetId} onClose={closeSheet} />
 
       {/* Floating bulk action bar */}
       {selectedCount > 0 && (
