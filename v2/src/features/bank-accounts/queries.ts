@@ -49,8 +49,12 @@ export function useBankAccount(id: string | undefined) {
 }
 
 /**
- * Fetch all bank accounts owned by a specific landlord
+ * Fetch all bank accounts linked to a landlord (via junction table `landlord_banks`).
  * (ใช้ใน landlord-detail · เลือกจาก dropdown ใน contract form)
+ *
+ * Phase 1B-3a → 2026-05-23: M:M refactor — query via landlord_banks instead of
+ * data->>ownerLandlordId. Signature kept for backward compat with existing callers;
+ * new code should prefer `useBankAccountsForLandlord` from features/landlord-banks.
  */
 export function useBankAccountsByOwner(ownerLandlordId: string | undefined) {
   return useQuery({
@@ -58,12 +62,18 @@ export function useBankAccountsByOwner(ownerLandlordId: string | undefined) {
     queryFn: async (): Promise<BankAccount[]> => {
       if (!ownerLandlordId) return []
       const { data, error } = await supabase
-        .from(TABLE)
-        .select('id, data, created_at, updated_at')
-        .eq('data->>ownerLandlordId', ownerLandlordId)
+        .from('landlord_banks')
+        .select('bank_account:bank_accounts!inner(id, data, created_at, updated_at)')
+        .eq('landlord_id', ownerLandlordId)
       if (error) throw error
-      const rows = (data ?? []) as BankAccount[]
-      return [...rows].sort((a, b) =>
+      type Row = { bank_account: BankAccount | BankAccount[] | null }
+      const rows = (data ?? []) as unknown as Row[]
+      const banks: BankAccount[] = []
+      for (const r of rows) {
+        const ba = Array.isArray(r.bank_account) ? r.bank_account[0] : r.bank_account
+        if (ba) banks.push(ba)
+      }
+      return banks.sort((a, b) =>
         (a.data?.bank ?? '').localeCompare(b.data?.bank ?? '', 'th'),
       )
     },

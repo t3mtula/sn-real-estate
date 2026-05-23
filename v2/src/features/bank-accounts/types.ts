@@ -23,9 +23,18 @@ export type BankAccountData = {
   accountName: string
   /** label สั้น สำหรับ dropdown ใน contract form (เช่น "หลัก", "ค่าน้ำค่าไฟ", "VAT") */
   label?: string
-  /** เจ้าของบัญชี — link ไป landlords.id · informational only */
+  /**
+   * เจ้าของบัญชี — link ไป landlords.id · informational only
+   * @deprecated 2026-05-23 (Phase 1B-3a M:M refactor)
+   * Use `landlord_banks` junction table instead (see features/landlord-banks).
+   * Field kept for backward compat with existing read paths · still written on create
+   * for one default link but no longer source of truth.
+   */
   ownerLandlordId?: string
-  /** ชื่อเจ้าของบัญชี (cache สำหรับ display เร็ว · refresh เมื่อ landlord rename) */
+  /**
+   * ชื่อเจ้าของบัญชี (cache สำหรับ display เร็ว · refresh เมื่อ landlord rename)
+   * @deprecated 2026-05-23 — same reason as ownerLandlordId
+   */
   ownerLandlordName?: string
   /** active สำหรับ filter contract form (ปิด account เก่าได้โดยไม่ลบ) */
   active?: boolean
