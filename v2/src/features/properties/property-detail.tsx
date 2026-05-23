@@ -35,6 +35,7 @@ import {
   useProperty,
 } from '@/features/properties/queries'
 import { useContractMatchKeys } from '@/lib/queries/contract-match'
+import { useContracts, getContractStatus } from '@/features/contracts/queries'
 import {
   PROPERTY_FORM_DEFAULTS,
   type PropertyFormValues,
@@ -274,6 +275,26 @@ function PropertyContent({
   const province = getPropertyProvince(p)
   const address = getPropertyAddressShort(p)
   const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)
+  const { data: allContracts } = useContracts()
+
+  // Find contracts linked to this property by pid match
+  const linkedContracts = useMemo(() => {
+    if (!allContracts) return []
+    const pid = p?.pid ?? Number.parseInt(property.id, 10)
+    const n = Number(pid)
+    if (Number.isNaN(n)) return []
+    const matched = allContracts.filter((c) => {
+      const a = c.data?.pid_property
+      const b = (c.data as { pid?: number })?.pid
+      return Number(a) === n || Number(b) === n
+    })
+    return [...matched].sort((a, b) => {
+      const aActive = !a.data?.cancelled ? 0 : 1
+      const bActive = !b.data?.cancelled ? 0 : 1
+      if (aActive !== bActive) return aActive - bActive
+      return (b.data?.end ?? '').localeCompare(a.data?.end ?? '')
+    })
+  }, [allContracts, p?.pid, property.id])
 
   return (
     <>
@@ -411,14 +432,54 @@ function PropertyContent({
 
         <Card className='lg:col-span-3'>
           <CardHeader>
-            <CardTitle className='text-base'>สัญญาเช่าที่เกี่ยวข้อง</CardTitle>
+            <CardTitle className='text-base'>
+              สัญญาเช่าที่เกี่ยวข้อง ({linkedContracts.length})
+            </CardTitle>
           </CardHeader>
-          <CardContent className='text-sm text-muted-foreground'>
-            <p>
-              จะแสดงสัญญาที่เชื่อมกับทรัพย์สินนี้ใน{' '}
-              <span className='font-medium text-foreground'>Phase 1B</span> ·
-              ตอนนี้ยังไม่ build feature สัญญา
-            </p>
+          <CardContent className='space-y-1'>
+            {linkedContracts.length === 0 ? (
+              <p className='text-sm text-muted-foreground'>
+                ยังไม่มีสัญญาเช่าผูกกับทรัพย์สินนี้
+              </p>
+            ) : (
+              linkedContracts.map((c) => {
+                const status = c.data?.cancelled
+                  ? 'cancelled'
+                  : getContractStatus(c.data)
+                const statusLabel: Record<string, string> = {
+                  active: 'ใช้งาน',
+                  expiring: 'ใกล้หมด',
+                  expired: 'หมดอายุ',
+                  upcoming: 'ยังไม่เริ่ม',
+                  cancelled: 'ยกเลิก',
+                  closed: 'ปิด',
+                  unknown: '—',
+                }
+                const tone =
+                  status === 'active' ? 'default'
+                  : status === 'expiring' ? 'secondary'
+                  : status === 'cancelled' || status === 'expired' ? 'destructive'
+                  : 'outline'
+                return (
+                  <Link
+                    key={c.id}
+                    to='/contracts/$id'
+                    params={{ id: c.id }}
+                    className='flex items-center gap-3 rounded-md p-2 -mx-2 hover:bg-muted transition-colors'
+                  >
+                    <span className='font-medium text-sm'>
+                      {c.data?.no || c.id.slice(0, 8)}
+                    </span>
+                    <span className='text-xs text-muted-foreground flex-1 truncate'>
+                      {c.data?.tenant ?? '—'} · {c.data?.start || '—'} → {c.data?.end || '—'}
+                    </span>
+                    <Badge variant={tone} className='text-xs'>
+                      {statusLabel[status] ?? status}
+                    </Badge>
+                  </Link>
+                )
+              })
+            )}
           </CardContent>
         </Card>
       </div>
