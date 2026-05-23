@@ -154,7 +154,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
         const r = await create.mutateAsync({ data: draft, active: makeActive })
         toast.success('สร้างแบบสัญญาแล้ว')
         navigate({
-          to: '/settings/templates/$id',
+          to: '/templates/$id',
           params: { id: r.id },
           replace: true,
         })
@@ -194,7 +194,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
       <Main fixed className='flex flex-1 flex-col overflow-hidden'>
         <header className='mb-4 flex flex-wrap items-start gap-3'>
           <Button variant='ghost' size='icon' asChild>
-            <Link to='/settings/templates' aria-label='กลับ'>
+            <Link to='/templates' aria-label='กลับ'>
               <ArrowLeft className='size-4' />
             </Link>
           </Button>

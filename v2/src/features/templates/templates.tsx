@@ -82,7 +82,7 @@ export function ContractTemplates() {
       const r = await duplicate.mutateAsync(id)
       toast.success('คัดลอกฟอร์มแล้ว')
       navigate({
-        to: '/settings/templates/$id',
+        to: '/templates/$id',
         params: { id: r.id },
       })
     } catch (err) {
@@ -124,7 +124,7 @@ export function ContractTemplates() {
             </p>
           </div>
           <Button asChild>
-            <Link to='/settings/templates/new'>
+            <Link to='/templates/new'>
               <Plus className='size-4' />
               สร้างแบบใหม่
             </Link>
@@ -192,7 +192,7 @@ export function ContractTemplates() {
                 <div className='flex flex-wrap gap-2'>
                   <Button asChild size='sm' variant='outline'>
                     <Link
-                      to='/settings/templates/$id'
+                      to='/templates/$id'
                       params={{ id: t.id }}
                     >
                       <Edit3 className='size-4' />

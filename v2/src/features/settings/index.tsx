@@ -12,8 +12,8 @@ export function Settings() {
   const { data: templates } = useContractTemplates()
   const activeTemplate = templates?.find((t) => t.is_active) ?? templates?.[0]
   const templateHref = activeTemplate
-    ? `/settings/templates/${activeTemplate.id}`
-    : '/settings/templates/new'
+    ? `/templates/${activeTemplate.id}`
+    : '/templates/new'
 
   const sidebarNavItems = [
     {

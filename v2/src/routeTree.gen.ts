@@ -26,6 +26,7 @@ import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-p
 import { Route as authAuthCallbackRouteImport } from './routes/(auth)/auth-callback'
 import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authenticated/settings/route'
 import { Route as AuthenticatedTenantsIndexRouteImport } from './routes/_authenticated/tenants/index'
+import { Route as AuthenticatedTemplatesIndexRouteImport } from './routes/_authenticated/templates/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPropertiesIndexRouteImport } from './routes/_authenticated/properties/index'
 import { Route as AuthenticatedMetersIndexRouteImport } from './routes/_authenticated/meters/index'
@@ -34,6 +35,8 @@ import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
 import { Route as AuthenticatedBankAccountsIndexRouteImport } from './routes/_authenticated/bank-accounts/index'
 import { Route as AuthenticatedTenantsNewRouteImport } from './routes/_authenticated/tenants/new'
+import { Route as AuthenticatedTemplatesNewRouteImport } from './routes/_authenticated/templates/new'
+import { Route as AuthenticatedTemplatesIdRouteImport } from './routes/_authenticated/templates/$id'
 import { Route as AuthenticatedSettingsSystemRouteImport } from './routes/_authenticated/settings/system'
 import { Route as AuthenticatedSettingsStaffRouteImport } from './routes/_authenticated/settings/staff'
 import { Route as AuthenticatedSettingsInvoiceSettingsRouteImport } from './routes/_authenticated/settings/invoice-settings'
@@ -53,15 +56,12 @@ import { Route as AuthenticatedContractsRenewalsRouteImport } from './routes/_au
 import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
 import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
-import { Route as AuthenticatedSettingsTemplatesIndexRouteImport } from './routes/_authenticated/settings/templates/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
 import { Route as AuthenticatedMetersIdIndexRouteImport } from './routes/_authenticated/meters/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
 import { Route as AuthenticatedInvoicesIdIndexRouteImport } from './routes/_authenticated/invoices/$id/index'
 import { Route as AuthenticatedContractsIdIndexRouteImport } from './routes/_authenticated/contracts/$id/index'
 import { Route as AuthenticatedBankAccountsIdIndexRouteImport } from './routes/_authenticated/bank-accounts/$id/index'
-import { Route as AuthenticatedSettingsTemplatesNewRouteImport } from './routes/_authenticated/settings/templates/new'
-import { Route as AuthenticatedSettingsTemplatesIdRouteImport } from './routes/_authenticated/settings/templates/$id'
 import { Route as AuthenticatedInvoicesIdReceiptRouteImport } from './routes/_authenticated/invoices/$id/receipt'
 import { Route as AuthenticatedInvoicesIdPrintRouteImport } from './routes/_authenticated/invoices/$id/print'
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
@@ -154,6 +154,12 @@ const AuthenticatedTenantsIndexRoute =
     path: '/tenants/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTemplatesIndexRoute =
+  AuthenticatedTemplatesIndexRouteImport.update({
+    id: '/templates/',
+    path: '/templates/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
@@ -201,6 +207,18 @@ const AuthenticatedTenantsNewRoute = AuthenticatedTenantsNewRouteImport.update({
   path: '/tenants/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTemplatesNewRoute =
+  AuthenticatedTemplatesNewRouteImport.update({
+    id: '/templates/new',
+    path: '/templates/new',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTemplatesIdRoute =
+  AuthenticatedTemplatesIdRouteImport.update({
+    id: '/templates/$id',
+    path: '/templates/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSettingsSystemRoute =
   AuthenticatedSettingsSystemRouteImport.update({
     id: '/system',
@@ -314,12 +332,6 @@ const AuthenticatedTenantsIdIndexRoute =
     path: '/tenants/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSettingsTemplatesIndexRoute =
-  AuthenticatedSettingsTemplatesIndexRouteImport.update({
-    id: '/templates/',
-    path: '/templates/',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
 const AuthenticatedPropertiesIdIndexRoute =
   AuthenticatedPropertiesIdIndexRouteImport.update({
     id: '/properties/$id/',
@@ -355,18 +367,6 @@ const AuthenticatedBankAccountsIdIndexRoute =
     id: '/bank-accounts/$id/',
     path: '/bank-accounts/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedSettingsTemplatesNewRoute =
-  AuthenticatedSettingsTemplatesNewRouteImport.update({
-    id: '/templates/new',
-    path: '/templates/new',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsTemplatesIdRoute =
-  AuthenticatedSettingsTemplatesIdRouteImport.update({
-    id: '/templates/$id',
-    path: '/templates/$id',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 const AuthenticatedInvoicesIdReceiptRoute =
   AuthenticatedInvoicesIdReceiptRouteImport.update({
@@ -427,6 +427,8 @@ export interface FileRoutesByFullPath {
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
+  '/templates/$id': typeof AuthenticatedTemplatesIdRoute
+  '/templates/new': typeof AuthenticatedTemplatesNewRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -435,20 +437,18 @@ export interface FileRoutesByFullPath {
   '/meters/': typeof AuthenticatedMetersIndexRoute
   '/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
-  '/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
-  '/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/invoices/$id/': typeof AuthenticatedInvoicesIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
-  '/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -484,6 +484,8 @@ export interface FileRoutesByTo {
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
+  '/templates/$id': typeof AuthenticatedTemplatesIdRoute
+  '/templates/new': typeof AuthenticatedTemplatesNewRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts': typeof AuthenticatedContractsIndexRoute
@@ -492,20 +494,18 @@ export interface FileRoutesByTo {
   '/meters': typeof AuthenticatedMetersIndexRoute
   '/properties': typeof AuthenticatedPropertiesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/templates': typeof AuthenticatedTemplatesIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
   '/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
-  '/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
-  '/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/bank-accounts/$id': typeof AuthenticatedBankAccountsIdIndexRoute
   '/contracts/$id': typeof AuthenticatedContractsIdIndexRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
   '/meters/$id': typeof AuthenticatedMetersIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
-  '/settings/templates': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesById {
@@ -544,6 +544,8 @@ export interface FileRoutesById {
   '/_authenticated/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/_authenticated/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/_authenticated/settings/system': typeof AuthenticatedSettingsSystemRoute
+  '/_authenticated/templates/$id': typeof AuthenticatedTemplatesIdRoute
+  '/_authenticated/templates/new': typeof AuthenticatedTemplatesNewRoute
   '/_authenticated/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/_authenticated/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -552,20 +554,18 @@ export interface FileRoutesById {
   '/_authenticated/meters/': typeof AuthenticatedMetersIndexRoute
   '/_authenticated/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/templates/': typeof AuthenticatedTemplatesIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
   '/_authenticated/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/_authenticated/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/_authenticated/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/_authenticated/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
-  '/_authenticated/settings/templates/$id': typeof AuthenticatedSettingsTemplatesIdRoute
-  '/_authenticated/settings/templates/new': typeof AuthenticatedSettingsTemplatesNewRoute
   '/_authenticated/bank-accounts/$id/': typeof AuthenticatedBankAccountsIdIndexRoute
   '/_authenticated/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/_authenticated/invoices/$id/': typeof AuthenticatedInvoicesIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
   '/_authenticated/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
-  '/_authenticated/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -604,6 +604,8 @@ export interface FileRouteTypes {
     | '/settings/invoice-settings'
     | '/settings/staff'
     | '/settings/system'
+    | '/templates/$id'
+    | '/templates/new'
     | '/tenants/new'
     | '/bank-accounts/'
     | '/contracts/'
@@ -612,20 +614,18 @@ export interface FileRouteTypes {
     | '/meters/'
     | '/properties/'
     | '/settings/'
+    | '/templates/'
     | '/tenants/'
     | '/contracts/$id/deposit-return'
     | '/contracts/$id/print'
     | '/invoices/$id/print'
     | '/invoices/$id/receipt'
-    | '/settings/templates/$id'
-    | '/settings/templates/new'
     | '/bank-accounts/$id/'
     | '/contracts/$id/'
     | '/invoices/$id/'
     | '/landlords/$id/'
     | '/meters/$id/'
     | '/properties/$id/'
-    | '/settings/templates/'
     | '/tenants/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -661,6 +661,8 @@ export interface FileRouteTypes {
     | '/settings/invoice-settings'
     | '/settings/staff'
     | '/settings/system'
+    | '/templates/$id'
+    | '/templates/new'
     | '/tenants/new'
     | '/bank-accounts'
     | '/contracts'
@@ -669,20 +671,18 @@ export interface FileRouteTypes {
     | '/meters'
     | '/properties'
     | '/settings'
+    | '/templates'
     | '/tenants'
     | '/contracts/$id/deposit-return'
     | '/contracts/$id/print'
     | '/invoices/$id/print'
     | '/invoices/$id/receipt'
-    | '/settings/templates/$id'
-    | '/settings/templates/new'
     | '/bank-accounts/$id'
     | '/contracts/$id'
     | '/invoices/$id'
     | '/landlords/$id'
     | '/meters/$id'
     | '/properties/$id'
-    | '/settings/templates'
     | '/tenants/$id'
   id:
     | '__root__'
@@ -720,6 +720,8 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/invoice-settings'
     | '/_authenticated/settings/staff'
     | '/_authenticated/settings/system'
+    | '/_authenticated/templates/$id'
+    | '/_authenticated/templates/new'
     | '/_authenticated/tenants/new'
     | '/_authenticated/bank-accounts/'
     | '/_authenticated/contracts/'
@@ -728,20 +730,18 @@ export interface FileRouteTypes {
     | '/_authenticated/meters/'
     | '/_authenticated/properties/'
     | '/_authenticated/settings/'
+    | '/_authenticated/templates/'
     | '/_authenticated/tenants/'
     | '/_authenticated/contracts/$id/deposit-return'
     | '/_authenticated/contracts/$id/print'
     | '/_authenticated/invoices/$id/print'
     | '/_authenticated/invoices/$id/receipt'
-    | '/_authenticated/settings/templates/$id'
-    | '/_authenticated/settings/templates/new'
     | '/_authenticated/bank-accounts/$id/'
     | '/_authenticated/contracts/$id/'
     | '/_authenticated/invoices/$id/'
     | '/_authenticated/landlords/$id/'
     | '/_authenticated/meters/$id/'
     | '/_authenticated/properties/$id/'
-    | '/_authenticated/settings/templates/'
     | '/_authenticated/tenants/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -881,6 +881,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTenantsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/templates/': {
+      id: '/_authenticated/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof AuthenticatedTemplatesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings/': {
       id: '/_authenticated/settings/'
       path: '/'
@@ -937,18 +944,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTenantsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/staff': {
-      id: '/_authenticated/settings/staff'
-      path: '/staff'
-      fullPath: '/settings/staff'
-      preLoaderRoute: typeof AuthenticatedSettingsStaffRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    '/_authenticated/templates/new': {
+      id: '/_authenticated/templates/new'
+      path: '/templates/new'
+      fullPath: '/templates/new'
+      preLoaderRoute: typeof AuthenticatedTemplatesNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/templates/$id': {
+      id: '/_authenticated/templates/$id'
+      path: '/templates/$id'
+      fullPath: '/templates/$id'
+      preLoaderRoute: typeof AuthenticatedTemplatesIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings/system': {
       id: '/_authenticated/settings/system'
       path: '/system'
       fullPath: '/settings/system'
       preLoaderRoute: typeof AuthenticatedSettingsSystemRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/settings/staff': {
+      id: '/_authenticated/settings/staff'
+      path: '/staff'
+      fullPath: '/settings/staff'
+      preLoaderRoute: typeof AuthenticatedSettingsStaffRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
     '/_authenticated/settings/invoice-settings': {
@@ -1070,13 +1091,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTenantsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/templates/': {
-      id: '/_authenticated/settings/templates/'
-      path: '/templates'
-      fullPath: '/settings/templates/'
-      preLoaderRoute: typeof AuthenticatedSettingsTemplatesIndexRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
     '/_authenticated/properties/$id/': {
       id: '/_authenticated/properties/$id/'
       path: '/properties/$id'
@@ -1119,20 +1133,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBankAccountsIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/templates/new': {
-      id: '/_authenticated/settings/templates/new'
-      path: '/templates/new'
-      fullPath: '/settings/templates/new'
-      preLoaderRoute: typeof AuthenticatedSettingsTemplatesNewRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/templates/$id': {
-      id: '/_authenticated/settings/templates/$id'
-      path: '/templates/$id'
-      fullPath: '/settings/templates/$id'
-      preLoaderRoute: typeof AuthenticatedSettingsTemplatesIdRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
     '/_authenticated/invoices/$id/receipt': {
       id: '/_authenticated/invoices/$id/receipt'
       path: '/invoices/$id/receipt'
@@ -1172,9 +1172,6 @@ interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsStaffRoute: typeof AuthenticatedSettingsStaffRoute
   AuthenticatedSettingsSystemRoute: typeof AuthenticatedSettingsSystemRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
-  AuthenticatedSettingsTemplatesIdRoute: typeof AuthenticatedSettingsTemplatesIdRoute
-  AuthenticatedSettingsTemplatesNewRoute: typeof AuthenticatedSettingsTemplatesNewRoute
-  AuthenticatedSettingsTemplatesIndexRoute: typeof AuthenticatedSettingsTemplatesIndexRoute
 }
 
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
@@ -1187,12 +1184,6 @@ const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteCh
     AuthenticatedSettingsStaffRoute: AuthenticatedSettingsStaffRoute,
     AuthenticatedSettingsSystemRoute: AuthenticatedSettingsSystemRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
-    AuthenticatedSettingsTemplatesIdRoute:
-      AuthenticatedSettingsTemplatesIdRoute,
-    AuthenticatedSettingsTemplatesNewRoute:
-      AuthenticatedSettingsTemplatesNewRoute,
-    AuthenticatedSettingsTemplatesIndexRoute:
-      AuthenticatedSettingsTemplatesIndexRoute,
   }
 
 const AuthenticatedSettingsRouteRouteWithChildren =
@@ -1217,6 +1208,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsFollowUpRoute: typeof AuthenticatedReportsFollowUpRoute
   AuthenticatedReportsMonthlyRoute: typeof AuthenticatedReportsMonthlyRoute
   AuthenticatedReportsOutstandingRoute: typeof AuthenticatedReportsOutstandingRoute
+  AuthenticatedTemplatesIdRoute: typeof AuthenticatedTemplatesIdRoute
+  AuthenticatedTemplatesNewRoute: typeof AuthenticatedTemplatesNewRoute
   AuthenticatedTenantsNewRoute: typeof AuthenticatedTenantsNewRoute
   AuthenticatedBankAccountsIndexRoute: typeof AuthenticatedBankAccountsIndexRoute
   AuthenticatedContractsIndexRoute: typeof AuthenticatedContractsIndexRoute
@@ -1224,6 +1217,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLandlordsIndexRoute: typeof AuthenticatedLandlordsIndexRoute
   AuthenticatedMetersIndexRoute: typeof AuthenticatedMetersIndexRoute
   AuthenticatedPropertiesIndexRoute: typeof AuthenticatedPropertiesIndexRoute
+  AuthenticatedTemplatesIndexRoute: typeof AuthenticatedTemplatesIndexRoute
   AuthenticatedTenantsIndexRoute: typeof AuthenticatedTenantsIndexRoute
   AuthenticatedContractsIdDepositReturnRoute: typeof AuthenticatedContractsIdDepositReturnRoute
   AuthenticatedContractsIdPrintRoute: typeof AuthenticatedContractsIdPrintRoute
@@ -1255,6 +1249,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsFollowUpRoute: AuthenticatedReportsFollowUpRoute,
   AuthenticatedReportsMonthlyRoute: AuthenticatedReportsMonthlyRoute,
   AuthenticatedReportsOutstandingRoute: AuthenticatedReportsOutstandingRoute,
+  AuthenticatedTemplatesIdRoute: AuthenticatedTemplatesIdRoute,
+  AuthenticatedTemplatesNewRoute: AuthenticatedTemplatesNewRoute,
   AuthenticatedTenantsNewRoute: AuthenticatedTenantsNewRoute,
   AuthenticatedBankAccountsIndexRoute: AuthenticatedBankAccountsIndexRoute,
   AuthenticatedContractsIndexRoute: AuthenticatedContractsIndexRoute,
@@ -1262,6 +1258,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLandlordsIndexRoute: AuthenticatedLandlordsIndexRoute,
   AuthenticatedMetersIndexRoute: AuthenticatedMetersIndexRoute,
   AuthenticatedPropertiesIndexRoute: AuthenticatedPropertiesIndexRoute,
+  AuthenticatedTemplatesIndexRoute: AuthenticatedTemplatesIndexRoute,
   AuthenticatedTenantsIndexRoute: AuthenticatedTenantsIndexRoute,
   AuthenticatedContractsIdDepositReturnRoute:
     AuthenticatedContractsIdDepositReturnRoute,
