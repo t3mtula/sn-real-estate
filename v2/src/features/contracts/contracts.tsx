@@ -12,6 +12,28 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { Download, FileText, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useExportCSV } from '@/hooks/use-csv'
+
+/**
+ * Friendly short label for payment frequency.
+ * Prefers structured data.payFreq · falls back to keyword parse on data.payment string.
+ */
+function freqShortLabel(d: Record<string, unknown> | undefined): string {
+  if (!d) return ''
+  const pf = String(d.payFreq ?? '').toLowerCase()
+  if (pf === 'monthly') return 'รายเดือน'
+  if (pf === 'quarterly') return 'รายไตรมาส'
+  if (pf === 'semiannual' || pf === 'semi') return 'ครึ่งปี'
+  if (pf === 'annual' || pf === 'yearly') return 'รายปี'
+  if (pf === 'lump') return 'จ่ายครั้งเดียว'
+  // Fallback: parse payment string
+  const s = String(d.payment ?? '')
+  if (/ปีละ|รายปี|ต่อปี/.test(s)) return 'รายปี'
+  if (/ไตรมาส/.test(s)) return 'รายไตรมาส'
+  if (/ครึ่งปี|6 เดือน/.test(s)) return 'ครึ่งปี'
+  if (/ลำพ|ทั้งหมด|ครั้งเดียว|วันเซ็น/.test(s)) return 'จ่ายครั้งเดียว'
+  if (/เดือนละ|รายเดือน|ทุกเดือน|ของทุกเดือน/.test(s)) return 'รายเดือน'
+  return ''
+}
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -172,18 +194,23 @@ export function Contracts() {
           <SortableHeader column={column}>ค่าเช่า</SortableHeader>
         ),
         cell: ({ row }) => {
-          const formatted = amt(row.original.data?.rate as number | string | undefined, {
+          const d = row.original.data
+          const formatted = amt(d?.rate as number | string | undefined, {
             symbol: false,
             decimal: 0,
           })
           if (formatted === '—') {
             return <span className='text-sm text-muted-foreground'>—</span>
           }
-          const freq = row.original.data?.payment?.trim()
+          const freqLabel = freqShortLabel(d as unknown as Record<string, unknown>)
           return (
             <span className='text-sm tabular-nums'>
               {formatted}
-              {freq ? <span className='ms-1 text-xs text-muted-foreground'>/ {freq}</span> : null}
+              {freqLabel ? (
+                <span className='ms-2 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'>
+                  {freqLabel}
+                </span>
+              ) : null}
             </span>
           )
         },

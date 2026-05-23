@@ -177,7 +177,9 @@ export function useGenerateInvoiceFromContract() {
         },
       ]
 
-      // Due date: month + dueDay (clamped to last day of month)
+      // Due date: month + dueDay (clamped to last day of month).
+      // If invoice is issued AFTER the natural due date for that month (i.e. back-dated
+      // billing), push due date 7 days from issue date so it isn't immediately overdue.
       const [yStr, moStr] = month.split('-')
       const yNum = Number.parseInt(yStr, 10)
       const moNum = Number.parseInt(moStr, 10)
@@ -186,8 +188,14 @@ export function useGenerateInvoiceFromContract() {
         Math.max(1, Number(values.dueDay) || 5),
         lastDay,
       )
-      const dueDate = fmtBE(new Date(yNum, moNum - 1, dueDay))
-      const today = fmtBE(new Date())
+      const naturalDue = new Date(yNum, moNum - 1, dueDay)
+      const now = new Date()
+      const issuedLate = now.getTime() > naturalDue.getTime()
+      const effectiveDue = issuedLate
+        ? new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7)
+        : naturalDue
+      const dueDate = fmtBE(effectiveDue)
+      const today = fmtBE(now)
 
       const pid = Date.now()
       const id = String(pid)
