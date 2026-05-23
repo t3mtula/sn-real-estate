@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileText,
   Landmark,
+  MessageCircle,
   Printer,
   Receipt,
   RotateCcw,
@@ -185,6 +186,53 @@ export function InvoiceDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className='flex flex-wrap gap-2'>
+            {overdue > 0 && (
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={async () => {
+                  const today = new Date()
+                  const plus3 = new Date(today.getTime() + 3 * 86_400_000)
+                  const fmtBE = (dt: Date) => {
+                    const d = String(dt.getDate()).padStart(2, '0')
+                    const m = String(dt.getMonth() + 1).padStart(2, '0')
+                    const y = dt.getFullYear() + 543
+                    return `${d}/${m}/${y}`
+                  }
+                  const lines = [
+                    `เรียน คุณ ${(tenant?.data?.name ?? data.tenant ?? '-').trim()}`,
+                    '',
+                    `ใบแจ้งหนี้เลขที่ ${data.invoiceNo ?? display}`,
+                    `ยอด ${amt(data.remainingAmount ?? data.total, { decimal: 0 })} บาท`,
+                    `ครบกำหนด ${data.dueDate ?? '-'}`,
+                    `เกินกำหนด ${overdue} วัน`,
+                    '',
+                    `กรุณาชำระภายในวันที่ ${fmtBE(plus3)} เพื่อหลีกเลี่ยงค่าปรับ`,
+                    '',
+                    'ขอบคุณค่ะ',
+                    (landlord?.data?.name ?? data.landlord ?? '').trim(),
+                  ]
+                    .filter((line, i, arr) =>
+                      // collapse trailing empty lines if landlord is empty
+                      i < arr.length - 1 || line.length > 0,
+                    )
+                    .join('\n')
+                  try {
+                    await navigator.clipboard.writeText(lines)
+                    toast.success('คัดลอกข้อความแจ้งเตือนแล้ว', {
+                      description: 'เปิด LINE แล้ววางในแชท',
+                    })
+                  } catch {
+                    toast.error('คัดลอกไม่สำเร็จ', {
+                      description: 'browser ไม่อนุญาต clipboard',
+                    })
+                  }
+                }}
+              >
+                <MessageCircle className='size-4' />
+                คัดลอกข้อความแจ้งเตือน
+              </Button>
+            )}
             <Button size='sm' variant='outline' asChild>
               <Link to='/invoices/$id/print' params={{ id }}>
                 <Printer className='size-4' />

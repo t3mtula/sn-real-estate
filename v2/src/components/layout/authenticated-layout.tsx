@@ -6,9 +6,19 @@ import { SearchProvider } from '@/context/search-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SkipToMain } from '@/components/skip-to-main'
+import {
+  ShortcutsHelpDialog,
+  useKeyboardShortcuts,
+} from '@/hooks/use-keyboard-shortcuts'
 
 type AuthenticatedLayoutProps = {
   children?: React.ReactNode
+}
+
+/** Inner component — must be inside SearchProvider/router so the hook can read context. */
+function GlobalShortcuts() {
+  const { helpOpen, setHelpOpen } = useKeyboardShortcuts()
+  return <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
@@ -22,6 +32,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <LayoutProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <SkipToMain />
+          <GlobalShortcuts />
           <AppSidebar />
           <SidebarInset
             className={cn(
