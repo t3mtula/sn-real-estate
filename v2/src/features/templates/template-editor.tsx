@@ -26,6 +26,7 @@ import {
   DEFAULT_CLOSING,
   DEFAULT_INTRO,
 } from '@/features/contracts/print/default-template'
+import { TemplateA4Preview } from './template-a4-preview'
 import { useContractTemplate } from './queries'
 import { useCreateTemplate, useUpdateTemplate } from './mutations'
 import type { ContractClause, TemplateData } from './types'
@@ -190,8 +191,8 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
         </div>
       </Header>
 
-      <Main className='flex flex-1 flex-col gap-5 pb-10'>
-        <header className='flex flex-wrap items-start gap-3'>
+      <Main fixed className='flex flex-1 flex-col overflow-hidden'>
+        <header className='mb-4 flex flex-wrap items-start gap-3'>
           <Button variant='ghost' size='icon' asChild>
             <Link to='/settings/templates' aria-label='กลับ'>
               <ArrowLeft className='size-4' />
@@ -236,208 +237,210 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
           </div>
         </header>
 
-        {/* Meta */}
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-2'>
-            <Label htmlFor='name'>
-              ชื่อแบบสัญญา <span className='text-destructive'>*</span>
-            </Label>
-            <Input
-              id='name'
-              value={draft.name}
-              onChange={(e) => {
-                setDirty(true)
-                setDraft((d) => ({ ...d, name: e.target.value }))
-              }}
-              placeholder='เช่น แบบมาตรฐาน · ปรับ ก.พ. 69'
-            />
-          </div>
-          <div className='space-y-2'>
-            <Label htmlFor='version'>เวอร์ชั่น (ไม่บังคับ)</Label>
-            <Input
-              id='version'
-              value={draft.version ?? ''}
-              onChange={(e) => {
-                setDirty(true)
-                setDraft((d) => ({ ...d, version: e.target.value }))
-              }}
-              placeholder='เช่น v2.1 · 2569-ก.พ.'
-            />
-          </div>
-        </div>
+        {/* Split: left = editor form · right = A4 preview */}
+        <div className='flex min-h-0 flex-1 gap-4 overflow-hidden'>
 
-        {/* Intro */}
-        <div className='space-y-2'>
-          <Label htmlFor='intro'>คำนำสัญญา (Intro)</Label>
-          <Textarea
-            id='intro'
-            value={draft.intro}
-            onChange={(e) => {
-              setDirty(true)
-              setDraft((d) => ({ ...d, intro: e.target.value }))
-            }}
-            rows={4}
-            placeholder='สัญญาฉบับนี้ทำขึ้นระหว่าง {{landlord}} ซึ่งต่อไปนี้เรียกว่า "ผู้ให้เช่า"...'
-          />
-        </div>
+          {/* ─── Left: editor ─── */}
+          <div className='flex w-1/2 flex-col gap-4 overflow-y-auto pb-6 pr-1'>
 
-        {/* Clauses */}
-        <section className='space-y-3'>
-          <div className='flex items-center justify-between'>
-            <h2 className='text-lg font-semibold'>ข้อสัญญา ({draft.clauses.length})</h2>
-            <Button size='sm' variant='outline' onClick={addClause}>
-              <Plus className='size-4' />
-              เพิ่มข้อ
-            </Button>
-          </div>
+            {/* Meta */}
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <div className='space-y-2'>
+                <Label htmlFor='name'>
+                  ชื่อแบบสัญญา <span className='text-destructive'>*</span>
+                </Label>
+                <Input
+                  id='name'
+                  value={draft.name}
+                  onChange={(e) => {
+                    setDirty(true)
+                    setDraft((d) => ({ ...d, name: e.target.value }))
+                  }}
+                  placeholder='เช่น แบบมาตรฐาน · ปรับ ก.พ. 69'
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label htmlFor='version'>เวอร์ชั่น (ไม่บังคับ)</Label>
+                <Input
+                  id='version'
+                  value={draft.version ?? ''}
+                  onChange={(e) => {
+                    setDirty(true)
+                    setDraft((d) => ({ ...d, version: e.target.value }))
+                  }}
+                  placeholder='เช่น v2.1 · 2569-ก.พ.'
+                />
+              </div>
+            </div>
 
-          <div className='space-y-3'>
-            {draft.clauses.map((c, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
-              <div
-                key={`c-${i}`}
-                className='rounded-md border bg-card p-4 space-y-3'
-              >
-                <div className='flex items-start gap-2'>
-                  <div className='flex flex-col gap-1 pt-1'>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='size-6'
-                      onClick={() => moveClause(i, -1)}
-                      disabled={i === 0}
-                      aria-label='ขึ้น'
-                    >
-                      <ChevronUp className='size-3' />
-                    </Button>
-                    <span
-                      className='inline-flex items-center justify-center'
-                      title='ลำดับ'
-                    >
-                      <GripVertical className='size-3 text-muted-foreground' />
-                    </span>
-                    <Button
-                      size='icon'
-                      variant='ghost'
-                      className='size-6'
-                      onClick={() => moveClause(i, 1)}
-                      disabled={i === draft.clauses.length - 1}
-                      aria-label='ลง'
-                    >
-                      <ChevronDown className='size-3' />
-                    </Button>
-                  </div>
-                  <div className='flex-1 space-y-2'>
-                    <div className='flex items-center gap-2'>
-                      <Badge variant='outline' className='font-semibold'>
-                        ข้อ {i + 1}
-                      </Badge>
-                      <Button
-                        size='sm'
-                        variant='ghost'
-                        className='ms-auto text-destructive hover:bg-destructive/10 hover:text-destructive'
-                        onClick={() => removeClause(i)}
-                      >
-                        <Trash2 className='size-3' />
-                        ลบข้อ
-                      </Button>
-                    </div>
-                    <Textarea
-                      value={c.text}
-                      onChange={(e) =>
-                        updateClause(i, { text: e.target.value })
-                      }
-                      rows={3}
-                      placeholder='เนื้อข้อสัญญา...'
-                    />
-                    {(c.sub ?? []).map((sub, j) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: order is identity
-                      <div key={`s-${i}-${j}`} className='flex gap-2'>
-                        <Badge variant='outline' className='mt-1 h-6 font-normal'>
-                          {i + 1}.{j + 1}
-                        </Badge>
-                        <Textarea
-                          value={sub}
-                          onChange={(e) => updateSub(i, j, e.target.value)}
-                          rows={2}
-                          placeholder='ข้อย่อย...'
-                          className='flex-1'
-                        />
+            {/* Intro */}
+            <div className='space-y-2'>
+              <Label htmlFor='intro'>คำนำสัญญา (Intro)</Label>
+              <Textarea
+                id='intro'
+                value={draft.intro}
+                onChange={(e) => {
+                  setDirty(true)
+                  setDraft((d) => ({ ...d, intro: e.target.value }))
+                }}
+                rows={4}
+                placeholder='สัญญาฉบับนี้ทำขึ้นระหว่าง {{landlord}} ซึ่งต่อไปนี้เรียกว่า "ผู้ให้เช่า"...'
+              />
+            </div>
+
+            {/* Clauses */}
+            <section className='space-y-3'>
+              <div className='flex items-center justify-between'>
+                <h2 className='text-lg font-semibold'>ข้อสัญญา ({draft.clauses.length})</h2>
+                <Button size='sm' variant='outline' onClick={addClause}>
+                  <Plus className='size-4' />
+                  เพิ่มข้อ
+                </Button>
+              </div>
+
+              <div className='space-y-3'>
+                {draft.clauses.map((c, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
+                  <div
+                    key={`c-${i}`}
+                    className='rounded-md border bg-card p-4 space-y-3'
+                  >
+                    <div className='flex items-start gap-2'>
+                      <div className='flex flex-col gap-1 pt-1'>
                         <Button
                           size='icon'
                           variant='ghost'
-                          className='mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                          onClick={() => removeSub(i, j)}
-                          aria-label='ลบข้อย่อย'
+                          className='size-6'
+                          onClick={() => moveClause(i, -1)}
+                          disabled={i === 0}
+                          aria-label='ขึ้น'
                         >
-                          <Trash2 className='size-3' />
+                          <ChevronUp className='size-3' />
+                        </Button>
+                        <span
+                          className='inline-flex items-center justify-center'
+                          title='ลำดับ'
+                        >
+                          <GripVertical className='size-3 text-muted-foreground' />
+                        </span>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          className='size-6'
+                          onClick={() => moveClause(i, 1)}
+                          disabled={i === draft.clauses.length - 1}
+                          aria-label='ลง'
+                        >
+                          <ChevronDown className='size-3' />
                         </Button>
                       </div>
-                    ))}
-                    <Button
-                      size='sm'
-                      variant='ghost'
-                      onClick={() => addSub(i)}
-                      className='ml-7 text-muted-foreground'
-                    >
-                      <Plus className='size-3' />
-                      เพิ่มข้อย่อย
-                    </Button>
+                      <div className='flex-1 space-y-2'>
+                        <div className='flex items-center gap-2'>
+                          <Badge variant='outline' className='font-semibold'>
+                            ข้อ {i + 1}
+                          </Badge>
+                          <Button
+                            size='sm'
+                            variant='ghost'
+                            className='ms-auto text-destructive hover:bg-destructive/10 hover:text-destructive'
+                            onClick={() => removeClause(i)}
+                          >
+                            <Trash2 className='size-3' />
+                            ลบข้อ
+                          </Button>
+                        </div>
+                        <Textarea
+                          value={c.text}
+                          onChange={(e) =>
+                            updateClause(i, { text: e.target.value })
+                          }
+                          rows={3}
+                          placeholder='เนื้อข้อสัญญา...'
+                        />
+                        {(c.sub ?? []).map((sub, j) => (
+                          // biome-ignore lint/suspicious/noArrayIndexKey: order is identity
+                          <div key={`s-${i}-${j}`} className='flex gap-2'>
+                            <Badge variant='outline' className='mt-1 h-6 font-normal'>
+                              {i + 1}.{j + 1}
+                            </Badge>
+                            <Textarea
+                              value={sub}
+                              onChange={(e) => updateSub(i, j, e.target.value)}
+                              rows={2}
+                              placeholder='ข้อย่อย...'
+                              className='flex-1'
+                            />
+                            <Button
+                              size='icon'
+                              variant='ghost'
+                              className='mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                              onClick={() => removeSub(i, j)}
+                              aria-label='ลบข้อย่อย'
+                            >
+                              <Trash2 className='size-3' />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          onClick={() => addSub(i)}
+                          className='ml-7 text-muted-foreground'
+                        >
+                          <Plus className='size-3' />
+                          เพิ่มข้อย่อย
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+                {draft.clauses.length === 0 && (
+                  <div className='rounded-md border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground'>
+                    ยังไม่มีข้อ · กด "เพิ่มข้อ" เพื่อเริ่ม
+                  </div>
+                )}
               </div>
-            ))}
-            {draft.clauses.length === 0 && (
-              <div className='rounded-md border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground'>
-                ยังไม่มีข้อ · กด "เพิ่มข้อ" เพื่อเริ่ม
-              </div>
-            )}
+            </section>
+
+            {/* Closing */}
+            <div className='space-y-2'>
+              <Label htmlFor='closing'>คำปิดสัญญา (Closing)</Label>
+              <Textarea
+                id='closing'
+                value={draft.closing}
+                onChange={(e) => {
+                  setDirty(true)
+                  setDraft((d) => ({ ...d, closing: e.target.value }))
+                }}
+                rows={3}
+                placeholder='สัญญานี้ทำขึ้นเป็นสองฉบับ...'
+              />
+            </div>
+
+            {/* Notes (internal) */}
+            <div className='space-y-2'>
+              <Label htmlFor='notes'>หมายเหตุภายใน (ไม่ขึ้นในสัญญา)</Label>
+              <Textarea
+                id='notes'
+                value={draft.notes ?? ''}
+                onChange={(e) => {
+                  setDirty(true)
+                  setDraft((d) => ({ ...d, notes: e.target.value }))
+                }}
+                rows={2}
+                placeholder='เช่น แก้ข้อ 3 ตามที่ทนายแนะ · 22 พ.ค. 69'
+              />
+            </div>
+
+          </div>{/* end left */}
+
+          {/* ─── Right: A4 preview ─── */}
+          <div className='flex w-1/2 flex-col overflow-hidden border-l pl-4'>
+            <TemplateA4Preview draft={draft} />
           </div>
-        </section>
 
-        {/* Closing */}
-        <div className='space-y-2'>
-          <Label htmlFor='closing'>คำปิดสัญญา (Closing)</Label>
-          <Textarea
-            id='closing'
-            value={draft.closing}
-            onChange={(e) => {
-              setDirty(true)
-              setDraft((d) => ({ ...d, closing: e.target.value }))
-            }}
-            rows={3}
-            placeholder='สัญญานี้ทำขึ้นเป็นสองฉบับ...'
-          />
-        </div>
+        </div>{/* end split */}
 
-        {/* Notes (internal) */}
-        <div className='space-y-2'>
-          <Label htmlFor='notes'>หมายเหตุภายใน (ไม่ขึ้นในสัญญา)</Label>
-          <Textarea
-            id='notes'
-            value={draft.notes ?? ''}
-            onChange={(e) => {
-              setDirty(true)
-              setDraft((d) => ({ ...d, notes: e.target.value }))
-            }}
-            rows={2}
-            placeholder='เช่น แก้ข้อ 3 ตามที่ทนายแนะ · 22 พ.ค. 69'
-          />
-        </div>
-
-        {/* Footer actions */}
-        <div className='sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-3 backdrop-blur'>
-          <div className='flex justify-end gap-2'>
-            <Button variant='ghost' asChild>
-              <Link to='/settings/templates'>ยกเลิก</Link>
-            </Button>
-            <Button onClick={() => handleSave(false)} disabled={submitting}>
-              {submitting && <Loader2 className='size-4 animate-spin' />}
-              <Save className='size-4' />
-              บันทึก
-            </Button>
-          </div>
-        </div>
       </Main>
     </>
   )
