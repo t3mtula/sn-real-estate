@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+/* Sarabun font moved to <link> in index.html so it loads in parallel with the
+ * main JS bundle and does not block CSS parsing / FCP. `display=swap` in the
+ * Google CSS lets fallback text paint immediately. */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './theme.css';

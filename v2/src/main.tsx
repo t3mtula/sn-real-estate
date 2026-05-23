@@ -40,8 +40,8 @@ const queryClient = new QueryClient({
         )
       },
       refetchOnWindowFocus: import.meta.env.PROD,
-      staleTime: 10 * 1000, // 10s — fresh window before any refetch
-      gcTime: 60 * 1000, // 60s — drop cached data after unused (default 5min · cut leak)
+      staleTime: 60 * 1000, // 60s — fresh window before any refetch (skip refetch on route mount)
+      gcTime: 5 * 60 * 1000, // 5min — drop cached data after unused
     },
     mutations: {
       onError: (error) => {
