@@ -53,6 +53,7 @@ import { InspectionPanel } from '@/features/contracts/components/inspection-pane
 import { DepositReturnPanel } from '@/features/contracts/components/deposit-return-panel'
 import { PrintOverlay } from '@/components/print-overlay'
 import { ContractForm } from '@/features/contracts/components/contract-form'
+import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
 import { useActiveContractTemplate } from '@/features/templates/queries'
 import {
@@ -679,11 +680,13 @@ function Content({
           </CardHeader>
           <CardContent className='grid gap-5'>
             <InfoRow icon={Calendar} label='ช่วงเวลา'>
-              <span className='tabular-nums'>
-                {c.start || '—'} → {c.end || '—'}
-              </span>
+              <ContractTimelineBar
+                start={c.start}
+                end={c.end}
+                cancelled={!!c.cancelled}
+              />
               {fmtDuration(c.dur) && (
-                <span className='block text-xs text-muted-foreground'>
+                <span className='mt-1 block text-xs text-muted-foreground'>
                   ระยะ {fmtDuration(c.dur)}
                 </span>
               )}

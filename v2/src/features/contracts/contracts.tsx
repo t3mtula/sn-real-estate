@@ -61,6 +61,7 @@ import { useRef } from 'react'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
+import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
 import {
   getContractDisplay,
   getContractStatus,
@@ -83,6 +84,17 @@ const STATUS_TONE_CLASS: Record<string, string> = {
   info: 'bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300',
   muted: 'bg-muted text-muted-foreground border-border',
   destructive: 'bg-destructive/10 text-destructive border-destructive/30',
+}
+
+/** Left accent strip on the row — v1-style color cue at a glance */
+const STATUS_ACCENT_STRIP: Record<string, string> = {
+  active: 'border-l-2 border-l-emerald-500',
+  expiring: 'border-l-2 border-l-amber-500',
+  upcoming: 'border-l-2 border-l-sky-500',
+  expired: 'border-l-2 border-l-slate-400',
+  cancelled: 'border-l-2 border-l-red-500',
+  closed: 'border-l-2 border-l-slate-300',
+  unknown: 'border-l-2 border-l-transparent',
 }
 
 function StatusBadge({ status }: { status: ContractStatus }) {
@@ -178,28 +190,23 @@ export function Contracts() {
         },
       },
       {
-        id: 'start',
-        accessorFn: (row) => row.data?.start ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>วันเริ่ม</SortableHeader>
-        ),
-        cell: ({ row }) => (
-          <span className='text-sm tabular-nums'>
-            {row.original.data?.start?.trim() || '—'}
-          </span>
-        ),
-      },
-      {
         id: 'end',
         accessorFn: (row) => row.data?.end ?? '',
         header: ({ column }) => (
-          <SortableHeader column={column}>วันสิ้นสุด</SortableHeader>
+          <SortableHeader column={column}>ระยะสัญญา</SortableHeader>
         ),
-        cell: ({ row }) => (
-          <span className='text-sm tabular-nums'>
-            {row.original.data?.end?.trim() || '—'}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const d = row.original.data
+          return (
+            <div className='min-w-[180px] max-w-[260px]'>
+              <ContractTimelineBar
+                start={d?.start}
+                end={d?.end}
+                cancelled={!!d?.cancelled || row.original._status === 'cancelled'}
+              />
+            </div>
+          )
+        },
       },
       {
         id: 'rate',
@@ -471,7 +478,11 @@ export function Contracts() {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={cn('cursor-pointer', 'hover:bg-muted/40')}
+                    className={cn(
+                      'cursor-pointer hover:bg-muted/40',
+                      STATUS_ACCENT_STRIP[row.original._status] ??
+                        'border-l-2 border-l-transparent',
+                    )}
                     onClick={() =>
                       navigate({
                         to: '/contracts/$id',
