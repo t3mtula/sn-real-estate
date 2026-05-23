@@ -152,14 +152,14 @@ export function useGenerateInvoiceFromContract() {
       const prefix = category === 'deposit' ? 'DEP' : 'INV'
       const invoiceNo = await nextInvoiceNumber(month, prefix)
 
-      const freq = getPaymentFreq(contract.data?.payment)
+      const freq = getPaymentFreq(contract.data)
       const baseAmount =
         category === 'deposit'
           ? Number(contract.data?.deposit) || 0
           : (values.amount ??
             getInvoiceAmount(
               contract.data?.rate as number | undefined,
-              contract.data?.payment,
+              contract.data,
             ))
 
       // VAT snapshot from landlord (v2)
@@ -495,7 +495,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
         }
         const amount = getInvoiceAmount(
           d.rate as number | undefined,
-          d.payment as string | undefined,
+          d,
         )
         if (!amount || amount <= 0) {
           willSkip.push({ contractId: c.id, contractNo, reason: 'no_rate' })
@@ -601,7 +601,7 @@ export function useGenerateMonthlyInvoices() {
         }
         const baseAmount = getInvoiceAmount(
           d.rate as number | undefined,
-          d.payment as string | undefined,
+          d,
         )
         if (!baseAmount || baseAmount <= 0) {
           skipped++
@@ -617,7 +617,7 @@ export function useGenerateMonthlyInvoices() {
             ? Number((baseAmount * (1 + vatRate / 100)).toFixed(2))
             : baseAmount
 
-        const freq = getPaymentFreq(d.payment as string | undefined)
+        const freq = getPaymentFreq(d)
         const invoiceNo = `INV-${month}-${String(nextNum).padStart(4, '0')}`
         nextNum++
 

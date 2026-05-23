@@ -72,6 +72,7 @@ import {
 import { useLandlord, useLandlords } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant, useTenants } from '@/features/tenants/queries'
+import { coerceDurMonths, coerceNumber } from '@/lib/contract-normalize'
 import { usePdf } from '@/lib/pdf'
 import { amt, todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -301,9 +302,9 @@ function ContractEditing({
     parent_contract_id: c.parent_contract_id ?? '',
     start: c.start ?? '',
     end: c.end ?? '',
-    rate: c.rate ?? 0,
-    deposit: c.deposit ?? 0,
-    dur: c.dur ?? 0,
+    rate: coerceNumber(c.rate),
+    deposit: coerceNumber(c.deposit),
+    dur: coerceNumber((c as any).durMonths) || coerceDurMonths(c.dur),
     payment: c.payment ?? 'รายเดือน',
     purpose: (c.purpose as string) ?? 'พักอาศัย',
     // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line

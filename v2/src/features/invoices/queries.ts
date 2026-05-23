@@ -165,8 +165,49 @@ export type PaymentFreq = {
   label: string
 }
 
-export function getPaymentFreq(payment: string | undefined): PaymentFreq {
-  const key = (payment ?? '').trim()
+/**
+ * Resolve payment frequency from structured payFreq field (preferred) or
+ * fall back to legacy payment-string keyword lookup.
+ *
+ * Accepts either a contract data object or just the legacy payment string.
+ *
+ * payFreq enum values: 'monthly' | 'quarterly' | 'semiannual' | 'annual' | 'lump' | 'custom'
+ * Accepts variants: 'yearly' ↔ 'annual', 'semi' ↔ 'semiannual'.
+ */
+export function getPaymentFreq(
+  arg:
+    | string
+    | undefined
+    | {
+        payFreq?: string
+        payment?: string
+        durMonths?: unknown
+        dur?: unknown
+      },
+): PaymentFreq {
+  // string overload — legacy callers passing payment string only
+  if (typeof arg === 'string' || arg == null) {
+    const key = (arg ?? '').trim()
+    return (
+      PAYMENT_FREQ_MAP[key] ?? {
+        type: 'monthly',
+        months: 1,
+        label: 'ค่าเช่ารายเดือน',
+      }
+    )
+  }
+  // Prefer structured payFreq
+  const pf = (arg.payFreq ?? '').trim().toLowerCase()
+  if (pf === 'monthly') return { type: 'monthly', months: 1, label: 'ค่าเช่ารายเดือน' }
+  if (pf === 'quarterly') return { type: 'quarterly', months: 3, label: 'ค่าเช่ารายไตรมาส' }
+  if (pf === 'semiannual' || pf === 'semi') return { type: 'semi', months: 6, label: 'ค่าเช่าครึ่งปี' }
+  if (pf === 'annual' || pf === 'yearly') return { type: 'yearly', months: 12, label: 'ค่าเช่ารายปี' }
+  if (pf === 'lump') {
+    const dm = Number(arg.durMonths) || Number(arg.dur) || 12
+    return { type: 'lump', months: dm, label: 'ค่าเช่า (ชำระครั้งเดียว)' }
+  }
+  // 'custom' or anything else — fall back to legacy payment string
+  const key = (arg.payment ?? '').trim()
   return (
     PAYMENT_FREQ_MAP[key] ?? {
       type: 'monthly',
@@ -176,14 +217,19 @@ export function getPaymentFreq(payment: string | undefined): PaymentFreq {
   )
 }
 
-/** Invoice base amount from contract rate × cycle months · v2 numeric */
+/** Invoice base amount from contract rate × cycle months · v2 numeric.
+ *  Accepts either (rate, payment-string) or (rate, contract-data).
+ */
 export function getInvoiceAmount(
   rate: number | undefined,
-  payment: string | undefined,
+  arg:
+    | string
+    | undefined
+    | { payFreq?: string; payment?: string; durMonths?: unknown; dur?: unknown },
 ): number {
   const r = Number(rate) || 0
   if (!r) return 0
-  const freq = getPaymentFreq(payment)
+  const freq = getPaymentFreq(arg)
   return r * (freq.months ?? 1)
 }
 
@@ -200,6 +246,9 @@ export function isContractDueForMonth(
     start?: string
     end?: string
     payment?: string
+    payFreq?: string
+    durMonths?: unknown
+    dur?: unknown
     cancelled?: boolean
   } | undefined,
   month: string,
@@ -215,7 +264,7 @@ export function isContractDueForMonth(
   const monthEnd = new Date(y, mo, 0, 23, 59, 59)
   if (monthEnd.getTime() < start.toDate().getTime()) return false
   if (monthStart.getTime() > end.toDate().getTime()) return false
-  const freq = getPaymentFreq(contractData.payment)
+  const freq = getPaymentFreq(contractData)
   if (!freq.months || freq.months === 1) return true
   const startD = start.toDate()
   const diffMonths =

@@ -42,29 +42,48 @@ function currentMonth(): string {
 /**
  * Monthly revenue per contract.
  *
- * v2 convention (locked by getInvoiceAmount in invoices/queries.ts):
- *   contract.data.rate === per-month rate.
- *   Invoice amount for non-monthly contract = rate × freq.months.
- *
- * So monthly rev is just `rate` directly — do NOT divide by freq.months,
- * which would under-state quarterly (÷3) / semi (÷6) / yearly (÷12).
+ * Resolution order (most authoritative first):
+ *   1. data.monthlyBaht  — pre-computed by v1 (present in ~131/144 rows)
+ *   2. data.rateAmount + data.rateFreq — structured v2 native
+ *   3. data.rate string parsing with keyword normalization (legacy)
+ *   4. last-resort: amount / durMonths if string looks like lump-sum
  */
 function monthlyRev(c: Contract): number {
-  const raw = c.data?.rate
+  const d = c.data
+  if (!d) return 0
+  // 1. Prefer pre-computed monthlyBaht (v1's calc)
+  const mb = Number((d as any).monthlyBaht)
+  if (!isNaN(mb) && mb > 0) return mb
+  // 2. Use structured rateAmount + rateFreq if available
+  const ra = Number((d as any).rateAmount)
+  if (!isNaN(ra) && ra > 0) {
+    const rf = (d as any).rateFreq as string | undefined
+    if (rf === 'annual' || rf === 'yearly') return ra / 12
+    if (rf === 'quarterly') return ra / 3
+    if (rf === 'semiannual' || rf === 'semi') return ra / 6
+    if (rf === 'lump') {
+      const dm = Number((d as any).durMonths) || Number(d.dur) || 0
+      return dm > 0 ? ra / dm : 0
+    }
+    return ra // 'monthly' or unspecified default
+  }
+  // 3. Fall back to string parsing (existing logic for legacy data)
+  const raw = d.rate
   if (raw == null) return 0
   if (typeof raw === 'number' && !isNaN(raw)) return raw
-  // String like "เดือนละ 7,986 บาท (...)" or "ปีละ 47,916 บาท (...)"
-  // Match first numeric token before "บาท" or end
   const str = String(raw)
   const match = str.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/)
   if (!match) return 0
   const amount = parseFloat(match[1])
   if (isNaN(amount) || amount <= 0) return 0
-  // Normalize to monthly
   if (/ปีละ|รายปี|ต่อปี/.test(str)) return amount / 12
   if (/ไตรมาส|ทุก 3 เดือน|รายไตรมาส/.test(str)) return amount / 3
-  if (/ครึ่งปี|6 เดือน/.test(str)) return amount / 6
-  // Default: assume per month
+  if (/ครึ่งปี|6 เดือน|ทุก 6 เดือน/.test(str)) return amount / 6
+  // Last resort for lump-sum: average over duration
+  const dm = Number((d as any).durMonths) || Number(d.dur) || 0
+  if (dm > 1 && /ลำพ|ทั้งหมด|วันเซ็น|ครั้งเดียว/.test(str)) {
+    return amount / dm
+  }
   return amount
 }
 
