@@ -9,8 +9,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Gauge, Plus } from 'lucide-react'
+import { Building2, Calendar, CreditCard, FileText, Gauge, Plus, Receipt } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useRowHover } from '@/hooks/use-row-hover'
+import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -56,6 +58,7 @@ export function Meters() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const navigate = useNavigate()
+  const { hover, onEnter, onMove, onLeave } = useRowHover<MeterReading>()
 
   // Filter states
   const [propertyFilter, setPropertyFilter] = useState('all')
@@ -341,6 +344,9 @@ export function Meters() {
                         params: { id: row.original.id },
                       })
                     }
+                    onMouseEnter={onEnter(row.original)}
+                    onMouseMove={onMove(row.original)}
+                    onMouseLeave={onLeave}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className='py-3'>
@@ -354,6 +360,81 @@ export function Meters() {
           </Table>
         </div>
       </Main>
+
+      <CursorPopover open={!!hover} x={hover?.x ?? 0} y={hover?.y ?? 0}>
+        {hover && <MeterHoverDetail row={hover.row} />}
+      </CursorPopover>
     </>
+  )
+}
+
+function MeterHoverDetail({ row }: { row: MeterReading }) {
+  const d = (row.data ?? {}) as Record<string, unknown>
+  const typeLabel = getMeterTypeLabel((d.type as MeterType | undefined) ?? 'other')
+  const billed = d.invoice_id != null
+  const items: { icon: typeof Calendar; label: string; value: string }[] = []
+  if (d.property_name) items.push({ icon: Building2, label: 'ทรัพย์สิน', value: String(d.property_name) })
+  if (d.meter_no) items.push({ icon: Gauge, label: 'เลขมิเตอร์', value: String(d.meter_no) })
+  if (d.reading_date) items.push({ icon: Calendar, label: 'วันอ่าน', value: String(d.reading_date) })
+  if (d.previous_reading != null && d.current_reading != null) {
+    items.push({
+      icon: Gauge,
+      label: 'อ่าน',
+      value: `${d.previous_reading} → ${d.current_reading} (${Number(d.current_reading) - Number(d.previous_reading)} หน่วย)`,
+    })
+  }
+  if (d.rate_per_unit != null) {
+    items.push({
+      icon: CreditCard,
+      label: 'ราคา/หน่วย',
+      value: `${d.rate_per_unit} บาท`,
+    })
+  }
+  if (d.fixed_fee != null && Number(d.fixed_fee) > 0) {
+    items.push({ icon: CreditCard, label: 'ค่าธรรมเนียม', value: `${d.fixed_fee} บาท` })
+  }
+  if (d.total != null) {
+    items.push({ icon: CreditCard, label: 'รวม', value: `${d.total} บาท` })
+  }
+  if (billed) {
+    items.push({
+      icon: Receipt,
+      label: 'ใบแจ้งหนี้',
+      value: String(d.invoice_no ?? d.invoice_id),
+    })
+  }
+  const note = d.notes as string | undefined
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex items-center gap-2 border-b pb-2'>
+        <Gauge className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>{typeLabel}</span>
+        <Badge
+          variant='outline'
+          className={`ml-auto text-[10px] font-normal ${billed ? 'border-emerald-500/40 text-emerald-700' : ''}`}
+        >
+          {billed ? 'เก็บแล้ว' : 'ยังไม่เก็บ'}
+        </Badge>
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+        {note && (
+          <div className='flex items-start gap-2 border-t pt-1.5'>
+            <FileText className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <p className='leading-snug whitespace-pre-wrap'>{note}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
