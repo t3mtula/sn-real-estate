@@ -210,6 +210,22 @@ export function Tenants() {
 
   const totalRows = tenants?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+
+  /** v1-style KPI · count + person/company breakdown + contracts */
+  const kpi = useMemo(() => {
+    const visible = table.getRowModel().rows.map((r) => r.original)
+    let person = 0
+    let company = 0
+    let withContract = 0
+    let totalContracts = 0
+    for (const t of visible) {
+      if (t.data?.partyType === 'company') company++
+      else person++
+      if (t._contractCount > 0) withContract++
+      totalContracts += t._contractCount
+    }
+    return { count: visible.length, person, company, withContract, totalContracts }
+  }, [table.getRowModel().rows])
   const exportXlsx = useExportXlsx()
 
   function handleExport() {
@@ -310,6 +326,35 @@ export function Tenants() {
           <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
             ดึงข้อมูลไม่สำเร็จ —{' '}
             {error instanceof Error ? error.message : String(error)}
+          </div>
+        )}
+
+        {!isLoading && kpi.count > 0 && (
+          <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+            <KpiCard
+              label='ทั้งหมด'
+              value={kpi.count.toLocaleString('th-TH')}
+              sub='ผู้เช่า'
+              tone='neutral'
+            />
+            <KpiCard
+              label='บุคคล'
+              value={kpi.person.toLocaleString('th-TH')}
+              sub='ราย'
+              tone='success'
+            />
+            <KpiCard
+              label='นิติบุคคล'
+              value={kpi.company.toLocaleString('th-TH')}
+              sub='บริษัท / หจก.'
+              tone='neutral'
+            />
+            <KpiCard
+              label='สัญญา'
+              value={kpi.totalContracts.toLocaleString('th-TH')}
+              sub={`${kpi.withContract.toLocaleString('th-TH')} ราย มีสัญญา`}
+              tone='neutral'
+            />
           </div>
         )}
 
@@ -453,6 +498,38 @@ function TenantHoverDetail({ row }: { row: TenantRow }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const KPI_TONE: Record<string, { card: string; value: string }> = {
+  neutral: { card: 'border-border', value: 'text-foreground' },
+  success: { card: 'border-emerald-500/30 bg-emerald-500/5', value: 'text-emerald-700 dark:text-emerald-400' },
+  warning: { card: 'border-amber-500/30 bg-amber-500/5', value: 'text-amber-700 dark:text-amber-400' },
+  destructive: { card: 'border-red-500/30 bg-red-500/5', value: 'text-red-700 dark:text-red-400' },
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'neutral' | 'success' | 'warning' | 'destructive'
+}) {
+  const t = KPI_TONE[tone] ?? KPI_TONE.neutral
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2', t.card)}>
+      <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+        {label}
+      </p>
+      <p className={cn('mt-0.5 text-xl font-bold tabular-nums leading-tight', t.value)}>
+        {value}
+      </p>
+      {sub && <p className='text-[10px] text-muted-foreground'>{sub}</p>}
     </div>
   )
 }
