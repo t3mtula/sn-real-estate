@@ -102,7 +102,9 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
 
 export function Invoices() {
   const { data: invoices, isLoading, error } = useInvoices()
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'month', desc: true }])
+  // Default: no explicit column sort — rows are pre-sorted "งานเร่งด่วน" first
+  // (most overdue first → most recent month). Clicking a column header overrides.
+  const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -110,11 +112,18 @@ export function Invoices() {
 
   const rows = useMemo<Row[]>(() => {
     if (!invoices) return []
-    return invoices.map((inv) => ({
+    const enriched = invoices.map((inv) => ({
       ...inv,
       _status: getEffectiveStatus(inv),
       _overdue: daysOverdue(inv),
     }))
+    // Default "urgent first" — overrideable by clicking column headers.
+    return enriched.sort((a, b) => {
+      if (a._overdue !== b._overdue) return b._overdue - a._overdue
+      const am = a.data?.month ?? ''
+      const bm = b.data?.month ?? ''
+      return bm.localeCompare(am)
+    })
   }, [invoices])
 
   const months = useMemo(() => {
@@ -551,8 +560,9 @@ export function Invoices() {
                         key={row.id}
                         className={cn(
                           'cursor-pointer',
-                          'hover:bg-muted/40',
-                          row.original._overdue > 0 && 'bg-destructive/5',
+                          row.original._overdue > 0
+                            ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
+                            : 'hover:bg-muted/40',
                         )}
                         onClick={() =>
                           navigate({ to: '/invoices/$id', params: { id: row.original.id } })

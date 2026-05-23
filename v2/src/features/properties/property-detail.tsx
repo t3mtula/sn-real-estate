@@ -306,7 +306,7 @@ function PropertyContent({
         </div>
         <div className='flex gap-2'>
           <Button
-            variant='ghost'
+            variant='outline'
             onClick={onDelete}
             disabled={deleting}
             className='text-destructive hover:bg-destructive/10 hover:text-destructive'

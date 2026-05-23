@@ -33,7 +33,11 @@ export function PaymentPanel({ invoice }: Props) {
 
   const [adding, setAdding] = useState(false)
   const [amount, setAmount] = useState(String(Math.max(remaining, 0) || ''))
-  const [method, setMethod] = useState('transfer')
+  const [method, setMethod] = useState(() => {
+    if (typeof window === 'undefined') return 'transfer'
+    const saved = window.localStorage.getItem('payment.lastMethod')
+    return saved && METHODS.some((m) => m.value === saved) ? saved : 'transfer'
+  })
   const [date, setDate] = useState(() => {
     const now = new Date()
     const d = String(now.getDate()).padStart(2, '0')
@@ -55,6 +59,9 @@ export function PaymentPanel({ invoice }: Props) {
       {
         onSuccess: () => {
           toast.success('บันทึกการชำระเงินแล้ว')
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('payment.lastMethod', method)
+          }
           setAdding(false)
           setRef('')
           setNote('')

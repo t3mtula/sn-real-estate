@@ -21,8 +21,10 @@ import {
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { BankLogo } from '@/components/yonghua/bank-logo'
+import { CopyButton } from '@/components/copy-button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { PhoneActions } from '@/components/phone-actions'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
@@ -358,7 +360,7 @@ function Content({
         </div>
         <div className='flex gap-2'>
           <Button
-            variant='ghost'
+            variant='outline'
             onClick={onDelete}
             disabled={deleting}
             className='text-destructive hover:bg-destructive/10 hover:text-destructive'
@@ -387,7 +389,17 @@ function Content({
             {isCompany && (
               <InfoRow icon={Building2} label='สาขา' value={t.branch} />
             )}
-            <InfoRow icon={Phone} label='เบอร์โทร' value={t.phone} />
+            <div className='flex gap-3'>
+              <div className='mt-0.5'>
+                <Phone className='size-4 text-muted-foreground' />
+              </div>
+              <div className='min-w-0 flex-1'>
+                <p className='text-xs uppercase tracking-wider text-muted-foreground'>
+                  เบอร์โทร
+                </p>
+                <PhoneActions phone={t.phone} />
+              </div>
+            </div>
             <div className='sm:col-span-2'>
               <InfoRow icon={MapPin} label='ที่อยู่' value={addr} />
             </div>
@@ -445,11 +457,22 @@ function Content({
               </CardTitle>
             </CardHeader>
             <CardContent className='grid gap-5 sm:grid-cols-3'>
-              <InfoRow
-                icon={CreditCard}
-                label='เลข PromptPay'
-                value={t.promptPayId}
-              />
+              <div className='flex gap-3'>
+                <div className='mt-0.5'>
+                  <CreditCard className='size-4 text-muted-foreground' />
+                </div>
+                <div className='min-w-0 flex-1'>
+                  <p className='text-xs uppercase tracking-wider text-muted-foreground'>
+                    เลข PromptPay
+                  </p>
+                  <div className='flex items-center gap-1'>
+                    <p className='font-mono text-sm'>{t.promptPayId?.trim() || '—'}</p>
+                    {t.promptPayId?.trim() && (
+                      <CopyButton text={t.promptPayId} label='คัดลอกเลข PromptPay' />
+                    )}
+                  </div>
+                </div>
+              </div>
               <InfoRow
                 icon={Landmark}
                 label='ธนาคาร'

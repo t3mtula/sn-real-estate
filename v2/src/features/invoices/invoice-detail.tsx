@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { CopyButton } from '@/components/copy-button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -222,6 +223,7 @@ export function InvoiceDetail({ id }: { id: string }) {
                 variant='outline'
                 onClick={() => setVoidOpen(true)}
                 disabled={cancel.isPending}
+                className='text-destructive hover:bg-destructive/10 hover:text-destructive'
               >
                 <Ban className='size-4' />
                 ยกเลิก
@@ -246,8 +248,8 @@ export function InvoiceDetail({ id }: { id: string }) {
             )}
             <Button
               size='sm'
-              variant='ghost'
-              className='text-destructive hover:text-destructive'
+              variant='outline'
+              className='text-destructive hover:bg-destructive/10 hover:text-destructive'
               onClick={() => setDeleteOpen(true)}
               disabled={del.isPending}
             >
@@ -332,7 +334,12 @@ export function InvoiceDetail({ id }: { id: string }) {
               <dl className='space-y-2 text-sm'>
                 <div className='flex justify-between gap-3'>
                   <dt className='text-muted-foreground'>เลขที่</dt>
-                  <dd className='text-right tabular-nums'>{data.invoiceNo || '—'}</dd>
+                  <dd className='flex items-center justify-end gap-1 text-right tabular-nums'>
+                    <span>{data.invoiceNo || '—'}</span>
+                    {data.invoiceNo && (
+                      <CopyButton text={data.invoiceNo} label='คัดลอกเลขที่ใบแจ้ง' />
+                    )}
+                  </dd>
                 </div>
                 <div className='flex justify-between gap-3'>
                   <dt className='text-muted-foreground'>วันออก</dt>
@@ -424,11 +431,11 @@ export function InvoiceDetail({ id }: { id: string }) {
                   )
                 )}
                 {bankAccount && (
-                  <li>
+                  <li className='flex items-center gap-1'>
                     <Link
                       to='/bank-accounts/$id'
                       params={{ id: bankAccount.id }}
-                      className='flex items-center gap-2 hover:text-primary'
+                      className='flex flex-1 items-center gap-2 hover:text-primary'
                     >
                       <CreditCard className='size-4 text-muted-foreground' />
                       <span className='truncate'>
@@ -436,6 +443,12 @@ export function InvoiceDetail({ id }: { id: string }) {
                         {bankAccount.data?.acctNo || '—'}
                       </span>
                     </Link>
+                    {bankAccount.data?.acctNo && (
+                      <CopyButton
+                        text={bankAccount.data.acctNo}
+                        label='คัดลอกเลขบัญชี'
+                      />
+                    )}
                   </li>
                 )}
               </ul>
