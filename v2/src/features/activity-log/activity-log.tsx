@@ -48,7 +48,7 @@ function buildEntityLink(
   | { to: '/landlords/$id'; params: { id: string } }
   | { to: '/properties/$id'; params: { id: string } }
   | { to: '/bank-accounts/$id'; params: { id: string } }
-  | { to: '/settings/templates/$id'; params: { id: string } }
+  | { to: '/templates/$id'; params: { id: string } }
   | null {
   if (/[\/\s]/.test(entityId)) return null
   switch (entity) {
@@ -65,7 +65,7 @@ function buildEntityLink(
     case 'bank_accounts':
       return { to: '/bank-accounts/$id', params: { id: entityId } }
     case 'contract_templates':
-      return { to: '/settings/templates/$id', params: { id: entityId } }
+      return { to: '/templates/$id', params: { id: entityId } }
     default:
       return null
   }
@@ -125,7 +125,7 @@ export function ActivityLog() {
           <div>
             <h1 className='text-2xl font-bold tracking-tight'>บันทึกกิจกรรม</h1>
             <p className='text-sm text-muted-foreground'>
-              ใครทำอะไร · เมื่อไหร่ · ของอะไร (เฉพาะของเรา)
+              ใครทำอะไร · เมื่อไหร่ · ของอะไร (ทั้งระบบ)
             </p>
           </div>
           <Button

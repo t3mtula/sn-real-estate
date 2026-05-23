@@ -5,6 +5,6 @@ function RouteComponent() {
   return <ContractTemplateEditor id={undefined} />
 }
 
-export const Route = createFileRoute('/_authenticated/settings/templates/new')({
+export const Route = createFileRoute('/_authenticated/templates/new')({
   component: RouteComponent,
 })
