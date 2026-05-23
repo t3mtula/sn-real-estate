@@ -8,7 +8,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Download, FileText, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
@@ -58,6 +58,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
+import { ContractSheet } from '@/features/contracts/contract-sheet'
 import {
   getContractDisplay,
   getContractStatus,
@@ -102,6 +103,19 @@ export function Contracts() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
+  const search = useSearch({ from: '/_authenticated/contracts/' })
+  const sheetId = search.id ?? null
+
+  function openSheet(id: string) {
+    navigate({
+      to: '/contracts',
+      search: { id },
+      replace: false,
+    })
+  }
+  function closeSheet() {
+    navigate({ to: '/contracts', search: {}, replace: false })
+  }
 
   const rows = useMemo<Row[]>(() => {
     if (!contracts) return []
@@ -430,13 +444,8 @@ export function Contracts() {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={cn('cursor-pointer', 'hover:bg-muted/40')}
-                    onClick={() =>
-                      navigate({
-                        to: '/contracts/$id',
-                        params: { id: row.original.id },
-                      })
-                    }
+                    className={cn('cursor-pointer', 'hover:bg-muted/40', sheetId === row.original.id && 'bg-muted/60')}
+                    onClick={() => openSheet(row.original.id)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className='py-3'>
@@ -453,6 +462,8 @@ export function Contracts() {
           </Table>
         </div>
       </Main>
+
+      <ContractSheet id={sheetId} onClose={closeSheet} />
     </>
   )
 }
