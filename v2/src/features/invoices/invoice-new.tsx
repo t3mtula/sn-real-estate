@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
+import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
 import { useContract, useContracts } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
@@ -109,12 +110,12 @@ export function InvoiceNew() {
   }, [contracts])
 
   const monthOptions = useMemo(() => buildMonthOptions(), [])
+  const { data: landlordBanks } = useBankAccountsForLandlord(landlordId)
   const banksByOwner = useMemo(() => {
     if (!banks) return []
     if (!landlordId) return banks
-    const owned = banks.filter((b) => b.data?.ownerLandlordId === landlordId)
-    return owned.length > 0 ? owned : banks
-  }, [banks, landlordId])
+    return landlordBanks && landlordBanks.length > 0 ? landlordBanks : banks
+  }, [banks, landlordBanks, landlordId])
 
   const freq = getPaymentFreq(contract?.data?.payment as string | undefined)
   const computedAmount =

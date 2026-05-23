@@ -64,6 +64,23 @@ export function useBankAccountsForLandlord(landlordId: string | undefined) {
 }
 
 /**
+ * Fetch ALL landlord_banks junction rows — for aggregations across landlords.
+ * Use for counting banks per landlord (e.g. landlord list page).
+ */
+export function useAllLandlordBankLinks() {
+  return useQuery({
+    queryKey: [TABLE, 'all'],
+    queryFn: async (): Promise<LandlordBank[]> => {
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('id, landlord_id, bank_account_id, is_default, note, created_at')
+      if (error) throw error
+      return (data ?? []) as LandlordBank[]
+    },
+  })
+}
+
+/**
  * Fetch all landlords linked to a bank account (reverse direction).
  * Returns landlord_id strings — caller can hydrate via useLandlord(id) per row.
  */

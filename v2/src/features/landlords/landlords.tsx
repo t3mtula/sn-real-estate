@@ -42,7 +42,7 @@ import {
   useLandlords,
 } from '@/features/landlords/queries'
 import { PARTY_TYPES, type Landlord } from '@/features/landlords/types'
-import { useBankAccounts } from '@/features/bank-accounts/queries'
+import { useAllLandlordBankLinks } from '@/features/landlord-banks/queries'
 import {
   type ContractMatchRow,
   useContractMatchKeys,
@@ -75,23 +75,21 @@ function countContracts(
 export function Landlords() {
   const { data: landlords, isLoading, error } = useLandlords()
   const { data: contracts } = useContractMatchKeys()
-  const { data: allBanks } = useBankAccounts()
+  const { data: allLinks } = useAllLandlordBankLinks()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
 
-  // Count banks per landlord (owner)
+  // Count banks per landlord — via landlord_banks junction (M:M)
   const bankCountByOwner = useMemo(() => {
     const map = new Map<string, number>()
-    if (!allBanks) return map
-    allBanks.forEach((b) => {
-      const owner = (b.data?.ownerLandlordId ?? '').trim()
-      if (!owner) return
-      map.set(owner, (map.get(owner) ?? 0) + 1)
+    if (!allLinks) return map
+    allLinks.forEach((l) => {
+      map.set(l.landlord_id, (map.get(l.landlord_id) ?? 0) + 1)
     })
     return map
-  }, [allBanks])
+  }, [allLinks])
 
   const rows = useMemo(() => {
     if (!landlords) return []
