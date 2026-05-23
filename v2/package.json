@@ -68,6 +68,7 @@
     "cmdk": "1.1.1",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.20",
+    "exceljs": "^4.4.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.8.0",
     "pdfmake": "^0.2.12",

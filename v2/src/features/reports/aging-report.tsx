@@ -1,7 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Download, FileText } from 'lucide-react'
 import { useMemo } from 'react'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { Button } from '@/components/ui/button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -92,26 +92,38 @@ export function AgingReport() {
   const totalOutstanding = buckets.reduce((s, b) => s + sumBucket(b), 0)
   const totalCount = buckets.reduce((s, b) => s + b.invoices.length, 0)
 
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
   function handleExport() {
     const rows: Array<Record<string, unknown>> = []
     for (const b of buckets) {
       for (const inv of b.invoices) {
         rows.push({
-          กลุ่ม: b.label,
-          เลขที่: getInvoiceDisplay(inv),
-          เดือน: formatMonth(inv.data?.month),
-          ผู้เช่า: inv.data?.tenant ?? '',
-          ทรัพย์สิน: inv.data?.property ?? '',
-          วันครบกำหนด: inv.data?.dueDate ?? '',
-          ค้างชำระ: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
-          เกิน: daysOverdue(inv) > 0 ? daysOverdue(inv) : '',
+          bucket: b.label,
+          no: getInvoiceDisplay(inv),
+          month: formatMonth(inv.data?.month),
+          tenant: inv.data?.tenant ?? '',
+          property: inv.data?.property ?? '',
+          dueDate: inv.data?.dueDate ?? '',
+          remaining: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
+          overdue: daysOverdue(inv) > 0 ? daysOverdue(inv) : '',
         })
       }
     }
-    const now = new Date()
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    exportXLSX(rows, `aging-${stamp}.xlsx`, { sheetName: 'อายุหนี้' })
+    void exportXlsx(
+      xlsxFilename('อายุหนี้'),
+      [
+        { header: 'กลุ่ม', key: 'bucket', width: 16 },
+        { header: 'เลขที่', key: 'no', width: 16 },
+        { header: 'เดือน', key: 'month', width: 12 },
+        { header: 'ผู้เช่า', key: 'tenant', width: 28 },
+        { header: 'ทรัพย์สิน', key: 'property', width: 24 },
+        { header: 'วันครบกำหนด', key: 'dueDate', width: 14 },
+        { header: 'ค้างชำระ', key: 'remaining', width: 14 },
+        { header: 'เกิน', key: 'overdue', width: 10 },
+      ],
+      rows,
+      { sheetName: 'อายุหนี้' },
+    )
   }
 
   return (

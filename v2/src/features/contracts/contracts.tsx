@@ -11,7 +11,7 @@ import {
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Download, FileText, Plus, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 
 /**
  * Friendly short label for payment frequency.
@@ -272,7 +272,7 @@ export function Contracts() {
 
   const totalRows = contracts?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
 
   function handleExport() {
     const visible = table.getRowModel().rows.map((r) => {
@@ -280,22 +280,37 @@ export function Contracts() {
       const d = c.data
       const meta = getStatusMeta(getContractStatus(d))
       return {
-        เลขที่: getContractDisplay(c),
-        ผู้เช่า: d?.tenant ?? '',
-        ผู้ให้เช่า: d?.landlord ?? '',
-        ทรัพย์สิน: String(d?.property ?? ''),
-        เริ่ม: d?.start ?? '',
-        สิ้นสุด: d?.end ?? '',
-        ระยะ: d?.dur ?? '',
-        ค่าเช่า: Number(d?.rate) || 0,
-        มัดจำ: Number(d?.deposit) || 0,
-        การชำระ: d?.payment ?? '',
-        สถานะ: meta.label,
+        no: getContractDisplay(c),
+        tenant: d?.tenant ?? '',
+        landlord: d?.landlord ?? '',
+        property: String(d?.property ?? ''),
+        start: d?.start ?? '',
+        end: d?.end ?? '',
+        dur: d?.dur ?? '',
+        rate: Number(d?.rate) || 0,
+        deposit: Number(d?.deposit) || 0,
+        payment: d?.payment ?? '',
+        status: meta.label,
       }
     })
-    const now = new Date()
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    exportXLSX(visible, `contracts-${stamp}.xlsx`, { sheetName: 'สัญญาเช่า' })
+    void exportXlsx(
+      xlsxFilename('สัญญา'),
+      [
+        { header: 'เลขที่', key: 'no', width: 16 },
+        { header: 'ผู้เช่า', key: 'tenant', width: 28 },
+        { header: 'ผู้ให้เช่า', key: 'landlord', width: 24 },
+        { header: 'ทรัพย์สิน', key: 'property', width: 24 },
+        { header: 'เริ่ม', key: 'start', width: 12 },
+        { header: 'สิ้นสุด', key: 'end', width: 12 },
+        { header: 'ระยะ', key: 'dur', width: 10 },
+        { header: 'ค่าเช่า', key: 'rate', width: 12 },
+        { header: 'มัดจำ', key: 'deposit', width: 12 },
+        { header: 'การชำระ', key: 'payment', width: 14 },
+        { header: 'สถานะ', key: 'status', width: 12 },
+      ],
+      visible,
+      { sheetName: 'สัญญาเช่า' },
+    )
   }
 
   return (
