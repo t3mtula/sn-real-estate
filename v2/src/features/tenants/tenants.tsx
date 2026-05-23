@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Building2, Download, Plus, Search, UserRound, Users } from 'lucide-react'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -205,26 +205,37 @@ export function Tenants() {
 
   const totalRows = tenants?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
 
   function handleExport() {
     const visible = table.getRowModel().rows.map((r) => {
       const d = r.original.data
       return {
-        ชื่อ: d?.name ?? '',
-        ประเภท: d?.partyType === 'company' ? 'นิติบุคคล' : 'บุคคลธรรมดา',
-        เลขผู้เสียภาษี: d?.taxId ?? '',
-        สาขา: d?.branch ?? '',
-        เบอร์: d?.phone ?? '',
-        ผู้ลงนาม: d?.signerName ?? '',
-        ที่อยู่: [d?.addrLine, d?.addrSubdistrict, d?.addrDistrict, d?.addrProvince, d?.addrPostal]
+        name: d?.name ?? '',
+        partyType: d?.partyType === 'company' ? 'นิติบุคคล' : 'บุคคลธรรมดา',
+        taxId: d?.taxId ?? '',
+        branch: d?.branch ?? '',
+        phone: d?.phone ?? '',
+        signerName: d?.signerName ?? '',
+        address: [d?.addrLine, d?.addrSubdistrict, d?.addrDistrict, d?.addrProvince, d?.addrPostal]
           .filter(Boolean)
           .join(' '),
       }
     })
-    const now = new Date()
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    exportXLSX(visible, `tenants-${stamp}.xlsx`, { sheetName: 'ผู้เช่า' })
+    void exportXlsx(
+      xlsxFilename('ผู้เช่า'),
+      [
+        { header: 'ชื่อ', key: 'name', width: 28 },
+        { header: 'ประเภท', key: 'partyType', width: 14 },
+        { header: 'เลขผู้เสียภาษี', key: 'taxId', width: 18 },
+        { header: 'สาขา', key: 'branch', width: 12 },
+        { header: 'เบอร์', key: 'phone', width: 14 },
+        { header: 'ผู้ลงนาม', key: 'signerName', width: 24 },
+        { header: 'ที่อยู่', key: 'address', width: 40 },
+      ],
+      visible,
+      { sheetName: 'ผู้เช่า' },
+    )
   }
 
   return (
