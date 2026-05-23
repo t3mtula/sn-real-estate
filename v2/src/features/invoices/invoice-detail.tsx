@@ -43,6 +43,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
+import { FollowUpPanel } from '@/features/invoices/follow-up-panel'
+import { PaymentPanel } from '@/features/invoices/payment-panel'
+import { PromptPayQRCard } from '@/features/invoices/promptpay-qr-card'
+import { SlipUpload } from '@/features/invoices/slip-upload'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
@@ -187,6 +191,14 @@ export function InvoiceDetail({ id }: { id: string }) {
                 พิมพ์/PDF
               </Link>
             </Button>
+            {(invoice.status === 'paid' || invoice.status === 'partial') && (
+              <Button size='sm' variant='outline' asChild>
+                <Link to='/invoices/$id/receipt' params={{ id }}>
+                  <Receipt className='size-4' />
+                  ใบเสร็จ
+                </Link>
+              </Button>
+            )}
             {isDraft && (
               <Button
                 size='sm'
@@ -310,37 +322,7 @@ export function InvoiceDetail({ id }: { id: string }) {
             </div>
 
             <div className='rounded-md border bg-card p-4'>
-              <h3 className='mb-3 text-sm font-medium'>การชำระเงิน</h3>
-              {(data.payments ?? []).length === 0 ? (
-                <p className='text-sm text-muted-foreground'>ยังไม่ได้รับการชำระ</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>วันที่</TableHead>
-                      <TableHead>ช่องทาง</TableHead>
-                      <TableHead>เลขอ้างอิง</TableHead>
-                      <TableHead className='text-right'>ยอด</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(data.payments ?? []).map((p, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: stable order
-                      <TableRow key={i}>
-                        <TableCell className='text-sm tabular-nums'>{p.date || '—'}</TableCell>
-                        <TableCell className='text-sm'>{p.method || '—'}</TableCell>
-                        <TableCell className='text-sm'>{p.ref || '—'}</TableCell>
-                        <TableCell className='text-right text-sm tabular-nums'>
-                          {amt(p.amount)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-              <p className='mt-2 text-xs text-muted-foreground'>
-                บันทึก/จับคู่สลิป → จะเปิดให้ทำใน Phase ถัดไป (Reconciliation)
-              </p>
+              <PaymentPanel invoice={invoice} />
             </div>
           </div>
 
@@ -473,6 +455,9 @@ export function InvoiceDetail({ id }: { id: string }) {
               </div>
             ) : null}
 
+            <SlipUpload invoice={invoice} />
+            <FollowUpPanel invoice={invoice} />
+            <PromptPayQRCard invoiceId={id} total={data.total} />
             <EntityAuditPanel entity='invoices' entityId={id} />
           </aside>
         </div>

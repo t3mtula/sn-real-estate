@@ -1,5 +1,6 @@
 import {
   Activity,
+  AlertCircle,
   BarChart3,
   Building2,
   CalendarClock,
@@ -11,6 +12,7 @@ import {
   Palette,
   Receipt,
   Settings,
+  TrendingUp,
   UserCog,
   Users,
 } from 'lucide-react'
@@ -77,6 +79,21 @@ export const sidebarData: SidebarData = {
           title: 'รายงานอายุหนี้',
           url: '/reports/aging',
           icon: BarChart3,
+        },
+        {
+          title: 'นัดชำระ',
+          url: '/reports/follow-up',
+          icon: CalendarClock,
+        },
+        {
+          title: 'ลูกหนี้ค้างชำระ',
+          url: '/reports/outstanding',
+          icon: AlertCircle,
+        },
+        {
+          title: 'สรุปรายเดือน',
+          url: '/reports/monthly',
+          icon: TrendingUp,
         },
       ],
     },

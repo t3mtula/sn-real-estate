@@ -43,6 +43,7 @@ import { useConfirm } from '@/hooks/use-confirm'
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
 import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
+import { ClauseOverridePanel } from '@/features/contracts/components/clause-override-panel'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import {
@@ -736,7 +737,7 @@ function Content({
       </div>
 
       <SubleaseChain contract={contract} />
-
+      <ClauseOverridePanel contract={contract} />
       <EntityAuditPanel entity='contracts' entityId={contract.id} />
     </>
   )

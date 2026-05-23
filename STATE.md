@@ -48,9 +48,33 @@
 - 3l Address inline-edit (already mostly there in property form)
 - 3k Pipeline Kanban (need Tem confirm ก่อน)
 
+## ✅ Session 23 พ.ค. (บ่าย) — "ทำทุก feature ที่ v1 มี"
+
+Coverage v2 vs v1 ตอนนี้ **≈ 75-80%** (จาก 55-60%)
+
+Feature ที่เพิ่มใน session นี้ (branch `claude/exciting-bartik-ed52f8` · รอ merge):
+
+1. **Template editor A4 preview split-view** — ซ้าย=แก้ข้อ · ขวา=preview real-time · toggle placeholder/ตัวอย่าง
+2. **Follow-up system (3g-1)** — panel บน invoice detail + chip บน list + /reports/follow-up dashboard (4 buckets)
+3. **Settings expansion (3 tab ใหม่)**:
+   - ข้อมูลบริษัท (logo · bank · PromptPay · VAT · note)
+   - พนักงาน (CRUD + role + signature)
+   - การแสดงผล (witnesses · expiry/overdue thresholds)
+   - ใบแจ้งหนี้ (VAT default · SlipOK API key)
+4. **Payment recording** — mark paid/partial · method · date · ref · note → update paidAmount/status
+5. **ใบเสร็จรับเงิน** — /invoices/$id/receipt (2 halves ต้นฉบับ+สำเนา)
+6. **QR PromptPay** — canvas QR จาก EMVCo spec + card ใน invoice detail
+7. **Global search (Cmd+K)** — ค้นหา contracts/invoices/properties/tenants จริง
+8. **Per-contract clause override** — collapse panel บน contract detail
+9. **Slip image upload** — base64 ใน invoice aside (view/upload/delete)
+10. **รายงานลูกหนี้ค้างชำระ** — /reports/outstanding จัดกลุ่มตาม tenant
+11. **สรุปรายเดือน** — /reports/monthly issued/paid/outstanding + year filter
+12. **Thai ID checksum** — Mod-11 validate บน tenant schema
+13. **Witness pre-fill** — ดึงจาก settings.display → contract form default
+14. **app_settings + staff migration** — applied ใน Supabase prod
+
 ## 🎯 ตอนนี้กำลังทำอะไร
-- **PRINT compare v1 vs v2** (Tem note 22 พ.ค.) — เปิด v1 print preview แล้ว ดู 2 หน้า (สัญญาหลัก + เอกสารแนบท้าย) · เปิด v2 พิมพ์/PDF เจอ **blocker: Sarabun-Bold.ttf not found** → fix 5 commits ต่อกัน (bundle Bold base64, fix vfs shape, pass fonts via doc, workaround bold→Regular, switch open instead of download) · build pass · live deploy แล้ว · ไม่เด้ง exception แล้ว · รอ Tem กดจริงใน Chrome ของตัวเอง (Chrome MCP popup block · ดูใน tab ใหม่ไม่ได้) → save PDF ของ v2 มาเทียบกับ v1
-- หลัง verify v2 print ออก → port gaps จาก v1: appendix page (PARTIES/PROPERTY/LEASE TERMS/PAYMENT ACCOUNT/NOTES sections) · template editor + clauses override · section bars bilingual · proper Sarabun Bold (workaround ใช้ Regular ตอนนี้)
+- รอ merge branch `claude/exciting-bartik-ed52f8` → main → CI deploy
 
 ## 📋 Port v1 → v2 Roadmap (Tem 22 พ.ค. หลัง audit)
 

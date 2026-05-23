@@ -7,6 +7,8 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
 import { ContractForm } from '@/features/contracts/components/contract-form'
+import { useDisplaySettings } from '@/features/settings/queries'
+import { CONTRACT_FORM_DEFAULTS } from '@/features/contracts/schema'
 import {
   DuplicateContractNoError,
   useCreateContract,
@@ -15,6 +17,12 @@ import {
 export function ContractNew() {
   const create = useCreateContract()
   const navigate = useNavigate()
+  const { data: displaySettings } = useDisplaySettings()
+  const defaultValues = {
+    ...CONTRACT_FORM_DEFAULTS,
+    wit1: displaySettings?.witness1 ?? '',
+    wit2: displaySettings?.witness2 ?? '',
+  }
 
   return (
     <>
@@ -45,6 +53,7 @@ export function ContractNew() {
         <div className='max-w-4xl'>
           <ContractForm
             mode='create'
+            defaultValues={defaultValues}
             submitting={create.isPending}
             onCancel={() => navigate({ to: '/contracts' })}
             onSubmit={async (values, inline) => {

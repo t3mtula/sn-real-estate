@@ -186,10 +186,16 @@ export function Invoices() {
         header: ({ column }) => <SortableHeader column={column}>ผู้เช่า</SortableHeader>,
         cell: ({ row }) => {
           const v = row.original.data?.tenant?.trim() || '—'
+          const fu = row.original.data?.followUpDate?.trim()
           return (
-            <span className='block max-w-[200px] truncate text-sm' title={v}>
-              {v}
-            </span>
+            <div className='max-w-[200px]'>
+              <span className='block truncate text-sm' title={v}>{v}</span>
+              {fu && (
+                <span className='mt-0.5 inline-flex items-center gap-1 rounded-sm bg-indigo-50 px-1.5 py-px text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'>
+                  📅 {fu}
+                </span>
+              )}
+            </div>
           )
         },
       },

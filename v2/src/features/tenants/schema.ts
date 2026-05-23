@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidCitizenId } from '@/lib/thai/id'
 import { PARTY_TYPES } from '@/features/tenants/types'
 
 const partyValues = PARTY_TYPES.map((t) => t.value) as [
@@ -19,7 +20,15 @@ export const tenantFormSchema = z.object({
     .string()
     .trim()
     .max(50)
-    .regex(/^[A-Za-z0-9\-]*$/, 'ใช้ได้เฉพาะตัวอักษร ตัวเลข และเครื่องหมาย -'),
+    .regex(/^[A-Za-z0-9\-]*$/, 'ใช้ได้เฉพาะตัวอักษร ตัวเลข และเครื่องหมาย -')
+    .refine(
+      (v) => {
+        const digits = v.replace(/[^0-9]/g, '')
+        if (digits.length === 13) return isValidCitizenId(v)
+        return true  // passport หรือ non-13-digit = ไม่ตรวจ checksum
+      },
+      { message: 'เลขประจำตัว 13 หลักไม่ถูกต้อง (checksum ผิด)' },
+    ),
   branch: z.string().trim().max(20),
   phone: z.string().trim().max(50),
   signerName: z.string().trim().max(200),

@@ -784,4 +784,107 @@ export function useDeleteInvoice() {
   })
 }
 
+/**
+ * Record a payment (full or partial) — single read-compute-write.
+ * Fix: replaced double-read pattern (separate read + mergeUpdateInvoice's own read)
+ * with a single Supabase round-trip so concurrent writes can't interleave and drop
+ * a payment from the payments[] array or miscalculate paidAmount.
+ */
+export function useRecordPayment(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      amount: number
+      method: string
+      date: string
+      ref?: string
+      note?: string
+    }) => {
+      // Single read
+      const { data: existing, error: readError } = await supabase
+        .from(TABLE)
+        .select('data, status, category')
+        .eq('id', id)
+        .single()
+      if (readError) throw readError
+
+      const d = (existing?.data ?? {}) as InvoiceData
+      const prevPaid = d.paidAmount ?? 0
+      const total = d.total ?? 0
+      const newPaid = prevPaid + input.amount
+      const newRemaining = Math.max(total - newPaid, 0)
+      const newStatus: string = newRemaining <= 0 ? 'paid' : 'partial'
+
+      const payment = {
+        date: input.date,
+        amount: input.amount,
+        method: input.method,
+        ref: input.ref ?? '',
+        note: input.note ?? '',
+        receiptNo: `REC-${Date.now()}`,
+      }
+
+      // Single write — build merged data here, no second read
+      const mergedData: InvoiceData = {
+        ...d,
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
+        status: newStatus,
+        payments: [...(d.payments ?? []), payment],
+        paidAt: newStatus === 'paid' ? input.date : (d.paidAt as string | undefined),
+      }
+
+      const { data: updated, error: writeError } = await supabase
+        .from(TABLE)
+        .update({ data: mergedData, status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id')
+      if (writeError) throw writeError
+      if (!updated || updated.length === 0) {
+        throw new Error('ไม่พบใบแจ้งหนี้ หรือไม่มีสิทธิ์แก้ไข (RLS)')
+      }
+
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: `รับเงิน ${input.amount.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''}`,
+        after: { paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/** Set or clear follow-up date + note on an invoice */
+export function useSetFollowUp(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { followUpDate: string; followUpNote: string }) => {
+      await mergeUpdateInvoice(id, {
+        data: {
+          followUpDate: input.followUpDate.trim() || undefined,
+          followUpNote: input.followUpNote.trim() || undefined,
+        } as Partial<InvoiceData>,
+      })
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: input.followUpDate.trim()
+          ? `ตั้งวันนัดชำระ ${input.followUpDate.trim()}${input.followUpNote.trim() ? ` · ${input.followUpNote.trim()}` : ''}`
+          : 'ลบวันนัดชำระ',
+        after: { followUpDate: input.followUpDate, followUpNote: input.followUpNote },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
 export type { Invoice }
