@@ -9,8 +9,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Landmark, Plus, Search } from 'lucide-react'
+import { CreditCard, Landmark, Plus, Search, StickyNote, UserRound } from 'lucide-react'
 import { BankLogo } from '@/components/yonghua/bank-logo'
+import { useRowHover } from '@/hooks/use-row-hover'
+import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -51,6 +53,7 @@ export function BankAccounts() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
+  const { hover, onEnter, onMove, onLeave } = useRowHover<BankAccount>()
 
   // Bank → landlord names map via M:M junction (replaces deprecated ownerLandlordName)
   const landlordsByBankId = useMemo(() => {
@@ -365,6 +368,9 @@ export function BankAccounts() {
                         params: { id: row.original.id },
                       })
                     }
+                    onMouseEnter={onEnter(row.original)}
+                    onMouseMove={onMove(row.original)}
+                    onMouseLeave={onLeave}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className='py-3'>
@@ -381,6 +387,76 @@ export function BankAccounts() {
           </Table>
         </div>
       </Main>
+
+      <CursorPopover open={!!hover} x={hover?.x ?? 0} y={hover?.y ?? 0}>
+        {hover && (
+          <BankAccountHoverDetail row={hover.row} landlordsByBankId={landlordsByBankId} />
+        )}
+      </CursorPopover>
     </>
+  )
+}
+
+function BankAccountHoverDetail({
+  row,
+  landlordsByBankId,
+}: {
+  row: BankAccount
+  landlordsByBankId: Map<string, string[]>
+}) {
+  const d = row.data ?? {}
+  const linked = landlordsByBankId.get(row.id) ?? []
+  const items: { icon: typeof CreditCard; label: string; value: string }[] = []
+  if (d.bank)
+    items.push({
+      icon: Landmark,
+      label: 'ธนาคาร',
+      value: `${d.bank}${d.branch ? ` · สาขา${d.branch}` : ''}`,
+    })
+  if (d.acctNo) items.push({ icon: CreditCard, label: 'เลขที่บัญชี', value: String(d.acctNo) })
+  if (d.accountName) items.push({ icon: UserRound, label: 'ชื่อบัญชี', value: String(d.accountName) })
+  if (d.label) items.push({ icon: Landmark, label: 'Label', value: String(d.label) })
+  if (linked.length > 0) {
+    items.push({
+      icon: UserRound,
+      label: 'เจ้าของ',
+      value: linked.slice(0, 4).join(', ') + (linked.length > 4 ? ` ... +${linked.length - 4}` : ''),
+    })
+  }
+  const note = (d as { notes?: string }).notes
+  const inactive = d.active === false
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex items-center gap-2 border-b pb-2'>
+        <Landmark className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>
+          {d.bank ?? '—'} · {d.acctNo ?? '—'}
+        </span>
+        {inactive && (
+          <Badge variant='outline' className='ml-auto text-[10px] font-normal'>
+            ปิดใช้งาน
+          </Badge>
+        )}
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+        {note && (
+          <div className='flex items-start gap-2 border-t pt-1.5'>
+            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

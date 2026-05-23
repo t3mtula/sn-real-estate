@@ -9,8 +9,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Building2, Download, Plus, Search, UserRound, Users } from 'lucide-react'
+import { Building2, Download, FileText, MapPin, Phone, Plus, Search, StickyNote, UserRound, Users } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
+import { useRowHover } from '@/hooks/use-row-hover'
+import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -70,6 +72,8 @@ function countContracts(
   }).length
 }
 
+type TenantRow = Tenant & { _contractCount: number }
+
 export function Tenants() {
   const { data: tenants, isLoading, error } = useTenants()
   const { data: contracts } = useContractMatchKeys()
@@ -77,6 +81,7 @@ export function Tenants() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
+  const { hover, onEnter, onMove, onLeave } = useRowHover<TenantRow>()
 
   const rows = useMemo(() => {
     if (!tenants) return []
@@ -368,6 +373,9 @@ export function Tenants() {
                         params: { id: row.original.id },
                       })
                     }
+                    onMouseEnter={onEnter(row.original)}
+                    onMouseMove={onMove(row.original)}
+                    onMouseLeave={onLeave}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className='py-3'>
@@ -384,6 +392,67 @@ export function Tenants() {
           </Table>
         </div>
       </Main>
+
+      <CursorPopover open={!!hover} x={hover?.x ?? 0} y={hover?.y ?? 0}>
+        {hover && <TenantHoverDetail row={hover.row} />}
+      </CursorPopover>
     </>
+  )
+}
+
+function TenantHoverDetail({ row }: { row: TenantRow }) {
+  const d = row.data ?? {}
+  const partyLabel = PARTY_LABEL[d.partyType ?? 'person'] ?? '—'
+  const addr = [d.addrLine, d.addrSubdistrict, d.addrDistrict, d.addrProvince, d.addrPostal]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+  const items: { icon: typeof MapPin; label: string; value: string }[] = []
+  items.push({ icon: UserRound, label: 'ประเภท', value: partyLabel })
+  if (d.taxId) items.push({ icon: FileText, label: 'เลขผู้เสียภาษี', value: fmtTaxId(d.taxId) })
+  if (d.phone) items.push({ icon: Phone, label: 'โทร', value: String(d.phone) })
+  if (addr) items.push({ icon: MapPin, label: 'ที่อยู่', value: addr })
+  if (d.partyType === 'company' && d.signerName) {
+    items.push({
+      icon: UserRound,
+      label: 'ผู้ลงนาม',
+      value: `${d.signerName}${d.signerTitle ? ` (${d.signerTitle})` : ''}`,
+    })
+  }
+  items.push({
+    icon: FileText,
+    label: 'สัญญา',
+    value: `${row._contractCount.toLocaleString('th-TH')} ฉบับ`,
+  })
+  const note = (d as { notes?: string }).notes
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex items-center gap-2 border-b pb-2'>
+        <UserRound className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>{getTenantName(row.data)}</span>
+        <Badge variant='outline' className='ml-auto text-[10px] font-normal'>
+          {partyLabel}
+        </Badge>
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+        {note && (
+          <div className='flex items-start gap-2 border-t pt-1.5'>
+            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }

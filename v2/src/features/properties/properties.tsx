@@ -14,13 +14,18 @@ import {
   Download,
   FileText,
   Image as ImageIcon,
+  MapPin,
   Plus,
+  Ruler,
   Search,
+  StickyNote,
   User,
   Users,
   X,
 } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
+import { useRowHover } from '@/hooks/use-row-hover'
+import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -75,6 +80,7 @@ export function Properties() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
+  const { hover, onEnter, onMove, onLeave } = useRowHover<Row>()
   const search = useSearch({ from: '/_authenticated/properties/' }) as {
     province?: string
   }
@@ -537,6 +543,9 @@ export function Properties() {
                         params: { id: row.original.id },
                       })
                     }
+                    onMouseEnter={onEnter(row.original)}
+                    onMouseMove={onMove(row.original)}
+                    onMouseLeave={onLeave}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className='py-3'>
@@ -553,6 +562,76 @@ export function Properties() {
           </Table>
         </div>
       </Main>
+
+      <CursorPopover open={!!hover} x={hover?.x ?? 0} y={hover?.y ?? 0}>
+        {hover && <PropertyHoverDetail row={hover.row} />}
+      </CursorPopover>
     </>
+  )
+}
+
+function PropertyHoverDetail({ row }: { row: Row }) {
+  const d = row.data ?? {}
+  const dr = d as Record<string, unknown>
+  const addrParts = [
+    dr.addr_line,
+    dr.addr_subdistrict ? `ต.${dr.addr_subdistrict}` : '',
+    dr.addr_district ? `อ.${dr.addr_district}` : '',
+    dr.addr_province ? `จ.${dr.addr_province}` : '',
+    dr.addr_postal,
+  ]
+    .filter(Boolean)
+    .map(String)
+    .join(' ')
+    .trim()
+  const items: { icon: typeof MapPin; label: string; value: string }[] = []
+  if (d.type) items.push({ icon: Building2, label: 'ประเภท', value: typeLabel(d.type) })
+  if (addrParts) items.push({ icon: MapPin, label: 'ที่อยู่', value: addrParts })
+  if (d.area) items.push({ icon: Ruler, label: 'พื้นที่', value: String(d.area) })
+  if (d.titleDeed) items.push({ icon: FileText, label: 'เอกสารสิทธิ์', value: String(d.titleDeed) })
+  if (dr.owner) items.push({ icon: User, label: 'เจ้าของ (กรอกเอง)', value: String(dr.owner) })
+  if (row._currentTenant) {
+    items.push({ icon: Users, label: 'ผู้เช่าปัจจุบัน', value: row._currentTenant })
+  }
+  items.push({
+    icon: FileText,
+    label: 'สัญญา',
+    value: `${row._contractCount.toLocaleString('th-TH')} ฉบับ`,
+  })
+  const imgCount = getPropertyImageCount(row.data)
+  if (imgCount > 0) {
+    items.push({
+      icon: ImageIcon,
+      label: 'รูป',
+      value: `${imgCount.toLocaleString('th-TH')} รูป`,
+    })
+  }
+  const note = (d as { notes?: string }).notes
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex items-center gap-2 border-b pb-2'>
+        <Building2 className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>{getPropertyName(row.data)}</span>
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+        {note && (
+          <div className='flex items-start gap-2 border-t pt-1.5'>
+            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
