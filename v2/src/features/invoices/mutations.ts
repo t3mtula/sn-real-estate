@@ -784,6 +784,65 @@ export function useDeleteInvoice() {
   })
 }
 
+/** Record a payment (full or partial) · updates paidAmount + remainingAmount + status */
+export function useRecordPayment(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      amount: number
+      method: string
+      date: string
+      ref?: string
+      note?: string
+    }) => {
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data, status')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+
+      const d = (existing?.data ?? {}) as InvoiceData
+      const prevPaid = d.paidAmount ?? 0
+      const total = d.total ?? 0
+      const newPaid = prevPaid + input.amount
+      const newRemaining = Math.max(total - newPaid, 0)
+      const newStatus: string = newRemaining <= 0 ? 'paid' : 'partial'
+
+      const payment = {
+        date: input.date,
+        amount: input.amount,
+        method: input.method,
+        ref: input.ref ?? '',
+        note: input.note ?? '',
+        receiptNo: `REC-${Date.now()}`,
+      }
+
+      await mergeUpdateInvoice(id, {
+        status: newStatus,
+        data: {
+          paidAmount: newPaid,
+          remainingAmount: newRemaining,
+          status: newStatus,
+          payments: [...(d.payments ?? []), payment],
+          paidAt: newStatus === 'paid' ? input.date : d.paidAt as string | undefined,
+        } as Partial<InvoiceData>,
+      })
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: `รับเงิน ${input.amount.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''}`,
+        after: { paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
 /** Set or clear follow-up date + note on an invoice */
 export function useSetFollowUp(id: string) {
   const qc = useQueryClient()

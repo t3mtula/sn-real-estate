@@ -33,7 +33,11 @@ import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
 import { Route as AuthenticatedBankAccountsIndexRouteImport } from './routes/_authenticated/bank-accounts/index'
 import { Route as AuthenticatedTenantsNewRouteImport } from './routes/_authenticated/tenants/new'
+import { Route as AuthenticatedSettingsStaffRouteImport } from './routes/_authenticated/settings/staff'
+import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
+import { Route as AuthenticatedSettingsCompanyRouteImport } from './routes/_authenticated/settings/company'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
+import { Route as AuthenticatedReportsFollowUpRouteImport } from './routes/_authenticated/reports/follow-up'
 import { Route as AuthenticatedReportsAgingRouteImport } from './routes/_authenticated/reports/aging'
 import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authenticated/properties/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
@@ -182,11 +186,35 @@ const AuthenticatedTenantsNewRoute = AuthenticatedTenantsNewRouteImport.update({
   path: '/tenants/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsStaffRoute =
+  AuthenticatedSettingsStaffRouteImport.update({
+    id: '/staff',
+    path: '/staff',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedSettingsDisplayRoute =
+  AuthenticatedSettingsDisplayRouteImport.update({
+    id: '/display',
+    path: '/display',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedSettingsCompanyRoute =
+  AuthenticatedSettingsCompanyRouteImport.update({
+    id: '/company',
+    path: '/company',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedSettingsAppearanceRoute =
   AuthenticatedSettingsAppearanceRouteImport.update({
     id: '/appearance',
     path: '/appearance',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
+const AuthenticatedReportsFollowUpRoute =
+  AuthenticatedReportsFollowUpRouteImport.update({
+    id: '/reports/follow-up',
+    path: '/reports/follow-up',
+    getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedReportsAgingRoute =
   AuthenticatedReportsAgingRouteImport.update({
@@ -327,7 +355,11 @@ export interface FileRoutesByFullPath {
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/reports/aging': typeof AuthenticatedReportsAgingRoute
+  '/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
+  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -371,7 +403,11 @@ export interface FileRoutesByTo {
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/reports/aging': typeof AuthenticatedReportsAgingRoute
+  '/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
+  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts': typeof AuthenticatedContractsIndexRoute
@@ -418,7 +454,11 @@ export interface FileRoutesById {
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/_authenticated/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/_authenticated/reports/aging': typeof AuthenticatedReportsAgingRoute
+  '/_authenticated/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
+  '/_authenticated/settings/company': typeof AuthenticatedSettingsCompanyRoute
+  '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
+  '/_authenticated/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/_authenticated/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/_authenticated/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -465,7 +505,11 @@ export interface FileRouteTypes {
     | '/landlords/new'
     | '/properties/new'
     | '/reports/aging'
+    | '/reports/follow-up'
     | '/settings/appearance'
+    | '/settings/company'
+    | '/settings/display'
+    | '/settings/staff'
     | '/tenants/new'
     | '/bank-accounts/'
     | '/contracts/'
@@ -509,7 +553,11 @@ export interface FileRouteTypes {
     | '/landlords/new'
     | '/properties/new'
     | '/reports/aging'
+    | '/reports/follow-up'
     | '/settings/appearance'
+    | '/settings/company'
+    | '/settings/display'
+    | '/settings/staff'
     | '/tenants/new'
     | '/bank-accounts'
     | '/contracts'
@@ -555,7 +603,11 @@ export interface FileRouteTypes {
     | '/_authenticated/landlords/new'
     | '/_authenticated/properties/new'
     | '/_authenticated/reports/aging'
+    | '/_authenticated/reports/follow-up'
     | '/_authenticated/settings/appearance'
+    | '/_authenticated/settings/company'
+    | '/_authenticated/settings/display'
+    | '/_authenticated/settings/staff'
     | '/_authenticated/tenants/new'
     | '/_authenticated/bank-accounts/'
     | '/_authenticated/contracts/'
@@ -762,12 +814,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTenantsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/staff': {
+      id: '/_authenticated/settings/staff'
+      path: '/staff'
+      fullPath: '/settings/staff'
+      preLoaderRoute: typeof AuthenticatedSettingsStaffRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/settings/display': {
+      id: '/_authenticated/settings/display'
+      path: '/display'
+      fullPath: '/settings/display'
+      preLoaderRoute: typeof AuthenticatedSettingsDisplayRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/settings/company': {
+      id: '/_authenticated/settings/company'
+      path: '/company'
+      fullPath: '/settings/company'
+      preLoaderRoute: typeof AuthenticatedSettingsCompanyRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/appearance': {
       id: '/_authenticated/settings/appearance'
       path: '/appearance'
       fullPath: '/settings/appearance'
       preLoaderRoute: typeof AuthenticatedSettingsAppearanceRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
+    '/_authenticated/reports/follow-up': {
+      id: '/_authenticated/reports/follow-up'
+      path: '/reports/follow-up'
+      fullPath: '/reports/follow-up'
+      preLoaderRoute: typeof AuthenticatedReportsFollowUpRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reports/aging': {
       id: '/_authenticated/reports/aging'
@@ -907,6 +987,9 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
+  AuthenticatedSettingsCompanyRoute: typeof AuthenticatedSettingsCompanyRoute
+  AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
+  AuthenticatedSettingsStaffRoute: typeof AuthenticatedSettingsStaffRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
   AuthenticatedSettingsTemplatesIdRoute: typeof AuthenticatedSettingsTemplatesIdRoute
   AuthenticatedSettingsTemplatesNewRoute: typeof AuthenticatedSettingsTemplatesNewRoute
@@ -916,6 +999,9 @@ interface AuthenticatedSettingsRouteRouteChildren {
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
+    AuthenticatedSettingsCompanyRoute: AuthenticatedSettingsCompanyRoute,
+    AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
+    AuthenticatedSettingsStaffRoute: AuthenticatedSettingsStaffRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
     AuthenticatedSettingsTemplatesIdRoute:
       AuthenticatedSettingsTemplatesIdRoute,
@@ -943,6 +1029,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
   AuthenticatedPropertiesNewRoute: typeof AuthenticatedPropertiesNewRoute
   AuthenticatedReportsAgingRoute: typeof AuthenticatedReportsAgingRoute
+  AuthenticatedReportsFollowUpRoute: typeof AuthenticatedReportsFollowUpRoute
   AuthenticatedTenantsNewRoute: typeof AuthenticatedTenantsNewRoute
   AuthenticatedBankAccountsIndexRoute: typeof AuthenticatedBankAccountsIndexRoute
   AuthenticatedContractsIndexRoute: typeof AuthenticatedContractsIndexRoute
@@ -973,6 +1060,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
   AuthenticatedPropertiesNewRoute: AuthenticatedPropertiesNewRoute,
   AuthenticatedReportsAgingRoute: AuthenticatedReportsAgingRoute,
+  AuthenticatedReportsFollowUpRoute: AuthenticatedReportsFollowUpRoute,
   AuthenticatedTenantsNewRoute: AuthenticatedTenantsNewRoute,
   AuthenticatedBankAccountsIndexRoute: AuthenticatedBankAccountsIndexRoute,
   AuthenticatedContractsIndexRoute: AuthenticatedContractsIndexRoute,
