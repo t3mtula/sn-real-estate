@@ -74,11 +74,19 @@ Feature ที่เพิ่มใน session นี้ (branch `claude/excitin
 14. **app_settings + staff migration** — applied ใน Supabase prod
 
 ## 🎯 ตอนนี้กำลังทำอะไร
-- รอ merge branch `claude/exciting-bartik-ed52f8` → main → CI deploy
+- **[v2] Print port** จาก v1 — ทำเสร็จ **Contract print** แล้ว (HTML+iframe overlay แทน pdfmake) · ถัดไป **Invoice/Receipt** → **Deposit return**
+- Tem feedback (23 พ.ค. บ่าย): v1 print docs ดีกว่า v2 (Sarabun lock + navy + appendix) · v1 overlays ใช้ง่ายกว่า → ยกเลิก no-overlay rule
 
 ## 📋 Port v1 → v2 Roadmap (Tem 22 พ.ค. หลัง audit)
 
-**กฎ Tem:** ทุก function v1 ต้อง port มา v2 · แต่ก่อน port ต้อง design ใหม่ให้ดีกว่า · ไม่ลอก v1 ตรงๆ แบบโง่ๆ · ทุก modal/overlay ต้องเปลี่ยนเป็น page route (no overlay rule)
+**กฎ Tem:** ทุก function v1 ต้อง port มา v2 · แต่ก่อน port ต้อง design ใหม่ให้ดีกว่า · ไม่ลอก v1 ตรงๆ แบบโง่ๆ
+
+**Overlay policy (2026-05-23 update · revokes prior "no-overlay rule"):**
+- ❌ **เลิกใช้** rule "ทุก modal/overlay → page route" (Tem: v1 overlays ใช้ง่ายกว่า)
+- ✅ **Case-by-case**: เลือกตาม UX ที่ดีกว่า
+  - **Print preview = overlay** (fullscreen dark + iframe srcdoc · ตาม v1) — ตอนนี้ Contract print ใช้ pattern นี้แล้ว
+  - **Form/Detail** = page route ตามเดิมส่วนใหญ่ · แต่ถ้า quick-edit/picker/confirm ใช้ overlay ก็ได้ ถ้า UX ดีกว่า
+- ต้อง **preserve context** ตอนเปิด overlay (no scroll loss · ESC ปิด · dirty-state warn ถ้าเป็น form)
 
 **Coverage v2 vs v1 ตอนนี้ ≈ 30-35%** (audit agent run 22 พ.ค. · เห็นทั้ง 22 modules)
 

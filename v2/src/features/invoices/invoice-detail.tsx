@@ -17,6 +17,8 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { CopyButton } from '@/components/copy-button'
+import { PrintOverlay } from '@/components/print-overlay'
+import { buildInvoiceHtml, buildReceiptHtml } from '@/features/invoices/print/invoice-html'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -115,6 +117,39 @@ export function InvoiceDetail({ id }: { id: string }) {
   const [voidOpen, setVoidOpen] = useState(false)
   const [voidReason, setVoidReason] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [printHtml, setPrintHtml] = useState<string | null>(null)
+  const [printTitle, setPrintTitle] = useState<string>('ใบแจ้งหนี้')
+
+  async function openInvoicePrint() {
+    if (!invoice) return
+    const html = await buildInvoiceHtml({
+      invoice,
+      contract: contract ?? null,
+      tenant: tenant ?? null,
+      landlord: landlord ?? null,
+      property: property ?? null,
+      bank: bankAccount ?? null,
+    })
+    setPrintTitle(`ใบแจ้งหนี้ ${invoice.data?.invoiceNo ?? ''}`.trim())
+    setPrintHtml(html)
+  }
+
+  async function openReceiptPrint() {
+    if (!invoice) return
+    const html = await buildReceiptHtml({
+      invoice,
+      contract: contract ?? null,
+      tenant: tenant ?? null,
+      landlord: landlord ?? null,
+      property: property ?? null,
+      bank: bankAccount ?? null,
+    })
+    const isDeposit = (invoice.data?.category ?? 'rent') === 'deposit'
+    setPrintTitle(
+      `${isDeposit ? 'ใบรับเงินประกัน' : 'ใบเสร็จรับเงิน'} ${invoice.data?.receiptNo ?? invoice.data?.invoiceNo ?? ''}`.trim(),
+    )
+    setPrintHtml(html)
+  }
 
   if (isLoading) {
     return (
@@ -234,18 +269,14 @@ export function InvoiceDetail({ id }: { id: string }) {
                 คัดลอกข้อความแจ้งเตือน
               </Button>
             )}
-            <Button size='sm' variant='outline' asChild>
-              <Link to='/invoices/$id/print' params={{ id }}>
-                <Printer className='size-4' />
-                พิมพ์/PDF
-              </Link>
+            <Button size='sm' variant='outline' onClick={openInvoicePrint}>
+              <Printer className='size-4' />
+              พิมพ์/PDF
             </Button>
             {(invoice.status === 'paid' || invoice.status === 'partial') && (
-              <Button size='sm' variant='outline' asChild>
-                <Link to='/invoices/$id/receipt' params={{ id }}>
-                  <Receipt className='size-4' />
-                  ใบเสร็จ
-                </Link>
+              <Button size='sm' variant='outline' onClick={openReceiptPrint}>
+                <Receipt className='size-4' />
+                ใบเสร็จ
               </Button>
             )}
             {isDraft && (
@@ -523,6 +554,13 @@ export function InvoiceDetail({ id }: { id: string }) {
           </aside>
         </div>
       </Main>
+
+      <PrintOverlay
+        open={!!printHtml}
+        html={printHtml}
+        title={printTitle}
+        onClose={() => setPrintHtml(null)}
+      />
 
       <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
         <AlertDialogContent>
