@@ -102,6 +102,25 @@ const STATUS_TONE_CLASS: Record<string, string> = {
   destructive: 'bg-destructive/10 text-destructive border-destructive/30',
 }
 
+/** Left accent strip on the row · v1-style color cue */
+function invoiceAccentStrip(status: string, overdue: number): string {
+  if (overdue > 0) return 'border-l-2 border-l-red-500'
+  switch (status) {
+    case 'paid':
+      return 'border-l-2 border-l-emerald-500'
+    case 'partial':
+      return 'border-l-2 border-l-amber-500'
+    case 'sent':
+      return 'border-l-2 border-l-sky-500'
+    case 'voided':
+      return 'border-l-2 border-l-slate-400'
+    case 'draft':
+      return 'border-l-2 border-l-slate-300'
+    default:
+      return 'border-l-2 border-l-transparent'
+  }
+}
+
 function StatusBadge({ status }: { status: InvoiceStatus }) {
   const meta = getStatusMeta(status)
   return (
@@ -398,6 +417,39 @@ export function Invoices() {
 
   const totalRows = invoices?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+
+  /** v1-style running KPI totals computed from the currently filtered rows. */
+  const kpi = useMemo(() => {
+    const visible = table.getRowModel().rows.map((r) => r.original)
+    let total = 0
+    let paid = 0
+    let unpaid = 0
+    let overdueAmt = 0
+    let paidCount = 0
+    let unpaidCount = 0
+    let overdueCount = 0
+    for (const inv of visible) {
+      const t = Number(inv.data?.total) || 0
+      const remaining = Number(inv.data?.remainingAmount) || 0
+      const paidAmt = Number(inv.data?.paidAmount) || 0
+      total += t
+      if (inv._status === 'paid') {
+        paid += t
+        paidCount++
+      } else if (inv._status === 'voided') {
+        // skip
+      } else {
+        const o = remaining > 0 ? remaining : t - paidAmt
+        unpaid += o > 0 ? o : 0
+        unpaidCount++
+        if (inv._overdue > 0) {
+          overdueAmt += o > 0 ? o : 0
+          overdueCount++
+        }
+      }
+    }
+    return { total, paid, unpaid, overdueAmt, paidCount, unpaidCount, overdueCount, count: visible.length }
+  }, [table.getRowModel().rows])
   const [genOpen, setGenOpen] = useState(false)
   const [voidOpen, setVoidOpen] = useState(false)
   const [voidReason, setVoidReason] = useState('')
@@ -594,6 +646,36 @@ export function Invoices() {
               </div>
             )}
 
+            {/* v1-style running totals · responds to filter + search */}
+            {!isLoading && kpi.count > 0 && (
+              <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+                <KpiCard
+                  label='ทั้งหมด'
+                  value={amt(kpi.total, { symbol: false, decimal: 0 })}
+                  sub={`${kpi.count.toLocaleString('th-TH')} ใบ`}
+                  tone='neutral'
+                />
+                <KpiCard
+                  label='ชำระแล้ว'
+                  value={amt(kpi.paid, { symbol: false, decimal: 0 })}
+                  sub={`${kpi.paidCount.toLocaleString('th-TH')} ใบ`}
+                  tone='success'
+                />
+                <KpiCard
+                  label='ค้างชำระ'
+                  value={amt(kpi.unpaid, { symbol: false, decimal: 0 })}
+                  sub={`${kpi.unpaidCount.toLocaleString('th-TH')} ใบ`}
+                  tone='warning'
+                />
+                <KpiCard
+                  label='เกินกำหนด'
+                  value={amt(kpi.overdueAmt, { symbol: false, decimal: 0 })}
+                  sub={`${kpi.overdueCount.toLocaleString('th-TH')} ใบ`}
+                  tone='destructive'
+                />
+              </div>
+            )}
+
             <div className='overflow-x-auto rounded-md border bg-card'>
               <Table className='min-w-[900px]'>
                 <TableHeader>
@@ -644,6 +726,10 @@ export function Invoices() {
                           row.original._overdue > 0
                             ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
                             : 'hover:bg-muted/40',
+                          invoiceAccentStrip(
+                            row.original._status,
+                            row.original._overdue,
+                          ),
                         )}
                         onClick={() =>
                           navigate({
@@ -790,6 +876,38 @@ export function Invoices() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+const KPI_TONE: Record<string, { card: string; value: string }> = {
+  neutral: { card: 'border-border', value: 'text-foreground' },
+  success: { card: 'border-emerald-500/30 bg-emerald-500/5', value: 'text-emerald-700 dark:text-emerald-400' },
+  warning: { card: 'border-amber-500/30 bg-amber-500/5', value: 'text-amber-700 dark:text-amber-400' },
+  destructive: { card: 'border-red-500/30 bg-red-500/5', value: 'text-red-700 dark:text-red-400' },
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'neutral' | 'success' | 'warning' | 'destructive'
+}) {
+  const t = KPI_TONE[tone] ?? KPI_TONE.neutral
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2', t.card)}>
+      <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+        {label}
+      </p>
+      <p className={cn('mt-0.5 text-xl font-bold tabular-nums leading-tight', t.value)}>
+        {value}
+      </p>
+      {sub && <p className='text-[10px] text-muted-foreground'>{sub}</p>}
+    </div>
   )
 }
 
