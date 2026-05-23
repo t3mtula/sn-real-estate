@@ -19,7 +19,8 @@ import type { Contract } from '@/features/contracts/types'
 import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
-import type { ContractTemplate } from '@/features/templates/types'
+import type { ContractTemplate, TemplateAttachment } from '@/features/templates/types'
+import { resolveAttachments } from '@/features/templates/types'
 import { fmtBE, fmtThaiLong, parseBE } from '@/lib/thai'
 import {
   DEFAULT_TEMPLATE,
@@ -495,6 +496,34 @@ function mainSignatures(refs: Refs): Content {
 
   const wit1 = (c.wit1 as string | undefined) ?? ''
   const wit2 = (c.wit2 as string | undefined) ?? ''
+  const wit3 = (c.wit3 as string | undefined) ?? ''
+  const wit4 = (c.wit4 as string | undefined) ?? ''
+
+  const tpl = refs.template?.data
+  const showWitnesses = tpl?.showWitnesses !== false
+  const witnessCount = tpl?.witnessCount === 4 ? 4 : 2
+
+  const witnessRows: Content[] = []
+  if (showWitnesses) {
+    witnessRows.push({
+      columns: [
+        signatureBlock({ label: 'พยาน · WITNESS 1', name: wit1 }),
+        signatureBlock({ label: 'พยาน · WITNESS 2', name: wit2 }),
+      ],
+      columnGap: 24,
+      margin: [0, 14, 0, 0] as [number, number, number, number],
+    })
+    if (witnessCount === 4) {
+      witnessRows.push({
+        columns: [
+          signatureBlock({ label: 'พยาน · WITNESS 3', name: wit3 }),
+          signatureBlock({ label: 'พยาน · WITNESS 4', name: wit4 }),
+        ],
+        columnGap: 24,
+        margin: [0, 14, 0, 0] as [number, number, number, number],
+      })
+    }
+  }
 
   return {
     unbreakable: true,
@@ -516,13 +545,82 @@ function mainSignatures(refs: Refs): Content {
         columnGap: 24,
         margin: [0, 10, 0, 0] as [number, number, number, number],
       },
+      ...witnessRows,
+    ],
+  }
+}
+
+/* ─────────── attachments + map (appendix bottom) ─────────── */
+
+/** Render attachments checklist block — used on the appendix page */
+function attachmentsBlock(attachments: TemplateAttachment[]): Content {
+  return {
+    unbreakable: true,
+    stack: [
+      sectionBar('เอกสารแนบท้ายสัญญา', 'ATTACHMENTS'),
       {
-        columns: [
-          signatureBlock({ label: 'พยาน · WITNESS 1', name: wit1 }),
-          signatureBlock({ label: 'พยาน · WITNESS 2', name: wit2 }),
-        ],
-        columnGap: 24,
-        margin: [0, 14, 0, 0] as [number, number, number, number],
+        margin: [4, 6, 4, 0] as [number, number, number, number],
+        stack: attachments.map((a, i) => ({
+          columns: [
+            {
+              // checkbox glyph · pdfMake doesn't have a real checkbox, use unicode
+              text: a.checked ? '☑' : '☐',
+              width: 14,
+              fontSize: 13,
+              color: C.brand,
+            },
+            {
+              text: `${i + 1}.`,
+              width: 18,
+              fontSize: 11,
+              color: C.inkSoft,
+              margin: [2, 1, 0, 0] as [number, number, number, number],
+            },
+            {
+              text: a.label,
+              fontSize: 11,
+              color: C.ink,
+              margin: [0, 1, 0, 0] as [number, number, number, number],
+            },
+          ],
+          margin: [0, 2, 0, 2] as [number, number, number, number],
+        })),
+      },
+    ],
+  }
+}
+
+/** Property map placeholder box */
+function mapPlaceholder(): Content {
+  return {
+    unbreakable: true,
+    stack: [
+      sectionBar('ผังที่ตั้งทรัพย์สิน', 'PROPERTY LOCATION MAP'),
+      {
+        table: {
+          widths: ['*'],
+          heights: [200],
+          body: [
+            [
+              {
+                text: '(พื้นที่สำหรับติด/วาด ผังที่ตั้งทรัพย์สิน)',
+                alignment: 'center',
+                color: C.inkFaint,
+                fontSize: 10,
+                italics: true,
+                margin: [0, 90, 0, 0] as [number, number, number, number],
+              },
+            ],
+          ],
+        },
+        layout: {
+          hLineColor: () => C.inkFaint,
+          vLineColor: () => C.inkFaint,
+          hLineWidth: () => 1,
+          vLineWidth: () => 1,
+          // dashed-look via heavier than usual border
+        },
+        margin: [0, 8, 0, 0] as [number, number, number, number],
       },
     ],
   }
@@ -872,6 +970,18 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
         return n ? [n] : []
       })(),
       appendixSignatures(refs),
+      ...((): Content[] => {
+        const tpl = refs.template?.data
+        const out: Content[] = []
+        if (tpl?.showAttachments !== false) {
+          const attachments = resolveAttachments(tpl)
+          if (attachments.length > 0) out.push(attachmentsBlock(attachments))
+        }
+        if (tpl?.showMap === true) {
+          out.push(mapPlaceholder())
+        }
+        return out
+      })(),
     ],
 
     defaultStyle: {
