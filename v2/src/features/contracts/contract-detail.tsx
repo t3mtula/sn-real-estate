@@ -306,7 +306,19 @@ function ContractEditing({
     rate: coerceNumber(c.rate),
     deposit: coerceNumber(c.deposit),
     dur: coerceNumber((c as any).durMonths) || coerceDurMonths(c.dur),
-    payment: c.payment ?? 'รายเดือน',
+    // Hydrate payment from existing data — DO NOT default to 'รายเดือน' which
+    // silently corrupts lump-sum/annual contracts. If c.payment missing,
+    // derive from structured payFreq · else empty (staff fills in).
+    payment: (() => {
+      if (c.payment) return c.payment
+      const pf = (c as { payFreq?: string }).payFreq
+      if (pf === 'lump') return 'จ่ายครั้งเดียว'
+      if (pf === 'annual') return 'รายปี'
+      if (pf === 'semiannual') return 'ครึ่งปี'
+      if (pf === 'quarterly') return 'รายไตรมาส'
+      if (pf === 'monthly') return 'รายเดือน'
+      return ''
+    })(),
     purpose: (c.purpose as string) ?? 'พักอาศัย',
     // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line
     madeAtLine: c.madeAtLine ?? c.madeAt ?? '',
