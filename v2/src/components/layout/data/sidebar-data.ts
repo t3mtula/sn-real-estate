@@ -116,12 +116,12 @@ export const sidebarData: SidebarData = {
           icon: Settings,
           items: [
             {
-              title: 'โปรไฟล์',
+              title: 'บัญชีผู้ใช้',
               url: '/settings',
               icon: UserCog,
             },
             {
-              title: 'หน้าตา',
+              title: 'ธีม',
               url: '/settings/appearance',
               icon: Palette,
             },

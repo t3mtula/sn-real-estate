@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import type { CompanySettings, DisplaySettings, InvoiceSettings, StaffMember } from './queries'
+import type {
+  InvoiceSettings,
+  StaffMember,
+  SystemSettings,
+} from './queries'
 
 async function upsertSetting(key: string, value: unknown) {
   const { error } = await supabase
@@ -9,27 +13,19 @@ async function upsertSetting(key: string, value: unknown) {
   if (error) throw error
 }
 
-export function useSaveCompanySettings() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (v: CompanySettings) => upsertSetting('company', v),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['app_settings', 'company'] }),
-  })
-}
-
-export function useSaveDisplaySettings() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (v: DisplaySettings) => upsertSetting('display', v),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['app_settings', 'display'] }),
-  })
-}
-
 export function useSaveInvoiceSettings() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (v: InvoiceSettings) => upsertSetting('invoice', v),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['app_settings', 'invoice'] }),
+  })
+}
+
+export function useSaveSystemSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (v: SystemSettings) => upsertSetting('system', v),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['app_settings', 'system'] }),
   })
 }
 

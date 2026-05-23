@@ -39,9 +39,7 @@ import { Route as AuthenticatedTemplatesNewRouteImport } from './routes/_authent
 import { Route as AuthenticatedTemplatesIdRouteImport } from './routes/_authenticated/templates/$id'
 import { Route as AuthenticatedSettingsSystemRouteImport } from './routes/_authenticated/settings/system'
 import { Route as AuthenticatedSettingsStaffRouteImport } from './routes/_authenticated/settings/staff'
-import { Route as AuthenticatedSettingsInvoiceSettingsRouteImport } from './routes/_authenticated/settings/invoice-settings'
-import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
-import { Route as AuthenticatedSettingsCompanyRouteImport } from './routes/_authenticated/settings/company'
+import { Route as AuthenticatedSettingsInvoiceDocsRouteImport } from './routes/_authenticated/settings/invoice-docs'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedReportsOutstandingRouteImport } from './routes/_authenticated/reports/outstanding'
 import { Route as AuthenticatedReportsMonthlyRouteImport } from './routes/_authenticated/reports/monthly'
@@ -231,22 +229,10 @@ const AuthenticatedSettingsStaffRoute =
     path: '/staff',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedSettingsInvoiceSettingsRoute =
-  AuthenticatedSettingsInvoiceSettingsRouteImport.update({
-    id: '/invoice-settings',
-    path: '/invoice-settings',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsDisplayRoute =
-  AuthenticatedSettingsDisplayRouteImport.update({
-    id: '/display',
-    path: '/display',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsCompanyRoute =
-  AuthenticatedSettingsCompanyRouteImport.update({
-    id: '/company',
-    path: '/company',
+const AuthenticatedSettingsInvoiceDocsRoute =
+  AuthenticatedSettingsInvoiceDocsRouteImport.update({
+    id: '/invoice-docs',
+    path: '/invoice-docs',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
 const AuthenticatedSettingsAppearanceRoute =
@@ -422,9 +408,7 @@ export interface FileRoutesByFullPath {
   '/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
+  '/settings/invoice-docs': typeof AuthenticatedSettingsInvoiceDocsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/templates/$id': typeof AuthenticatedTemplatesIdRoute
@@ -479,9 +463,7 @@ export interface FileRoutesByTo {
   '/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
+  '/settings/invoice-docs': typeof AuthenticatedSettingsInvoiceDocsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/templates/$id': typeof AuthenticatedTemplatesIdRoute
@@ -539,9 +521,7 @@ export interface FileRoutesById {
   '/_authenticated/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/_authenticated/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/_authenticated/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
-  '/_authenticated/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
+  '/_authenticated/settings/invoice-docs': typeof AuthenticatedSettingsInvoiceDocsRoute
   '/_authenticated/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/_authenticated/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/_authenticated/templates/$id': typeof AuthenticatedTemplatesIdRoute
@@ -599,9 +579,7 @@ export interface FileRouteTypes {
     | '/reports/monthly'
     | '/reports/outstanding'
     | '/settings/appearance'
-    | '/settings/company'
-    | '/settings/display'
-    | '/settings/invoice-settings'
+    | '/settings/invoice-docs'
     | '/settings/staff'
     | '/settings/system'
     | '/templates/$id'
@@ -656,9 +634,7 @@ export interface FileRouteTypes {
     | '/reports/monthly'
     | '/reports/outstanding'
     | '/settings/appearance'
-    | '/settings/company'
-    | '/settings/display'
-    | '/settings/invoice-settings'
+    | '/settings/invoice-docs'
     | '/settings/staff'
     | '/settings/system'
     | '/templates/$id'
@@ -715,9 +691,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports/monthly'
     | '/_authenticated/reports/outstanding'
     | '/_authenticated/settings/appearance'
-    | '/_authenticated/settings/company'
-    | '/_authenticated/settings/display'
-    | '/_authenticated/settings/invoice-settings'
+    | '/_authenticated/settings/invoice-docs'
     | '/_authenticated/settings/staff'
     | '/_authenticated/settings/system'
     | '/_authenticated/templates/$id'
@@ -972,25 +946,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsStaffRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/settings/invoice-settings': {
-      id: '/_authenticated/settings/invoice-settings'
-      path: '/invoice-settings'
-      fullPath: '/settings/invoice-settings'
-      preLoaderRoute: typeof AuthenticatedSettingsInvoiceSettingsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/display': {
-      id: '/_authenticated/settings/display'
-      path: '/display'
-      fullPath: '/settings/display'
-      preLoaderRoute: typeof AuthenticatedSettingsDisplayRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/company': {
-      id: '/_authenticated/settings/company'
-      path: '/company'
-      fullPath: '/settings/company'
-      preLoaderRoute: typeof AuthenticatedSettingsCompanyRouteImport
+    '/_authenticated/settings/invoice-docs': {
+      id: '/_authenticated/settings/invoice-docs'
+      path: '/invoice-docs'
+      fullPath: '/settings/invoice-docs'
+      preLoaderRoute: typeof AuthenticatedSettingsInvoiceDocsRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
     '/_authenticated/settings/appearance': {
@@ -1166,9 +1126,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
-  AuthenticatedSettingsCompanyRoute: typeof AuthenticatedSettingsCompanyRoute
-  AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
-  AuthenticatedSettingsInvoiceSettingsRoute: typeof AuthenticatedSettingsInvoiceSettingsRoute
+  AuthenticatedSettingsInvoiceDocsRoute: typeof AuthenticatedSettingsInvoiceDocsRoute
   AuthenticatedSettingsStaffRoute: typeof AuthenticatedSettingsStaffRoute
   AuthenticatedSettingsSystemRoute: typeof AuthenticatedSettingsSystemRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
@@ -1177,10 +1135,7 @@ interface AuthenticatedSettingsRouteRouteChildren {
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
-    AuthenticatedSettingsCompanyRoute: AuthenticatedSettingsCompanyRoute,
-    AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
-    AuthenticatedSettingsInvoiceSettingsRoute:
-      AuthenticatedSettingsInvoiceSettingsRoute,
+    AuthenticatedSettingsInvoiceDocsRoute: AuthenticatedSettingsInvoiceDocsRoute,
     AuthenticatedSettingsStaffRoute: AuthenticatedSettingsStaffRoute,
     AuthenticatedSettingsSystemRoute: AuthenticatedSettingsSystemRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,

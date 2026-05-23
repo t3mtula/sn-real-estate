@@ -30,6 +30,20 @@ export type InvoiceSettings = {
   vatMode?: 'none' | 'inclusive' | 'exclusive'
   vatRate?: number
   invoiceNote?: string
+  receiptNote?: string
+  /** @deprecated moved to SystemSettings.slipOkBranchId */
+  slipOkBranchId?: string
+  /** @deprecated moved to SystemSettings.slipOkApiKey */
+  slipOkApiKey?: string
+}
+
+export type SystemSettings = {
+  contractPrefix?: string
+  invoicePrefix?: string
+  receiptPrefix?: string
+  expiryWarningDays?: number
+  overdueWarningDays?: number
+  lineNotifyToken?: string
   slipOkBranchId?: string
   slipOkApiKey?: string
 }
@@ -64,6 +78,14 @@ export function useInvoiceSettings() {
   return useQuery({
     queryKey: ['app_settings', 'invoice'],
     queryFn: () => fetchSetting<InvoiceSettings>('invoice'),
+    staleTime: 60_000,
+  })
+}
+
+export function useSystemSettings() {
+  return useQuery({
+    queryKey: ['app_settings', 'system'],
+    queryFn: () => fetchSetting<SystemSettings>('system'),
     staleTime: 60_000,
   })
 }

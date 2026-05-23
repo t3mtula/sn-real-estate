@@ -11,13 +11,11 @@ import { useSaveInvoiceSettings } from '../mutations'
 import type { InvoiceSettings } from '../queries'
 
 const DEFAULT_FORM: InvoiceSettings = {
-  prefix: 'INV-',
   dueDay: 5,
   vatMode: 'none',
   vatRate: 7,
   invoiceNote: '',
-  slipOkBranchId: '',
-  slipOkApiKey: '',
+  receiptNote: '',
 }
 
 export function InvoiceSettingsSection() {
@@ -34,8 +32,16 @@ export function InvoiceSettingsSection() {
   }
 
   function handleSave() {
-    save.mutate(form, {
-      onSuccess: () => toast.success('บันทึกการตั้งค่าใบแจ้งหนี้แล้ว'),
+    // Strip deprecated fields (SlipOK moved to system settings; prefix moved to system)
+    const payload: InvoiceSettings = {
+      dueDay: form.dueDay,
+      vatMode: form.vatMode,
+      vatRate: form.vatRate,
+      invoiceNote: form.invoiceNote,
+      receiptNote: form.receiptNote,
+    }
+    save.mutate(payload, {
+      onSuccess: () => toast.success('บันทึกการตั้งค่าเอกสารแล้ว'),
       onError: (e) => toast.error('บันทึกไม่สำเร็จ', { description: String(e) }),
     })
   }
@@ -45,25 +51,17 @@ export function InvoiceSettingsSection() {
   return (
     <div className='space-y-6 w-full max-w-2xl'>
       <div>
-        <h3 className='text-lg font-medium'>ใบแจ้งหนี้</h3>
-        <p className='text-sm text-muted-foreground'>ค่าเริ่มต้นสำหรับใบแจ้งหนี้ · VAT · SlipOK</p>
+        <h3 className='text-lg font-medium'>ใบแจ้งหนี้ / ใบเสร็จ</h3>
+        <p className='text-sm text-muted-foreground'>
+          ค่าเริ่มต้นเมื่อออกใบ · VAT · ข้อความท้ายเอกสาร
+        </p>
       </div>
       <Separator />
 
-      {/* เลขที่ใบแจ้งหนี้ */}
+      {/* วันครบกำหนด */}
       <section className='space-y-3'>
-        <h4 className='font-medium'>รูปแบบเลขที่ใบแจ้งหนี้</h4>
+        <h4 className='font-medium'>วันครบกำหนดเริ่มต้น</h4>
         <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-1'>
-            <Label htmlFor='inv-prefix'>Prefix เลขที่ใบ (เช่น INV-)</Label>
-            <Input
-              id='inv-prefix'
-              value={form.prefix ?? 'INV-'}
-              onChange={(e) => set('prefix', e.target.value)}
-              placeholder='INV-'
-            />
-            <p className='text-xs text-muted-foreground'>ตัวอย่าง: {(form.prefix ?? 'INV-')}2025001</p>
-          </div>
           <div className='space-y-1'>
             <Label htmlFor='inv-dueday'>วันครบกำหนดชำระ (วันที่ของเดือน)</Label>
             <Input
@@ -77,6 +75,9 @@ export function InvoiceSettingsSection() {
             <p className='text-xs text-muted-foreground'>วันที่ {form.dueDay ?? 5} ของทุกเดือน</p>
           </div>
         </div>
+        <p className='text-xs text-muted-foreground'>
+          รูปแบบเลขที่ใบแจ้งหนี้ตั้งใน <strong>การตั้งค่าทั่วไป</strong>
+        </p>
       </section>
 
       <Separator />
@@ -113,11 +114,11 @@ export function InvoiceSettingsSection() {
 
       <Separator />
 
-      {/* หมายเหตุท้ายใบ */}
+      {/* หมายเหตุท้ายใบแจ้งหนี้ */}
       <section className='space-y-3'>
-        <h4 className='font-medium'>หมายเหตุท้ายใบแจ้งหนี้</h4>
+        <h4 className='font-medium'>ข้อความท้ายใบแจ้งหนี้</h4>
         <div className='space-y-1'>
-          <Label htmlFor='inv-note'>ข้อความที่จะแสดงท้ายใบแจ้งหนี้ทุกใบ (ถ้าไม่ใส่ = ไม่แสดง)</Label>
+          <Label htmlFor='inv-note'>แสดงท้ายใบแจ้งหนี้ทุกใบ (ถ้าไม่ใส่ = ไม่แสดง)</Label>
           <Textarea
             id='inv-note'
             rows={3}
@@ -130,19 +131,18 @@ export function InvoiceSettingsSection() {
 
       <Separator />
 
-      {/* SlipOK */}
+      {/* หมายเหตุท้ายใบเสร็จ */}
       <section className='space-y-3'>
-        <h4 className='font-medium'>SlipOK API (ตรวจสลิปอัตโนมัติ)</h4>
-        <p className='text-xs text-muted-foreground'>ใส่ข้อมูลจาก slipok.com เพื่อเปิดใช้การตรวจสลิปอัตโนมัติ</p>
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-1'>
-            <Label>Branch ID</Label>
-            <Input value={form.slipOkBranchId ?? ''} onChange={(e) => set('slipOkBranchId', e.target.value)} placeholder='BXXXXXXX' />
-          </div>
-          <div className='space-y-1'>
-            <Label>API Key</Label>
-            <Input type='password' value={form.slipOkApiKey ?? ''} onChange={(e) => set('slipOkApiKey', e.target.value)} placeholder='sk_...' />
-          </div>
+        <h4 className='font-medium'>ข้อความท้ายใบเสร็จ</h4>
+        <div className='space-y-1'>
+          <Label htmlFor='rec-note'>แสดงท้ายใบเสร็จทุกใบ (ถ้าไม่ใส่ = ไม่แสดง)</Label>
+          <Textarea
+            id='rec-note'
+            rows={3}
+            value={form.receiptNote ?? ''}
+            onChange={(e) => set('receiptNote', e.target.value)}
+            placeholder='เช่น ขอบคุณที่ใช้บริการ'
+          />
         </div>
       </section>
 
