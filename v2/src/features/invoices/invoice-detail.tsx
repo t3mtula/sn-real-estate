@@ -46,6 +46,7 @@ import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { FollowUpPanel } from '@/features/invoices/follow-up-panel'
 import { PaymentPanel } from '@/features/invoices/payment-panel'
 import { PromptPayQRCard } from '@/features/invoices/promptpay-qr-card'
+import { SlipUpload } from '@/features/invoices/slip-upload'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
@@ -454,6 +455,7 @@ export function InvoiceDetail({ id }: { id: string }) {
               </div>
             ) : null}
 
+            <SlipUpload invoice={invoice} />
             <FollowUpPanel invoice={invoice} />
             <PromptPayQRCard invoiceId={id} total={data.total} />
             <EntityAuditPanel entity='invoices' entityId={id} />

@@ -1,5 +1,5 @@
 import { Outlet } from '@tanstack/react-router'
-import { Building2, FileText, Monitor, Palette, UserCog, Users } from 'lucide-react'
+import { Building2, FileText, Monitor, Palette, Receipt, UserCog, Users } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -22,6 +22,11 @@ const sidebarNavItems = [
     title: 'การแสดงผล',
     href: '/settings/display',
     icon: <Monitor size={18} />,
+  },
+  {
+    title: 'ใบแจ้งหนี้',
+    href: '/settings/invoice-settings',
+    icon: <Receipt size={18} />,
   },
   {
     title: 'ฟอร์มสัญญา',
