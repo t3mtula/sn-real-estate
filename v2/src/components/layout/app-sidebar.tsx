@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useInvoices, daysOverdue } from '@/features/invoices/queries'
 import { useContracts, getContractStatus } from '@/features/contracts/queries'
+import { useAuthStore } from '@/stores/auth-store'
 import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
 import { NavUser } from './nav-user'
@@ -58,6 +59,15 @@ function useSidebarWithBadges(): SidebarData {
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const data = useSidebarWithBadges()
+  // Real signed-in user — overrides hardcoded default in sidebarData
+  const authUser = useAuthStore((s) => s.auth.user)
+  const liveUser = authUser
+    ? {
+        ...data.user,
+        name: authUser.email?.split('@')[0] ?? data.user.name,
+        email: authUser.email ?? data.user.email,
+      }
+    : data.user
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
@@ -69,7 +79,7 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={liveUser} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

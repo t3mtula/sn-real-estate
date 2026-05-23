@@ -204,7 +204,7 @@ export function InvoiceDetail({ id }: { id: string }) {
                     `เรียน คุณ ${(tenant?.data?.name ?? data.tenant ?? '-').trim()}`,
                     '',
                     `ใบแจ้งหนี้เลขที่ ${data.invoiceNo ?? display}`,
-                    `ยอด ${amt(data.remainingAmount ?? data.total, { decimal: 0 })} บาท`,
+                    `ยอด ${amt(data.remainingAmount ?? data.total, { decimal: 0, symbol: false })} บาท`,
                     `ครบกำหนด ${data.dueDate ?? '-'}`,
                     `เกินกำหนด ${overdue} วัน`,
                     '',

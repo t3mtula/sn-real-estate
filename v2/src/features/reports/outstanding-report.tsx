@@ -65,7 +65,7 @@ export function OutstandingReport() {
         <header>
           <h1 className='text-2xl font-bold tracking-tight'>ลูกหนี้ค้างชำระ</h1>
           <p className='mt-1 text-sm text-muted-foreground'>
-            {groups.length} ราย · {totalInvoices} ใบ · รวม {amt(grandTotal)} บาท
+            {groups.length} ราย · {totalInvoices} ใบ · รวม {amt(grandTotal)}
           </p>
         </header>
 

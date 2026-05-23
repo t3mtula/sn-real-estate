@@ -45,7 +45,7 @@ export function BankAccountNew() {
               เพิ่มบัญชีธนาคาร
             </h1>
             <p className='text-muted-foreground text-sm'>
-              บัญชีนี้ใช้ได้กับสัญญาใดก็ได้ · ผูกกับเจ้าของบัญชี (informational)
+              บัญชีนี้ใช้ได้กับสัญญาใดก็ได้ · เจ้าของบัญชีเป็นเพียงข้อมูลอ้างอิง
             </p>
           </div>
         </header>

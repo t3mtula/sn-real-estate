@@ -325,7 +325,7 @@ export function InvoiceNew() {
             </div>
 
             <div className='space-y-2 sm:col-span-2'>
-              <Label htmlFor='note'>คำอธิบายเพิ่มเติม (ถ้าต้องการ override)</Label>
+              <Label htmlFor='note'>คำอธิบายเพิ่มเติม (ถ้าต้องการแทนข้อความมาตรฐาน)</Label>
               <Textarea
                 id='note'
                 rows={2}
@@ -364,7 +364,7 @@ export function InvoiceNew() {
                   เดือน: <span className='text-foreground'>{formatMonth(month)}</span>
                 </li>
                 <li className='font-medium'>
-                  ยอด: <span className='text-foreground'>{amt(finalAmount)} บาท</span>
+                  ยอด: <span className='text-foreground'>{amt(finalAmount)}</span>
                 </li>
               </ul>
             ) : (

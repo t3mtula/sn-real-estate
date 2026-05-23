@@ -95,19 +95,19 @@ function ReceiptHalf({
       <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ color: '#64748b' }}>ยอดรวม</span>
-          <span style={{ fontWeight: 600 }}>{amt(d?.total)} บาท</span>
+          <span style={{ fontWeight: 600 }}>{amt(d?.total)}</span>
         </div>
         {payments.length > 0 && payments.map((p, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', color: '#16a34a' }}>
             <span>รับเงิน {p.date}</span>
-            <span style={{ fontWeight: 600 }}>+{amt(p.amount)} บาท</span>
+            <span style={{ fontWeight: 600 }}>+{amt(p.amount)}</span>
           </div>
         ))}
         {(d?.remainingAmount ?? 0) > 0 && (
           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
             <span>คงค้าง</span>
-            <span style={{ fontWeight: 700 }}>{amt(d?.remainingAmount)} บาท</span>
+            <span style={{ fontWeight: 700 }}>{amt(d?.remainingAmount)}</span>
           </div>
         )}
       </div>

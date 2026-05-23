@@ -20,7 +20,7 @@ function defaultTemplateData(): TemplateData {
       text: c.text,
       sub: c.sub ? [...c.sub] : [],
     })),
-    version: 'v1 port',
+    version: 'เวอร์ชั่นแรก',
     notes: '',
   }
 }

@@ -13,7 +13,7 @@ import {
   useContracts,
 } from '@/features/contracts/queries'
 import type { Contract } from '@/features/contracts/types'
-import { amt, fmtBE, parseBE } from '@/lib/thai'
+import { amt, parseBE } from '@/lib/thai'
 
 type Row = Contract & { daysLeft: number }
 
@@ -217,9 +217,9 @@ export function Renewals() {
                           )}
                           <div className='mt-2'>
                             <div className='flex justify-between text-[10px] text-muted-foreground'>
-                              <span>{fmtBE(r.data?.start ?? '')}</span>
+                              <span>{(r.data?.start ?? '—')}</span>
                               <span className={`font-semibold ${meta.text}`}>{pct}%</span>
-                              <span>{fmtBE(r.data?.end ?? '')}</span>
+                              <span>{(r.data?.end ?? '—')}</span>
                             </div>
                             <div className='mt-0.5 h-1.5 overflow-hidden rounded-full bg-muted'>
                               <div
@@ -237,7 +237,7 @@ export function Renewals() {
                             {isExpired ? 'วัน เกินแล้ว' : 'วัน เหลือ'}
                           </div>
                           <div className='mt-1 text-[10px] text-muted-foreground'>
-                            สิ้นสุด {fmtBE(r.data?.end ?? '')}
+                            สิ้นสุด {(r.data?.end ?? '—')}
                           </div>
                           {r.data?.rate && (
                             <div className='mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300 tabular-nums'>
