@@ -17,9 +17,12 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   DEFAULT_CLAUSES,
@@ -29,7 +32,12 @@ import {
 import { TemplateA4Preview } from './template-a4-preview'
 import { useContractTemplate } from './queries'
 import { useCreateTemplate, useUpdateTemplate } from './mutations'
-import type { ContractClause, TemplateData } from './types'
+import {
+  DEFAULT_ATTACHMENTS,
+  type ContractClause,
+  type TemplateAttachment,
+  type TemplateData,
+} from './types'
 
 type Mode = 'new' | 'edit'
 
@@ -52,6 +60,11 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
     })),
     version: '',
     notes: '',
+    showWitnesses: true,
+    witnessCount: 2,
+    showAttachments: true,
+    attachments: DEFAULT_ATTACHMENTS.map((a) => ({ ...a })),
+    showMap: false,
   }))
   const [dirty, setDirty] = useState(false)
 
@@ -67,6 +80,16 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
         })),
         version: existing.data.version ?? '',
         notes: existing.data.notes ?? '',
+        // Footer config — fall back to safe defaults for older templates
+        // saved before these fields existed.
+        showWitnesses: existing.data.showWitnesses !== false,
+        witnessCount: existing.data.witnessCount === 4 ? 4 : 2,
+        showAttachments: existing.data.showAttachments !== false,
+        attachments:
+          existing.data.attachments && existing.data.attachments.length > 0
+            ? existing.data.attachments.map((a) => ({ ...a }))
+            : DEFAULT_ATTACHMENTS.map((a) => ({ ...a })),
+        showMap: existing.data.showMap === true,
       })
       setDirty(false)
     }
@@ -142,6 +165,37 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
           : { ...c, sub: (c.sub ?? []).filter((_, j) => j !== subIdx) },
       ),
     }))
+  }
+
+  /* ── footer-config helpers ── */
+
+  function patch(p: Partial<TemplateData>) {
+    setDirty(true)
+    setDraft((d) => ({ ...d, ...p }))
+  }
+
+  function patchAttachments(fn: (rows: TemplateAttachment[]) => TemplateAttachment[]) {
+    setDirty(true)
+    setDraft((d) => ({
+      ...d,
+      attachments: fn(d.attachments ?? []),
+    }))
+  }
+
+  function addAttachment() {
+    patchAttachments((rows) => [...rows, { label: '', checked: true }])
+  }
+
+  function updateAttachment(i: number, p: Partial<TemplateAttachment>) {
+    patchAttachments((rows) => rows.map((a, idx) => (idx === i ? { ...a, ...p } : a)))
+  }
+
+  function removeAttachment(i: number) {
+    patchAttachments((rows) => rows.filter((_, idx) => idx !== i))
+  }
+
+  function resetAttachments() {
+    patchAttachments(() => DEFAULT_ATTACHMENTS.map((a) => ({ ...a })))
   }
 
   async function handleSave(makeActive = false) {
@@ -416,6 +470,180 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
                 placeholder='สัญญานี้ทำขึ้นเป็นสองฉบับ...'
               />
             </div>
+
+            {/* ─── ส่วนท้ายสัญญา ─── */}
+            <section className='space-y-3 rounded-md border bg-card p-4'>
+              <h2 className='text-lg font-semibold'>ส่วนท้ายสัญญา</h2>
+
+              {/* "ทำที่ ... วันที่ ..." — always on, can't disable */}
+              <div className='flex items-start gap-3 rounded-md border border-dashed bg-muted/30 p-3'>
+                <Checkbox checked disabled className='mt-0.5' aria-label='แสดงพื้นที่ "ทำที่ ... วันที่ ..."' />
+                <div className='flex-1'>
+                  <div className='text-sm font-medium'>
+                    แสดงพื้นที่ "ทำที่ ... วันที่ ..."
+                  </div>
+                  <p className='text-xs text-muted-foreground'>
+                    บังคับแสดงเสมอ · ค่าจะมาจากตัวสัญญาตอนปริ้น
+                  </p>
+                </div>
+              </div>
+
+              {/* Signatures toggle + witness count */}
+              <div className='space-y-3 rounded-md border p-3'>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <Label htmlFor='showWitnesses' className='text-sm font-medium'>
+                      แสดงตารางลายเซ็น
+                    </Label>
+                    <p className='text-xs text-muted-foreground'>
+                      ผู้ให้เช่า · ผู้เช่า · พยาน
+                    </p>
+                  </div>
+                  <Switch
+                    id='showWitnesses'
+                    checked={draft.showWitnesses !== false}
+                    onCheckedChange={(v) => patch({ showWitnesses: v })}
+                  />
+                </div>
+
+                {draft.showWitnesses !== false && (
+                  <div className='space-y-2 border-t pt-3'>
+                    <Label className='text-sm'>จำนวนพยาน</Label>
+                    <RadioGroup
+                      value={String(draft.witnessCount ?? 2)}
+                      onValueChange={(v) =>
+                        patch({ witnessCount: v === '4' ? 4 : 2 })
+                      }
+                      className='flex gap-6'
+                    >
+                      <div className='flex items-center gap-2'>
+                        <RadioGroupItem value='2' id='wit-2' />
+                        <Label htmlFor='wit-2' className='font-normal'>
+                          2 คน (มาตรฐาน)
+                        </Label>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <RadioGroupItem value='4' id='wit-4' />
+                        <Label htmlFor='wit-4' className='font-normal'>
+                          4 คน (2 คนต่อฝ่าย)
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
+              </div>
+
+              {/* Attachments checklist */}
+              <div className='space-y-3 rounded-md border p-3'>
+                <div className='flex items-center justify-between'>
+                  <div>
+                    <Label htmlFor='showAttachments' className='text-sm font-medium'>
+                      แสดงรายการเอกสารแนบท้าย
+                    </Label>
+                    <p className='text-xs text-muted-foreground'>
+                      ☐ เช็คลิสต์เอกสารประกอบ (สำเนาบัตร / โฉนด / ฯลฯ)
+                    </p>
+                  </div>
+                  <Switch
+                    id='showAttachments'
+                    checked={draft.showAttachments !== false}
+                    onCheckedChange={(v) => patch({ showAttachments: v })}
+                  />
+                </div>
+
+                {draft.showAttachments !== false && (
+                  <div className='space-y-2 border-t pt-3'>
+                    <div className='flex items-center justify-between'>
+                      <Label className='text-sm'>
+                        รายการเอกสาร ({(draft.attachments ?? []).length})
+                      </Label>
+                      <div className='flex gap-2'>
+                        <Button
+                          size='sm'
+                          variant='ghost'
+                          type='button'
+                          onClick={resetAttachments}
+                          className='h-7 text-xs text-muted-foreground'
+                        >
+                          คืนค่าเริ่มต้น
+                        </Button>
+                        <Button
+                          size='sm'
+                          variant='outline'
+                          type='button'
+                          onClick={addAttachment}
+                          className='h-7'
+                        >
+                          <Plus className='size-3' />
+                          เพิ่ม
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className='space-y-1.5'>
+                      {(draft.attachments ?? []).map((a, i) => (
+                        <div
+                          // biome-ignore lint/suspicious/noArrayIndexKey: order is identity
+                          key={`att-${i}`}
+                          className='flex items-center gap-2'
+                        >
+                          <span className='w-5 text-right text-xs text-muted-foreground'>
+                            {i + 1}.
+                          </span>
+                          <Checkbox
+                            checked={a.checked}
+                            onCheckedChange={(v) =>
+                              updateAttachment(i, { checked: v === true })
+                            }
+                            aria-label='ติ๊กดีฟอลต์'
+                          />
+                          <Input
+                            value={a.label}
+                            onChange={(e) =>
+                              updateAttachment(i, { label: e.target.value })
+                            }
+                            placeholder='เช่น สำเนาบัตรประชาชน ผู้เช่า'
+                            className='h-8 flex-1'
+                          />
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            type='button'
+                            onClick={() => removeAttachment(i)}
+                            className='size-7 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                            aria-label='ลบ'
+                          >
+                            <Trash2 className='size-3' />
+                          </Button>
+                        </div>
+                      ))}
+                      {(draft.attachments ?? []).length === 0 && (
+                        <div className='rounded-md border border-dashed bg-muted/30 p-3 text-center text-xs text-muted-foreground'>
+                          ไม่มีรายการ · กด "เพิ่ม" หรือ "คืนค่าเริ่มต้น"
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Property map placeholder */}
+              <div className='flex items-center justify-between rounded-md border p-3'>
+                <div>
+                  <Label htmlFor='showMap' className='text-sm font-medium'>
+                    แสดงพื้นที่สำหรับผังที่ตั้งทรัพย์สิน
+                  </Label>
+                  <p className='text-xs text-muted-foreground'>
+                    เว้นกรอบไว้สำหรับติด/วาด ผังที่ตั้ง
+                  </p>
+                </div>
+                <Switch
+                  id='showMap'
+                  checked={draft.showMap === true}
+                  onCheckedChange={(v) => patch({ showMap: v })}
+                />
+              </div>
+            </section>
 
             {/* Notes (internal) */}
             <div className='space-y-2'>
