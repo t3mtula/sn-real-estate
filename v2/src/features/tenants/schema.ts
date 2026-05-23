@@ -38,6 +38,7 @@ export const tenantFormSchema = z.object({
   addrDistrict: z.string().trim().max(100),
   addrProvince: z.string().trim().max(100),
   addrPostal: z.string().trim().max(10),
+  witnesses: z.array(z.string().trim().max(200)),
 })
 
 export type TenantFormValues = z.infer<typeof tenantFormSchema>
@@ -55,4 +56,5 @@ export const TENANT_FORM_DEFAULTS: TenantFormValues = {
   addrDistrict: '',
   addrProvince: '',
   addrPostal: '',
+  witnesses: [],
 }

@@ -36,6 +36,7 @@ export const landlordFormSchema = z.object({
   promptPayBank: z.string().trim().max(200),
   promptPayName: z.string().trim().max(200),
   notes: z.string().trim().max(1000),
+  witnesses: z.array(z.string().trim().max(200)),
 })
 
 export type LandlordFormValues = z.infer<typeof landlordFormSchema>
@@ -61,4 +62,5 @@ export const LANDLORD_FORM_DEFAULTS: LandlordFormValues = {
   promptPayBank: '',
   promptPayName: '',
   notes: '',
+  witnesses: [],
 }

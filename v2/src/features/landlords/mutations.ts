@@ -33,6 +33,9 @@ function valuesToManagedFields(values: LandlordFormValues, pid: number) {
     promptPayBank: values.promptPayBank ?? '',
     promptPayName: values.promptPayName ?? '',
     notes: values.notes ?? '',
+    witnesses: (values.witnesses ?? [])
+      .map((w) => w.trim())
+      .filter((w) => w.length > 0),
   }
 }
 

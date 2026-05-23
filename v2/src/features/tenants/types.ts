@@ -41,6 +41,8 @@ export type TenantData = {
   addrDistrict?: string
   addrProvince?: string
   addrPostal?: string
+  /** Default witnesses (dynamic list, can be empty) */
+  witnesses?: string[]
 }
 
 /** Tenant row จาก Supabase */

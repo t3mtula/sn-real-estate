@@ -25,6 +25,9 @@ function valuesToManagedFields(values: TenantFormValues, pid: number) {
     addrDistrict: values.addrDistrict ?? '',
     addrProvince: values.addrProvince ?? '',
     addrPostal: values.addrPostal ?? '',
+    witnesses: (values.witnesses ?? [])
+      .map((w) => w.trim())
+      .filter((w) => w.length > 0),
   }
 }
 

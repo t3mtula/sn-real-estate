@@ -67,6 +67,8 @@ export type LandlordData = {
   invoiceHeaderId?: string
   /** หมายเหตุภายใน */
   notes?: string
+  /** Default witnesses for contracts this landlord owns (dynamic list, can be empty) */
+  witnesses?: string[]
 }
 
 /** Landlord row จาก Supabase */
