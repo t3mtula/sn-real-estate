@@ -1,6 +1,7 @@
 import { Calendar, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { DateInputBE } from '@/components/date-input-be'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -109,11 +110,10 @@ export function FollowUpPanel({ invoice }: Props) {
       {editing && (
         <div className='space-y-3'>
           <div className='space-y-1'>
-            <Label className='text-xs'>วันที่ผู้เช่านัดชำระ (วว/ดด/ปปปป พ.ศ.)</Label>
-            <Input
+            <Label className='text-xs'>วันที่ผู้เช่านัดชำระ</Label>
+            <DateInputBE
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              placeholder='เช่น 05/06/2568'
+              onChange={setDate}
               className='h-8 text-sm'
             />
           </div>

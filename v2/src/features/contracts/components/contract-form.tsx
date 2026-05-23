@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { DateInputBE } from '@/components/date-input-be'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -321,11 +322,11 @@ export function ContractForm({
           <Label htmlFor='start'>
             วันเริ่มต้น <span className='text-destructive'>*</span>
           </Label>
-          <Input
+          <DateInputBE
             id='start'
-            {...form.register('start')}
-            placeholder='DD/MM/YYYY (พ.ศ.)'
-            className={cn('font-mono', errors.start && 'border-destructive')}
+            value={form.watch('start')}
+            onChange={(v) => form.setValue('start', v, { shouldDirty: true, shouldValidate: true })}
+            hasError={!!errors.start}
           />
           {errors.start && <FieldError>{errors.start.message}</FieldError>}
         </div>
@@ -334,11 +335,11 @@ export function ContractForm({
           <Label htmlFor='end'>
             วันสิ้นสุด <span className='text-destructive'>*</span>
           </Label>
-          <Input
+          <DateInputBE
             id='end'
-            {...form.register('end')}
-            placeholder='DD/MM/YYYY (พ.ศ.)'
-            className={cn('font-mono', errors.end && 'border-destructive')}
+            value={form.watch('end')}
+            onChange={(v) => form.setValue('end', v, { shouldDirty: true, shouldValidate: true })}
+            hasError={!!errors.end}
           />
           {errors.end && <FieldError>{errors.end.message}</FieldError>}
         </div>
@@ -427,12 +428,14 @@ export function ContractForm({
       <section className='grid gap-4 sm:grid-cols-2'>
         <div className='sm:col-span-2'>
           <Label htmlFor='madeDate'>วันที่ทำสัญญา</Label>
-          <Input
-            id='madeDate'
-            {...form.register('madeDate')}
-            placeholder='DD/MM/YYYY (พ.ศ.)'
-            className={cn('font-mono max-w-[280px]', errors.madeDate && 'border-destructive')}
-          />
+          <div className='max-w-[280px]'>
+            <DateInputBE
+              id='madeDate'
+              value={form.watch('madeDate')}
+              onChange={(v) => form.setValue('madeDate', v, { shouldDirty: true, shouldValidate: true })}
+              hasError={!!errors.madeDate}
+            />
+          </div>
           {errors.madeDate && <FieldError>{errors.madeDate.message}</FieldError>}
         </div>
 
