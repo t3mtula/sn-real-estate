@@ -33,6 +33,8 @@ import type { Contract } from '@/features/contracts/types'
 import type { Invoice } from '@/features/invoices/types'
 import { amt, parseBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
+import { ThailandMap } from './thailand-map'
+import { normalizeProvinceName } from './thailand-paths'
 
 function currentMonth(): string {
   const d = new Date()
@@ -272,6 +274,18 @@ export function Dashboard() {
       .slice(0, 5)
   }, [stats.overdueIvs])
 
+  // Province counts for Thailand heatmap (uses province → addr_province fallback, normalized)
+  const provinceCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const p of properties ?? []) {
+      const raw = p.data?.province ?? p.data?.addr_province
+      const name = normalizeProvinceName(raw)
+      if (!name) continue
+      counts[name] = (counts[name] ?? 0) + 1
+    }
+    return counts
+  }, [properties])
+
   // Top expiring list (max 5, sorted by end date asc)
   const topExpiring = useMemo(() => {
     return [...stats.expiring]
@@ -376,6 +390,11 @@ export function Dashboard() {
                 tone={stats.notInvoicedThisMonth.length > 0 ? 'info' : 'success'}
                 to='/invoices'
               />
+            </section>
+
+            {/* Thailand province heatmap */}
+            <section>
+              <ThailandMap provinceCounts={provinceCounts} />
             </section>
 
             {/* Drill-downs · 2 columns */}

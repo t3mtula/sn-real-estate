@@ -8,7 +8,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Building2,
   Download,
@@ -18,10 +18,11 @@ import {
   Search,
   User,
   Users,
+  X,
 } from 'lucide-react'
 import { useExportCSV } from '@/hooks/use-csv'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -74,6 +75,20 @@ export function Properties() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
+  const search = useSearch({ from: '/_authenticated/properties/' }) as {
+    province?: string
+  }
+
+  // Sync province URL param → column filter (on URL change)
+  useEffect(() => {
+    const provinceParam = search.province?.trim() ?? ''
+    setColumnFilters((prev) => {
+      const others = prev.filter((f) => f.id !== 'province')
+      return provinceParam
+        ? [...others, { id: 'province', value: provinceParam }]
+        : others
+    })
+  }, [search.province])
 
   // Count active (non-cancelled) contracts per property — match by pid_property or legacy pid
   const contractCountByPid = useMemo(() => {
@@ -176,6 +191,16 @@ export function Properties() {
               {v}
             </span>
           )
+        },
+        filterFn: (row, _id, value) => {
+          if (!value) return true
+          const v = String(value).trim().toLowerCase()
+          if (!v) return true
+          const p = row.original.data
+          const fields = [p?.province, p?.addr_province]
+            .filter(Boolean)
+            .map((s) => String(s).toLowerCase())
+          return fields.some((f) => f.includes(v))
         },
       },
       {
@@ -316,6 +341,17 @@ export function Properties() {
     ])
   }
 
+  const provinceFilter =
+    (columnFilters.find((f) => f.id === 'province')?.value as string) ?? ''
+  const clearProvinceFilter = () => {
+    navigate({
+      to: '/properties',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      search: {} as any,
+      replace: true,
+    })
+  }
+
   const totalRows = properties?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
   const { exportXLSX } = useExportCSV()
@@ -403,6 +439,22 @@ export function Properties() {
               ))}
             </SelectContent>
           </Select>
+          {provinceFilter && (
+            <Badge
+              variant='outline'
+              className='gap-1 border-primary/30 bg-primary/10 py-1 pl-2.5 pr-1 text-primary'
+            >
+              จังหวัด: {provinceFilter}
+              <button
+                type='button'
+                onClick={clearProvinceFilter}
+                className='ml-0.5 inline-flex size-4 items-center justify-center rounded-full hover:bg-primary/20'
+                aria-label='ล้างตัวกรองจังหวัด'
+              >
+                <X className='size-3' />
+              </button>
+            </Badge>
+          )}
         </div>
 
         {/* Error */}
