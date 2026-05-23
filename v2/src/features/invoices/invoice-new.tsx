@@ -117,13 +117,13 @@ export function InvoiceNew() {
     return landlordBanks && landlordBanks.length > 0 ? landlordBanks : banks
   }, [banks, landlordBanks, landlordId])
 
-  const freq = getPaymentFreq(contract?.data?.payment as string | undefined)
+  const freq = getPaymentFreq(contract?.data)
   const computedAmount =
     category === 'deposit'
       ? Number(contract?.data?.deposit) || 0
       : getInvoiceAmount(
           contract?.data?.rate as number | undefined,
-          contract?.data?.payment as string | undefined,
+          contract?.data,
         )
   const finalAmount = Number(amountOverride ?? computedAmount) || computedAmount
 
