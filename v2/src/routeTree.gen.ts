@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedTenantsIndexRouteImport } from './routes/_authenticated/tenants/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedPropertiesIndexRouteImport } from './routes/_authenticated/properties/index'
+import { Route as AuthenticatedMetersIndexRouteImport } from './routes/_authenticated/meters/index'
 import { Route as AuthenticatedLandlordsIndexRouteImport } from './routes/_authenticated/landlords/index'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated/invoices/index'
 import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
@@ -43,6 +44,7 @@ import { Route as AuthenticatedReportsMonthlyRouteImport } from './routes/_authe
 import { Route as AuthenticatedReportsFollowUpRouteImport } from './routes/_authenticated/reports/follow-up'
 import { Route as AuthenticatedReportsAgingRouteImport } from './routes/_authenticated/reports/aging'
 import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authenticated/properties/new'
+import { Route as AuthenticatedMetersNewRouteImport } from './routes/_authenticated/meters/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated/invoices/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
@@ -52,6 +54,7 @@ import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_auth
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
 import { Route as AuthenticatedSettingsTemplatesIndexRouteImport } from './routes/_authenticated/settings/templates/index'
 import { Route as AuthenticatedPropertiesIdIndexRouteImport } from './routes/_authenticated/properties/$id/index'
+import { Route as AuthenticatedMetersIdIndexRouteImport } from './routes/_authenticated/meters/$id/index'
 import { Route as AuthenticatedLandlordsIdIndexRouteImport } from './routes/_authenticated/landlords/$id/index'
 import { Route as AuthenticatedInvoicesIdIndexRouteImport } from './routes/_authenticated/invoices/$id/index'
 import { Route as AuthenticatedContractsIdIndexRouteImport } from './routes/_authenticated/contracts/$id/index'
@@ -61,9 +64,6 @@ import { Route as AuthenticatedSettingsTemplatesIdRouteImport } from './routes/_
 import { Route as AuthenticatedInvoicesIdReceiptRouteImport } from './routes/_authenticated/invoices/$id/receipt'
 import { Route as AuthenticatedInvoicesIdPrintRouteImport } from './routes/_authenticated/invoices/$id/print'
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
-import { Route as AuthenticatedMetersIndexRouteImport } from './routes/_authenticated/meters/index'
-import { Route as AuthenticatedMetersNewRouteImport } from './routes/_authenticated/meters/new'
-import { Route as AuthenticatedMetersIdIndexRouteImport } from './routes/_authenticated/meters/$id/index'
 import { Route as AuthenticatedContractsIdDepositReturnRouteImport } from './routes/_authenticated/contracts/$id/deposit-return'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -165,6 +165,12 @@ const AuthenticatedPropertiesIndexRoute =
     path: '/properties/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMetersIndexRoute =
+  AuthenticatedMetersIndexRouteImport.update({
+    id: '/meters/',
+    path: '/meters/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLandlordsIndexRoute =
   AuthenticatedLandlordsIndexRouteImport.update({
     id: '/landlords/',
@@ -254,6 +260,11 @@ const AuthenticatedPropertiesNewRoute =
     path: '/properties/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMetersNewRoute = AuthenticatedMetersNewRouteImport.update({
+  id: '/meters/new',
+  path: '/meters/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedLandlordsNewRoute =
   AuthenticatedLandlordsNewRouteImport.update({
     id: '/landlords/new',
@@ -306,6 +317,12 @@ const AuthenticatedPropertiesIdIndexRoute =
   AuthenticatedPropertiesIdIndexRouteImport.update({
     id: '/properties/$id/',
     path: '/properties/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMetersIdIndexRoute =
+  AuthenticatedMetersIdIndexRouteImport.update({
+    id: '/meters/$id/',
+    path: '/meters/$id/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedLandlordsIdIndexRoute =
@@ -362,20 +379,10 @@ const AuthenticatedContractsIdPrintRoute =
     path: '/contracts/$id/print',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedMetersIndexRoute = AuthenticatedMetersIndexRouteImport.update({
-  id: '/meters/',
-  path: '/meters/',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedMetersNewRoute = AuthenticatedMetersNewRouteImport.update({
-  id: '/meters/new',
-  path: '/meters/new',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedMetersIdIndexRoute =
-  AuthenticatedMetersIdIndexRouteImport.update({
-    id: '/meters/$id/',
-    path: '/meters/$id/',
+const AuthenticatedContractsIdDepositReturnRoute =
+  AuthenticatedContractsIdDepositReturnRouteImport.update({
+    id: '/contracts/$id/deposit-return',
+    path: '/contracts/$id/deposit-return',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 
@@ -401,6 +408,7 @@ export interface FileRoutesByFullPath {
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
+  '/meters/new': typeof AuthenticatedMetersNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/reports/aging': typeof AuthenticatedReportsAgingRoute
   '/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
@@ -416,9 +424,11 @@ export interface FileRoutesByFullPath {
   '/contracts/': typeof AuthenticatedContractsIndexRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/landlords/': typeof AuthenticatedLandlordsIndexRoute
+  '/meters/': typeof AuthenticatedMetersIndexRoute
   '/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/tenants/': typeof AuthenticatedTenantsIndexRoute
+  '/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
@@ -428,12 +438,10 @@ export interface FileRoutesByFullPath {
   '/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/invoices/$id/': typeof AuthenticatedInvoicesIdIndexRoute
   '/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
+  '/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
-  '/meters/': typeof AuthenticatedMetersIndexRoute
-  '/meters/new': typeof AuthenticatedMetersNewRoute
-  '/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth-callback': typeof authAuthCallbackRoute
@@ -456,6 +464,7 @@ export interface FileRoutesByTo {
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
+  '/meters/new': typeof AuthenticatedMetersNewRoute
   '/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/reports/aging': typeof AuthenticatedReportsAgingRoute
   '/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
@@ -471,9 +480,11 @@ export interface FileRoutesByTo {
   '/contracts': typeof AuthenticatedContractsIndexRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
   '/landlords': typeof AuthenticatedLandlordsIndexRoute
+  '/meters': typeof AuthenticatedMetersIndexRoute
   '/properties': typeof AuthenticatedPropertiesIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/tenants': typeof AuthenticatedTenantsIndexRoute
+  '/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
@@ -483,12 +494,10 @@ export interface FileRoutesByTo {
   '/contracts/$id': typeof AuthenticatedContractsIdIndexRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdIndexRoute
   '/landlords/$id': typeof AuthenticatedLandlordsIdIndexRoute
+  '/meters/$id': typeof AuthenticatedMetersIdIndexRoute
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
   '/settings/templates': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
-  '/meters': typeof AuthenticatedMetersIndexRoute
-  '/meters/new': typeof AuthenticatedMetersNewRoute
-  '/meters/$id': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -514,6 +523,7 @@ export interface FileRoutesById {
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
+  '/_authenticated/meters/new': typeof AuthenticatedMetersNewRoute
   '/_authenticated/properties/new': typeof AuthenticatedPropertiesNewRoute
   '/_authenticated/reports/aging': typeof AuthenticatedReportsAgingRoute
   '/_authenticated/reports/follow-up': typeof AuthenticatedReportsFollowUpRoute
@@ -529,9 +539,11 @@ export interface FileRoutesById {
   '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/_authenticated/landlords/': typeof AuthenticatedLandlordsIndexRoute
+  '/_authenticated/meters/': typeof AuthenticatedMetersIndexRoute
   '/_authenticated/properties/': typeof AuthenticatedPropertiesIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/tenants/': typeof AuthenticatedTenantsIndexRoute
+  '/_authenticated/contracts/$id/deposit-return': typeof AuthenticatedContractsIdDepositReturnRoute
   '/_authenticated/contracts/$id/print': typeof AuthenticatedContractsIdPrintRoute
   '/_authenticated/invoices/$id/print': typeof AuthenticatedInvoicesIdPrintRoute
   '/_authenticated/invoices/$id/receipt': typeof AuthenticatedInvoicesIdReceiptRoute
@@ -541,12 +553,10 @@ export interface FileRoutesById {
   '/_authenticated/contracts/$id/': typeof AuthenticatedContractsIdIndexRoute
   '/_authenticated/invoices/$id/': typeof AuthenticatedInvoicesIdIndexRoute
   '/_authenticated/landlords/$id/': typeof AuthenticatedLandlordsIdIndexRoute
+  '/_authenticated/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/_authenticated/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
-  '/_authenticated/meters/': typeof AuthenticatedMetersIndexRoute
-  '/_authenticated/meters/new': typeof AuthenticatedMetersNewRoute
-  '/_authenticated/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -572,6 +582,7 @@ export interface FileRouteTypes {
     | '/errors/$error'
     | '/invoices/new'
     | '/landlords/new'
+    | '/meters/new'
     | '/properties/new'
     | '/reports/aging'
     | '/reports/follow-up'
@@ -587,9 +598,11 @@ export interface FileRouteTypes {
     | '/contracts/'
     | '/invoices/'
     | '/landlords/'
+    | '/meters/'
     | '/properties/'
     | '/settings/'
     | '/tenants/'
+    | '/contracts/$id/deposit-return'
     | '/contracts/$id/print'
     | '/invoices/$id/print'
     | '/invoices/$id/receipt'
@@ -599,12 +612,10 @@ export interface FileRouteTypes {
     | '/contracts/$id/'
     | '/invoices/$id/'
     | '/landlords/$id/'
+    | '/meters/$id/'
     | '/properties/$id/'
     | '/settings/templates/'
     | '/tenants/$id/'
-    | '/meters/'
-    | '/meters/new'
-    | '/meters/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth-callback'
@@ -627,6 +638,7 @@ export interface FileRouteTypes {
     | '/errors/$error'
     | '/invoices/new'
     | '/landlords/new'
+    | '/meters/new'
     | '/properties/new'
     | '/reports/aging'
     | '/reports/follow-up'
@@ -642,9 +654,11 @@ export interface FileRouteTypes {
     | '/contracts'
     | '/invoices'
     | '/landlords'
+    | '/meters'
     | '/properties'
     | '/settings'
     | '/tenants'
+    | '/contracts/$id/deposit-return'
     | '/contracts/$id/print'
     | '/invoices/$id/print'
     | '/invoices/$id/receipt'
@@ -654,12 +668,10 @@ export interface FileRouteTypes {
     | '/contracts/$id'
     | '/invoices/$id'
     | '/landlords/$id'
+    | '/meters/$id'
     | '/properties/$id'
     | '/settings/templates'
     | '/tenants/$id'
-    | '/meters'
-    | '/meters/new'
-    | '/meters/$id'
   id:
     | '__root__'
     | '/_authenticated'
@@ -684,6 +696,7 @@ export interface FileRouteTypes {
     | '/_authenticated/errors/$error'
     | '/_authenticated/invoices/new'
     | '/_authenticated/landlords/new'
+    | '/_authenticated/meters/new'
     | '/_authenticated/properties/new'
     | '/_authenticated/reports/aging'
     | '/_authenticated/reports/follow-up'
@@ -699,9 +712,11 @@ export interface FileRouteTypes {
     | '/_authenticated/contracts/'
     | '/_authenticated/invoices/'
     | '/_authenticated/landlords/'
+    | '/_authenticated/meters/'
     | '/_authenticated/properties/'
     | '/_authenticated/settings/'
     | '/_authenticated/tenants/'
+    | '/_authenticated/contracts/$id/deposit-return'
     | '/_authenticated/contracts/$id/print'
     | '/_authenticated/invoices/$id/print'
     | '/_authenticated/invoices/$id/receipt'
@@ -711,12 +726,10 @@ export interface FileRouteTypes {
     | '/_authenticated/contracts/$id/'
     | '/_authenticated/invoices/$id/'
     | '/_authenticated/landlords/$id/'
+    | '/_authenticated/meters/$id/'
     | '/_authenticated/properties/$id/'
     | '/_authenticated/settings/templates/'
     | '/_authenticated/tenants/$id/'
-    | '/_authenticated/meters/'
-    | '/_authenticated/meters/new'
-    | '/_authenticated/meters/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -869,6 +882,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPropertiesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/meters/': {
+      id: '/_authenticated/meters/'
+      path: '/meters'
+      fullPath: '/meters/'
+      preLoaderRoute: typeof AuthenticatedMetersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/landlords/': {
       id: '/_authenticated/landlords/'
       path: '/landlords'
@@ -974,6 +994,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPropertiesNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/meters/new': {
+      id: '/_authenticated/meters/new'
+      path: '/meters/new'
+      fullPath: '/meters/new'
+      preLoaderRoute: typeof AuthenticatedMetersNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/landlords/new': {
       id: '/_authenticated/landlords/new'
       path: '/landlords/new'
@@ -1035,6 +1062,13 @@ declare module '@tanstack/react-router' {
       path: '/properties/$id'
       fullPath: '/properties/$id/'
       preLoaderRoute: typeof AuthenticatedPropertiesIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meters/$id/': {
+      id: '/_authenticated/meters/$id/'
+      path: '/meters/$id'
+      fullPath: '/meters/$id/'
+      preLoaderRoute: typeof AuthenticatedMetersIdIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/landlords/$id/': {
@@ -1100,25 +1134,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContractsIdPrintRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/meters/': {
-      id: '/_authenticated/meters/'
-      path: '/meters'
-      fullPath: '/meters/'
-      preLoaderRoute: typeof AuthenticatedMetersIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/meters/new': {
-      id: '/_authenticated/meters/new'
-      path: '/meters/new'
-      fullPath: '/meters/new'
-      preLoaderRoute: typeof AuthenticatedMetersNewRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/meters/$id/': {
-      id: '/_authenticated/meters/$id/'
-      path: '/meters/$id'
-      fullPath: '/meters/$id/'
-      preLoaderRoute: typeof AuthenticatedMetersIdIndexRouteImport
+    '/_authenticated/contracts/$id/deposit-return': {
+      id: '/_authenticated/contracts/$id/deposit-return'
+      path: '/contracts/$id/deposit-return'
+      fullPath: '/contracts/$id/deposit-return'
+      preLoaderRoute: typeof AuthenticatedContractsIdDepositReturnRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
   }
@@ -1169,6 +1189,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
+  AuthenticatedMetersNewRoute: typeof AuthenticatedMetersNewRoute
   AuthenticatedPropertiesNewRoute: typeof AuthenticatedPropertiesNewRoute
   AuthenticatedReportsAgingRoute: typeof AuthenticatedReportsAgingRoute
   AuthenticatedReportsFollowUpRoute: typeof AuthenticatedReportsFollowUpRoute
@@ -1179,8 +1200,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContractsIndexRoute: typeof AuthenticatedContractsIndexRoute
   AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
   AuthenticatedLandlordsIndexRoute: typeof AuthenticatedLandlordsIndexRoute
+  AuthenticatedMetersIndexRoute: typeof AuthenticatedMetersIndexRoute
   AuthenticatedPropertiesIndexRoute: typeof AuthenticatedPropertiesIndexRoute
   AuthenticatedTenantsIndexRoute: typeof AuthenticatedTenantsIndexRoute
+  AuthenticatedContractsIdDepositReturnRoute: typeof AuthenticatedContractsIdDepositReturnRoute
   AuthenticatedContractsIdPrintRoute: typeof AuthenticatedContractsIdPrintRoute
   AuthenticatedInvoicesIdPrintRoute: typeof AuthenticatedInvoicesIdPrintRoute
   AuthenticatedInvoicesIdReceiptRoute: typeof AuthenticatedInvoicesIdReceiptRoute
@@ -1188,11 +1211,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContractsIdIndexRoute: typeof AuthenticatedContractsIdIndexRoute
   AuthenticatedInvoicesIdIndexRoute: typeof AuthenticatedInvoicesIdIndexRoute
   AuthenticatedLandlordsIdIndexRoute: typeof AuthenticatedLandlordsIdIndexRoute
+  AuthenticatedMetersIdIndexRoute: typeof AuthenticatedMetersIdIndexRoute
   AuthenticatedPropertiesIdIndexRoute: typeof AuthenticatedPropertiesIdIndexRoute
   AuthenticatedTenantsIdIndexRoute: typeof AuthenticatedTenantsIdIndexRoute
-  AuthenticatedMetersIndexRoute: typeof AuthenticatedMetersIndexRoute
-  AuthenticatedMetersNewRoute: typeof AuthenticatedMetersNewRoute
-  AuthenticatedMetersIdIndexRoute: typeof AuthenticatedMetersIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1206,6 +1227,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
+  AuthenticatedMetersNewRoute: AuthenticatedMetersNewRoute,
   AuthenticatedPropertiesNewRoute: AuthenticatedPropertiesNewRoute,
   AuthenticatedReportsAgingRoute: AuthenticatedReportsAgingRoute,
   AuthenticatedReportsFollowUpRoute: AuthenticatedReportsFollowUpRoute,
@@ -1216,8 +1238,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContractsIndexRoute: AuthenticatedContractsIndexRoute,
   AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,
   AuthenticatedLandlordsIndexRoute: AuthenticatedLandlordsIndexRoute,
+  AuthenticatedMetersIndexRoute: AuthenticatedMetersIndexRoute,
   AuthenticatedPropertiesIndexRoute: AuthenticatedPropertiesIndexRoute,
   AuthenticatedTenantsIndexRoute: AuthenticatedTenantsIndexRoute,
+  AuthenticatedContractsIdDepositReturnRoute:
+    AuthenticatedContractsIdDepositReturnRoute,
   AuthenticatedContractsIdPrintRoute: AuthenticatedContractsIdPrintRoute,
   AuthenticatedInvoicesIdPrintRoute: AuthenticatedInvoicesIdPrintRoute,
   AuthenticatedInvoicesIdReceiptRoute: AuthenticatedInvoicesIdReceiptRoute,
@@ -1225,11 +1250,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContractsIdIndexRoute: AuthenticatedContractsIdIndexRoute,
   AuthenticatedInvoicesIdIndexRoute: AuthenticatedInvoicesIdIndexRoute,
   AuthenticatedLandlordsIdIndexRoute: AuthenticatedLandlordsIdIndexRoute,
+  AuthenticatedMetersIdIndexRoute: AuthenticatedMetersIdIndexRoute,
   AuthenticatedPropertiesIdIndexRoute: AuthenticatedPropertiesIdIndexRoute,
   AuthenticatedTenantsIdIndexRoute: AuthenticatedTenantsIdIndexRoute,
-  AuthenticatedMetersIndexRoute: AuthenticatedMetersIndexRoute,
-  AuthenticatedMetersNewRoute: AuthenticatedMetersNewRoute,
-  AuthenticatedMetersIdIndexRoute: AuthenticatedMetersIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
