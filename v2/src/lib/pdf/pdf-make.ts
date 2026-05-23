@@ -91,7 +91,7 @@ function withDefaults(doc: TDocumentDefinitions): TDocumentDefinitions {
     defaultStyle: {
       font: 'THSarabunNew',
       fontSize: 14, // THSarabunNew renders slightly smaller than Sarabun · bump default
-      lineHeight: 1.35,
+      lineHeight: 1.6,
       ...doc.defaultStyle,
     },
     ...doc,

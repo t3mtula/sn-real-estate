@@ -62,6 +62,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import {
   daysOverdue,
@@ -76,6 +77,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '@/features/invoices/types'
+import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 
@@ -405,11 +407,6 @@ export function Invoices() {
         <div className='flex flex-wrap items-end justify-between gap-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>ใบแจ้งหนี้</h2>
-            <p className='text-muted-foreground text-sm'>
-              {isLoading
-                ? 'กำลังโหลด...'
-                : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ใบ`}
-            </p>
           </div>
           <div className='flex flex-wrap items-center gap-2'>
             <Button
@@ -435,117 +432,135 @@ export function Invoices() {
 
         <GenerateMonthlyDialog open={genOpen} onOpenChange={setGenOpen} />
 
-        <div className='flex flex-wrap items-center gap-3'>
-          <div className='relative max-w-sm flex-1'>
-            <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              placeholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · เดือน...'
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className='pl-9'
-            />
-          </div>
-          <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className='w-[160px]'>
-              <SelectValue placeholder='ทุกเดือน' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>ทุกเดือน</SelectItem>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {formatMonth(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className='w-[160px]'>
-              <SelectValue placeholder='ทุกสถานะ' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>ทุกสถานะ</SelectItem>
-              <SelectItem value='overdue'>เกินกำหนด</SelectItem>
-              {INVOICE_STATUSES.filter((s) => s.value !== 'unknown').map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Tabs defaultValue='list'>
+          <TabsList>
+            <TabsTrigger value='list'>รายการ</TabsTrigger>
+            <TabsTrigger value='slip-upload'>อัปโหลดสลิป</TabsTrigger>
+          </TabsList>
 
-        {error && (
-          <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
-            ดึงข้อมูลไม่สำเร็จ —{' '}
-            {error instanceof Error ? error.message : String(error)}
-          </div>
-        )}
-
-        <div className='overflow-x-auto rounded-md border bg-card'>
-          <Table className='min-w-[900px]'>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className='hover:bg-transparent'>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className='text-xs uppercase tracking-wider'
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
+          <TabsContent value='list' className='mt-4 space-y-4'>
+            <div className='flex flex-wrap items-center gap-3'>
+              <div className='relative max-w-sm flex-1'>
+                <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
+                <Input
+                  placeholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · เดือน...'
+                  value={globalFilter}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className='pl-9'
+                />
+              </div>
+              <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <SelectTrigger className='w-[160px]'>
+                  <SelectValue placeholder='ทุกเดือน' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>ทุกเดือน</SelectItem>
+                  {months.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {formatMonth(m)}
+                    </SelectItem>
                   ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
-                  <TableRow key={`skeleton-${i}`}>
-                    <TableCell colSpan={columns.length}>
-                      <Skeleton className='h-8 w-full' />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className='h-32 text-center'>
-                    <div className='flex flex-col items-center gap-2 text-muted-foreground'>
-                      <Receipt className='size-8' />
-                      <p>
-                        {totalRows === 0
-                          ? 'ยังไม่มีใบแจ้งหนี้'
-                          : 'ไม่พบใบแจ้งหนี้ที่ตรงกับเงื่อนไข'}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn(
-                      'cursor-pointer',
-                      'hover:bg-muted/40',
-                      row.original._overdue > 0 && 'bg-destructive/5',
-                    )}
-                    onClick={() =>
-                      navigate({ to: '/invoices/$id', params: { id: row.original.id } })
-                    }
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className='py-3'>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className='w-[160px]'>
+                  <SelectValue placeholder='ทุกสถานะ' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>ทุกสถานะ</SelectItem>
+                  <SelectItem value='overdue'>เกินกำหนด</SelectItem>
+                  {INVOICE_STATUSES.filter((s) => s.value !== 'unknown').map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className='ml-auto text-sm text-muted-foreground'>
+                {isLoading
+                  ? 'กำลังโหลด...'
+                  : `${filteredRows.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} ใบ`}
+              </p>
+            </div>
+
+            {error && (
+              <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
+                ดึงข้อมูลไม่สำเร็จ —{' '}
+                {error instanceof Error ? error.message : String(error)}
+              </div>
+            )}
+
+            <div className='overflow-x-auto rounded-md border bg-card'>
+              <Table className='min-w-[900px]'>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className='hover:bg-transparent'>
+                      {headerGroup.headers.map((header) => (
+                        <TableHead
+                          key={header.id}
+                          className='text-xs uppercase tracking-wider'
+                        >
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
+                      <TableRow key={`skeleton-${i}`}>
+                        <TableCell colSpan={columns.length}>
+                          <Skeleton className='h-8 w-full' />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : table.getRowModel().rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className='h-32 text-center'>
+                        <div className='flex flex-col items-center gap-2 text-muted-foreground'>
+                          <Receipt className='size-8' />
+                          <p>
+                            {totalRows === 0
+                              ? 'ยังไม่มีใบแจ้งหนี้'
+                              : 'ไม่พบใบแจ้งหนี้ที่ตรงกับเงื่อนไข'}
+                          </p>
+                        </div>
                       </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                    </TableRow>
+                  ) : (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          'cursor-pointer',
+                          'hover:bg-muted/40',
+                          row.original._overdue > 0 && 'bg-destructive/5',
+                        )}
+                        onClick={() =>
+                          navigate({ to: '/invoices/$id', params: { id: row.original.id } })
+                        }
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className='py-3'>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value='slip-upload' className='mt-4'>
+            <SlipBatchUpload />
+          </TabsContent>
+        </Tabs>
       </Main>
 
       {/* Floating bulk action bar */}

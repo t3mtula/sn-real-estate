@@ -25,8 +25,11 @@ export type DisplaySettings = {
 }
 
 export type InvoiceSettings = {
+  prefix?: string
+  dueDay?: number
   vatMode?: 'none' | 'inclusive' | 'exclusive'
   vatRate?: number
+  invoiceNote?: string
   slipOkBranchId?: string
   slipOkApiKey?: string
 }

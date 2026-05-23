@@ -16,6 +16,7 @@ import {
   Image as ImageIcon,
   Plus,
   Search,
+  User,
   Users,
 } from 'lucide-react'
 import { useExportCSV } from '@/hooks/use-csv'
@@ -64,7 +65,7 @@ function typeLabel(value: string | undefined): string {
   return TYPE_LABEL[value] ?? value
 }
 
-type Row = Property & { _contractCount: number }
+type Row = Property & { _contractCount: number; _currentTenant: string | null }
 
 export function Properties() {
   const { data: properties, isLoading, error } = useProperties()
@@ -89,16 +90,35 @@ export function Properties() {
     return map
   }, [contractKeys])
 
+  // Map pid → current tenant name (first non-cancelled contract per property)
+  const tenantByPid = useMemo(() => {
+    const map = new Map<number, string>()
+    if (!contractKeys) return map
+    contractKeys.forEach((c) => {
+      if (c.data?.cancelled) return
+      const pid = c.data?.pid_property ?? c.data?.pid
+      if (pid == null) return
+      const n = Number(pid)
+      if (Number.isNaN(n)) return
+      if (!map.has(n) && c.data?.tenant) {
+        map.set(n, c.data.tenant)
+      }
+    })
+    return map
+  }, [contractKeys])
+
   const rows = useMemo<Row[]>(() => {
     if (!properties) return []
     return properties.map((p) => {
       const pid = p.data?.pid ?? Number.parseInt(p.id, 10)
+      const n = Number(pid)
       return {
         ...p,
-        _contractCount: contractCountByPid.get(Number(pid)) ?? 0,
+        _contractCount: contractCountByPid.get(n) ?? 0,
+        _currentTenant: tenantByPid.get(n) ?? null,
       }
     })
-  }, [properties, contractCountByPid])
+  }, [properties, contractCountByPid, tenantByPid])
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -191,6 +211,33 @@ export function Properties() {
             >
               <FileText className='mr-1 size-3' />
               {n.toLocaleString('th-TH')}
+            </Badge>
+          )
+        },
+      },
+      {
+        id: 'current_tenant',
+        accessorFn: (row) => row._currentTenant ?? '',
+        header: ({ column }) => (
+          <SortableHeader column={column}>ผู้เช่าปัจจุบัน</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const tenant = row.original._currentTenant
+          if (tenant) {
+            return (
+              <Badge
+                variant='outline'
+                className='font-normal bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300 max-w-[180px] truncate block'
+                title={tenant}
+              >
+                <User className='mr-1 size-3 inline' />
+                {tenant}
+              </Badge>
+            )
+          }
+          return (
+            <Badge variant='outline' className='font-normal text-muted-foreground'>
+              ว่าง
             </Badge>
           )
         },

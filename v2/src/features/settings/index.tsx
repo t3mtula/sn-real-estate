@@ -1,51 +1,63 @@
 import { Outlet } from '@tanstack/react-router'
-import { Building2, FileText, Monitor, Palette, Receipt, UserCog, Users } from 'lucide-react'
+import { Building2, FileText, Monitor, Palette, Receipt, Settings2, UserCog, Users } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { useContractTemplates } from '@/features/templates/queries'
 import { SidebarNav } from './components/sidebar-nav'
 
-const sidebarNavItems = [
-  {
-    title: 'ข้อมูลบริษัท',
-    href: '/settings/company',
-    icon: <Building2 size={18} />,
-  },
-  {
-    title: 'พนักงาน',
-    href: '/settings/staff',
-    icon: <Users size={18} />,
-  },
-  {
-    title: 'การแสดงผล',
-    href: '/settings/display',
-    icon: <Monitor size={18} />,
-  },
-  {
-    title: 'ใบแจ้งหนี้',
-    href: '/settings/invoice-settings',
-    icon: <Receipt size={18} />,
-  },
-  {
-    title: 'ฟอร์มสัญญา',
-    href: '/settings/templates',
-    icon: <FileText size={18} />,
-  },
-  {
-    title: 'บัญชีผู้ใช้',
-    href: '/settings',
-    icon: <UserCog size={18} />,
-  },
-  {
-    title: 'หน้าตา',
-    href: '/settings/appearance',
-    icon: <Palette size={18} />,
-  },
-]
-
 export function Settings() {
+  const { data: templates } = useContractTemplates()
+  const activeTemplate = templates?.find((t) => t.is_active) ?? templates?.[0]
+  const templateHref = activeTemplate
+    ? `/settings/templates/${activeTemplate.id}`
+    : '/settings/templates/new'
+
+  const sidebarNavItems = [
+    {
+      title: 'ข้อมูลบริษัท',
+      href: '/settings/company',
+      icon: <Building2 size={18} />,
+    },
+    {
+      title: 'พนักงาน',
+      href: '/settings/staff',
+      icon: <Users size={18} />,
+    },
+    {
+      title: 'การแสดงผล',
+      href: '/settings/display',
+      icon: <Monitor size={18} />,
+    },
+    {
+      title: 'ใบแจ้งหนี้',
+      href: '/settings/invoice-settings',
+      icon: <Receipt size={18} />,
+    },
+    {
+      title: 'ฟอร์มสัญญา',
+      href: templateHref,
+      icon: <FileText size={18} />,
+    },
+    {
+      title: 'ระบบ',
+      href: '/settings/system',
+      icon: <Settings2 size={18} />,
+    },
+    {
+      title: 'บัญชีผู้ใช้',
+      href: '/settings',
+      icon: <UserCog size={18} />,
+    },
+    {
+      title: 'หน้าตา',
+      href: '/settings/appearance',
+      icon: <Palette size={18} />,
+    },
+  ]
+
   return (
     <>
       <Header>

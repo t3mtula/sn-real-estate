@@ -13,8 +13,10 @@ type AuthenticatedLayoutProps = {
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   // Default to expanded on first visit · honor user toggle via cookie afterwards
+  // On mobile (<768 px) always start collapsed regardless of cookie
   const stored = getCookie('sidebar_state')
-  const defaultOpen = stored === null || stored === '' ? true : stored !== 'false'
+  const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768
+  const defaultOpen = isMobileViewport ? false : (stored === null || stored === '' ? true : stored !== 'false')
   return (
     <SearchProvider>
       <LayoutProvider>
