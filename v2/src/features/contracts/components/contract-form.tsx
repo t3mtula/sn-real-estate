@@ -94,6 +94,27 @@ export function ContractForm({
     }
   }, [pidProperty, properties, mode, form])
 
+  // Auto-fill wit1 จากพยานประจำของ landlord (ถ้า field ว่าง)
+  const tenantId = form.watch('tenant_id')
+  useEffect(() => {
+    if (!landlordId) return
+    const landlord = landlords?.find((l) => l.id === landlordId)
+    const defaultWit = landlord?.data?.witnesses?.[0]?.trim()
+    if (defaultWit && !form.getValues('wit1')?.trim()) {
+      form.setValue('wit1', defaultWit, { shouldDirty: false })
+    }
+  }, [landlordId, landlords, form])
+
+  // Auto-fill wit2 จากพยานประจำของ tenant (ถ้า field ว่าง)
+  useEffect(() => {
+    if (!tenantId) return
+    const tenant = tenants?.find((t) => t.id === tenantId)
+    const defaultWit = tenant?.data?.witnesses?.[0]?.trim()
+    if (defaultWit && !form.getValues('wit2')?.trim()) {
+      form.setValue('wit2', defaultWit, { shouldDirty: false })
+    }
+  }, [tenantId, tenants, form])
+
   // Filter bank accounts by landlord (via landlord_banks junction) — but allow free choice
   const { data: landlordBanks } = useBankAccountsForLandlord(landlordId)
   const filteredBanks = useMemo(() => {
@@ -469,20 +490,20 @@ export function ContractForm({
         </div>
 
         <div>
-          <Label htmlFor='wit1'>พยานคนที่ 1</Label>
+          <Label htmlFor='wit1'>พยาน (ฝั่งผู้ให้เช่า)</Label>
           <Input
             id='wit1'
             {...form.register('wit1')}
-            placeholder='ชื่อพยาน'
+            placeholder='ดึงจากผู้ให้เช่าอัตโนมัติ — แก้ไขได้'
           />
         </div>
 
         <div>
-          <Label htmlFor='wit2'>พยานคนที่ 2</Label>
+          <Label htmlFor='wit2'>พยาน (ฝั่งผู้เช่า)</Label>
           <Input
             id='wit2'
             {...form.register('wit2')}
-            placeholder='ชื่อพยาน'
+            placeholder='ดึงจากผู้เช่าอัตโนมัติ — แก้ไขได้'
           />
         </div>
       </section>
