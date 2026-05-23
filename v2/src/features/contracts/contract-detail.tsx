@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   CreditCard,
   DoorOpen,
   FileText,
@@ -37,6 +39,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
@@ -44,6 +47,8 @@ import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
 import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
 import { ClauseOverridePanel } from '@/features/contracts/components/clause-override-panel'
+import { InspectionPanel } from '@/features/contracts/components/inspection-panel'
+import { DepositReturnPanel } from '@/features/contracts/components/deposit-return-panel'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import {
@@ -366,6 +371,7 @@ function Content({
   const navigate = useNavigate()
   const [cancelOpen, setCancelOpen] = useState(false)
   const [moveOutOpen, setMoveOutOpen] = useState(false)
+  const [moveOutExpanded, setMoveOutExpanded] = useState(false)
   const restore = useRestoreContract(contract.id)
   const confirm = useConfirm()
 
@@ -738,6 +744,91 @@ function Content({
 
       <SubleaseChain contract={contract} />
       <ClauseOverridePanel contract={contract} />
+
+      {/* ─── การย้ายออก ─── */}
+      {(() => {
+        const showSection = c.cancelled || !!c.noticeDate || c.inspection || c.depositReturn
+        const isExpanded = showSection || moveOutExpanded
+
+        return (
+          <div className='rounded-md border'>
+            <button
+              type='button'
+              className='flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-muted/30 transition-colors'
+              onClick={() => !showSection && setMoveOutExpanded((prev) => !prev)}
+            >
+              <div className='flex items-center gap-2'>
+                <DoorOpen className='size-4 text-muted-foreground' />
+                <span className='text-sm font-medium'>การย้ายออก</span>
+                {c.depositReturn && (
+                  <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-300'>
+                    ปิดแล้ว
+                  </span>
+                )}
+                {!c.depositReturn && c.inspection && (
+                  <span className='rounded-full bg-sky-500/10 px-2 py-0.5 text-xs text-sky-700 dark:text-sky-300'>
+                    ตรวจแล้ว
+                  </span>
+                )}
+                {!c.depositReturn && !c.inspection && c.noticeDate && (
+                  <span className='rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300'>
+                    แจ้งออกแล้ว
+                  </span>
+                )}
+              </div>
+              {!showSection && (
+                <span className='text-xs text-muted-foreground flex items-center gap-1'>
+                  {moveOutExpanded ? 'ย่อ' : 'เริ่มกระบวนการย้ายออก'}
+                  {moveOutExpanded ? <ChevronUp className='size-3' /> : <ChevronDown className='size-3' />}
+                </span>
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className='border-t p-4 space-y-4'>
+                {/* 1. แจ้งออก */}
+                {c.noticeDate && (
+                  <div className='space-y-1'>
+                    <p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>แจ้งออก</p>
+                    <div className='rounded-md border bg-muted/20 px-3 py-2 text-sm space-y-1'>
+                      <div className='flex gap-6'>
+                        <span className='text-muted-foreground'>วันแจ้ง</span>
+                        <span className='font-medium'>{c.noticeDate}</span>
+                      </div>
+                      <div className='flex gap-6'>
+                        <span className='text-muted-foreground'>กำหนดออก</span>
+                        <span className='font-medium'>{c.plannedMoveOut || '—'}</span>
+                      </div>
+                      {c.noticeNote && (
+                        <div className='text-xs text-muted-foreground pt-1'>{c.noticeNote}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {c.noticeDate && (c.inspection || c.depositReturn) && <Separator />}
+
+                {/* 2. ผลตรวจรับคืน */}
+                <div className='space-y-1'>
+                  {c.noticeDate && (
+                    <p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>ผลตรวจรับคืน</p>
+                  )}
+                  <InspectionPanel contract={contract} />
+                </div>
+
+                <Separator />
+
+                {/* 3. คืนเงินประกัน */}
+                <div className='space-y-1'>
+                  <p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>คืนเงินประกัน</p>
+                  <DepositReturnPanel contract={contract} />
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       <EntityAuditPanel entity='contracts' entityId={contract.id} />
     </>
   )

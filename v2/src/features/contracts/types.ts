@@ -14,6 +14,42 @@
  *   parent_contract_id (สำหรับ sublease chain · ก→ข→ค บนทรัพย์เดียว)
  */
 
+/**
+ * Move-out inspection record · stored in contract.data.inspection
+ */
+export type MoveOutInspectionItem = {
+  label: string
+  status: 'pass' | 'fail' | 'na'
+  deduction: number
+  note: string
+}
+
+export type MoveOutInspection = {
+  date: string            // "DD/MM/YYYY" BE
+  inspector: string
+  items: MoveOutInspectionItem[]
+  totalDeduction: number
+  notes: string
+  completedAt: string     // ISO timestamp
+}
+
+/**
+ * Deposit return record · stored in contract.data.depositReturn
+ */
+export type DepositReturn = {
+  originalDeposit: number
+  deductionFromInspection: number
+  deductionUnpaidInvoices: number
+  otherDeductions: number
+  otherDeductionsNote: string
+  refundAmount: number    // calculated
+  returnDate: string      // "DD/MM/YYYY" BE
+  returnMethod: string    // โอนเงิน/เงินสด/เช็ค
+  returnRef: string
+  returnNote: string
+  completedAt: string     // ISO timestamp
+}
+
 export const CONTRACT_STATUSES = [
   { value: 'active', label: 'ใช้งาน', tone: 'success' },
   { value: 'expiring', label: 'ใกล้หมด', tone: 'warning' },
@@ -104,6 +140,12 @@ export type ContractData = {
 
   /** Per-contract clause overrides */
   clauseOverrides?: Record<string, string>
+
+  /** Move-out inspection record */
+  inspection?: MoveOutInspection
+
+  /** Deposit return record */
+  depositReturn?: DepositReturn
 
   /** v1 legacy other fields stored intact */
   [key: string]: unknown

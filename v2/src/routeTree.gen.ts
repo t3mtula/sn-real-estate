@@ -61,6 +61,10 @@ import { Route as AuthenticatedSettingsTemplatesIdRouteImport } from './routes/_
 import { Route as AuthenticatedInvoicesIdReceiptRouteImport } from './routes/_authenticated/invoices/$id/receipt'
 import { Route as AuthenticatedInvoicesIdPrintRouteImport } from './routes/_authenticated/invoices/$id/print'
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
+import { Route as AuthenticatedMetersIndexRouteImport } from './routes/_authenticated/meters/index'
+import { Route as AuthenticatedMetersNewRouteImport } from './routes/_authenticated/meters/new'
+import { Route as AuthenticatedMetersIdIndexRouteImport } from './routes/_authenticated/meters/$id/index'
+import { Route as AuthenticatedContractsIdDepositReturnRouteImport } from './routes/_authenticated/contracts/$id/deposit-return'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -358,6 +362,22 @@ const AuthenticatedContractsIdPrintRoute =
     path: '/contracts/$id/print',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMetersIndexRoute = AuthenticatedMetersIndexRouteImport.update({
+  id: '/meters/',
+  path: '/meters/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMetersNewRoute = AuthenticatedMetersNewRouteImport.update({
+  id: '/meters/new',
+  path: '/meters/new',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMetersIdIndexRoute =
+  AuthenticatedMetersIdIndexRouteImport.update({
+    id: '/meters/$id/',
+    path: '/meters/$id/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -411,6 +431,9 @@ export interface FileRoutesByFullPath {
   '/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
+  '/meters/': typeof AuthenticatedMetersIndexRoute
+  '/meters/new': typeof AuthenticatedMetersNewRoute
+  '/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth-callback': typeof authAuthCallbackRoute
@@ -463,6 +486,9 @@ export interface FileRoutesByTo {
   '/properties/$id': typeof AuthenticatedPropertiesIdIndexRoute
   '/settings/templates': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/tenants/$id': typeof AuthenticatedTenantsIdIndexRoute
+  '/meters': typeof AuthenticatedMetersIndexRoute
+  '/meters/new': typeof AuthenticatedMetersNewRoute
+  '/meters/$id': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -518,6 +544,9 @@ export interface FileRoutesById {
   '/_authenticated/properties/$id/': typeof AuthenticatedPropertiesIdIndexRoute
   '/_authenticated/settings/templates/': typeof AuthenticatedSettingsTemplatesIndexRoute
   '/_authenticated/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
+  '/_authenticated/meters/': typeof AuthenticatedMetersIndexRoute
+  '/_authenticated/meters/new': typeof AuthenticatedMetersNewRoute
+  '/_authenticated/meters/$id/': typeof AuthenticatedMetersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -573,6 +602,9 @@ export interface FileRouteTypes {
     | '/properties/$id/'
     | '/settings/templates/'
     | '/tenants/$id/'
+    | '/meters/'
+    | '/meters/new'
+    | '/meters/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth-callback'
@@ -625,6 +657,9 @@ export interface FileRouteTypes {
     | '/properties/$id'
     | '/settings/templates'
     | '/tenants/$id'
+    | '/meters'
+    | '/meters/new'
+    | '/meters/$id'
   id:
     | '__root__'
     | '/_authenticated'
@@ -679,6 +714,9 @@ export interface FileRouteTypes {
     | '/_authenticated/properties/$id/'
     | '/_authenticated/settings/templates/'
     | '/_authenticated/tenants/$id/'
+    | '/_authenticated/meters/'
+    | '/_authenticated/meters/new'
+    | '/_authenticated/meters/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1062,6 +1100,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContractsIdPrintRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/meters/': {
+      id: '/_authenticated/meters/'
+      path: '/meters'
+      fullPath: '/meters/'
+      preLoaderRoute: typeof AuthenticatedMetersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meters/new': {
+      id: '/_authenticated/meters/new'
+      path: '/meters/new'
+      fullPath: '/meters/new'
+      preLoaderRoute: typeof AuthenticatedMetersNewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/meters/$id/': {
+      id: '/_authenticated/meters/$id/'
+      path: '/meters/$id'
+      fullPath: '/meters/$id/'
+      preLoaderRoute: typeof AuthenticatedMetersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -1131,6 +1190,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLandlordsIdIndexRoute: typeof AuthenticatedLandlordsIdIndexRoute
   AuthenticatedPropertiesIdIndexRoute: typeof AuthenticatedPropertiesIdIndexRoute
   AuthenticatedTenantsIdIndexRoute: typeof AuthenticatedTenantsIdIndexRoute
+  AuthenticatedMetersIndexRoute: typeof AuthenticatedMetersIndexRoute
+  AuthenticatedMetersNewRoute: typeof AuthenticatedMetersNewRoute
+  AuthenticatedMetersIdIndexRoute: typeof AuthenticatedMetersIdIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -1165,6 +1227,9 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLandlordsIdIndexRoute: AuthenticatedLandlordsIdIndexRoute,
   AuthenticatedPropertiesIdIndexRoute: AuthenticatedPropertiesIdIndexRoute,
   AuthenticatedTenantsIdIndexRoute: AuthenticatedTenantsIdIndexRoute,
+  AuthenticatedMetersIndexRoute: AuthenticatedMetersIndexRoute,
+  AuthenticatedMetersNewRoute: AuthenticatedMetersNewRoute,
+  AuthenticatedMetersIdIndexRoute: AuthenticatedMetersIdIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

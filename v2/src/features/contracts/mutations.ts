@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { parseBE } from '@/lib/thai'
 import { assembleAddress } from '@/lib/thai-address'
 import type { ContractFormValues } from '@/features/contracts/schema'
-import type { ContractData } from '@/features/contracts/types'
+import type { ContractData, DepositReturn, MoveOutInspection } from '@/features/contracts/types'
 
 const TABLE = 'contracts'
 
@@ -350,6 +350,67 @@ export function useUpdateMoveOutNotice(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
       qc.invalidateQueries({ queryKey: ['contracts', id] })
+    },
+  })
+}
+
+/**
+ * Record move-out inspection · saves to contract.data.inspection
+ */
+export function useRecordInspection(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (inspection: MoveOutInspection) => {
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const c = (existing?.data ?? {}) as ContractData
+      await mergeUpdateContract(id, { inspection })
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `บันทึกผลตรวจรับคืน ${c.no ?? '#' + id} · หักรวม ${inspection.totalDeduction} บาท`,
+        after: { inspection },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+    },
+  })
+}
+
+/**
+ * Record deposit return · saves to contract.data.depositReturn + marks closed
+ */
+export function useRecordDepositReturn(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (depositReturn: DepositReturn) => {
+      const { data: existing, error } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .single()
+      if (error) throw error
+      const c = (existing?.data ?? {}) as ContractData
+      await mergeUpdateContract(id, { depositReturn, closed: true })
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `บันทึกคืนเงินประกัน ${c.no ?? '#' + id} · คืน ${depositReturn.refundAmount} บาท · ปิดสัญญา`,
+        after: { depositReturn, closed: true },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+      qc.invalidateQueries({ queryKey: ['contracts-match-keys'] })
     },
   })
 }
