@@ -51,10 +51,21 @@ function currentMonth(): string {
  */
 function monthlyRev(c: Contract): number {
   const raw = c.data?.rate
-  if (typeof raw === 'number' && !isNaN(raw)) return raw
   if (raw == null) return 0
-  const parsed = parseFloat(String(raw).replace(/,/g, '').replace(/[^0-9.]/g, ''))
-  return isNaN(parsed) ? 0 : parsed
+  if (typeof raw === 'number' && !isNaN(raw)) return raw
+  // String like "เดือนละ 7,986 บาท (...)" or "ปีละ 47,916 บาท (...)"
+  // Match first numeric token before "บาท" or end
+  const str = String(raw)
+  const match = str.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/)
+  if (!match) return 0
+  const amount = parseFloat(match[1])
+  if (isNaN(amount) || amount <= 0) return 0
+  // Normalize to monthly
+  if (/ปีละ|รายปี|ต่อปี/.test(str)) return amount / 12
+  if (/ไตรมาส|ทุก 3 เดือน|รายไตรมาส/.test(str)) return amount / 3
+  if (/ครึ่งปี|6 เดือน/.test(str)) return amount / 6
+  // Default: assume per month
+  return amount
 }
 
 type KpiTone = 'primary' | 'success' | 'warning' | 'destructive' | 'info' | 'neutral'
