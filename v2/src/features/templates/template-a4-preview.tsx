@@ -1,28 +1,27 @@
 /**
- * Template A4 Preview — renders the **real PDF** from pdfmake (same code path
- * as /contracts/$id/print) so what you see in the editor === what comes out
- * of the printer. No HTML/CSS approximation.
+ * Template A4 Preview — renders the **same HTML** as the deployed contract
+ * print (modules/17-contract-print.js port) so what you see in the editor
+ * === what the printer outputs. No pdfmake / no approximation.
  *
  * Implementation:
  *   1. Build a fake `Contract` + fake `Tenant`/`Landlord`/`Property`/`BankAccount`
  *      with sample data the user can recognize.
  *   2. Wrap the draft template in a `ContractTemplate` shape and call
- *      `buildContractPdf({ contract, template, ...refs })`.
- *   3. `getPdfBlob(doc)` → object URL → render in <iframe>.
+ *      `buildContractHtml(...)` from the same module used by contract detail.
+ *   3. Drop the resulting HTML string into an iframe via `srcDoc` — browser
+ *      pagination + @media print baked in.
  *   4. Debounce regeneration on draft changes (500ms) so typing in the
- *      editor doesn't hammer pdfmake every keystroke.
- *   5. Revoke previous object URL on cleanup.
+ *      editor doesn't rebuild the document every keystroke.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
+import { buildContractHtml } from '@/features/contracts/print/contract-html'
 import type { BankAccount } from '@/features/bank-accounts/types'
 import type { Contract } from '@/features/contracts/types'
 import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
-import { getPdfBlob } from '@/lib/pdf'
 import type { ContractTemplate, TemplateData } from './types'
 
 interface Props {
@@ -125,106 +124,65 @@ const SAMPLE_BANK: BankAccount = {
 /* ─────────── main component ─────────── */
 
 export function TemplateA4Preview({ draft }: Props) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [building, setBuilding] = useState(false)
+  const [html, setHtml] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const urlRef = useRef<string | null>(null)
 
   // Debounce regeneration on draft changes (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
-      let cancelled = false
-      setBuilding(true)
-      setErr(null)
-
-      // Build a ContractTemplate wrapper around the draft
-      const template: ContractTemplate = {
-        id: 'preview-template',
-        data: draft,
-        is_active: false,
-        created_at: null,
-        updated_at: null,
-      }
-
-      ;(async () => {
-        try {
-          const doc = buildContractPdf({
-            contract: SAMPLE_CONTRACT,
-            tenant: SAMPLE_TENANT,
-            landlord: SAMPLE_LANDLORD,
-            bank: SAMPLE_BANK,
-            property: SAMPLE_PROPERTY,
-            parent: null,
-            template,
-          })
-          const blob = await getPdfBlob(doc)
-          if (cancelled) return
-          const url = URL.createObjectURL(blob)
-          // Revoke the previous URL before replacing
-          if (urlRef.current) URL.revokeObjectURL(urlRef.current)
-          urlRef.current = url
-          setPdfUrl(url)
-        } catch (e) {
-          if (cancelled) return
-          setErr(e instanceof Error ? e.message : String(e))
-        } finally {
-          if (!cancelled) setBuilding(false)
+      try {
+        const template: ContractTemplate = {
+          id: 'preview-template',
+          data: draft,
+          is_active: false,
+          created_at: null,
+          updated_at: null,
         }
-      })()
-
-      return () => {
-        cancelled = true
+        const out = buildContractHtml({
+          contract: SAMPLE_CONTRACT,
+          tenant: SAMPLE_TENANT,
+          landlord: SAMPLE_LANDLORD,
+          bank: SAMPLE_BANK,
+          property: SAMPLE_PROPERTY,
+          parent: null,
+          template,
+        })
+        setHtml(out)
+        setErr(null)
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : String(e))
       }
     }, 500)
-
     return () => clearTimeout(timer)
   }, [draft])
 
-  // Final cleanup of blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (urlRef.current) {
-        URL.revokeObjectURL(urlRef.current)
-        urlRef.current = null
-      }
-    }
-  }, [])
-
   return (
     <div className='flex h-full flex-col'>
-      {/* toolbar */}
       <div className='mb-3 flex items-center gap-2'>
         <span className='text-sm font-medium text-muted-foreground'>
-          A4 Preview · PDF จริง
+          A4 Preview · ผลลัพธ์การพิมพ์จริง
         </span>
-        {building && (
-          <span className='flex items-center gap-1 text-xs text-muted-foreground'>
-            <Loader2 className='size-3 animate-spin' />
-            กำลังสร้าง...
-          </span>
-        )}
         <span className='ml-auto text-xs text-muted-foreground'>
           ตัวอย่างใช้ข้อมูลสมมุติ
         </span>
       </div>
 
-      {/* iframe area */}
       <div className='flex-1 overflow-hidden rounded-md border bg-muted/30'>
         {err ? (
           <div className='m-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive'>
-            <p className='font-medium'>สร้าง PDF ไม่สำเร็จ</p>
+            <p className='font-medium'>สร้าง preview ไม่สำเร็จ</p>
             <p className='mt-1'>{err}</p>
           </div>
-        ) : pdfUrl ? (
+        ) : html ? (
           <iframe
             title='Contract template preview'
-            src={pdfUrl}
+            srcDoc={html}
             className='h-full w-full border-0'
           />
         ) : (
           <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
             <Loader2 className='mr-2 size-4 animate-spin' />
-            กำลังสร้างเอกสาร...
+            กำลังสร้าง preview...
           </div>
         )}
       </div>
