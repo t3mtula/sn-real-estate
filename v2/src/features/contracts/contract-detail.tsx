@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { CopyButton } from '@/components/copy-button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -306,7 +307,19 @@ function ContractEditing({
     rate: coerceNumber(c.rate),
     deposit: coerceNumber(c.deposit),
     dur: coerceNumber((c as any).durMonths) || coerceDurMonths(c.dur),
-    payment: c.payment ?? 'รายเดือน',
+    // Hydrate payment from existing data — DO NOT default to 'รายเดือน' which
+    // silently corrupts lump-sum/annual contracts. If c.payment missing,
+    // derive from structured payFreq · else empty (staff fills in).
+    payment: (() => {
+      if (c.payment) return c.payment
+      const pf = (c as { payFreq?: string }).payFreq
+      if (pf === 'lump') return 'จ่ายครั้งเดียว'
+      if (pf === 'annual') return 'รายปี'
+      if (pf === 'semiannual') return 'ครึ่งปี'
+      if (pf === 'quarterly') return 'รายไตรมาส'
+      if (pf === 'monthly') return 'รายเดือน'
+      return ''
+    })(),
     purpose: (c.purpose as string) ?? 'พักอาศัย',
     // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line
     madeAtLine: c.madeAtLine ?? c.madeAt ?? '',
@@ -484,7 +497,7 @@ function Content({
               <Button
                 variant='outline'
                 onClick={() => setCancelOpen(true)}
-                className='text-destructive hover:text-destructive'
+                className='text-destructive hover:bg-destructive/10 hover:text-destructive'
               >
                 <XCircle className='size-4' />
                 ยกเลิกสัญญา
@@ -605,13 +618,21 @@ function Content({
 
             <InfoRow icon={CreditCard} label='บัญชีรับเงิน'>
               {bank.data ? (
-                <Link
-                  to='/bank-accounts/$id'
-                  params={{ id: bank.data.id }}
-                  className='text-primary underline-offset-4 hover:underline'
-                >
-                  {bank.data.data?.bank} · {bank.data.data?.acctNo}
-                </Link>
+                <span className='inline-flex items-center gap-1'>
+                  <Link
+                    to='/bank-accounts/$id'
+                    params={{ id: bank.data.id }}
+                    className='text-primary underline-offset-4 hover:underline'
+                  >
+                    {bank.data.data?.bank} · {bank.data.data?.acctNo}
+                  </Link>
+                  {bank.data.data?.acctNo && (
+                    <CopyButton
+                      text={bank.data.data.acctNo}
+                      label='คัดลอกเลขบัญชี'
+                    />
+                  )}
+                </span>
               ) : landlord.data ? (
                 <span className='text-xs italic text-muted-foreground'>
                   ยังไม่เลือก ·{' '}

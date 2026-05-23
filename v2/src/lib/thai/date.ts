@@ -25,6 +25,19 @@ export function fmtBE(
   input: Date | string | Dayjs | null | undefined,
   format = "DD/MM/BBBB",
 ): string {
+  // Guard against double-BE conversion: if input is a string already in
+  // "DD/MM/BBBB" BE format (year > 2400), parse as BE first so dayjs gets
+  // the correct AD year before BBBB adds 543 back.
+  if (typeof input === "string") {
+    const m = input.trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
+    if (m?.[3]) {
+      const year = Number.parseInt(m[3], 10)
+      if (year > 2400) {
+        const parsed = parseBE(input)
+        return parsed ? parsed.format(format) : ""
+      }
+    }
+  }
   const d = toDayjs(input)
   return d ? d.format(format) : ""
 }

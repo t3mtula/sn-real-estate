@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
+import { PhoneActions } from '@/components/phone-actions'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +31,7 @@ import {
   useTenant,
   useTenantContracts,
 } from '@/features/tenants/queries'
+import { useContracts } from '@/features/contracts/queries'
 import {
   DuplicateTaxIdError,
   useDeleteTenant,
@@ -79,7 +81,14 @@ function InfoRow({
 
 export function TenantDetail({ id }: { id: string }) {
   const { data: tenant, isLoading, error } = useTenant(id)
-  const contracts = useTenantContracts(tenant ?? null)
+  // Use match keys to find related IDs (lightweight), then enrich with full contract data
+  const matchedKeys = useTenantContracts(tenant ?? null)
+  const { data: allContracts } = useContracts()
+  const matchedIds = new Set((matchedKeys.data ?? []).map((c) => c.id))
+  const contracts = {
+    ...matchedKeys,
+    data: (allContracts ?? []).filter((c) => matchedIds.has(c.id)),
+  }
   const del = useDeleteTenant()
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -276,7 +285,7 @@ function Content({
         </div>
         <div className='flex gap-2'>
           <Button
-            variant='ghost'
+            variant='outline'
             onClick={onDelete}
             disabled={deleting}
             className='text-destructive hover:bg-destructive/10 hover:text-destructive'
@@ -305,7 +314,17 @@ function Content({
             {isCompany && (
               <InfoRow icon={Building2} label='สาขา' value={t.branch} />
             )}
-            <InfoRow icon={Phone} label='เบอร์โทร' value={t.phone} />
+            <div className='flex gap-3'>
+              <div className='mt-0.5'>
+                <Phone className='size-4 text-muted-foreground' />
+              </div>
+              <div className='min-w-0 flex-1'>
+                <p className='text-xs uppercase tracking-wider text-muted-foreground'>
+                  เบอร์โทร
+                </p>
+                <PhoneActions phone={t.phone} />
+              </div>
+            </div>
             <div className='sm:col-span-2'>
               <InfoRow icon={MapPin} label='ที่อยู่' value={addr} />
             </div>
@@ -370,29 +389,36 @@ function Content({
                 {contracts.map((c) => {
                   const cd = c.data as {
                     no?: string
+                    tenant?: string
                     property?: string
                     start?: string
                     end?: string
-                    status?: string
+                    cancelled?: boolean
                   }
+                  const isCancelled = !!cd.cancelled
+                  const statusLabel = isCancelled
+                    ? 'ยกเลิก'
+                    : cd.end
+                      ? 'ใช้งาน'
+                      : '—'
                   return (
                     <li
                       key={c.id}
                       className='flex items-center justify-between gap-2 py-2 text-sm'
                     >
-                      <div className='min-w-0'>
-                        <p className='font-medium'>
-                          {cd.no ?? `#${c.id}`}
-                        </p>
+                      <Link
+                        to='/contracts/$id'
+                        params={{ id: c.id }}
+                        className='flex-1 min-w-0 hover:underline'
+                      >
+                        <p className='font-medium'>{cd.no ?? `#${c.id}`}</p>
                         <p className='truncate text-xs text-muted-foreground'>
                           {cd.property ?? '—'} · {cd.start ?? '—'} → {cd.end ?? '—'}
                         </p>
-                      </div>
-                      {cd.status && (
-                        <Badge variant='outline' className='shrink-0 font-normal'>
-                          {cd.status}
-                        </Badge>
-                      )}
+                      </Link>
+                      <Badge variant={isCancelled ? 'destructive' : 'outline'} className='shrink-0 font-normal'>
+                        {statusLabel}
+                      </Badge>
                     </li>
                   )
                 })}

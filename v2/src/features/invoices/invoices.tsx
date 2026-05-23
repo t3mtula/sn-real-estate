@@ -19,11 +19,12 @@ import {
   Search,
   Send,
   Sparkles,
+  Wallet,
   X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -77,6 +78,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '@/features/invoices/types'
+import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -102,19 +104,29 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
 
 export function Invoices() {
   const { data: invoices, isLoading, error } = useInvoices()
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'month', desc: true }])
+  // Default: no explicit column sort — rows are pre-sorted "งานเร่งด่วน" first
+  // (most overdue first → most recent month). Clicking a column header overrides.
+  const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const rows = useMemo<Row[]>(() => {
     if (!invoices) return []
-    return invoices.map((inv) => ({
+    const enriched = invoices.map((inv) => ({
       ...inv,
       _status: getEffectiveStatus(inv),
       _overdue: daysOverdue(inv),
     }))
+    // Default "urgent first" — overrideable by clicking column headers.
+    return enriched.sort((a, b) => {
+      if (a._overdue !== b._overdue) return b._overdue - a._overdue
+      const am = a.data?.month ?? ''
+      const bm = b.data?.month ?? ''
+      return bm.localeCompare(am)
+    })
   }, [invoices])
 
   const months = useMemo(() => {
@@ -252,6 +264,31 @@ export function Invoices() {
           return row.original._status === value
         },
       },
+      {
+        id: 'actions',
+        size: 60,
+        enableSorting: false,
+        header: () => <span className='sr-only'>การกระทำ</span>,
+        cell: ({ row }) => {
+          const st = row.original._status
+          // hide on terminal states — paid/voided
+          if (st === 'paid' || st === 'voided') return null
+          return (
+            <Button
+              size='icon'
+              variant='ghost'
+              className='size-7 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400'
+              title='บันทึกรับเงิน'
+              onClick={(e) => {
+                e.stopPropagation()
+                setPayQuickId(row.original.id)
+              }}
+            >
+              <Wallet className='size-4' />
+            </Button>
+          )
+        },
+      },
     ],
     [],
   )
@@ -311,7 +348,7 @@ export function Invoices() {
   const [genOpen, setGenOpen] = useState(false)
   const [voidOpen, setVoidOpen] = useState(false)
   const [voidReason, setVoidReason] = useState('')
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
   const batchMarkSent = useBatchMarkSent()
   const batchVoid = useBatchVoid()
 
@@ -373,25 +410,39 @@ export function Invoices() {
       const inv = r.original
       const meta = getStatusMeta(inv._status)
       return {
-        เลขที่: getInvoiceDisplay(inv),
-        เดือน: formatMonth(inv.data?.month),
-        วันที่ออก: inv.data?.date ?? '',
-        วันครบกำหนด: inv.data?.dueDate ?? '',
-        ผู้เช่า: inv.data?.tenant ?? '',
-        ผู้ให้เช่า: inv.data?.landlord ?? '',
-        ทรัพย์สิน: inv.data?.property ?? '',
-        ยอด: Number(inv.data?.total) || 0,
-        ชำระแล้ว: Number(inv.data?.paidAmount) || 0,
-        คงเหลือ: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
-        สถานะ: meta.label,
-        เกินกำหนด: inv._overdue > 0 ? inv._overdue : '',
+        no: getInvoiceDisplay(inv),
+        month: formatMonth(inv.data?.month),
+        date: inv.data?.date ?? '',
+        dueDate: inv.data?.dueDate ?? '',
+        tenant: inv.data?.tenant ?? '',
+        landlord: inv.data?.landlord ?? '',
+        property: inv.data?.property ?? '',
+        total: Number(inv.data?.total) || 0,
+        paid: Number(inv.data?.paidAmount) || 0,
+        remaining: Number(inv.data?.remainingAmount ?? inv.data?.total) || 0,
+        status: meta.label,
+        overdue: inv._overdue > 0 ? inv._overdue : '',
       }
     })
-    const month = new Date()
-    const stamp = `${month.getFullYear()}${String(month.getMonth() + 1).padStart(2, '0')}${String(month.getDate()).padStart(2, '0')}`
-    exportXLSX(visibleRows, `invoices-${stamp}.xlsx`, {
-      sheetName: 'ใบแจ้งหนี้',
-    })
+    void exportXlsx(
+      xlsxFilename('ใบแจ้งหนี้'),
+      [
+        { header: 'เลขที่', key: 'no', width: 16 },
+        { header: 'เดือน', key: 'month', width: 12 },
+        { header: 'วันที่ออก', key: 'date', width: 12 },
+        { header: 'วันครบกำหนด', key: 'dueDate', width: 14 },
+        { header: 'ผู้เช่า', key: 'tenant', width: 28 },
+        { header: 'ผู้ให้เช่า', key: 'landlord', width: 24 },
+        { header: 'ทรัพย์สิน', key: 'property', width: 24 },
+        { header: 'ยอด', key: 'total', width: 12 },
+        { header: 'ชำระแล้ว', key: 'paid', width: 12 },
+        { header: 'คงเหลือ', key: 'remaining', width: 12 },
+        { header: 'สถานะ', key: 'status', width: 12 },
+        { header: 'เกินกำหนด', key: 'overdue', width: 12 },
+      ],
+      visibleRows,
+      { sheetName: 'ใบแจ้งหนี้' },
+    )
   }
 
   return (
@@ -537,8 +588,9 @@ export function Invoices() {
                         key={row.id}
                         className={cn(
                           'cursor-pointer',
-                          'hover:bg-muted/40',
-                          row.original._overdue > 0 && 'bg-destructive/5',
+                          row.original._overdue > 0
+                            ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
+                            : 'hover:bg-muted/40',
                         )}
                         onClick={() =>
                           navigate({ to: '/invoices/$id', params: { id: row.original.id } })
@@ -610,6 +662,18 @@ export function Invoices() {
           </div>
         </div>
       )}
+
+      {payQuickId && (() => {
+        const inv = invoices?.find((x) => x.id === payQuickId)
+        if (!inv) return null
+        return (
+          <QuickPaymentDialog
+            invoice={inv}
+            open={true}
+            onOpenChange={(v) => { if (!v) setPayQuickId(null) }}
+          />
+        )
+      })()}
 
       <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
         <AlertDialogContent>

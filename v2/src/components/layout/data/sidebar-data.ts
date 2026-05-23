@@ -112,6 +112,11 @@ export const sidebarData: SidebarData = {
           icon: Activity,
         },
         {
+          title: 'ตรวจสอบข้อมูล',
+          url: '/validation',
+          icon: AlertCircle,
+        },
+        {
           title: 'ตั้งค่า',
           icon: Settings,
           items: [
@@ -121,7 +126,7 @@ export const sidebarData: SidebarData = {
               icon: UserCog,
             },
             {
-              title: 'หน้าตา',
+              title: 'ธีม',
               url: '/settings/appearance',
               icon: Palette,
             },

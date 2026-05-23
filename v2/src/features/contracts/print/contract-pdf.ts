@@ -139,15 +139,15 @@ function sectionBar(thai: string, en: string): Content {
         [
           {
             text: [
-              { text: thai, bold: true, color: C.brand, fontSize: 12 },
+              { text: thai, bold: true, color: C.brand, fontSize: 11 },
               {
                 text: `   · ${en}`,
                 color: C.inkFaint,
-                fontSize: 9,
+                fontSize: 8,
                 characterSpacing: 1,
               },
             ],
-            margin: [10, 5, 10, 5] as [number, number, number, number],
+            margin: [8, 2, 8, 2] as [number, number, number, number],
             fillColor: C.bgSoft,
           },
         ],
@@ -159,7 +159,7 @@ function sectionBar(thai: string, en: string): Content {
       hLineWidth: () => 0.5,
       vLineWidth: () => 0.5,
     },
-    margin: [0, 12, 0, 0] as [number, number, number, number],
+    margin: [0, 6, 0, 0] as [number, number, number, number],
   }
 }
 
@@ -186,18 +186,18 @@ function partyCell(opts: {
         {
           text: `   · ${opts.enLabel}`,
           color: C.inkFaint,
-          fontSize: 8,
+          fontSize: 7,
           characterSpacing: 1,
         },
       ],
-      margin: [0, 0, 0, 4] as [number, number, number, number],
+      margin: [0, 0, 0, 2] as [number, number, number, number],
     },
     {
       text: opts.name || '—',
       bold: true,
       color: C.brand,
-      fontSize: 13,
-      margin: [0, 0, 0, 3] as [number, number, number, number],
+      fontSize: 12,
+      margin: [0, 0, 0, 1] as [number, number, number, number],
     },
   ]
   if (opts.signerLine) {
@@ -205,32 +205,32 @@ function partyCell(opts: {
       text: opts.signerLine,
       italics: true,
       color: C.inkSoft,
-      fontSize: 11,
-      margin: [0, 0, 0, 3] as [number, number, number, number],
+      fontSize: 10,
+      margin: [0, 0, 0, 1] as [number, number, number, number],
     })
   }
   out.push({
     text: [
-      { text: 'ที่อยู่: ', color: C.inkFaint, fontSize: 10 },
-      { text: opts.address, color: C.ink, fontSize: 11 },
+      { text: 'ที่อยู่: ', color: C.inkFaint, fontSize: 9 },
+      { text: opts.address, color: C.ink, fontSize: 10 },
     ],
-    margin: [0, 0, 0, opts.phone || opts.taxId ? 3 : 0] as [number, number, number, number],
+    margin: [0, 0, 0, opts.phone || opts.taxId ? 1 : 0] as [number, number, number, number],
   })
   if (opts.phone || opts.taxId) {
     const inline: Content[] = []
     if (opts.phone) {
       inline.push(
-        { text: 'โทร: ', color: C.inkFaint, fontSize: 10 } as Content,
-        { text: opts.phone, color: C.ink, fontSize: 11 } as Content,
+        { text: 'โทร: ', color: C.inkFaint, fontSize: 9 } as Content,
+        { text: opts.phone, color: C.ink, fontSize: 10 } as Content,
       )
     }
     if (opts.phone && opts.taxId) {
-      inline.push({ text: '   ·   ', color: C.inkFaint, fontSize: 10 } as Content)
+      inline.push({ text: '   ·   ', color: C.inkFaint, fontSize: 9 } as Content)
     }
     if (opts.taxId) {
       inline.push(
-        { text: 'เลขผู้เสียภาษี: ', color: C.inkFaint, fontSize: 10 } as Content,
-        { text: opts.taxId, color: C.ink, fontSize: 11 } as Content,
+        { text: 'เลขผู้เสียภาษี: ', color: C.inkFaint, fontSize: 9 } as Content,
+        { text: opts.taxId, color: C.ink, fontSize: 10 } as Content,
       )
     }
     out.push({ text: inline as Content })
@@ -293,12 +293,12 @@ function partiesTable(refs: Refs): Content {
       vLineColor: () => C.rule,
       hLineWidth: () => 0.5,
       vLineWidth: () => 0.5,
-      paddingTop: () => 10,
-      paddingBottom: () => 10,
-      paddingLeft: () => 12,
-      paddingRight: () => 12,
+      paddingTop: () => 6,
+      paddingBottom: () => 6,
+      paddingLeft: () => 8,
+      paddingRight: () => 8,
     },
-    margin: [0, 0, 0, 14] as [number, number, number, number],
+    margin: [0, 0, 0, 8] as [number, number, number, number],
   }
 }
 
@@ -306,29 +306,22 @@ function partiesTable(refs: Refs): Content {
 function dateStrip(refs: Refs): Content {
   const c = refs.contract.data
   const madeAt = c.madeAt?.trim() || landlordAddress(refs.landlord, c.landlordAddr)
-  const madeDate = dateThaiLong(c.madeDate)
+  // Fallback: when contract has no madeDate, use start date so the PDF doesn't
+  // render literal "—" on a legal document. Both v1/v2 data have start populated.
+  const madeDate = dateThaiLong(c.madeDate || c.start)
   return {
     table: {
       widths: ['*'],
       body: [
         [
           {
-            stack: [
-              {
-                text: [
-                  { text: 'ทำสัญญา ณ ', color: C.inkSoft, fontSize: 11 },
-                  { text: madeAt, color: C.ink, bold: true, fontSize: 12 },
-                ],
-              },
-              {
-                text: [
-                  { text: 'เมื่อวันที่ ', color: C.inkSoft, fontSize: 11 },
-                  { text: madeDate, color: C.ink, bold: true, fontSize: 12 },
-                ],
-                margin: [0, 2, 0, 0] as [number, number, number, number],
-              },
+            text: [
+              { text: 'ทำสัญญา ณ ', color: C.inkSoft, fontSize: 10 },
+              { text: madeAt, color: C.ink, bold: true, fontSize: 11 },
+              { text: '   เมื่อวันที่ ', color: C.inkSoft, fontSize: 10 },
+              { text: madeDate, color: C.ink, bold: true, fontSize: 11 },
             ],
-            margin: [12, 8, 12, 8] as [number, number, number, number],
+            margin: [10, 4, 10, 4] as [number, number, number, number],
             fillColor: C.bgFainter,
           },
         ],
@@ -341,7 +334,7 @@ function dateStrip(refs: Refs): Content {
       vLineWidth: (i: number) => (i === 0 ? 2.5 : 0),
       paddingLeft: () => 0,
     },
-    margin: [0, 0, 0, 14] as [number, number, number, number],
+    margin: [0, 0, 0, 8] as [number, number, number, number],
   }
 }
 
@@ -371,7 +364,7 @@ function clausesBody(refs: Refs): Content[] {
   out.push({
     text: htmlToInlineParts(renderTemplateText(tpl.intro, ctx)),
     alignment: 'justify',
-    margin: [0, 0, 0, 8] as [number, number, number, number],
+    margin: [0, 4, 0, 4] as [number, number, number, number],
   })
 
   tpl.clauses.forEach((cl, i) => {
@@ -383,7 +376,7 @@ function clausesBody(refs: Refs): Content[] {
         ...htmlToInlineParts(renderTemplateText(mainText, ctx)),
       ],
       alignment: 'justify',
-      margin: [0, 0, 0, 5] as [number, number, number, number],
+      margin: [0, 0, 0, 2] as [number, number, number, number],
     } as Content)
     ;(cl.sub ?? []).forEach((sub, j) => {
       // Override key "i.j" replaces a sub-clause
@@ -394,8 +387,8 @@ function clausesBody(refs: Refs): Content[] {
           ...htmlToInlineParts(renderTemplateText(subText, ctx)),
         ],
         alignment: 'justify',
-        fontSize: 12,
-        margin: [22, 0, 0, 4] as [number, number, number, number],
+        fontSize: 11,
+        margin: [20, 0, 0, 1] as [number, number, number, number],
       } as Content)
     })
   })
@@ -403,7 +396,7 @@ function clausesBody(refs: Refs): Content[] {
   out.push({
     text: htmlToInlineParts(renderTemplateText(tpl.closing, ctx)),
     alignment: 'justify',
-    margin: [0, 10, 0, 0] as [number, number, number, number],
+    margin: [0, 6, 0, 0] as [number, number, number, number],
   })
 
   return out
@@ -417,7 +410,7 @@ function signatureBlock(opts: {
 }): Content {
   return {
     stack: [
-      { text: '', margin: [0, 26, 0, 0] as [number, number, number, number] },
+      { text: '', margin: [0, 16, 0, 0] as [number, number, number, number] },
       {
         canvas: [
           {
@@ -436,8 +429,8 @@ function signatureBlock(opts: {
         alignment: 'center',
         bold: true,
         color: C.brand,
-        fontSize: 12,
-        margin: [0, 4, 0, 0] as [number, number, number, number],
+        fontSize: 11,
+        margin: [0, 2, 0, 0] as [number, number, number, number],
       },
       ...(opts.signerLine
         ? ([
@@ -446,7 +439,7 @@ function signatureBlock(opts: {
               alignment: 'center',
               italics: true,
               color: C.inkSoft,
-              fontSize: 10,
+              fontSize: 9,
             },
           ] as Content[])
         : []),
@@ -454,15 +447,15 @@ function signatureBlock(opts: {
         text: opts.label,
         alignment: 'center',
         color: C.inkSoft,
-        fontSize: 10,
-        margin: [0, 1, 0, 0] as [number, number, number, number],
+        fontSize: 9,
+        margin: [0, 0, 0, 0] as [number, number, number, number],
       },
       {
         text: '(......./......./........)',
         alignment: 'center',
         color: C.inkFaint,
-        fontSize: 9,
-        margin: [0, 2, 0, 0] as [number, number, number, number],
+        fontSize: 8,
+        margin: [0, 0, 0, 0] as [number, number, number, number],
       },
     ],
   }
@@ -511,7 +504,7 @@ function mainSignatures(refs: Refs): Content {
         signatureBlock({ label: 'พยาน · WITNESS 2', name: wit2 }),
       ],
       columnGap: 24,
-      margin: [0, 14, 0, 0] as [number, number, number, number],
+      margin: [0, 6, 0, 0] as [number, number, number, number],
     })
     if (witnessCount === 4) {
       witnessRows.push({
@@ -520,7 +513,7 @@ function mainSignatures(refs: Refs): Content {
           signatureBlock({ label: 'พยาน · WITNESS 4', name: wit4 }),
         ],
         columnGap: 24,
-        margin: [0, 14, 0, 0] as [number, number, number, number],
+        margin: [0, 6, 0, 0] as [number, number, number, number],
       })
     }
   }
@@ -543,7 +536,7 @@ function mainSignatures(refs: Refs): Content {
           }),
         ],
         columnGap: 24,
-        margin: [0, 10, 0, 0] as [number, number, number, number],
+        margin: [0, 4, 0, 0] as [number, number, number, number],
       },
       ...witnessRows,
     ],
@@ -552,39 +545,57 @@ function mainSignatures(refs: Refs): Content {
 
 /* ─────────── attachments + map (appendix bottom) ─────────── */
 
-/** Render attachments checklist block — used on the appendix page */
+/** Render attachments checklist block — used on the appendix page · 2-column compact */
 function attachmentsBlock(attachments: TemplateAttachment[]): Content {
+  // Split into 2 columns
+  const half = Math.ceil(attachments.length / 2)
+  const left = attachments.slice(0, half)
+  const right = attachments.slice(half)
+
+  function renderRow(a: TemplateAttachment, idx: number): Content {
+    return {
+      columns: [
+        {
+          text: a.checked ? '☑' : '☐',
+          width: 12,
+          fontSize: 11,
+          color: C.brand,
+        },
+        {
+          text: `${idx + 1}.`,
+          width: 14,
+          fontSize: 9,
+          color: C.inkSoft,
+          margin: [1, 1, 0, 0] as [number, number, number, number],
+        },
+        {
+          text: a.label,
+          fontSize: 9,
+          color: C.ink,
+          margin: [0, 1, 0, 0] as [number, number, number, number],
+        },
+      ],
+      margin: [0, 1, 0, 1] as [number, number, number, number],
+    }
+  }
+
   return {
     unbreakable: true,
     stack: [
       sectionBar('เอกสารแนบท้ายสัญญา', 'ATTACHMENTS'),
       {
-        margin: [4, 6, 4, 0] as [number, number, number, number],
-        stack: attachments.map((a, i) => ({
-          columns: [
-            {
-              // checkbox glyph · pdfMake doesn't have a real checkbox, use unicode
-              text: a.checked ? '☑' : '☐',
-              width: 14,
-              fontSize: 13,
-              color: C.brand,
-            },
-            {
-              text: `${i + 1}.`,
-              width: 18,
-              fontSize: 11,
-              color: C.inkSoft,
-              margin: [2, 1, 0, 0] as [number, number, number, number],
-            },
-            {
-              text: a.label,
-              fontSize: 11,
-              color: C.ink,
-              margin: [0, 1, 0, 0] as [number, number, number, number],
-            },
-          ],
-          margin: [0, 2, 0, 2] as [number, number, number, number],
-        })),
+        columns: [
+          {
+            width: '*',
+            stack: left.map((a, i) => renderRow(a, i)),
+          },
+          {
+            width: '*',
+            stack: right.map((a, i) => renderRow(a, i + half)),
+          },
+        ],
+        columnGap: 12,
+        margin: [4, 4, 4, 0] as [number, number, number, number],
       },
     ],
   }
@@ -599,16 +610,16 @@ function mapPlaceholder(): Content {
       {
         table: {
           widths: ['*'],
-          heights: [200],
+          heights: [140],
           body: [
             [
               {
                 text: '(พื้นที่สำหรับติด/วาด ผังที่ตั้งทรัพย์สิน)',
                 alignment: 'center',
                 color: C.inkFaint,
-                fontSize: 10,
+                fontSize: 9,
                 italics: true,
-                margin: [0, 90, 0, 0] as [number, number, number, number],
+                margin: [0, 60, 0, 0] as [number, number, number, number],
               },
             ],
           ],
@@ -618,9 +629,8 @@ function mapPlaceholder(): Content {
           vLineColor: () => C.inkFaint,
           hLineWidth: () => 1,
           vLineWidth: () => 1,
-          // dashed-look via heavier than usual border
         },
-        margin: [0, 8, 0, 0] as [number, number, number, number],
+        margin: [0, 4, 0, 0] as [number, number, number, number],
       },
     ],
   }
@@ -630,15 +640,15 @@ function mapPlaceholder(): Content {
 
 function kvRow(k: string, v: string): unknown[] {
   return [
-    { text: k, color: C.inkSoft, fontSize: 11, margin: [0, 0, 0, 0] },
-    { text: v, color: C.ink, fontSize: 11, margin: [0, 0, 0, 0] },
+    { text: k, color: C.inkSoft, fontSize: 10, margin: [0, 0, 0, 0] },
+    { text: v, color: C.ink, fontSize: 10, margin: [0, 0, 0, 0] },
   ]
 }
 
 function kvTable(rows: unknown[][]): Content {
   return {
     table: {
-      widths: [130, '*'],
+      widths: [120, '*'],
       body: rows as Content[][],
     },
     layout: {
@@ -647,12 +657,12 @@ function kvTable(rows: unknown[][]): Content {
       hLineWidth: () => 0.5,
       vLineWidth: () => 0,
       fillColor: (i: number) => (i % 2 === 1 ? C.bgFainter : null),
-      paddingTop: () => 7,
-      paddingBottom: () => 7,
-      paddingLeft: () => 12,
-      paddingRight: () => 12,
+      paddingTop: () => 3,
+      paddingBottom: () => 3,
+      paddingLeft: () => 8,
+      paddingRight: () => 8,
     },
-    margin: [0, 0, 0, 6] as [number, number, number, number],
+    margin: [0, 0, 0, 4] as [number, number, number, number],
   }
 }
 
@@ -665,37 +675,30 @@ function appendixHeader(contractNo: string, madeDate: string): Content {
             type: 'rect',
             x: 0,
             y: 0,
-            w: 495,
-            h: 2.5,
+            w: 515,
+            h: 2,
             color: C.brand,
           },
         ],
-        margin: [0, 0, 0, 6] as [number, number, number, number],
+        margin: [0, 0, 0, 3] as [number, number, number, number],
       },
       {
         text: 'SCHEDULE · เอกสารประกอบสัญญา',
         color: C.inkFaint,
-        fontSize: 9,
+        fontSize: 8,
         characterSpacing: 2,
       },
       {
-        text: 'เอกสารแนบท้ายสัญญาเช่า',
-        color: C.brand,
-        bold: true,
-        fontSize: 20,
-        margin: [0, 2, 0, 0] as [number, number, number, number],
-      },
-      {
         text: [
-          { text: 'Contract Details   ·   วันที่ทำสัญญา ', color: C.inkFaint, fontSize: 10 },
-          { text: madeDate, color: C.brand, bold: true, fontSize: 11 },
-          { text: '   ·   เลขที่ ', color: C.inkFaint, fontSize: 10 },
-          { text: contractNo, color: C.brand, bold: true, fontSize: 11 },
+          { text: 'เอกสารแนบท้ายสัญญาเช่า', color: C.brand, bold: true, fontSize: 14 },
+          { text: '   ·   วันที่ ', color: C.inkFaint, fontSize: 9 },
+          { text: madeDate, color: C.brand, bold: true, fontSize: 10 },
+          { text: '   ·   เลขที่ ', color: C.inkFaint, fontSize: 9 },
+          { text: contractNo, color: C.brand, bold: true, fontSize: 10 },
         ],
-        margin: [0, 4, 0, 14] as [number, number, number, number],
+        margin: [0, 1, 0, 4] as [number, number, number, number],
       },
     ],
-    pageBreak: 'before',
   }
 }
 
@@ -783,8 +786,8 @@ function appendixNotes(refs: Refs): Content | null {
       {
         text: notes,
         color: C.ink,
-        fontSize: 11,
-        margin: [12, 8, 12, 8] as [number, number, number, number],
+        fontSize: 10,
+        margin: [8, 4, 8, 4] as [number, number, number, number],
       },
     ],
   }
@@ -832,7 +835,7 @@ function appendixSignatures(refs: Refs): Content {
           }),
         ],
         columnGap: 24,
-        margin: [0, 10, 0, 0] as [number, number, number, number],
+        margin: [0, 4, 0, 0] as [number, number, number, number],
       },
     ],
   }
@@ -843,7 +846,7 @@ function appendixSignatures(refs: Refs): Content {
 export function buildContractPdf(refs: Refs): TDocumentDefinitions {
   const c = refs.contract.data
   const contractNo = (c.no ?? '').trim() || `#${refs.contract.id}`
-  const madeDate = dateBE(c.madeDate)
+  const madeDate = dateBE(c.madeDate || c.start)
   const tenantName = refs.tenant?.data?.name ?? c.tenant ?? '—'
   const propName = refs.property?.data?.name?.trim() ?? '—'
 
@@ -854,22 +857,22 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
       subject: `${tenantName} เช่า ${propName}`,
     },
     pageSize: 'A4',
-    pageMargins: [50, 56, 50, 50] as [number, number, number, number],
+    pageMargins: [40, 42, 40, 36] as [number, number, number, number],
 
     header: (currentPage: number, pageCount: number) => {
       if (currentPage === 1) return null
       return {
-        margin: [50, 22, 50, 0] as [number, number, number, number],
+        margin: [40, 16, 40, 0] as [number, number, number, number],
         columns: [
           {
             text: `สัญญาเช่า ${contractNo}`,
-            fontSize: 9,
+            fontSize: 8,
             color: C.inkFaint,
           },
           {
             text: `หน้า ${currentPage}/${pageCount}`,
             alignment: 'right',
-            fontSize: 9,
+            fontSize: 8,
             color: C.inkFaint,
           },
         ],
@@ -879,18 +882,18 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
     footer: (currentPage: number, pageCount: number) => ({
       text: `หน้า ${currentPage} จาก ${pageCount}`,
       alignment: 'center',
-      fontSize: 9,
+      fontSize: 8,
       color: C.inkFaint,
-      margin: [0, 16, 0, 0] as [number, number, number, number],
+      margin: [0, 8, 0, 0] as [number, number, number, number],
     }),
 
     content: [
       /* ────── PAGE 1 : สัญญาหลัก ────── */
       {
         canvas: [
-          { type: 'rect', x: 0, y: 0, w: 495, h: 2.5, color: C.brand },
+          { type: 'rect', x: 0, y: 0, w: 515, h: 2, color: C.brand },
         ],
-        margin: [0, 0, 0, 4] as [number, number, number, number],
+        margin: [0, 0, 0, 2] as [number, number, number, number],
       },
       {
         columns: [
@@ -900,14 +903,14 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
                 text: 'สัญญาเช่า',
                 bold: true,
                 color: C.brand,
-                fontSize: 22,
+                fontSize: 16,
               },
               {
                 text: 'TENANCY AGREEMENT',
                 color: C.inkFaint,
-                fontSize: 9,
+                fontSize: 8,
                 characterSpacing: 2,
-                margin: [0, 1, 0, 0] as [number, number, number, number],
+                margin: [0, 0, 0, 0] as [number, number, number, number],
               },
             ],
           },
@@ -923,7 +926,7 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
                         text: 'เลขที่สัญญา · No.',
                         alignment: 'center',
                         color: C.inkFaint,
-                        fontSize: 8,
+                        fontSize: 7,
                         characterSpacing: 1,
                       },
                       {
@@ -931,11 +934,11 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
                         alignment: 'center',
                         bold: true,
                         color: C.brand,
-                        fontSize: 14,
-                        margin: [0, 2, 0, 0] as [number, number, number, number],
+                        fontSize: 12,
+                        margin: [0, 1, 0, 0] as [number, number, number, number],
                       },
                     ],
-                    margin: [12, 6, 12, 6] as [number, number, number, number],
+                    margin: [8, 3, 8, 3] as [number, number, number, number],
                   },
                 ],
               ],
@@ -948,7 +951,7 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
             },
           },
         ],
-        margin: [0, 6, 0, 12] as [number, number, number, number],
+        margin: [0, 4, 0, 6] as [number, number, number, number],
       },
       dateStrip(refs),
       sectionBar('คู่สัญญา', 'PARTIES TO AGREEMENT'),
@@ -986,8 +989,8 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
 
     defaultStyle: {
       font: 'THSarabunNew',
-      fontSize: 13,
-      lineHeight: 1.6,
+      fontSize: 12,
+      lineHeight: 1.35,
       color: C.ink,
     },
   }

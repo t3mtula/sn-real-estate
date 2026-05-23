@@ -1,3 +1,4 @@
+import { CopyButton } from '@/components/copy-button'
 import { useInvoice } from '@/features/invoices/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
@@ -23,6 +24,10 @@ export function PromptPayQRCard({ invoiceId, total }: Props) {
         <PromptPayQR promptPayId={ppId} amount={total} size={120} txId={invoiceId} />
         <div className='text-xs space-y-1 text-muted-foreground'>
           <p className='font-medium text-foreground'>{landlord?.data?.promptPayName || ppId}</p>
+          <div className='flex items-center gap-1'>
+            <p className='font-mono text-foreground'>{ppId}</p>
+            <CopyButton text={ppId} label='คัดลอกเลข PromptPay' />
+          </div>
           {landlord?.data?.promptPayBank && <p>{landlord.data.promptPayBank}</p>}
           {total && <p className='font-semibold text-foreground'>{total.toLocaleString('th-TH')} บาท</p>}
           <p className='text-[10px]'>สแกนเพื่อชำระ</p>

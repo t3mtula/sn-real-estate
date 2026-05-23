@@ -38,28 +38,43 @@ import {
 } from '@/components/ui/table'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import type { BankAccount } from '@/features/bank-accounts/types'
+import { useAllLandlordBankLinks } from '@/features/landlord-banks/queries'
+import { useLandlords } from '@/features/landlords/queries'
 import { cn } from '@/lib/utils'
 
 
 export function BankAccounts() {
   const { data: rows, isLoading, error } = useBankAccounts()
+  const { data: links } = useAllLandlordBankLinks()
+  const { data: landlords } = useLandlords()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
 
+  // Bank → landlord names map via M:M junction (replaces deprecated ownerLandlordName)
+  const landlordsByBankId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    if (!links || !landlords) return map
+    const landlordNameById = new Map(landlords.map((l) => [l.id, l.data?.name ?? '—']))
+    for (const link of links) {
+      const name = landlordNameById.get(link.landlord_id)
+      if (!name) continue
+      const arr = map.get(link.bank_account_id) ?? []
+      arr.push(name)
+      map.set(link.bank_account_id, arr)
+    }
+    return map
+  }, [links, landlords])
+
   const owners = useMemo(() => {
-    if (!rows) return [] as Array<{ id: string; name: string }>
-    const map = new Map<string, string>()
-    rows.forEach((r) => {
-      const id = (r.data?.ownerLandlordId ?? '').trim()
-      if (id && !map.has(id))
-        map.set(id, r.data?.ownerLandlordName ?? '(ไม่มีชื่อ)')
-    })
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
+    if (!landlords || !links) return [] as Array<{ id: string; name: string }>
+    const linkedIds = new Set(links.map((l) => l.landlord_id))
+    return landlords
+      .filter((l) => linkedIds.has(l.id))
+      .map((l) => ({ id: l.id, name: l.data?.name ?? '—' }))
       .sort((a, b) => a.name.localeCompare(b.name, 'th'))
-  }, [rows])
+  }, [landlords, links])
 
   const columns = useMemo<ColumnDef<BankAccount>[]>(
     () => [
@@ -130,21 +145,39 @@ export function BankAccounts() {
       },
       {
         id: 'owner',
-        accessorFn: (row) => row.data?.ownerLandlordName ?? '',
+        accessorFn: (row) => (landlordsByBankId.get(row.id) ?? []).join(' · '),
         header: ({ column }) => (
-          <SortableHeader column={column}>ผูกกับผู้ให้เช่า</SortableHeader>
+          <SortableHeader column={column}>ใช้กับผู้ให้เช่า</SortableHeader>
         ),
         cell: ({ row }) => {
-          const v = row.original.data?.ownerLandlordName?.trim() || '—'
+          const names = landlordsByBankId.get(row.original.id) ?? []
+          if (names.length === 0) {
+            return <span className='text-sm text-muted-foreground'>—</span>
+          }
+          const text = names.join(' · ')
           return (
-            <span className='block max-w-[200px] truncate text-sm' title={v}>
-              {v}
+            <span className='block max-w-[260px] truncate text-sm' title={text}>
+              {names.length > 1 ? (
+                <>
+                  {names[0]}
+                  <Badge variant='outline' className='ms-1 font-normal text-xs'>
+                    +{names.length - 1}
+                  </Badge>
+                </>
+              ) : (
+                text
+              )}
             </span>
           )
         },
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
-          return row.original.data?.ownerLandlordId === value
+          // M:M — find via junction
+          const links = (landlordsByBankId.get(row.original.id) ?? [])
+          if (links.length === 0) return false
+          const landlordName = landlords?.find((l) => l.id === value)?.data?.name
+          if (!landlordName) return false
+          return links.includes(landlordName)
         },
       },
       {
@@ -188,7 +221,7 @@ export function BankAccounts() {
         b?.acctNo,
         b?.accountName,
         b?.label,
-        b?.ownerLandlordName,
+        ...(landlordsByBankId.get(row.original.id) ?? []),
       ]
         .filter(Boolean)
         .join(' ')

@@ -15,6 +15,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useProperties } from '@/features/properties/queries'
 import { useContracts } from '@/features/contracts/queries'
+import { useMeterReadingsByProperty } from '@/features/meters/queries'
 import {
   METER_READING_FORM_DEFAULTS,
   METER_TYPES,
@@ -84,6 +85,36 @@ export function MeterForm({
     const prop = properties?.find((p) => p.id === selectedPropertyId)
     setValue('property_name', prop?.data?.name ?? '')
   }, [selectedPropertyId, properties, setValue])
+
+  // Auto-suggest previous reading from latest reading of same property + same meter type
+  const meterType = watch('type')
+  const meterNo = watch('meter_no')
+  const { data: priorReadings } = useMeterReadingsByProperty(selectedPropertyId)
+  useEffect(() => {
+    if (mode !== 'create') return
+    if (!priorReadings || priorReadings.length === 0) return
+    // Already set by user — don't overwrite
+    if ((prevReading ?? 0) > 0) return
+    // Filter same meter type (and same meter_no if specified) · take the most recent
+    const matching = priorReadings.filter((r) => {
+      if (r.data?.type !== meterType) return false
+      if (meterNo?.trim() && r.data?.meter_no?.trim() && r.data.meter_no.trim() !== meterNo.trim()) {
+        return false
+      }
+      return true
+    })
+    if (matching.length === 0) return
+    // priorReadings already sorted desc by reading_date → first is latest
+    const latest = matching[0]
+    const latestCurr = Number(latest.data?.curr_reading) || 0
+    const latestRate = Number(latest.data?.rate_per_unit) || 0
+    if (latestCurr > 0) {
+      setValue('prev_reading', latestCurr, { shouldDirty: false })
+    }
+    if (latestRate > 0 && (ratePerUnit ?? 0) === 0) {
+      setValue('rate_per_unit', latestRate, { shouldDirty: false })
+    }
+  }, [mode, priorReadings, meterType, meterNo, prevReading, ratePerUnit, setValue])
 
   const sortedProperties = useMemo(() => {
     if (!properties) return []

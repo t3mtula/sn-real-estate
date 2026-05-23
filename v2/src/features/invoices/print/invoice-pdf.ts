@@ -94,9 +94,11 @@ function sectionBar(label: string, sub?: string): Content {
   if (sub) {
     cells.push({ text: sub, color: C.brandSoft, fontSize: 11, alignment: 'right' })
   }
+  // widths array length MUST match number of cells in row — else pdfmake → NaN
+  const widths = sub ? ['*', 'auto'] : ['*']
   return {
     table: {
-      widths: ['*', 'auto'],
+      widths,
       body: [cells],
     },
     layout: {
@@ -113,12 +115,17 @@ function sectionBar(label: string, sub?: string): Content {
 }
 
 function kv(label: string, value: string | Content): Content {
+  // Ensure second column always has width — passing a Content object without
+  // width makes pdfmake produce NaN dimensions → iframe PDF render fails.
+  // biome-ignore lint/suspicious/noExplicitAny: pdfmake Content union too narrow
+  const valueCol: Content =
+    typeof value === 'string'
+      ? { width: '*', text: value, color: C.ink, fontSize: 12 }
+      : ({ width: '*', color: C.ink, fontSize: 12, ...(value as object) } as any)
   return {
     columns: [
       { width: 110, text: label, color: C.inkSoft, fontSize: 11 },
-      typeof value === 'string'
-        ? { width: '*', text: value, color: C.ink, fontSize: 12 }
-        : value,
+      valueCol,
     ],
     margin: [0, 1, 0, 1],
   }
@@ -290,7 +297,7 @@ export function buildInvoicePdf(refs: Refs): TDocumentDefinitions {
     columns: [
       {
         stack: [
-          { text: '\n\n\n\n', fontSize: 8 },
+          { text: '\n\n', fontSize: 8 },
           { text: '...........................................', alignment: 'center' },
           { text: `(${landlordName})`, alignment: 'center', fontSize: 11 },
           { text: 'ผู้รับเงิน / ผู้ให้เช่า', alignment: 'center', color: C.inkSoft, fontSize: 10 },
@@ -299,7 +306,7 @@ export function buildInvoicePdf(refs: Refs): TDocumentDefinitions {
       },
       {
         stack: [
-          { text: '\n\n\n\n', fontSize: 8 },
+          { text: '\n\n', fontSize: 8 },
           { text: '...........................................', alignment: 'center' },
           { text: `(${tenantName})`, alignment: 'center', fontSize: 11 },
           { text: 'ผู้ชำระเงิน / ผู้เช่า', alignment: 'center', color: C.inkSoft, fontSize: 10 },
@@ -307,7 +314,7 @@ export function buildInvoicePdf(refs: Refs): TDocumentDefinitions {
         width: '*',
       },
     ],
-    margin: [0, 10, 0, 0],
+    margin: [0, 6, 0, 0],
   }
 
   const docNoText = (d.invoiceNo ?? '').trim() || `#${invoice.id}`
@@ -319,7 +326,7 @@ export function buildInvoicePdf(refs: Refs): TDocumentDefinitions {
       subject: 'ใบแจ้งหนี้',
     },
     pageSize: 'A4',
-    pageMargins: [40, 40, 40, 40],
+    pageMargins: [40, 30, 40, 30],
     content: [
       // ── Header ──
       {

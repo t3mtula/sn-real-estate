@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileText,
   Landmark,
+  MessageCircle,
   Printer,
   Receipt,
   RotateCcw,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { CopyButton } from '@/components/copy-button'
 import { PrintOverlay } from '@/components/print-overlay'
 import { buildInvoiceHtml, buildReceiptHtml } from '@/features/invoices/print/invoice-html'
 import { Header } from '@/components/layout/header'
@@ -220,6 +222,53 @@ export function InvoiceDetail({ id }: { id: string }) {
             </p>
           </div>
           <div className='flex flex-wrap gap-2'>
+            {overdue > 0 && (
+              <Button
+                size='sm'
+                variant='outline'
+                onClick={async () => {
+                  const today = new Date()
+                  const plus3 = new Date(today.getTime() + 3 * 86_400_000)
+                  const fmtBE = (dt: Date) => {
+                    const d = String(dt.getDate()).padStart(2, '0')
+                    const m = String(dt.getMonth() + 1).padStart(2, '0')
+                    const y = dt.getFullYear() + 543
+                    return `${d}/${m}/${y}`
+                  }
+                  const lines = [
+                    `เรียน คุณ ${(tenant?.data?.name ?? data.tenant ?? '-').trim()}`,
+                    '',
+                    `ใบแจ้งหนี้เลขที่ ${data.invoiceNo ?? display}`,
+                    `ยอด ${amt(data.remainingAmount ?? data.total, { decimal: 0, symbol: false })} บาท`,
+                    `ครบกำหนด ${data.dueDate ?? '-'}`,
+                    `เกินกำหนด ${overdue} วัน`,
+                    '',
+                    `กรุณาชำระภายในวันที่ ${fmtBE(plus3)} เพื่อหลีกเลี่ยงค่าปรับ`,
+                    '',
+                    'ขอบคุณค่ะ',
+                    (landlord?.data?.name ?? data.landlord ?? '').trim(),
+                  ]
+                    .filter((line, i, arr) =>
+                      // collapse trailing empty lines if landlord is empty
+                      i < arr.length - 1 || line.length > 0,
+                    )
+                    .join('\n')
+                  try {
+                    await navigator.clipboard.writeText(lines)
+                    toast.success('คัดลอกข้อความแจ้งเตือนแล้ว', {
+                      description: 'เปิด LINE แล้ววางในแชท',
+                    })
+                  } catch {
+                    toast.error('คัดลอกไม่สำเร็จ', {
+                      description: 'browser ไม่อนุญาต clipboard',
+                    })
+                  }
+                }}
+              >
+                <MessageCircle className='size-4' />
+                คัดลอกข้อความแจ้งเตือน
+              </Button>
+            )}
             <Button size='sm' variant='outline' onClick={openInvoicePrint}>
               <Printer className='size-4' />
               พิมพ์/PDF
@@ -253,6 +302,7 @@ export function InvoiceDetail({ id }: { id: string }) {
                 variant='outline'
                 onClick={() => setVoidOpen(true)}
                 disabled={cancel.isPending}
+                className='text-destructive hover:bg-destructive/10 hover:text-destructive'
               >
                 <Ban className='size-4' />
                 ยกเลิก
@@ -277,8 +327,8 @@ export function InvoiceDetail({ id }: { id: string }) {
             )}
             <Button
               size='sm'
-              variant='ghost'
-              className='text-destructive hover:text-destructive'
+              variant='outline'
+              className='text-destructive hover:bg-destructive/10 hover:text-destructive'
               onClick={() => setDeleteOpen(true)}
               disabled={del.isPending}
             >
@@ -363,7 +413,12 @@ export function InvoiceDetail({ id }: { id: string }) {
               <dl className='space-y-2 text-sm'>
                 <div className='flex justify-between gap-3'>
                   <dt className='text-muted-foreground'>เลขที่</dt>
-                  <dd className='text-right tabular-nums'>{data.invoiceNo || '—'}</dd>
+                  <dd className='flex items-center justify-end gap-1 text-right tabular-nums'>
+                    <span>{data.invoiceNo || '—'}</span>
+                    {data.invoiceNo && (
+                      <CopyButton text={data.invoiceNo} label='คัดลอกเลขที่ใบแจ้ง' />
+                    )}
+                  </dd>
                 </div>
                 <div className='flex justify-between gap-3'>
                   <dt className='text-muted-foreground'>วันออก</dt>
@@ -455,11 +510,11 @@ export function InvoiceDetail({ id }: { id: string }) {
                   )
                 )}
                 {bankAccount && (
-                  <li>
+                  <li className='flex items-center gap-1'>
                     <Link
                       to='/bank-accounts/$id'
                       params={{ id: bankAccount.id }}
-                      className='flex items-center gap-2 hover:text-primary'
+                      className='flex flex-1 items-center gap-2 hover:text-primary'
                     >
                       <CreditCard className='size-4 text-muted-foreground' />
                       <span className='truncate'>
@@ -467,6 +522,12 @@ export function InvoiceDetail({ id }: { id: string }) {
                         {bankAccount.data?.acctNo || '—'}
                       </span>
                     </Link>
+                    {bankAccount.data?.acctNo && (
+                      <CopyButton
+                        text={bankAccount.data.acctNo}
+                        label='คัดลอกเลขบัญชี'
+                      />
+                    )}
                   </li>
                 )}
               </ul>

@@ -329,7 +329,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
 
             {/* Intro */}
             <div className='space-y-2'>
-              <Label htmlFor='intro'>คำนำสัญญา (Intro)</Label>
+              <Label htmlFor='intro'>คำนำสัญญา</Label>
               <Textarea
                 id='intro'
                 value={draft.intro}
@@ -458,7 +458,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
 
             {/* Closing */}
             <div className='space-y-2'>
-              <Label htmlFor='closing'>คำปิดสัญญา (Closing)</Label>
+              <Label htmlFor='closing'>คำปิดสัญญา</Label>
               <Textarea
                 id='closing'
                 value={draft.closing}

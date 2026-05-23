@@ -57,20 +57,28 @@ function valuesToManagedFields(
     dur: values.dur,
     payment: values.payment.trim(),
     purpose: values.purpose.trim(),
-    // madeAt = ที่อยู่ 5 ช่อง + assembled string (backward compat กับ v1 + PDF)
-    // camelCase ตาม Tenant/Landlord convention
+    // madeAt = ที่อยู่ 5 ช่อง + assembled string (backward compat กับ v1 + PDF).
+    // Legacy contracts only had `madeAt` (combined string). When editing, we
+    // populate madeAtLine from it but the 4 sub-fields stay empty. If we
+    // overwrite blindly we'd wipe the original address. Strategy: only
+    // include sub-fields that user actually provided; let merge keep the rest.
+    // The `madeAt` reassembly only runs when at least one sub-field exists.
     madeAtLine: values.madeAtLine ?? '',
-    madeAtSubdistrict: values.madeAtSubdistrict ?? '',
-    madeAtDistrict: values.madeAtDistrict ?? '',
-    madeAtProvince: values.madeAtProvince ?? '',
-    madeAtPostal: values.madeAtPostal ?? '',
-    madeAt: assembleAddress({
-      line: values.madeAtLine,
-      subdistrict: values.madeAtSubdistrict,
-      district: values.madeAtDistrict,
-      province: values.madeAtProvince,
-      postal: values.madeAtPostal,
-    }),
+    ...(values.madeAtSubdistrict ? { madeAtSubdistrict: values.madeAtSubdistrict } : {}),
+    ...(values.madeAtDistrict ? { madeAtDistrict: values.madeAtDistrict } : {}),
+    ...(values.madeAtProvince ? { madeAtProvince: values.madeAtProvince } : {}),
+    ...(values.madeAtPostal ? { madeAtPostal: values.madeAtPostal } : {}),
+    ...(values.madeAtSubdistrict || values.madeAtDistrict || values.madeAtProvince
+      ? {
+          madeAt: assembleAddress({
+            line: values.madeAtLine,
+            subdistrict: values.madeAtSubdistrict,
+            district: values.madeAtDistrict,
+            province: values.madeAtProvince,
+            postal: values.madeAtPostal,
+          }),
+        }
+      : {}),
     madeDate: values.madeDate.trim(),
     wit1: values.wit1.trim(),
     wit2: values.wit2.trim(),

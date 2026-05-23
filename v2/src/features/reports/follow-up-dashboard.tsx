@@ -150,7 +150,7 @@ export function FollowUpDashboard() {
         <header>
           <div className='flex items-center gap-2'>
             <Calendar className='size-5 text-indigo-500' />
-            <h1 className='text-2xl font-bold tracking-tight'>นัดชำระ (Follow-up)</h1>
+            <h1 className='text-2xl font-bold tracking-tight'>นัดติดตามชำระ</h1>
           </div>
           <p className='mt-1 text-sm text-muted-foreground'>
             ใบแจ้งหนี้ค้างชำระที่มีหรือยังไม่มีวันนัด · {total} รายการ

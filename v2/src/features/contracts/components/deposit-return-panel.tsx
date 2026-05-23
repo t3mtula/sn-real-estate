@@ -130,9 +130,26 @@ export function DepositReturnPanel({ contract }: Props) {
                 : ''
           }`}
         >
-          {isDeduction && amount > 0 ? `−${amt(amount)}` : amt(amount)} บาท
+          {isDeduction && amount > 0 ? `−${amt(amount)}` : amt(amount)}
         </span>
       </div>
+    )
+  }
+
+  // ─── No deposit case — empty state ───
+  if (originalDeposit === 0 && !existing) {
+    return (
+      <Card>
+        <CardHeader className='flex-row items-center gap-2 pb-3'>
+          <Wallet className='size-4 text-muted-foreground' />
+          <CardTitle className='text-sm'>การคืนเงินประกัน</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className='text-sm text-muted-foreground'>
+            สัญญานี้ไม่มีเงินมัดจำ · ไม่ต้องคืนเงิน
+          </p>
+        </CardContent>
+      </Card>
     )
   }
 

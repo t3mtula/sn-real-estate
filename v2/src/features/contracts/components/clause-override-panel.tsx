@@ -51,7 +51,7 @@ export function ClauseOverridePanel({ contract }: Props) {
         className='flex w-full items-center gap-3 px-4 py-3 text-left'
         onClick={() => setOpen((v) => !v)}
       >
-        <span className='text-sm font-semibold'>ข้อสัญญา (override)</span>
+        <span className='text-sm font-semibold'>ข้อสัญญา (ปรับเฉพาะฉบับ)</span>
         {overrideCount > 0 && (
           <Badge variant='outline' className='text-indigo-600 dark:text-indigo-400'>
             แก้แล้ว {overrideCount} ข้อ

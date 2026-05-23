@@ -20,7 +20,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -354,28 +354,39 @@ export function Properties() {
 
   const totalRows = properties?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
 
   function handleExport() {
     const visible = table.getRowModel().rows.map((r) => {
       const d = r.original.data
       return {
-        ชื่อ: d?.name ?? '',
-        ประเภท: d?.type ?? '',
-        จังหวัด: d?.province ?? d?.addr_province ?? '',
-        ที่อยู่:
+        name: d?.name ?? '',
+        type: d?.type ?? '',
+        province: d?.province ?? d?.addr_province ?? '',
+        address:
           d?.address ??
           [d?.addr_line, d?.addr_subdistrict, d?.addr_district, d?.addr_province, d?.addr_postal]
             .filter(Boolean)
             .join(' '),
-        ขนาด: d?.area ?? '',
-        เจ้าของ: d?.owner ?? '',
-        โฉนด: d?.titleDeed ?? '',
+        area: d?.area ?? '',
+        owner: d?.owner ?? '',
+        titleDeed: d?.titleDeed ?? '',
       }
     })
-    const now = new Date()
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    exportXLSX(visible, `properties-${stamp}.xlsx`, { sheetName: 'ทรัพย์สิน' })
+    void exportXlsx(
+      xlsxFilename('ทรัพย์สิน'),
+      [
+        { header: 'ชื่อ', key: 'name', width: 28 },
+        { header: 'ประเภท', key: 'type', width: 14 },
+        { header: 'จังหวัด', key: 'province', width: 14 },
+        { header: 'ที่อยู่', key: 'address', width: 40 },
+        { header: 'ขนาด', key: 'area', width: 12 },
+        { header: 'เจ้าของ', key: 'owner', width: 24 },
+        { header: 'โฉนด', key: 'titleDeed', width: 16 },
+      ],
+      visible,
+      { sheetName: 'ทรัพย์สิน' },
+    )
   }
 
   return (

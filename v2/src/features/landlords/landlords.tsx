@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Building2, Download, Landmark, Plus, Search, UserRound } from 'lucide-react'
-import { useExportCSV } from '@/hooks/use-csv'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
@@ -271,26 +271,37 @@ export function Landlords() {
 
   const totalRows = landlords?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
-  const { exportXLSX } = useExportCSV()
+  const exportXlsx = useExportXlsx()
 
   function handleExport() {
     const visible = table.getRowModel().rows.map((r) => {
       const d = r.original.data
       return {
-        ชื่อ: d?.name ?? '',
-        ชื่อย่อ: d?.shortName ?? '',
-        ประเภท: d?.partyType === 'company' ? 'นิติบุคคล' : 'บุคคลธรรมดา',
-        เลขผู้เสียภาษี: d?.taxId ?? '',
-        เบอร์: d?.phone ?? '',
-        VAT: d?.vatRegistered ? `${d?.vatRate ?? 7}%` : '-',
-        ที่อยู่: [d?.addrLine, d?.addrSubdistrict, d?.addrDistrict, d?.addrProvince, d?.addrPostal]
+        name: d?.name ?? '',
+        shortName: d?.shortName ?? '',
+        partyType: d?.partyType === 'company' ? 'นิติบุคคล' : 'บุคคลธรรมดา',
+        taxId: d?.taxId ?? '',
+        phone: d?.phone ?? '',
+        vat: d?.vatRegistered ? `${d?.vatRate ?? 7}%` : '-',
+        address: [d?.addrLine, d?.addrSubdistrict, d?.addrDistrict, d?.addrProvince, d?.addrPostal]
           .filter(Boolean)
           .join(' '),
       }
     })
-    const now = new Date()
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-    exportXLSX(visible, `landlords-${stamp}.xlsx`, { sheetName: 'ผู้ให้เช่า' })
+    void exportXlsx(
+      xlsxFilename('ผู้ให้เช่า'),
+      [
+        { header: 'ชื่อ', key: 'name', width: 28 },
+        { header: 'ชื่อย่อ', key: 'shortName', width: 14 },
+        { header: 'ประเภท', key: 'partyType', width: 14 },
+        { header: 'เลขผู้เสียภาษี', key: 'taxId', width: 18 },
+        { header: 'เบอร์', key: 'phone', width: 14 },
+        { header: 'VAT', key: 'vat', width: 8 },
+        { header: 'ที่อยู่', key: 'address', width: 40 },
+      ],
+      visible,
+      { sheetName: 'ผู้ให้เช่า' },
+    )
   }
 
   return (
