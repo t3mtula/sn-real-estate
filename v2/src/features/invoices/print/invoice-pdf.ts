@@ -113,12 +113,17 @@ function sectionBar(label: string, sub?: string): Content {
 }
 
 function kv(label: string, value: string | Content): Content {
+  // Ensure second column always has width — passing a Content object without
+  // width makes pdfmake produce NaN dimensions → iframe PDF render fails.
+  // biome-ignore lint/suspicious/noExplicitAny: pdfmake Content union too narrow
+  const valueCol: Content =
+    typeof value === 'string'
+      ? { width: '*', text: value, color: C.ink, fontSize: 12 }
+      : ({ width: '*', color: C.ink, fontSize: 12, ...(value as object) } as any)
   return {
     columns: [
       { width: 110, text: label, color: C.inkSoft, fontSize: 11 },
-      typeof value === 'string'
-        ? { width: '*', text: value, color: C.ink, fontSize: 12 }
-        : value,
+      valueCol,
     ],
     margin: [0, 1, 0, 1],
   }

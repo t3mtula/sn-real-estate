@@ -126,7 +126,7 @@ export const sidebarData: SidebarData = {
               icon: UserCog,
             },
             {
-              title: 'หน้าตา',
+              title: 'ธีม',
               url: '/settings/appearance',
               icon: Palette,
             },

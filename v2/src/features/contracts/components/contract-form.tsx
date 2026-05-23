@@ -307,7 +307,7 @@ export function ContractForm({
             </SelectContent>
           </Select>
           <p className='mt-1 text-xs text-muted-foreground'>
-            กรอง: บัญชีของผู้ให้เช่า · เลือกอิสระเพื่อ tax optimization ได้
+            กรอง: บัญชีของผู้ให้เช่า · เลือกอิสระเพื่อปรับใช้ทางภาษีได้
           </p>
         </div>
 

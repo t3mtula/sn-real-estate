@@ -31,6 +31,7 @@ import {
   useTenant,
   useTenantContracts,
 } from '@/features/tenants/queries'
+import { useContracts } from '@/features/contracts/queries'
 import {
   DuplicateTaxIdError,
   useDeleteTenant,
@@ -80,7 +81,14 @@ function InfoRow({
 
 export function TenantDetail({ id }: { id: string }) {
   const { data: tenant, isLoading, error } = useTenant(id)
-  const contracts = useTenantContracts(tenant ?? null)
+  // Use match keys to find related IDs (lightweight), then enrich with full contract data
+  const matchedKeys = useTenantContracts(tenant ?? null)
+  const { data: allContracts } = useContracts()
+  const matchedIds = new Set((matchedKeys.data ?? []).map((c) => c.id))
+  const contracts = {
+    ...matchedKeys,
+    data: (allContracts ?? []).filter((c) => matchedIds.has(c.id)),
+  }
   const del = useDeleteTenant()
   const confirm = useConfirm()
   const navigate = useNavigate()
@@ -381,29 +389,36 @@ function Content({
                 {contracts.map((c) => {
                   const cd = c.data as {
                     no?: string
+                    tenant?: string
                     property?: string
                     start?: string
                     end?: string
-                    status?: string
+                    cancelled?: boolean
                   }
+                  const isCancelled = !!cd.cancelled
+                  const statusLabel = isCancelled
+                    ? 'ยกเลิก'
+                    : cd.end
+                      ? 'ใช้งาน'
+                      : '—'
                   return (
                     <li
                       key={c.id}
                       className='flex items-center justify-between gap-2 py-2 text-sm'
                     >
-                      <div className='min-w-0'>
-                        <p className='font-medium'>
-                          {cd.no ?? `#${c.id}`}
-                        </p>
+                      <Link
+                        to='/contracts/$id'
+                        params={{ id: c.id }}
+                        className='flex-1 min-w-0 hover:underline'
+                      >
+                        <p className='font-medium'>{cd.no ?? `#${c.id}`}</p>
                         <p className='truncate text-xs text-muted-foreground'>
                           {cd.property ?? '—'} · {cd.start ?? '—'} → {cd.end ?? '—'}
                         </p>
-                      </div>
-                      {cd.status && (
-                        <Badge variant='outline' className='shrink-0 font-normal'>
-                          {cd.status}
-                        </Badge>
-                      )}
+                      </Link>
+                      <Badge variant={isCancelled ? 'destructive' : 'outline'} className='shrink-0 font-normal'>
+                        {statusLabel}
+                      </Badge>
                     </li>
                   )
                 })}

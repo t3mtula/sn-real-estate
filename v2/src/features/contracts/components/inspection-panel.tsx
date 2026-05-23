@@ -159,7 +159,7 @@ export function InspectionPanel({ contract }: Props) {
                 <span className={it.status === 'fail' ? 'font-medium' : ''}>{it.label}</span>
                 {it.status === 'fail' && it.deduction > 0 && (
                   <span className='ml-auto text-xs text-destructive tabular-nums'>
-                    −{amt(it.deduction)} บาท
+                    −{amt(it.deduction)}
                   </span>
                 )}
                 {it.note && (
@@ -175,7 +175,7 @@ export function InspectionPanel({ contract }: Props) {
           <div className='flex items-center justify-between'>
             <span className='text-sm font-medium'>ยอดหักรวม</span>
             <span className={`text-sm font-bold tabular-nums ${existing.totalDeduction > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
-              {existing.totalDeduction > 0 ? `−${amt(existing.totalDeduction)} บาท` : 'ไม่มีการหัก'}
+              {existing.totalDeduction > 0 ? `−${amt(existing.totalDeduction)}` : 'ไม่มีการหัก'}
             </span>
           </div>
         </CardContent>
@@ -308,7 +308,7 @@ export function InspectionPanel({ contract }: Props) {
           <div>
             <p className='text-xs text-muted-foreground'>ยอดหักรวม</p>
             <p className={`text-lg font-bold tabular-nums ${totalDeduction > 0 ? 'text-destructive' : 'text-emerald-600'}`}>
-              {totalDeduction > 0 ? `−${amt(totalDeduction)} บาท` : 'ไม่มีการหัก'}
+              {totalDeduction > 0 ? `−${amt(totalDeduction)}` : 'ไม่มีการหัก'}
             </p>
           </div>
           <Button onClick={handleSave} disabled={save.isPending}>

@@ -537,7 +537,7 @@ function TodayPanel({
                     {iv.data?.tenant?.trim() || '—'}
                   </p>
                   <p className='truncate text-xs text-muted-foreground'>
-                    {amt(amount, { decimal: 0 })} ฿ · เกิน {days} วัน
+                    {amt(amount, { decimal: 0 })} · เกิน {days} วัน
                   </p>
                 </Link>
                 <Button

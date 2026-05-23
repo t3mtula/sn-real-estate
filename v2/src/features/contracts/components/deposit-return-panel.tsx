@@ -130,7 +130,7 @@ export function DepositReturnPanel({ contract }: Props) {
                 : ''
           }`}
         >
-          {isDeduction && amount > 0 ? `−${amt(amount)}` : amt(amount)} บาท
+          {isDeduction && amount > 0 ? `−${amt(amount)}` : amt(amount)}
         </span>
       </div>
     )
