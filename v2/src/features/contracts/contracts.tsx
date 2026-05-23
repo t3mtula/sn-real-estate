@@ -320,6 +320,45 @@ export function Contracts() {
 
   const totalRows = contracts?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+
+  /** v1-style running KPI totals computed from filtered rows */
+  const kpi = useMemo(() => {
+    const visible = table.getRowModel().rows.map((r) => r.original)
+    let active = 0
+    let expiring = 0
+    let expired = 0
+    let cancelled = 0
+    let monthlyRev = 0
+    for (const c of visible) {
+      const s = c._status
+      if (s === 'active') active++
+      else if (s === 'expiring') expiring++
+      else if (s === 'expired') expired++
+      else if (s === 'cancelled') cancelled++
+      // sum monthly revenue from active + expiring (rough · uses raw rate / freq guess)
+      if (s === 'active' || s === 'expiring') {
+        const raw = amt(c.data?.rate as number | string | undefined, {
+          symbol: false,
+          decimal: 0,
+          emDash: false,
+        })
+        const num = raw ? Number(raw.replace(/[,\s]/g, '')) : 0
+        if (Number.isFinite(num) && num > 0) {
+          const payFreq = freqShortLabel(c.data as unknown as Record<string, unknown>)
+          // normalize to monthly
+          if (payFreq === 'รายปี') monthlyRev += num / 12
+          else if (payFreq === 'รายไตรมาส') monthlyRev += num / 3
+          else if (payFreq === 'ครึ่งปี') monthlyRev += num / 6
+          else if (payFreq === 'จ่ายครั้งเดียว') {
+            // skip — lump sum doesn't translate to monthly revenue
+          } else {
+            monthlyRev += num
+          }
+        }
+      }
+    }
+    return { active, expiring, expired, cancelled, monthlyRev, count: visible.length }
+  }, [table.getRowModel().rows])
   const exportXlsx = useExportXlsx()
 
   function handleExport() {
@@ -427,6 +466,41 @@ export function Contracts() {
           <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
             ดึงข้อมูลไม่สำเร็จ —{' '}
             {error instanceof Error ? error.message : String(error)}
+          </div>
+        )}
+
+        {!isLoading && kpi.count > 0 && (
+          <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
+            <KpiCard
+              label='ทั้งหมด'
+              value={kpi.count.toLocaleString('th-TH')}
+              sub='สัญญา'
+              tone='neutral'
+            />
+            <KpiCard
+              label='ใช้งาน'
+              value={kpi.active.toLocaleString('th-TH')}
+              sub='สัญญา'
+              tone='success'
+            />
+            <KpiCard
+              label='ใกล้หมด'
+              value={kpi.expiring.toLocaleString('th-TH')}
+              sub='สัญญา'
+              tone='warning'
+            />
+            <KpiCard
+              label='หมดแล้ว'
+              value={kpi.expired.toLocaleString('th-TH')}
+              sub={`+ยกเลิก ${kpi.cancelled.toLocaleString('th-TH')}`}
+              tone='destructive'
+            />
+            <KpiCard
+              label='รายได้/เดือน'
+              value={amt(kpi.monthlyRev, { symbol: false, decimal: 0 })}
+              sub='บาท · ประมาณการ'
+              tone='neutral'
+            />
           </div>
         )}
 
@@ -584,6 +658,38 @@ function ContractHoverDetail({ contract }: { contract: Row }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+const KPI_TONE: Record<string, { card: string; value: string }> = {
+  neutral: { card: 'border-border', value: 'text-foreground' },
+  success: { card: 'border-emerald-500/30 bg-emerald-500/5', value: 'text-emerald-700 dark:text-emerald-400' },
+  warning: { card: 'border-amber-500/30 bg-amber-500/5', value: 'text-amber-700 dark:text-amber-400' },
+  destructive: { card: 'border-red-500/30 bg-red-500/5', value: 'text-red-700 dark:text-red-400' },
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'neutral' | 'success' | 'warning' | 'destructive'
+}) {
+  const t = KPI_TONE[tone] ?? KPI_TONE.neutral
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2', t.card)}>
+      <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+        {label}
+      </p>
+      <p className={cn('mt-0.5 text-xl font-bold tabular-nums leading-tight', t.value)}>
+        {value}
+      </p>
+      {sub && <p className='text-[10px] text-muted-foreground'>{sub}</p>}
     </div>
   )
 }

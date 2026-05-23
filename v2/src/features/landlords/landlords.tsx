@@ -2,7 +2,6 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
-  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
@@ -30,14 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   fmtTaxId,
   getLandlordName,
@@ -379,83 +370,44 @@ export function Landlords() {
           </div>
         )}
 
-        <div className='overflow-x-auto rounded-md border bg-card'>
-          <Table className='min-w-[800px]'>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className='hover:bg-transparent'>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className='text-xs uppercase tracking-wider'
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
-                  <TableRow key={`skeleton-${i}`}>
-                    <TableCell colSpan={columns.length}>
-                      <Skeleton className='h-8 w-full' />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className='h-32 text-center'>
-                    <div className='flex flex-col items-center gap-2 text-muted-foreground'>
-                      <Landmark className='size-8' />
-                      <p>
-                        {totalRows === 0
-                          ? 'ยังไม่มีผู้ให้เช่า'
-                          : 'ไม่พบผู้ให้เช่าที่ตรงกับเงื่อนไข'}
-                      </p>
-                      {totalRows === 0 && (
-                        <Button asChild variant='link' className='h-auto p-0'>
-                          <Link to='/landlords/new'>เพิ่มผู้ให้เช่ารายแรก</Link>
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn('cursor-pointer', 'hover:bg-muted/40')}
-                    onClick={() =>
-                      navigate({
-                        to: '/landlords/$id',
-                        params: { id: row.original.id },
-                      })
-                    }
-                    onMouseEnter={onEnter(row.original)}
-                    onMouseMove={onMove(row.original)}
-                    onMouseLeave={onLeave}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className='py-3'>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
+        {/* Card list — v1-style: avatar + name + signer chips + address · counts on right */}
+        <div className='space-y-2'>
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
+              <Skeleton key={`skeleton-${i}`} className='h-24 w-full rounded-md' />
+            ))
+          ) : table.getRowModel().rows.length === 0 ? (
+            <div className='flex h-32 flex-col items-center justify-center gap-2 rounded-md border bg-card text-muted-foreground'>
+              <Landmark className='size-8' />
+              <p>
+                {totalRows === 0
+                  ? 'ยังไม่มีผู้ให้เช่า'
+                  : 'ไม่พบผู้ให้เช่าที่ตรงกับเงื่อนไข'}
+              </p>
+              {totalRows === 0 && (
+                <Button asChild variant='link' className='h-auto p-0'>
+                  <Link to='/landlords/new'>เพิ่มผู้ให้เช่ารายแรก</Link>
+                </Button>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            table.getRowModel().rows.map((row) => (
+              <LandlordCard
+                key={row.id}
+                row={row.original}
+                onClick={() =>
+                  navigate({
+                    to: '/landlords/$id',
+                    params: { id: row.original.id },
+                  })
+                }
+                onMouseEnter={onEnter(row.original)}
+                onMouseMove={onMove(row.original)}
+                onMouseLeave={onLeave}
+              />
+            ))
+          )}
         </div>
       </Main>
 
@@ -535,5 +487,114 @@ function LandlordHoverDetail({ row }: { row: LandlordRow }) {
         )}
       </div>
     </div>
+  )
+}
+
+function LandlordCard({
+  row,
+  onClick,
+  onMouseEnter,
+  onMouseMove,
+  onMouseLeave,
+}: {
+  row: LandlordRow
+  onClick: () => void
+  onMouseEnter: (e: React.MouseEvent) => void
+  onMouseMove: (e: React.MouseEvent) => void
+  onMouseLeave: () => void
+}) {
+  const d = row.data ?? {}
+  const isCompany = d.partyType === 'company'
+  const addr = [d.addrLine, d.addrSubdistrict, d.addrDistrict, d.addrProvince, d.addrPostal]
+    .filter(Boolean)
+    .join(' ')
+    .trim()
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      className={cn(
+        'group flex w-full items-start gap-3 rounded-md border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/40',
+        'border-l-2',
+        isCompany ? 'border-l-indigo-500' : 'border-l-emerald-500',
+      )}
+    >
+      {/* Avatar */}
+      <div
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-full border',
+          isCompany ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300' : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        )}
+      >
+        {isCompany ? <Building2 className='size-5' /> : <UserRound className='size-5' />}
+      </div>
+
+      {/* Main */}
+      <div className='min-w-0 flex-1'>
+        <div className='flex flex-wrap items-center gap-2'>
+          <span className='font-semibold'>{getLandlordName(d) || '—'}</span>
+          {d.shortName && (
+            <Badge variant='outline' className='text-[10px] font-normal'>
+              {d.shortName}
+            </Badge>
+          )}
+          {d.vatRegistered && (
+            <Badge
+              variant='outline'
+              className='border-amber-500/30 bg-amber-500/10 text-[10px] font-normal text-amber-700 dark:text-amber-400'
+            >
+              VAT {d.vatRate ?? 7}%
+            </Badge>
+          )}
+        </div>
+
+        {/* Signer chips */}
+        {isCompany && d.signerName && (
+          <div className='mt-1 flex flex-wrap gap-1'>
+            <Badge
+              variant='outline'
+              className='border-sky-500/30 bg-sky-500/10 text-[10px] font-normal text-sky-700 dark:text-sky-400'
+            >
+              เซ็นโดย {d.signerName}
+              {d.signerTitle ? ` (${d.signerTitle})` : ''}
+            </Badge>
+          </div>
+        )}
+
+        {/* Address + tax id */}
+        {(addr || d.taxId || d.phone) && (
+          <p className='mt-1 text-xs text-muted-foreground'>
+            {addr && (
+              <span>
+                {addr}
+              </span>
+            )}
+            {(d.taxId || d.phone) && addr && <span> · </span>}
+            {d.taxId && <span>เลขผู้เสียภาษี {fmtTaxId(d.taxId)}</span>}
+            {d.taxId && d.phone && <span> · </span>}
+            {d.phone && <span>โทร {d.phone}</span>}
+          </p>
+        )}
+      </div>
+
+      {/* Right counts (v1 style) */}
+      <div className='flex shrink-0 items-center gap-4 text-right'>
+        <div>
+          <p className='text-lg font-bold tabular-nums leading-tight'>
+            {row._bankCount.toLocaleString('th-TH')}
+          </p>
+          <p className='text-[10px] text-muted-foreground'>บัญชี</p>
+        </div>
+        <div>
+          <p className='text-lg font-bold tabular-nums leading-tight'>
+            {row._contractCount.toLocaleString('th-TH')}
+          </p>
+          <p className='text-[10px] text-muted-foreground'>สัญญา</p>
+        </div>
+      </div>
+    </button>
   )
 }
