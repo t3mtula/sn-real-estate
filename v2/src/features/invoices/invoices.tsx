@@ -79,11 +79,8 @@ import {
   getStatusMeta,
   useInvoices,
 } from '@/features/invoices/queries'
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card'
+import { useRef } from 'react'
+import { CursorPopover } from '@/components/cursor-popover'
 import { InvoiceRowPreview, type InvoicePreviewKind } from '@/features/invoices/invoice-row-preview'
 import {
   INVOICE_STATUSES,
@@ -130,6 +127,25 @@ export function Invoices() {
   function openPreview(id: string, kind: InvoicePreviewKind) {
     setPreviewKind(kind)
     setPreviewId(id)
+  }
+
+  const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
+  const hoverTimer = useRef<number | null>(null)
+
+  function onRowEnter(row: Row, e: React.MouseEvent) {
+    const x = e.clientX
+    const y = e.clientY
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current)
+    hoverTimer.current = window.setTimeout(() => {
+      setHover({ row, x, y })
+    }, 250)
+  }
+  function onRowLeave() {
+    if (hoverTimer.current) {
+      window.clearTimeout(hoverTimer.current)
+      hoverTimer.current = null
+    }
+    setHover(null)
   }
 
   const rows = useMemo<Row[]>(() => {
@@ -621,37 +637,38 @@ export function Invoices() {
                     </TableRow>
                   ) : (
                     table.getRowModel().rows.map((row) => (
-                      <HoverCard key={row.id} openDelay={400} closeDelay={120}>
-                        <HoverCardTrigger asChild>
-                          <TableRow
-                            className={cn(
-                              'cursor-pointer',
-                              row.original._overdue > 0
-                                ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
-                                : 'hover:bg-muted/40',
-                            )}
-                            onClick={() =>
-                              navigate({
-                                to: '/invoices/$id',
-                                params: { id: row.original.id },
-                              })
-                            }
-                          >
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id} className='py-3'>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        </HoverCardTrigger>
-                        <HoverCardContent
-                          side='left'
-                          align='start'
-                          className='w-80'
-                        >
-                          <InvoiceHoverDetail invoice={row.original} />
-                        </HoverCardContent>
-                      </HoverCard>
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          'cursor-pointer',
+                          row.original._overdue > 0
+                            ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
+                            : 'hover:bg-muted/40',
+                        )}
+                        onClick={() =>
+                          navigate({
+                            to: '/invoices/$id',
+                            params: { id: row.original.id },
+                          })
+                        }
+                        onMouseEnter={(e) => onRowEnter(row.original, e)}
+                        onMouseMove={(e) => {
+                          if (hover && hover.row.id === row.original.id) {
+                            setHover({
+                              row: row.original,
+                              x: e.clientX,
+                              y: e.clientY,
+                            })
+                          }
+                        }}
+                        onMouseLeave={onRowLeave}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className='py-3'>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -670,6 +687,14 @@ export function Invoices() {
         kind={previewKind}
         onClose={() => setPreviewId(null)}
       />
+
+      <CursorPopover
+        open={!!hover}
+        x={hover?.x ?? 0}
+        y={hover?.y ?? 0}
+      >
+        {hover && <InvoiceHoverDetail invoice={hover.row} />}
+      </CursorPopover>
 
       {/* Floating bulk action bar */}
       {selectedCount > 0 && (
