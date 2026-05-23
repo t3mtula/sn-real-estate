@@ -306,7 +306,9 @@ function partiesTable(refs: Refs): Content {
 function dateStrip(refs: Refs): Content {
   const c = refs.contract.data
   const madeAt = c.madeAt?.trim() || landlordAddress(refs.landlord, c.landlordAddr)
-  const madeDate = dateThaiLong(c.madeDate)
+  // Fallback: when contract has no madeDate, use start date so the PDF doesn't
+  // render literal "—" on a legal document. Both v1/v2 data have start populated.
+  const madeDate = dateThaiLong(c.madeDate || c.start)
   return {
     table: {
       widths: ['*'],
@@ -844,7 +846,7 @@ function appendixSignatures(refs: Refs): Content {
 export function buildContractPdf(refs: Refs): TDocumentDefinitions {
   const c = refs.contract.data
   const contractNo = (c.no ?? '').trim() || `#${refs.contract.id}`
-  const madeDate = dateBE(c.madeDate)
+  const madeDate = dateBE(c.madeDate || c.start)
   const tenantName = refs.tenant?.data?.name ?? c.tenant ?? '—'
   const propName = refs.property?.data?.name?.trim() ?? '—'
 

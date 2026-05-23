@@ -149,6 +149,23 @@ export function InvoiceReceipt() {
 
   if (!invoice) return <div className='p-8 text-center text-muted-foreground'>ไม่พบใบแจ้งหนี้</div>
 
+  // Block printing a receipt for unpaid invoice — semantically wrong
+  const status = (invoice.status ?? invoice.data?.status ?? '').toLowerCase()
+  const isPaid = status === 'paid' || (invoice.data?.remainingAmount ?? 1) === 0
+  if (!isPaid) {
+    return (
+      <div className='p-8 max-w-xl mx-auto space-y-4'>
+        <h1 className='text-xl font-semibold'>ยังพิมพ์ใบเสร็จไม่ได้</h1>
+        <p className='text-muted-foreground'>
+          ใบแจ้งหนี้นี้ยังไม่ได้รับชำระ · ใบเสร็จออกได้หลังจากบันทึกรับเงินครบแล้วเท่านั้น
+        </p>
+        <Button asChild>
+          <Link to='/invoices/$id' params={{ id }}>กลับไปบันทึกรับเงิน</Link>
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className='no-print flex items-center gap-3 border-b bg-background px-4 py-2'>
