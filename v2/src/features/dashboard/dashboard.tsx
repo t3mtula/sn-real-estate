@@ -52,11 +52,9 @@ function currentMonth(): string {
 function monthlyRev(c: Contract): number {
   const raw = c.data?.rate
   if (typeof raw === 'number' && !isNaN(raw)) return raw
-  if (typeof raw === 'string') {
-    const parsed = parseFloat(raw.replace(/,/g, '').replace(/[^0-9.]/g, ''))
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
+  if (raw == null) return 0
+  const parsed = parseFloat(String(raw).replace(/,/g, '').replace(/[^0-9.]/g, ''))
+  return isNaN(parsed) ? 0 : parsed
 }
 
 type KpiTone = 'primary' | 'success' | 'warning' | 'destructive' | 'info' | 'neutral'
