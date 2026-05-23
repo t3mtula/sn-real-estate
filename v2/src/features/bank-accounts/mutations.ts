@@ -61,6 +61,22 @@ export function useCreateBankAccount() {
         .select('id')
         .single()
       if (error) throw error
+
+      // 2026-05-23 M:M refactor — also write junction row so reverse lookups work
+      if (values.ownerLandlordId) {
+        const { error: linkError } = await supabase
+          .from('landlord_banks')
+          .upsert(
+            {
+              landlord_id: values.ownerLandlordId,
+              bank_account_id: id,
+              is_default: true,
+            },
+            { onConflict: 'landlord_id,bank_account_id', ignoreDuplicates: false },
+          )
+        if (linkError) throw linkError
+      }
+
       void logActivity({
         action: 'create',
         entity: 'bank_accounts',
@@ -70,8 +86,11 @@ export function useCreateBankAccount() {
       })
       return { id, pid }
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['bank_accounts'] })
+      if (vars.ownerLandlordId) {
+        qc.invalidateQueries({ queryKey: ['landlord_banks', 'by-landlord', vars.ownerLandlordId] })
+      }
     },
   })
 }

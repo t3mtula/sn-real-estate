@@ -45,6 +45,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
+import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
 import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
 import { ClauseOverridePanel } from '@/features/contracts/components/clause-override-panel'
 import { InspectionPanel } from '@/features/contracts/components/inspection-panel'
@@ -269,13 +270,12 @@ function ContractEditing({
     return ''
   })()
 
+  const { data: landlordBankAccounts } = useBankAccountsForLandlord(resolvedLandlordId)
   const resolvedBankAccountId = (() => {
-    if (c.bankAccountId) return c.bankAccountId
-    if (!bankAccounts || !resolvedLandlordId) return ''
+    if (c.bankAccountId) return String(c.bankAccountId)
+    if (!landlordBankAccounts || !resolvedLandlordId) return ''
     // Legacy ไม่มี FK · ถ้า landlord มีบัญชีเดียวที่ active → auto-pick
-    const ownBanks = bankAccounts.filter(
-      (b) => b.data?.ownerLandlordId === resolvedLandlordId && b.data?.active !== false,
-    )
+    const ownBanks = landlordBankAccounts.filter((b) => b.data?.active !== false)
     if (ownBanks.length === 1) return ownBanks[0].id
     return ''
   })()

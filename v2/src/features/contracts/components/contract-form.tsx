@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
+import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
 import {
   CONTRACT_FORM_DEFAULTS,
   PAYMENT_PRESETS,
@@ -93,12 +94,13 @@ export function ContractForm({
     }
   }, [pidProperty, properties, mode, form])
 
-  // Filter bank accounts by landlord (ownerLandlordId === landlord_id) — แต่อนุญาตเลือกอิสระ
+  // Filter bank accounts by landlord (via landlord_banks junction) — but allow free choice
+  const { data: landlordBanks } = useBankAccountsForLandlord(landlordId)
   const filteredBanks = useMemo(() => {
     if (!bankAccounts) return []
     if (!landlordId) return bankAccounts
-    return bankAccounts.filter((b) => b.data?.ownerLandlordId === landlordId)
-  }, [bankAccounts, landlordId])
+    return landlordBanks && landlordBanks.length > 0 ? landlordBanks : bankAccounts
+  }, [bankAccounts, landlordBanks, landlordId])
 
   // Filter parent contracts by same property + not cancelled + not self
   const parentCandidates = useMemo(() => {
