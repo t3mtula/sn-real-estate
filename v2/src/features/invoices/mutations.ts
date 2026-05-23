@@ -784,4 +784,32 @@ export function useDeleteInvoice() {
   })
 }
 
+/** Set or clear follow-up date + note on an invoice */
+export function useSetFollowUp(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { followUpDate: string; followUpNote: string }) => {
+      await mergeUpdateInvoice(id, {
+        data: {
+          followUpDate: input.followUpDate.trim() || undefined,
+          followUpNote: input.followUpNote.trim() || undefined,
+        } as Partial<InvoiceData>,
+      })
+      void logActivity({
+        action: 'update',
+        entity: 'invoices',
+        entity_id: id,
+        description: input.followUpDate.trim()
+          ? `ตั้งวันนัดชำระ ${input.followUpDate.trim()}${input.followUpNote.trim() ? ` · ${input.followUpNote.trim()}` : ''}`
+          : 'ลบวันนัดชำระ',
+        after: { followUpDate: input.followUpDate, followUpNote: input.followUpNote },
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
 export type { Invoice }

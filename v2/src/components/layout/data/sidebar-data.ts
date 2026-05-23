@@ -78,6 +78,11 @@ export const sidebarData: SidebarData = {
           url: '/reports/aging',
           icon: BarChart3,
         },
+        {
+          title: 'นัดชำระ',
+          url: '/reports/follow-up',
+          icon: CalendarClock,
+        },
       ],
     },
     {

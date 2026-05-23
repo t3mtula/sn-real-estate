@@ -43,6 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
+import { FollowUpPanel } from '@/features/invoices/follow-up-panel'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
@@ -473,6 +474,7 @@ export function InvoiceDetail({ id }: { id: string }) {
               </div>
             ) : null}
 
+            <FollowUpPanel invoice={invoice} />
             <EntityAuditPanel entity='invoices' entityId={id} />
           </aside>
         </div>

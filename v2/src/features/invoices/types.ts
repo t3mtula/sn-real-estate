@@ -97,6 +97,9 @@ export type InvoiceData = {
   /** Timestamps in data (legacy v1 — Supabase has its own created_at/updated_at) */
   createdAt?: string
   updatedAt?: string
+  /** Follow-up tracking (v1 port: followUpDate BE string · followUpNote text) */
+  followUpDate?: string
+  followUpNote?: string
   /** v1 legacy other fields preserved intact */
   [key: string]: unknown
 }
