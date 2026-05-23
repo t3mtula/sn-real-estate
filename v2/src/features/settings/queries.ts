@@ -44,21 +44,9 @@ async function fetchSetting<T>(key: string): Promise<T> {
   return (data?.value ?? {}) as T
 }
 
-export function useCompanySettings() {
-  return useQuery({
-    queryKey: ['app_settings', 'company'],
-    queryFn: () => fetchSetting<CompanySettings>('company'),
-    staleTime: 60_000,
-  })
-}
-
-export function useDisplaySettings() {
-  return useQuery({
-    queryKey: ['app_settings', 'display'],
-    queryFn: () => fetchSetting<DisplaySettings>('display'),
-    staleTime: 60_000,
-  })
-}
+// Company + Display settings removed (Phase 1 cleanup).
+// Company info (logo, address, PromptPay, VAT) now lives per-landlord in landlords table.
+// Witness defaults will be filled from selected landlord/tenant in Phase 2.
 
 export function useInvoiceSettings() {
   return useQuery({
