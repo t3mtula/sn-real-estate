@@ -6,28 +6,32 @@ import {
   CalendarClock,
   CheckCircle2,
   FileText,
+  ListChecks,
   Receipt,
+  Sparkles,
   TrendingUp,
   Wallet,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import {
   getContractStatus,
   useContracts,
 } from '@/features/contracts/queries'
-import { useInvoices } from '@/features/invoices/queries'
 import { useProperties } from '@/features/properties/queries'
 import {
   daysOverdue,
   formatMonth,
   getInvoiceDisplay,
   isContractDueForMonth,
+  useInvoices,
 } from '@/features/invoices/queries'
 import type { Contract } from '@/features/contracts/types'
 import type { Invoice } from '@/features/invoices/types'
@@ -185,6 +189,7 @@ export function Dashboard() {
   const { data: invoices, isLoading: lcInvoices } = useInvoices()
   const { data: properties, isLoading: lcProps } = useProperties()
   const isLoading = lcContracts || lcInvoices || lcProps
+  const [payQuickId, setPayQuickId] = useState<string | null>(null)
 
   const stats = useMemo(() => {
     const cs = contracts ?? []
@@ -298,6 +303,12 @@ export function Dashboard() {
       .map((x) => x.c)
   }, [stats.expiring])
 
+  // Top not-invoiced-this-month list (max 5)
+  const topNotInvoiced = useMemo(
+    () => stats.notInvoicedThisMonth.slice(0, 5),
+    [stats.notInvoicedThisMonth],
+  )
+
   return (
     <>
       <Header fixed>
@@ -324,6 +335,14 @@ export function Dashboard() {
           </div>
         ) : (
           <>
+            {/* งานวันนี้ — top priority queue · 3 columns */}
+            <TodayPanel
+              overdue={topOverdue}
+              expiring={topExpiring}
+              notInvoiced={topNotInvoiced}
+              onQuickPay={setPayQuickId}
+            />
+
             {/* Top row · ภาพรวม + เงิน */}
             <section className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
               <KpiCard
@@ -454,7 +473,237 @@ export function Dashboard() {
           </>
         )}
       </Main>
+
+      {payQuickId && (() => {
+        const inv = invoices?.find((x) => x.id === payQuickId)
+        if (!inv) return null
+        return (
+          <QuickPaymentDialog
+            invoice={inv}
+            open={true}
+            onOpenChange={(v) => { if (!v) setPayQuickId(null) }}
+          />
+        )
+      })()}
     </>
+  )
+}
+
+/** "งานวันนี้" top-of-dashboard panel — 3 priority queues with quick actions. */
+function TodayPanel({
+  overdue,
+  expiring,
+  notInvoiced,
+  onQuickPay,
+}: {
+  overdue: Invoice[]
+  expiring: Contract[]
+  notInvoiced: Contract[]
+  onQuickPay: (id: string) => void
+}) {
+  const totalCount = overdue.length + expiring.length + notInvoiced.length
+  return (
+    <section className='rounded-lg border bg-card'>
+      <div className='flex items-center gap-2 border-b px-4 py-3'>
+        <ListChecks className='size-4 text-primary' />
+        <h2 className='text-sm font-semibold'>งานวันนี้</h2>
+        <span className='text-xs text-muted-foreground'>
+          {totalCount === 0 ? 'ไม่มีงานเร่งด่วน' : `${totalCount.toLocaleString('th-TH')} รายการเร่งด่วน`}
+        </span>
+      </div>
+      <div className='grid gap-0 lg:grid-cols-3 lg:divide-x'>
+        {/* Overdue */}
+        <TodayColumn
+          tone='destructive'
+          icon={<AlertTriangle className='size-3.5' />}
+          title='บิลเกินกำหนด'
+          count={overdue.length}
+          empty='ไม่มีบิลเกินกำหนด'
+        >
+          {overdue.map((iv) => {
+            const days = daysOverdue(iv)
+            const amount = iv.data?.remainingAmount ?? iv.data?.total
+            return (
+              <div
+                key={iv.id}
+                className='flex items-center gap-2 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40'
+              >
+                <Link
+                  to='/invoices/$id'
+                  params={{ id: iv.id }}
+                  className='min-w-0 flex-1'
+                >
+                  <p className='truncate text-sm font-medium'>
+                    {iv.data?.tenant?.trim() || '—'}
+                  </p>
+                  <p className='truncate text-xs text-muted-foreground'>
+                    {amt(amount, { decimal: 0 })} ฿ · เกิน {days} วัน
+                  </p>
+                </Link>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='h-7 shrink-0 border-emerald-500/40 text-xs text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300'
+                  onClick={() => onQuickPay(iv.id)}
+                >
+                  <Wallet className='size-3' />
+                  รับเงิน
+                </Button>
+              </div>
+            )
+          })}
+        </TodayColumn>
+
+        {/* Expiring (≤30 days) */}
+        <TodayColumn
+          tone='warning'
+          icon={<CalendarClock className='size-3.5' />}
+          title='สัญญาใกล้หมด (≤30 วัน)'
+          count={expiring.length}
+          empty='ไม่มีสัญญาที่จะหมดเร็วๆ นี้'
+        >
+          {expiring.map((c) => {
+            const end = parseBE(c.data?.end ?? '')
+            const daysLeft = end
+              ? Math.ceil((end.toDate().getTime() - Date.now()) / 86_400_000)
+              : 0
+            return (
+              <div
+                key={c.id}
+                className='flex items-center gap-2 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40'
+              >
+                <Link
+                  to='/contracts/$id'
+                  params={{ id: c.id }}
+                  className='min-w-0 flex-1'
+                >
+                  <p className='truncate text-sm font-medium'>
+                    {c.data?.tenant?.trim() || '—'}
+                  </p>
+                  <p className='truncate text-xs text-muted-foreground'>
+                    เหลือ {daysLeft} วัน · สิ้นสุด {c.data?.end || '—'}
+                  </p>
+                </Link>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='h-7 shrink-0 border-amber-500/40 text-xs text-amber-700 hover:bg-amber-500/10 dark:text-amber-300'
+                  asChild
+                >
+                  <Link to='/contracts/$id' params={{ id: c.id }}>
+                    <Sparkles className='size-3' />
+                    ต่ออายุ
+                  </Link>
+                </Button>
+              </div>
+            )
+          })}
+        </TodayColumn>
+
+        {/* Not invoiced this month */}
+        <TodayColumn
+          tone='info'
+          icon={<Receipt className='size-3.5' />}
+          title='ยังไม่ออกใบเดือนนี้'
+          count={notInvoiced.length}
+          empty='ออกใบครบทุกสัญญาแล้ว'
+        >
+          {notInvoiced.map((c) => {
+            const month = (() => {
+              const d = new Date()
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            })()
+            return (
+              <div
+                key={c.id}
+                className='flex items-center gap-2 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40'
+              >
+                <Link
+                  to='/contracts/$id'
+                  params={{ id: c.id }}
+                  className='min-w-0 flex-1'
+                >
+                  <p className='truncate text-sm font-medium'>
+                    {c.data?.tenant?.trim() || '—'}
+                  </p>
+                  <p className='truncate text-xs text-muted-foreground'>
+                    {String((c.data as any)?.property ?? '').trim() || (c.data?.no?.trim() || `#${c.id}`)}
+                  </p>
+                </Link>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  className='h-7 shrink-0 border-sky-500/40 text-xs text-sky-700 hover:bg-sky-500/10 dark:text-sky-300'
+                  asChild
+                >
+                  <Link
+                    to='/invoices/new'
+                    search={{ contract: c.id, month }}
+                  >
+                    <Receipt className='size-3' />
+                    ออกบิล
+                  </Link>
+                </Button>
+              </div>
+            )
+          })}
+        </TodayColumn>
+      </div>
+    </section>
+  )
+}
+
+const TODAY_TONE: Record<string, { badge: string; header: string }> = {
+  destructive: {
+    badge: 'bg-red-500/10 text-red-700 dark:text-red-300',
+    header: 'text-red-700 dark:text-red-300',
+  },
+  warning: {
+    badge: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    header: 'text-amber-700 dark:text-amber-300',
+  },
+  info: {
+    badge: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    header: 'text-sky-700 dark:text-sky-300',
+  },
+}
+
+function TodayColumn({
+  tone,
+  icon,
+  title,
+  count,
+  empty,
+  children,
+}: {
+  tone: 'destructive' | 'warning' | 'info'
+  icon: React.ReactNode
+  title: string
+  count: number
+  empty: string
+  children: React.ReactNode
+}) {
+  const t = TODAY_TONE[tone]
+  return (
+    <div className='flex flex-col'>
+      <div className='flex items-center justify-between gap-2 px-3 py-2'>
+        <div className={cn('flex items-center gap-1.5 text-xs font-semibold', t.header)}>
+          {icon}
+          {title}
+        </div>
+        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums', t.badge)}>
+          {count}
+        </span>
+      </div>
+      {count === 0 ? (
+        <div className='flex flex-1 flex-col items-center justify-center gap-1 px-3 py-6 text-xs text-muted-foreground'>
+          <CheckCircle2 className='size-5 text-emerald-500' />
+          {empty}
+        </div>
+      ) : (
+        <div className='flex-1'>{children}</div>
+      )}
+    </div>
   )
 }
 

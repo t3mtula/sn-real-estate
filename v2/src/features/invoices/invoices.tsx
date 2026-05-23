@@ -19,6 +19,7 @@ import {
   Search,
   Send,
   Sparkles,
+  Wallet,
   X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -77,6 +78,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '@/features/invoices/types'
+import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -102,19 +104,30 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
 
 export function Invoices() {
   const { data: invoices, isLoading, error } = useInvoices()
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'month', desc: true }])
+  // Default: no explicit column sort — rows are pre-sorted "งานเร่งด่วน" first
+  // (overdue, most overdue first → due soon → most recent month).
+  // User clicking a column header overrides this.
+  const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const rows = useMemo<Row[]>(() => {
     if (!invoices) return []
-    return invoices.map((inv) => ({
+    const enriched = invoices.map((inv) => ({
       ...inv,
       _status: getEffectiveStatus(inv),
       _overdue: daysOverdue(inv),
     }))
+    // Default "urgent first" ordering — overrideable by clicking column headers.
+    return enriched.sort((a, b) => {
+      if (a._overdue !== b._overdue) return b._overdue - a._overdue
+      const am = a.data?.month ?? ''
+      const bm = b.data?.month ?? ''
+      return bm.localeCompare(am)
+    })
   }, [invoices])
 
   const months = useMemo(() => {
@@ -250,6 +263,31 @@ export function Invoices() {
           if (!value || value === 'all') return true
           if (value === 'overdue') return row.original._overdue > 0
           return row.original._status === value
+        },
+      },
+      {
+        id: 'actions',
+        size: 60,
+        enableSorting: false,
+        header: () => <span className='sr-only'>การกระทำ</span>,
+        cell: ({ row }) => {
+          const st = row.original._status
+          // hide on terminal states — paid/voided
+          if (st === 'paid' || st === 'voided') return null
+          return (
+            <Button
+              size='icon'
+              variant='ghost'
+              className='size-7 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400'
+              title='บันทึกรับเงิน'
+              onClick={(e) => {
+                e.stopPropagation()
+                setPayQuickId(row.original.id)
+              }}
+            >
+              <Wallet className='size-4' />
+            </Button>
+          )
         },
       },
     ],
@@ -551,8 +589,9 @@ export function Invoices() {
                         key={row.id}
                         className={cn(
                           'cursor-pointer',
-                          'hover:bg-muted/40',
-                          row.original._overdue > 0 && 'bg-destructive/5',
+                          row.original._overdue > 0
+                            ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
+                            : 'hover:bg-muted/40',
                         )}
                         onClick={() =>
                           navigate({ to: '/invoices/$id', params: { id: row.original.id } })
@@ -624,6 +663,18 @@ export function Invoices() {
           </div>
         </div>
       )}
+
+      {payQuickId && (() => {
+        const inv = invoices?.find((x) => x.id === payQuickId)
+        if (!inv) return null
+        return (
+          <QuickPaymentDialog
+            invoice={inv}
+            open={true}
+            onOpenChange={(v) => { if (!v) setPayQuickId(null) }}
+          />
+        )
+      })()}
 
       <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
         <AlertDialogContent>
