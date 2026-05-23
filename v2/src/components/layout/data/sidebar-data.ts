@@ -7,6 +7,7 @@ import {
   CreditCard,
   FileText,
   GalleryVerticalEnd,
+  Gauge,
   LayoutDashboard,
   Landmark,
   Palette,
@@ -74,6 +75,11 @@ export const sidebarData: SidebarData = {
           title: 'ใบแจ้งหนี้',
           url: '/invoices',
           icon: Receipt,
+        },
+        {
+          title: 'มิเตอร์น้ำ/ไฟ',
+          url: '/meters',
+          icon: Gauge,
         },
         {
           title: 'รายงานอายุหนี้',

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CreditCard, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import { DateInputBE } from '@/components/date-input-be'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -97,8 +98,12 @@ export function PaymentPanel({ invoice }: Props) {
               </Select>
             </div>
             <div className='space-y-1'>
-              <Label className='text-xs'>วันที่รับเงิน (วว/ดด/ปปปป)</Label>
-              <Input value={date} onChange={(e) => setDate(e.target.value)} placeholder='05/06/2568' className='h-8 text-sm' />
+              <Label className='text-xs'>วันที่รับเงิน</Label>
+              <DateInputBE
+                value={date}
+                onChange={setDate}
+                className='h-8 text-sm'
+              />
             </div>
             <div className='space-y-1'>
               <Label className='text-xs'>เลขอ้างอิง / เลข slip</Label>
