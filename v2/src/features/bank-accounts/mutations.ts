@@ -6,27 +6,8 @@ import type { BankAccountData } from '@/features/bank-accounts/types'
 
 const TABLE = 'bank_accounts'
 
-/**
- * Look up owner landlord name (for cache field)
- */
-async function lookupOwnerName(landlordId: string): Promise<string> {
-  const trimmed = landlordId.trim()
-  if (!trimmed) return ''
-  const { data, error } = await supabase
-    .from('landlords')
-    .select('data')
-    .eq('id', trimmed)
-    .maybeSingle()
-  if (error) return ''
-  const d = data?.data as { name?: string } | undefined
-  return d?.name?.trim() ?? ''
-}
-
-function valuesToManagedFields(
-  values: BankAccountFormValues,
-  pid: number,
-  ownerLandlordName: string,
-) {
+function valuesToManagedFields(values: BankAccountFormValues, pid: number) {
+  // ownerLandlordId/Name removed (2026-05-23) — junction table landlord_banks is the source of truth.
   return {
     pid,
     bank: values.bank,
@@ -34,8 +15,6 @@ function valuesToManagedFields(
     acctNo: values.acctNo,
     accountName: values.accountName ?? '',
     label: values.label ?? '',
-    ownerLandlordId: values.ownerLandlordId ?? '',
-    ownerLandlordName,
     active: values.active !== false,
     notes: values.notes ?? '',
   }
@@ -53,8 +32,7 @@ export function useCreateBankAccount() {
       const id = values.ownerLandlordId
         ? `${values.ownerLandlordId}-b${String(pid).slice(-6)}`
         : `ba-${pid}`
-      const ownerName = await lookupOwnerName(values.ownerLandlordId)
-      const managed = valuesToManagedFields(values, pid, ownerName)
+      const managed = valuesToManagedFields(values, pid)
       const { error } = await supabase
         .from(TABLE)
         .insert({ id, data: managed })
@@ -62,7 +40,7 @@ export function useCreateBankAccount() {
         .single()
       if (error) throw error
 
-      // 2026-05-23 M:M refactor — also write junction row so reverse lookups work
+      // M:M junction — link to landlord if specified at create time
       if (values.ownerLandlordId) {
         const { error: linkError } = await supabase
           .from('landlord_banks')
@@ -82,7 +60,7 @@ export function useCreateBankAccount() {
         entity: 'bank_accounts',
         entity_id: id,
         description: `เพิ่มบัญชีธนาคาร ${managed.bank} · ${managed.acctNo}`,
-        after: { bank: managed.bank, acctNo: managed.acctNo, ownerLandlordName: managed.ownerLandlordName },
+        after: { bank: managed.bank, acctNo: managed.acctNo },
       })
       return { id, pid }
     },
@@ -111,9 +89,11 @@ export function useUpdateBankAccount(id: string) {
 
       const existingData = (existing?.data ?? {}) as BankAccountData
       const pid = existingData.pid ?? Date.now()
-      const ownerName = await lookupOwnerName(values.ownerLandlordId)
-      const managed = valuesToManagedFields(values, pid, ownerName)
-      const merged: BankAccountData = { ...existingData, ...managed }
+      const managed = valuesToManagedFields(values, pid)
+      // Strip deprecated owner fields from existing data on update
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { ownerLandlordId: _o1, ownerLandlordName: _o2, ...cleanExisting } = existingData
+      const merged: BankAccountData = { ...cleanExisting, ...managed }
 
       const { data: updated, error } = await supabase
         .from(TABLE)

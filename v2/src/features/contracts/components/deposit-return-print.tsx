@@ -11,12 +11,12 @@ import { amt, fmtBE } from '@/lib/thai'
 import { useContract, getContractDisplay } from '@/features/contracts/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
-import { useCompanySettings } from '@/features/settings/queries'
+import { useLandlord } from '@/features/landlords/queries'
 import type { DepositReturn, MoveOutInspection } from '@/features/contracts/types'
 
 export function DepositReturnPrint({ id }: { id: string }) {
   const { data: contract, isLoading } = useContract(id)
-  const { data: company } = useCompanySettings()
+  const { data: landlord } = useLandlord(contract?.data?.landlord_id)
   const today = useMemo(() => fmtBE(new Date()), [])
 
   const c = contract?.data
@@ -42,8 +42,14 @@ export function DepositReturnPrint({ id }: { id: string }) {
   const tenantName = tenant.data?.data?.name ?? c?.tenant ?? '—'
   const propertyName = property.data?.data?.name ?? '—'
   const contractDisplay = getContractDisplay(contract)
-  const companyName = company?.name ?? 'บริษัท สมบัตินภา จำกัด'
-  const companyAddress = company?.address ?? ''
+  const companyName = landlord?.data?.name ?? c?.landlord ?? ''
+  const companyAddress = [
+    landlord?.data?.addrLine,
+    landlord?.data?.addrSubdistrict,
+    landlord?.data?.addrDistrict,
+    landlord?.data?.addrProvince,
+    landlord?.data?.addrPostal,
+  ].filter(Boolean).join(' ') || c?.landlordAddr || ''
 
   const originalDeposit = depositReturn?.originalDeposit ?? Number(c?.deposit) ?? 0
   const deductionInspection = depositReturn?.deductionFromInspection ?? inspection?.totalDeduction ?? 0

@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useMemo } from 'react'
 import { amt, fmtBE } from '@/lib/thai'
 import { useInvoice } from '@/features/invoices/queries'
-import { useCompanySettings } from '@/features/settings/queries'
+import { useContract } from '@/features/contracts/queries'
+import { useLandlord } from '@/features/landlords/queries'
 
 function ReceiptHalf({
   title,
@@ -125,9 +126,20 @@ function ReceiptHalf({
 export function InvoiceReceipt() {
   const { id } = useParams({ from: '/_authenticated/invoices/$id/receipt' })
   const { data: invoice, isLoading } = useInvoice(id)
-  const { data: company } = useCompanySettings()
+  const { data: contract } = useContract(invoice?.contract_id ?? undefined)
+  const { data: landlord } = useLandlord(contract?.data?.landlord_id)
   // computed at render time, not module load
   const today = useMemo(() => fmtBE(new Date()), [])
+
+  // Build landlord address from 5-part address fields
+  const landlordName = landlord?.data?.name ?? invoice?.data?.landlord ?? ''
+  const landlordAddress = [
+    landlord?.data?.addrLine,
+    landlord?.data?.addrSubdistrict,
+    landlord?.data?.addrDistrict,
+    landlord?.data?.addrProvince,
+    landlord?.data?.addrPostal,
+  ].filter(Boolean).join(' ')
 
   if (isLoading) return (
     <div className='p-8 space-y-4'>
@@ -157,15 +169,15 @@ export function InvoiceReceipt() {
         <ReceiptHalf
           title='ต้นฉบับ (ผู้เช่า)'
           invoice={invoice}
-          companyName={company?.name}
-          companyAddress={company?.address}
+          companyName={landlordName}
+          companyAddress={landlordAddress}
           today={today}
         />
         <ReceiptHalf
           title='สำเนา (ผู้ให้เช่า)'
           invoice={invoice}
-          companyName={company?.name}
-          companyAddress={company?.address}
+          companyName={landlordName}
+          companyAddress={landlordAddress}
           today={today}
         />
       </div>

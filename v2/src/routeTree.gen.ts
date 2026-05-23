@@ -40,8 +40,6 @@ import { Route as AuthenticatedTemplatesIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedSettingsSystemRouteImport } from './routes/_authenticated/settings/system'
 import { Route as AuthenticatedSettingsStaffRouteImport } from './routes/_authenticated/settings/staff'
 import { Route as AuthenticatedSettingsInvoiceSettingsRouteImport } from './routes/_authenticated/settings/invoice-settings'
-import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
-import { Route as AuthenticatedSettingsCompanyRouteImport } from './routes/_authenticated/settings/company'
 import { Route as AuthenticatedSettingsAppearanceRouteImport } from './routes/_authenticated/settings/appearance'
 import { Route as AuthenticatedReportsOutstandingRouteImport } from './routes/_authenticated/reports/outstanding'
 import { Route as AuthenticatedReportsMonthlyRouteImport } from './routes/_authenticated/reports/monthly'
@@ -237,18 +235,6 @@ const AuthenticatedSettingsInvoiceSettingsRoute =
     path: '/invoice-settings',
     getParentRoute: () => AuthenticatedSettingsRouteRoute,
   } as any)
-const AuthenticatedSettingsDisplayRoute =
-  AuthenticatedSettingsDisplayRouteImport.update({
-    id: '/display',
-    path: '/display',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
-const AuthenticatedSettingsCompanyRoute =
-  AuthenticatedSettingsCompanyRouteImport.update({
-    id: '/company',
-    path: '/company',
-    getParentRoute: () => AuthenticatedSettingsRouteRoute,
-  } as any)
 const AuthenticatedSettingsAppearanceRoute =
   AuthenticatedSettingsAppearanceRouteImport.update({
     id: '/appearance',
@@ -422,8 +408,6 @@ export interface FileRoutesByFullPath {
   '/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
@@ -479,8 +463,6 @@ export interface FileRoutesByTo {
   '/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/settings/system': typeof AuthenticatedSettingsSystemRoute
@@ -539,8 +521,6 @@ export interface FileRoutesById {
   '/_authenticated/reports/monthly': typeof AuthenticatedReportsMonthlyRoute
   '/_authenticated/reports/outstanding': typeof AuthenticatedReportsOutstandingRoute
   '/_authenticated/settings/appearance': typeof AuthenticatedSettingsAppearanceRoute
-  '/_authenticated/settings/company': typeof AuthenticatedSettingsCompanyRoute
-  '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/_authenticated/settings/staff': typeof AuthenticatedSettingsStaffRoute
   '/_authenticated/settings/system': typeof AuthenticatedSettingsSystemRoute
@@ -599,8 +579,6 @@ export interface FileRouteTypes {
     | '/reports/monthly'
     | '/reports/outstanding'
     | '/settings/appearance'
-    | '/settings/company'
-    | '/settings/display'
     | '/settings/invoice-settings'
     | '/settings/staff'
     | '/settings/system'
@@ -656,8 +634,6 @@ export interface FileRouteTypes {
     | '/reports/monthly'
     | '/reports/outstanding'
     | '/settings/appearance'
-    | '/settings/company'
-    | '/settings/display'
     | '/settings/invoice-settings'
     | '/settings/staff'
     | '/settings/system'
@@ -715,8 +691,6 @@ export interface FileRouteTypes {
     | '/_authenticated/reports/monthly'
     | '/_authenticated/reports/outstanding'
     | '/_authenticated/settings/appearance'
-    | '/_authenticated/settings/company'
-    | '/_authenticated/settings/display'
     | '/_authenticated/settings/invoice-settings'
     | '/_authenticated/settings/staff'
     | '/_authenticated/settings/system'
@@ -979,20 +953,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsInvoiceSettingsRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
-    '/_authenticated/settings/display': {
-      id: '/_authenticated/settings/display'
-      path: '/display'
-      fullPath: '/settings/display'
-      preLoaderRoute: typeof AuthenticatedSettingsDisplayRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
-    '/_authenticated/settings/company': {
-      id: '/_authenticated/settings/company'
-      path: '/company'
-      fullPath: '/settings/company'
-      preLoaderRoute: typeof AuthenticatedSettingsCompanyRouteImport
-      parentRoute: typeof AuthenticatedSettingsRouteRoute
-    }
     '/_authenticated/settings/appearance': {
       id: '/_authenticated/settings/appearance'
       path: '/appearance'
@@ -1166,8 +1126,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsAppearanceRoute: typeof AuthenticatedSettingsAppearanceRoute
-  AuthenticatedSettingsCompanyRoute: typeof AuthenticatedSettingsCompanyRoute
-  AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsInvoiceSettingsRoute: typeof AuthenticatedSettingsInvoiceSettingsRoute
   AuthenticatedSettingsStaffRoute: typeof AuthenticatedSettingsStaffRoute
   AuthenticatedSettingsSystemRoute: typeof AuthenticatedSettingsSystemRoute
@@ -1177,8 +1135,6 @@ interface AuthenticatedSettingsRouteRouteChildren {
 const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteChildren =
   {
     AuthenticatedSettingsAppearanceRoute: AuthenticatedSettingsAppearanceRoute,
-    AuthenticatedSettingsCompanyRoute: AuthenticatedSettingsCompanyRoute,
-    AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
     AuthenticatedSettingsInvoiceSettingsRoute:
       AuthenticatedSettingsInvoiceSettingsRoute,
     AuthenticatedSettingsStaffRoute: AuthenticatedSettingsStaffRoute,
