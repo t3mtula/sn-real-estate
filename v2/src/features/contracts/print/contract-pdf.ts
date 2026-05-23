@@ -815,23 +815,39 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
           },
           {
             width: 'auto',
-            stack: [
-              {
-                text: 'เลขที่สัญญา · No.',
-                alignment: 'right',
-                color: C.inkFaint,
-                fontSize: 8,
-                characterSpacing: 1,
-              },
-              {
-                text: contractNo,
-                alignment: 'right',
-                bold: true,
-                color: C.brand,
-                fontSize: 14,
-                margin: [0, 1, 0, 0] as [number, number, number, number],
-              },
-            ],
+            table: {
+              widths: ['auto'],
+              body: [
+                [
+                  {
+                    stack: [
+                      {
+                        text: 'เลขที่สัญญา · No.',
+                        alignment: 'center',
+                        color: C.inkFaint,
+                        fontSize: 8,
+                        characterSpacing: 1,
+                      },
+                      {
+                        text: contractNo,
+                        alignment: 'center',
+                        bold: true,
+                        color: C.brand,
+                        fontSize: 14,
+                        margin: [0, 2, 0, 0] as [number, number, number, number],
+                      },
+                    ],
+                    margin: [12, 6, 12, 6] as [number, number, number, number],
+                  },
+                ],
+              ],
+            },
+            layout: {
+              hLineColor: () => C.brand,
+              vLineColor: () => C.brand,
+              hLineWidth: () => 0.8,
+              vLineWidth: () => 0.8,
+            },
           },
         ],
         margin: [0, 6, 0, 12] as [number, number, number, number],
@@ -861,7 +877,7 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
     defaultStyle: {
       font: 'THSarabunNew',
       fontSize: 13,
-      lineHeight: 1.35,
+      lineHeight: 1.6,
       color: C.ink,
     },
   }

@@ -34,6 +34,7 @@ import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
 import { Route as AuthenticatedBankAccountsIndexRouteImport } from './routes/_authenticated/bank-accounts/index'
 import { Route as AuthenticatedTenantsNewRouteImport } from './routes/_authenticated/tenants/new'
+import { Route as AuthenticatedSettingsSystemRouteImport } from './routes/_authenticated/settings/system'
 import { Route as AuthenticatedSettingsStaffRouteImport } from './routes/_authenticated/settings/staff'
 import { Route as AuthenticatedSettingsInvoiceSettingsRouteImport } from './routes/_authenticated/settings/invoice-settings'
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
@@ -200,6 +201,12 @@ const AuthenticatedTenantsNewRoute = AuthenticatedTenantsNewRouteImport.update({
   path: '/tenants/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettingsSystemRoute =
+  AuthenticatedSettingsSystemRouteImport.update({
+    id: '/system',
+    path: '/system',
+    getParentRoute: () => AuthenticatedSettingsRouteRoute,
+  } as any)
 const AuthenticatedSettingsStaffRoute =
   AuthenticatedSettingsStaffRouteImport.update({
     id: '/staff',
@@ -419,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
+  '/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -475,6 +483,7 @@ export interface FileRoutesByTo {
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/settings/staff': typeof AuthenticatedSettingsStaffRoute
+  '/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/bank-accounts': typeof AuthenticatedBankAccountsIndexRoute
   '/contracts': typeof AuthenticatedContractsIndexRoute
@@ -534,6 +543,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/invoice-settings': typeof AuthenticatedSettingsInvoiceSettingsRoute
   '/_authenticated/settings/staff': typeof AuthenticatedSettingsStaffRoute
+  '/_authenticated/settings/system': typeof AuthenticatedSettingsSystemRoute
   '/_authenticated/tenants/new': typeof AuthenticatedTenantsNewRoute
   '/_authenticated/bank-accounts/': typeof AuthenticatedBankAccountsIndexRoute
   '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
@@ -593,6 +603,7 @@ export interface FileRouteTypes {
     | '/settings/display'
     | '/settings/invoice-settings'
     | '/settings/staff'
+    | '/settings/system'
     | '/tenants/new'
     | '/bank-accounts/'
     | '/contracts/'
@@ -649,6 +660,7 @@ export interface FileRouteTypes {
     | '/settings/display'
     | '/settings/invoice-settings'
     | '/settings/staff'
+    | '/settings/system'
     | '/tenants/new'
     | '/bank-accounts'
     | '/contracts'
@@ -707,6 +719,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/display'
     | '/_authenticated/settings/invoice-settings'
     | '/_authenticated/settings/staff'
+    | '/_authenticated/settings/system'
     | '/_authenticated/tenants/new'
     | '/_authenticated/bank-accounts/'
     | '/_authenticated/contracts/'
@@ -931,6 +944,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsStaffRouteImport
       parentRoute: typeof AuthenticatedSettingsRouteRoute
     }
+    '/_authenticated/settings/system': {
+      id: '/_authenticated/settings/system'
+      path: '/system'
+      fullPath: '/settings/system'
+      preLoaderRoute: typeof AuthenticatedSettingsSystemRouteImport
+      parentRoute: typeof AuthenticatedSettingsRouteRoute
+    }
     '/_authenticated/settings/invoice-settings': {
       id: '/_authenticated/settings/invoice-settings'
       path: '/invoice-settings'
@@ -1150,6 +1170,7 @@ interface AuthenticatedSettingsRouteRouteChildren {
   AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsInvoiceSettingsRoute: typeof AuthenticatedSettingsInvoiceSettingsRoute
   AuthenticatedSettingsStaffRoute: typeof AuthenticatedSettingsStaffRoute
+  AuthenticatedSettingsSystemRoute: typeof AuthenticatedSettingsSystemRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
   AuthenticatedSettingsTemplatesIdRoute: typeof AuthenticatedSettingsTemplatesIdRoute
   AuthenticatedSettingsTemplatesNewRoute: typeof AuthenticatedSettingsTemplatesNewRoute
@@ -1164,6 +1185,7 @@ const AuthenticatedSettingsRouteRouteChildren: AuthenticatedSettingsRouteRouteCh
     AuthenticatedSettingsInvoiceSettingsRoute:
       AuthenticatedSettingsInvoiceSettingsRoute,
     AuthenticatedSettingsStaffRoute: AuthenticatedSettingsStaffRoute,
+    AuthenticatedSettingsSystemRoute: AuthenticatedSettingsSystemRoute,
     AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
     AuthenticatedSettingsTemplatesIdRoute:
       AuthenticatedSettingsTemplatesIdRoute,
