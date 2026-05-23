@@ -50,8 +50,10 @@ import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
 import { ClauseOverridePanel } from '@/features/contracts/components/clause-override-panel'
 import { InspectionPanel } from '@/features/contracts/components/inspection-panel'
 import { DepositReturnPanel } from '@/features/contracts/components/deposit-return-panel'
+import { PrintOverlay } from '@/components/print-overlay'
 import { ContractForm } from '@/features/contracts/components/contract-form'
-import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
+import { buildContractHtml } from '@/features/contracts/print/contract-html'
+import { useActiveContractTemplate } from '@/features/templates/queries'
 import {
   DuplicateContractNoError,
   useCancelContract,
@@ -73,7 +75,6 @@ import { useLandlord, useLandlords } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
 import { useTenant, useTenants } from '@/features/tenants/queries'
 import { coerceDurMonths, coerceNumber } from '@/lib/contract-normalize'
-import { usePdf } from '@/lib/pdf'
 import { amt, todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import type { ContractStatus } from '@/features/contracts/types'
@@ -369,10 +370,10 @@ function Content({
   const c = contract.data
   const status = getContractStatus(c)
   const display = getContractDisplay(contract)
-  const navigate = useNavigate()
   const [cancelOpen, setCancelOpen] = useState(false)
   const [moveOutOpen, setMoveOutOpen] = useState(false)
   const [moveOutExpanded, setMoveOutExpanded] = useState(false)
+  const [printHtml, setPrintHtml] = useState<string | null>(null)
   const restore = useRestoreContract(contract.id)
   const confirm = useConfirm()
 
@@ -400,27 +401,19 @@ function Content({
   const propertyId = (c.pid_property ?? c.pid)?.toString() ?? ''
   const property = useProperty(propertyId)
   const parent = useContract(c.parent_contract_id)
+  const template = useActiveContractTemplate()
 
-  const pdf = usePdf()
-  async function handlePrint() {
-    const doc = buildContractPdf({
+  function handlePrint() {
+    const html = buildContractHtml({
       contract,
       tenant: tenant.data,
       landlord: landlord.data,
       bank: bank.data,
       property: property.data,
       parent: parent.data,
+      template: template.data,
     })
-    const safeName = (c.no ?? `#${contract.id}`).replace(/[/\\?%*:|"<>]/g, '_')
-    // ปุ่ม "พิมพ์/PDF" → navigate ไป /contracts/$id/print (preview page route)
-    // ทำที่นั่นเพราะ:
-    //   1. Tem rule "ทุกหน้าเปลี่ยนหน้า · ไม่ overlay"
-    //   2. Chrome MCP / lookเห็น PDF inline ผ่าน iframe (popup blocker friendly)
-    //   3. ลูกน้องเห็น preview + ปุ่ม "สั่งพิมพ์" / "ดาวน์โหลด" ใน toolbar
-    // doc + safeName ไม่ได้ใช้แล้ว — ก่อนหน้านี้ใช้ทำ blob/download ที่นี่.
-    void doc
-    void safeName
-    navigate({ to: '/contracts/$id/print', params: { id: contract.id } })
+    setPrintHtml(html)
   }
 
   return (
@@ -448,13 +441,9 @@ function Content({
           </div>
         </div>
         <div className='flex flex-wrap gap-2'>
-          <Button
-            variant='outline'
-            onClick={handlePrint}
-            disabled={pdf.generating}
-          >
+          <Button variant='outline' onClick={handlePrint}>
             <Printer className='size-4' />
-            {pdf.generating ? 'กำลังสร้าง...' : 'พิมพ์/PDF'}
+            พิมพ์/PDF
           </Button>
           {!c.cancelled && (
             <Button variant='outline' asChild>
@@ -827,6 +816,13 @@ function Content({
       })()}
 
       <EntityAuditPanel entity='contracts' entityId={contract.id} />
+
+      <PrintOverlay
+        open={!!printHtml}
+        html={printHtml}
+        title={`สัญญาเช่า ${display}`}
+        onClose={() => setPrintHtml(null)}
+      />
     </>
   )
 }
