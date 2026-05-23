@@ -179,7 +179,13 @@ export function Contracts() {
           if (formatted === '—') {
             return <span className='text-sm text-muted-foreground'>—</span>
           }
-          return <span className='text-sm tabular-nums'>{formatted}</span>
+          const freq = row.original.data?.payment?.trim()
+          return (
+            <span className='text-sm tabular-nums'>
+              {formatted}
+              {freq ? <span className='ms-1 text-xs text-muted-foreground'>/ {freq}</span> : null}
+            </span>
+          )
         },
       },
       {

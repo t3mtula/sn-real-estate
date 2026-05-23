@@ -33,8 +33,10 @@
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
+  /* #C77D49 (copper) = 3.03:1 contrast on white → fails WCAG AA.
+   * #8B4A1E = ~5.5:1 on white → passes AA for normal text. */
+  --sidebar-accent: #8b4a1e;
+  --sidebar-accent-foreground: #ffffff;
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }

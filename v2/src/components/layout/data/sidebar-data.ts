@@ -29,7 +29,7 @@ export const sidebarData: SidebarData = {
     {
       name: 'SN Real Estate',
       logo: GalleryVerticalEnd,
-      plan: 'v2 (in development)',
+      plan: 'ระบบบริหารสัญญาเช่า',
     },
   ],
   navGroups: [

@@ -50,7 +50,13 @@ function currentMonth(): string {
  * which would under-state quarterly (÷3) / semi (÷6) / yearly (÷12).
  */
 function monthlyRev(c: Contract): number {
-  return Number(c.data?.rate) || 0
+  const raw = c.data?.rate
+  if (typeof raw === 'number' && !isNaN(raw)) return raw
+  if (typeof raw === 'string') {
+    const parsed = parseFloat(raw.replace(/,/g, '').replace(/[^0-9.]/g, ''))
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
 }
 
 type KpiTone = 'primary' | 'success' | 'warning' | 'destructive' | 'info' | 'neutral'
@@ -178,8 +184,8 @@ export function Dashboard() {
       if (c.data?.cancelled) continue
       const s = getContractStatus(c.data)
       if (s === 'active' || s === 'expiring' || s === 'upcoming') {
-        const pid = c.data?.pid_property
-        if (typeof pid === 'number') occupiedSet.add(pid)
+        const pid = c.data?.pid_property ?? (c.data as any)?.pid
+        if (pid != null) occupiedSet.add(Number(pid))
       }
     }
     const occupied = occupiedSet.size
