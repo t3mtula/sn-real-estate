@@ -58,6 +58,8 @@ export function useAuditLog(filter: AuditFilter = {}) {
 
 /**
  * Audit log for a specific entity row · used inside detail pages.
+ * If entityId is undefined (page still loading) we skip the entityId filter
+ * rather than passing a sentinel that matches nothing.
  */
 export function useEntityAuditLog(
   entity: string,
@@ -65,7 +67,7 @@ export function useEntityAuditLog(
 ) {
   return useAuditLog({
     entity,
-    entityId: entityId ?? '__none__',
+    ...(entityId ? { entityId } : {}),
     limit: 50,
   })
 }
