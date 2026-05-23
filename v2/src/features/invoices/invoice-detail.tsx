@@ -45,6 +45,7 @@ import {
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
 import { FollowUpPanel } from '@/features/invoices/follow-up-panel'
 import { PaymentPanel } from '@/features/invoices/payment-panel'
+import { PromptPayQRCard } from '@/features/invoices/promptpay-qr-card'
 import { useBankAccount } from '@/features/bank-accounts/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
@@ -189,6 +190,14 @@ export function InvoiceDetail({ id }: { id: string }) {
                 พิมพ์/PDF
               </Link>
             </Button>
+            {(invoice.status === 'paid' || invoice.status === 'partial') && (
+              <Button size='sm' variant='outline' asChild>
+                <Link to='/invoices/$id/receipt' params={{ id }}>
+                  <Receipt className='size-4' />
+                  ใบเสร็จ
+                </Link>
+              </Button>
+            )}
             {isDraft && (
               <Button
                 size='sm'
@@ -446,6 +455,7 @@ export function InvoiceDetail({ id }: { id: string }) {
             ) : null}
 
             <FollowUpPanel invoice={invoice} />
+            <PromptPayQRCard invoiceId={id} total={data.total} />
             <EntityAuditPanel entity='invoices' entityId={id} />
           </aside>
         </div>

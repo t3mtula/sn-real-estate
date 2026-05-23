@@ -353,3 +353,17 @@ export function useUpdateMoveOutNotice(id: string) {
     },
   })
 }
+
+/** Save per-contract clause overrides */
+export function useUpdateContractClauses(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (overrides: Record<string, string>) => {
+      await mergeUpdateContract(id, { clauseOverrides: overrides })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+    },
+  })
+}
