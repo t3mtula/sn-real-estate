@@ -105,8 +105,7 @@ function StatusBadge({ status }: { status: InvoiceStatus }) {
 export function Invoices() {
   const { data: invoices, isLoading, error } = useInvoices()
   // Default: no explicit column sort — rows are pre-sorted "งานเร่งด่วน" first
-  // (overdue, most overdue first → due soon → most recent month).
-  // User clicking a column header overrides this.
+  // (most overdue first → most recent month). Clicking a column header overrides.
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -121,7 +120,7 @@ export function Invoices() {
       _status: getEffectiveStatus(inv),
       _overdue: daysOverdue(inv),
     }))
-    // Default "urgent first" ordering — overrideable by clicking column headers.
+    // Default "urgent first" — overrideable by clicking column headers.
     return enriched.sort((a, b) => {
       if (a._overdue !== b._overdue) return b._overdue - a._overdue
       const am = a.data?.month ?? ''

@@ -10,6 +10,7 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { BankLogo } from '@/components/yonghua/bank-logo'
+import { CopyButton } from '@/components/copy-button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -246,12 +247,17 @@ function Content({
                 </Badge>
               )}
             </div>
-            <p className='mt-1 font-mono text-lg'>{data.acctNo}</p>
+            <div className='mt-1 flex items-center gap-1'>
+              <p className='font-mono text-lg'>{data.acctNo}</p>
+              {data.acctNo?.trim() && (
+                <CopyButton text={data.acctNo} label='คัดลอกเลขบัญชี' />
+              )}
+            </div>
           </div>
         </div>
         <div className='flex gap-2'>
           <Button
-            variant='ghost'
+            variant='outline'
             onClick={onDelete}
             disabled={deleting}
             className='text-destructive hover:bg-destructive/10 hover:text-destructive'
@@ -274,7 +280,22 @@ function Content({
           <CardContent className='grid gap-5 sm:grid-cols-2'>
             <InfoRow icon={Landmark} label='ธนาคาร' value={data.bank} />
             <InfoRow icon={Landmark} label='สาขา' value={data.branch} />
-            <InfoRow icon={CreditCard} label='เลขบัญชี' value={data.acctNo} />
+            <div className='flex gap-3'>
+              <div className='mt-0.5'>
+                <CreditCard className='size-4 text-muted-foreground' />
+              </div>
+              <div className='min-w-0 flex-1'>
+                <p className='text-xs uppercase tracking-wider text-muted-foreground'>
+                  เลขบัญชี
+                </p>
+                <div className='flex items-center gap-1'>
+                  <p className='font-mono text-sm'>{data.acctNo?.trim() || '—'}</p>
+                  {data.acctNo?.trim() && (
+                    <CopyButton text={data.acctNo} label='คัดลอกเลขบัญชี' />
+                  )}
+                </div>
+              </div>
+            </div>
             <InfoRow icon={UserRound} label='ชื่อบัญชี' value={data.accountName} />
             <InfoRow icon={Landmark} label='ป้ายกำกับ' value={data.label} />
             <InfoRow
