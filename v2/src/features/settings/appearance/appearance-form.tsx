@@ -76,8 +76,8 @@ export function AppearanceForm() {
                 </FormControl>
                 <ChevronDownIcon className='absolute inset-e-3 top-2.5 h-4 w-4 opacity-50' />
               </div>
-              <FormDescription className='font-manrope'>
-                ฟอนต์ของแอปทั้งหมด · ค่าเริ่มต้นเป็น Sarabun
+              <FormDescription>
+                ฟอนต์ของแอปทั้งหมด · ค่าเริ่มต้น Sarabun (อ่านภาษาไทยชัดที่สุด)
               </FormDescription>
               <FormMessage />
             </FormItem>

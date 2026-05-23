@@ -1,5 +1,6 @@
-import { Outlet } from '@tanstack/react-router'
+import { Outlet, useLocation } from '@tanstack/react-router'
 import { FileText, Palette, Receipt, Settings2, User, Users } from 'lucide-react'
+import { useMemo } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -14,6 +15,17 @@ export function Settings() {
   const templateHref = activeTemplate
     ? `/templates/${activeTemplate.id}`
     : '/templates/new'
+  const { pathname } = useLocation()
+  const pageTitle = useMemo(() => {
+    const titles: Record<string, { title: string; desc: string }> = {
+      '/settings/system': { title: 'การตั้งค่าทั่วไป', desc: 'รูปแบบเลข · เกณฑ์แจ้งเตือน · LINE/SlipOK' },
+      '/settings/staff': { title: 'พนักงาน', desc: 'จัดการพนักงานในระบบ + บทบาท + ลายเซ็น' },
+      '/settings/invoice-settings': { title: 'ใบแจ้งหนี้/ใบเสร็จ', desc: 'ค่าเริ่มต้น VAT · วันครบกำหนด · ข้อความท้ายเอกสาร' },
+      '/settings/appearance': { title: 'ธีม', desc: 'ปรับสว่าง/มืด · ฟอนต์ของแอป' },
+      '/settings': { title: 'โปรไฟล์', desc: 'บัญชีผู้ใช้ที่เข้าสู่ระบบ' },
+    }
+    return titles[pathname] ?? { title: 'ตั้งค่า', desc: 'การตั้งค่าระบบและความชอบส่วนตัว' }
+  }, [pathname])
 
   const navGroups: SidebarNavGroup[] = [
     {
@@ -79,12 +91,13 @@ export function Settings() {
 
       <Main fixed>
         <div className='space-y-0.5'>
-          <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
+          <p className='text-xs font-semibold uppercase tracking-wider text-muted-foreground'>
             ตั้งค่า
-          </h1>
-          <p className='text-muted-foreground'>
-            การตั้งค่าระบบและความชอบส่วนตัว
           </p>
+          <h1 className='text-2xl font-bold tracking-tight md:text-3xl'>
+            {pageTitle.title}
+          </h1>
+          <p className='text-muted-foreground'>{pageTitle.desc}</p>
         </div>
         <Separator className='my-4 lg:my-6' />
         <div className='flex flex-1 flex-col space-y-2 overflow-hidden md:space-y-2 lg:flex-row lg:space-y-0 lg:space-x-12'>
