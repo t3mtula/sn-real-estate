@@ -9,16 +9,22 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Ban,
+  Building2,
+  Calendar,
+  CreditCard,
   Download,
+  Eye,
   Loader2,
   Plus,
   Receipt,
   Search,
   Send,
   Sparkles,
+  StickyNote,
+  UserRound,
   Wallet,
   X,
 } from 'lucide-react'
@@ -73,7 +79,12 @@ import {
   getStatusMeta,
   useInvoices,
 } from '@/features/invoices/queries'
-import { InvoiceSheet } from '@/features/invoices/invoice-sheet'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
+import { InvoiceRowPreview, type InvoicePreviewKind } from '@/features/invoices/invoice-row-preview'
 import {
   INVOICE_STATUSES,
   type Invoice,
@@ -113,14 +124,12 @@ export function Invoices() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
-  const search = useSearch({ from: '/_authenticated/invoices/' })
-  const sheetId = search.id ?? null
+  const [previewId, setPreviewId] = useState<string | null>(null)
+  const [previewKind, setPreviewKind] = useState<InvoicePreviewKind>('invoice')
 
-  function openSheet(id: string) {
-    navigate({ to: '/invoices', search: { id }, replace: false })
-  }
-  function closeSheet() {
-    navigate({ to: '/invoices', search: {}, replace: false })
+  function openPreview(id: string, kind: InvoicePreviewKind) {
+    setPreviewKind(kind)
+    setPreviewId(id)
   }
 
   const rows = useMemo<Row[]>(() => {
@@ -276,26 +285,44 @@ export function Invoices() {
       },
       {
         id: 'actions',
-        size: 60,
+        size: 96,
         enableSorting: false,
         header: () => <span className='sr-only'>การกระทำ</span>,
         cell: ({ row }) => {
           const st = row.original._status
-          // hide on terminal states — paid/voided
-          if (st === 'paid' || st === 'voided') return null
+          const isPaidLike = st === 'paid' || st === 'partial'
           return (
-            <Button
-              size='icon'
-              variant='ghost'
-              className='size-7 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400'
-              title='บันทึกรับเงิน'
-              onClick={(e) => {
-                e.stopPropagation()
-                setPayQuickId(row.original.id)
-              }}
-            >
-              <Wallet className='size-4' />
-            </Button>
+            <div className='flex items-center gap-0.5'>
+              <Button
+                size='icon'
+                variant='ghost'
+                className='size-7'
+                title={isPaidLike ? 'ดูตัวอย่างใบเสร็จ' : 'ดูตัวอย่างใบแจ้งหนี้'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openPreview(
+                    row.original.id,
+                    isPaidLike ? 'receipt' : 'invoice',
+                  )
+                }}
+              >
+                <Eye className='size-4' />
+              </Button>
+              {st !== 'paid' && st !== 'voided' && (
+                <Button
+                  size='icon'
+                  variant='ghost'
+                  className='size-7 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400'
+                  title='บันทึกรับเงิน'
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPayQuickId(row.original.id)
+                  }}
+                >
+                  <Wallet className='size-4' />
+                </Button>
+              )}
+            </div>
           )
         },
       },
@@ -594,23 +621,37 @@ export function Invoices() {
                     </TableRow>
                   ) : (
                     table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        className={cn(
-                          'cursor-pointer',
-                          row.original._overdue > 0
-                            ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
-                            : 'hover:bg-muted/40',
-                          sheetId === row.original.id && 'bg-muted/60',
-                        )}
-                        onClick={() => openSheet(row.original.id)}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className='py-3'>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
+                      <HoverCard key={row.id} openDelay={400} closeDelay={120}>
+                        <HoverCardTrigger asChild>
+                          <TableRow
+                            className={cn(
+                              'cursor-pointer',
+                              row.original._overdue > 0
+                                ? 'bg-red-50/60 hover:bg-red-100/60 dark:bg-red-950/20 dark:hover:bg-red-950/30'
+                                : 'hover:bg-muted/40',
+                            )}
+                            onClick={() =>
+                              navigate({
+                                to: '/invoices/$id',
+                                params: { id: row.original.id },
+                              })
+                            }
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id} className='py-3'>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        </HoverCardTrigger>
+                        <HoverCardContent
+                          side='left'
+                          align='start'
+                          className='w-80'
+                        >
+                          <InvoiceHoverDetail invoice={row.original} />
+                        </HoverCardContent>
+                      </HoverCard>
                     ))
                   )}
                 </TableBody>
@@ -624,7 +665,11 @@ export function Invoices() {
         </Tabs>
       </Main>
 
-      <InvoiceSheet id={sheetId} onClose={closeSheet} />
+      <InvoiceRowPreview
+        id={previewId}
+        kind={previewKind}
+        onClose={() => setPreviewId(null)}
+      />
 
       {/* Floating bulk action bar */}
       {selectedCount > 0 && (
@@ -720,5 +765,113 @@ export function Invoices() {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+function InvoiceHoverDetail({ invoice }: { invoice: Row }) {
+  const d = invoice.data ?? {}
+  const overdue = invoice._overdue
+  const isDeposit = (d.category ?? 'rent') === 'deposit'
+  const items: { icon: typeof Calendar; label: string; value: string }[] = []
+  if (d.tenant) items.push({ icon: UserRound, label: 'ผู้เช่า', value: String(d.tenant) })
+  if (d.property)
+    items.push({ icon: Building2, label: 'ทรัพย์สิน', value: String(d.property) })
+  if (d.date) items.push({ icon: Calendar, label: 'วันที่ออก', value: String(d.date) })
+  if (d.dueDate) items.push({ icon: Calendar, label: 'กำหนดชำระ', value: String(d.dueDate) })
+  if (d.total != null) {
+    items.push({
+      icon: CreditCard,
+      label: 'ยอดรวม',
+      value: `${amt(d.total as number, { symbol: false, decimal: 0 })} บาท`,
+    })
+  }
+  if (d.paidAmount != null && d.paidAmount > 0) {
+    items.push({
+      icon: CreditCard,
+      label: 'ชำระแล้ว',
+      value: `${amt(d.paidAmount as number, { symbol: false, decimal: 0 })} บาท`,
+    })
+  }
+  if (d.remainingAmount != null && d.remainingAmount > 0) {
+    items.push({
+      icon: CreditCard,
+      label: 'ค้างชำระ',
+      value: `${amt(d.remainingAmount as number, { symbol: false, decimal: 0 })} บาท`,
+    })
+  }
+  if (d.followUpDate) {
+    items.push({ icon: Calendar, label: 'นัดติดตาม', value: String(d.followUpDate) })
+  }
+  const note = (d as { note?: string }).note
+  const lineItems = d.items ?? []
+  const payments = d.payments ?? []
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex flex-wrap items-center gap-1.5 border-b pb-2'>
+        <Receipt className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>{getInvoiceDisplay(invoice)}</span>
+        <StatusBadge status={invoice._status} />
+        {overdue > 0 && (
+          <Badge variant='outline' className={cn('text-[10px]', STATUS_TONE_CLASS.destructive)}>
+            เกิน {overdue} วัน
+          </Badge>
+        )}
+        {isDeposit && <Badge variant='outline' className='text-[10px]'>มัดจำ</Badge>}
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {lineItems.length > 0 && (
+        <div className='space-y-0.5 border-t pt-1.5'>
+          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>รายการ</p>
+          {lineItems.slice(0, 4).map((it, i) => (
+            <div key={i} className='flex justify-between gap-2'>
+              <span className='truncate'>{it.desc}</span>
+              <span className='tabular-nums'>
+                {amt(it.amount, { symbol: false, decimal: 2 })}
+              </span>
+            </div>
+          ))}
+          {lineItems.length > 4 && (
+            <p className='text-[10px] text-muted-foreground'>
+              ... อีก {lineItems.length - 4} รายการ
+            </p>
+          )}
+        </div>
+      )}
+      {payments.length > 0 && (
+        <div className='space-y-0.5 border-t pt-1.5'>
+          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+            ชำระ {payments.length} ครั้ง
+          </p>
+          {payments.slice(0, 3).map((p, i) => (
+            <div key={i} className='flex justify-between gap-2'>
+              <span className='truncate'>
+                {p.date ?? '—'} · {p.method ?? '—'}
+              </span>
+              <span className='tabular-nums text-emerald-700 dark:text-emerald-400'>
+                {amt(p.amount, { symbol: false, decimal: 2 })}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {note && (
+        <div className='flex items-start gap-2 border-t pt-1.5'>
+          <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+          <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+        </div>
+      )}
+    </div>
   )
 }

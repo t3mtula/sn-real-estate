@@ -8,8 +8,8 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { Download, FileText, Plus, Search } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, MapPin, Plus, Search, StickyNote, UserRound, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 
@@ -58,7 +58,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
-import { ContractSheet } from '@/features/contracts/contract-sheet'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
+import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
 import {
   getContractDisplay,
   getContractStatus,
@@ -103,19 +108,7 @@ export function Contracts() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
-  const search = useSearch({ from: '/_authenticated/contracts/' })
-  const sheetId = search.id ?? null
-
-  function openSheet(id: string) {
-    navigate({
-      to: '/contracts',
-      search: { id },
-      replace: false,
-    })
-  }
-  function closeSheet() {
-    navigate({ to: '/contracts', search: {}, replace: false })
-  }
+  const [previewId, setPreviewId] = useState<string | null>(null)
 
   const rows = useMemo<Row[]>(() => {
     if (!contracts) return []
@@ -240,6 +233,25 @@ export function Contracts() {
           if (!value || value === 'all') return true
           return row.original._status === value
         },
+      },
+      {
+        id: 'actions',
+        header: () => <span className='sr-only'>การกระทำ</span>,
+        cell: ({ row }) => (
+          <Button
+            variant='ghost'
+            size='sm'
+            className='size-8 p-0'
+            title='ดูตัวอย่างพิมพ์'
+            onClick={(e) => {
+              e.stopPropagation()
+              setPreviewId(row.original.id)
+            }}
+          >
+            <Eye className='size-4' />
+            <span className='sr-only'>ตัวอย่างพิมพ์</span>
+          </Button>
+        ),
       },
     ],
     [],
@@ -442,20 +454,35 @@ export function Contracts() {
                 </TableRow>
               ) : (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={cn('cursor-pointer', 'hover:bg-muted/40', sheetId === row.original.id && 'bg-muted/60')}
-                    onClick={() => openSheet(row.original.id)}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className='py-3'>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
+                  <HoverCard key={row.id} openDelay={400} closeDelay={120}>
+                    <HoverCardTrigger asChild>
+                      <TableRow
+                        className={cn('cursor-pointer', 'hover:bg-muted/40')}
+                        onClick={() =>
+                          navigate({
+                            to: '/contracts/$id',
+                            params: { id: row.original.id },
+                          })
+                        }
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className='py-3'>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </HoverCardTrigger>
+                    <HoverCardContent
+                      side='left'
+                      align='start'
+                      className='w-80'
+                    >
+                      <ContractHoverDetail contract={row.original} />
+                    </HoverCardContent>
+                  </HoverCard>
                 ))
               )}
             </TableBody>
@@ -463,7 +490,68 @@ export function Contracts() {
         </div>
       </Main>
 
-      <ContractSheet id={sheetId} onClose={closeSheet} />
+      <ContractRowPreview id={previewId} onClose={() => setPreviewId(null)} />
     </>
+  )
+}
+
+function ContractHoverDetail({ contract }: { contract: Row }) {
+  const d = contract.data ?? {}
+  const items: { icon: typeof Calendar; label: string; value: string }[] = []
+  if (d.tenant) items.push({ icon: UserRound, label: 'ผู้เช่า', value: String(d.tenant) })
+  if (d.landlord) items.push({ icon: Users, label: 'ผู้ให้เช่า', value: String(d.landlord) })
+  const propVal = d.property as string | undefined
+  if (propVal) items.push({ icon: MapPin, label: 'ทรัพย์สิน', value: propVal })
+  if (d.start || d.end)
+    items.push({
+      icon: Calendar,
+      label: 'ระยะเวลา',
+      value: `${d.start ?? '—'} → ${d.end ?? '—'}`,
+    })
+  if (d.rate != null) {
+    const fmt = amt(d.rate as number | string | undefined, { symbol: false, decimal: 0 })
+    if (fmt !== '—') {
+      items.push({ icon: CreditCard, label: 'ค่าเช่า', value: `${fmt} บาท${d.payment ? ` · ${d.payment}` : ''}` })
+    }
+  }
+  if (d.deposit != null && Number(d.deposit) > 0) {
+    items.push({
+      icon: Landmark,
+      label: 'เงินประกัน',
+      value: `${amt(d.deposit as number, { symbol: false, decimal: 0 })} บาท`,
+    })
+  }
+  if (d.madeAt)
+    items.push({ icon: MapPin, label: 'ที่ทำสัญญา', value: String(d.madeAt) })
+  if (d.taxId)
+    items.push({ icon: FileText, label: 'เลขผู้เสียภาษี', value: String(d.taxId) })
+  const notes = (d as { notes?: string }).notes
+  return (
+    <div className='space-y-2 text-xs'>
+      <div className='flex items-center gap-2 border-b pb-2'>
+        <FileText className='size-4 text-muted-foreground' />
+        <span className='font-semibold'>{getContractDisplay(contract)}</span>
+        <StatusBadge status={contract._status} />
+      </div>
+      <div className='space-y-1.5'>
+        {items.map((it, i) => (
+          <div key={i} className='flex items-start gap-2'>
+            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <div className='min-w-0 flex-1'>
+              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+                {it.label}
+              </span>
+              <p className='leading-snug'>{it.value}</p>
+            </div>
+          </div>
+        ))}
+        {notes && (
+          <div className='flex items-start gap-2 border-t pt-1.5'>
+            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+            <p className='leading-snug whitespace-pre-wrap'>{String(notes)}</p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
