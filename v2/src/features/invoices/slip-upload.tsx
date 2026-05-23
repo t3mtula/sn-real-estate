@@ -52,7 +52,10 @@ export function SlipUpload({ invoice }: Props) {
       setPreview(dataUrl)
       setSlip.mutate(dataUrl, {
         onSuccess: () => toast.success('อัปโหลด slip แล้ว'),
-        onError: (e) => toast.error('อัปโหลดไม่สำเร็จ', { description: String(e) }),
+        onError: (e) => {
+          setPreview(null)  // revert optimistic preview on failure
+          toast.error('อัปโหลดไม่สำเร็จ', { description: String(e) })
+        },
       })
     }
     reader.readAsDataURL(file)

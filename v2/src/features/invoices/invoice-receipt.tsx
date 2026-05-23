@@ -6,22 +6,23 @@ import { Link, useParams } from '@tanstack/react-router'
 import { ArrowLeft, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useMemo } from 'react'
 import { amt, fmtBE } from '@/lib/thai'
 import { useInvoice } from '@/features/invoices/queries'
 import { useCompanySettings } from '@/features/settings/queries'
-
-const TODAY = fmtBE(new Date())
 
 function ReceiptHalf({
   title,
   invoice,
   companyName,
   companyAddress,
+  today,
 }: {
   title: string
   invoice: ReturnType<typeof useInvoice>['data']
   companyName?: string
   companyAddress?: string
+  today: string
 }) {
   if (!invoice) return null
   const d = invoice.data
@@ -48,7 +49,7 @@ function ReceiptHalf({
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '9px', color: '#94a3b8' }}>เลขที่ใบแจ้งหนี้</div>
           <div style={{ fontWeight: 600 }}>{d?.invoiceNo || '—'}</div>
-          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>วันที่ {lastPayment?.date || TODAY}</div>
+          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>วันที่ {lastPayment?.date || today}</div>
         </div>
       </div>
 
@@ -125,6 +126,8 @@ export function InvoiceReceipt() {
   const { id } = useParams({ from: '/_authenticated/invoices/$id/receipt' })
   const { data: invoice, isLoading } = useInvoice(id)
   const { data: company } = useCompanySettings()
+  // computed at render time, not module load
+  const today = useMemo(() => fmtBE(new Date()), [])
 
   if (isLoading) return (
     <div className='p-8 space-y-4'>
@@ -156,12 +159,14 @@ export function InvoiceReceipt() {
           invoice={invoice}
           companyName={company?.name}
           companyAddress={company?.address}
+          today={today}
         />
         <ReceiptHalf
           title='สำเนา (ผู้ให้เช่า)'
           invoice={invoice}
           companyName={company?.name}
           companyAddress={company?.address}
+          today={today}
         />
       </div>
 

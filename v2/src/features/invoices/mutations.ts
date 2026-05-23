@@ -784,7 +784,12 @@ export function useDeleteInvoice() {
   })
 }
 
-/** Record a payment (full or partial) · updates paidAmount + remainingAmount + status */
+/**
+ * Record a payment (full or partial) — single read-compute-write.
+ * Fix: replaced double-read pattern (separate read + mergeUpdateInvoice's own read)
+ * with a single Supabase round-trip so concurrent writes can't interleave and drop
+ * a payment from the payments[] array or miscalculate paidAmount.
+ */
 export function useRecordPayment(id: string) {
   const qc = useQueryClient()
   return useMutation({
@@ -795,12 +800,13 @@ export function useRecordPayment(id: string) {
       ref?: string
       note?: string
     }) => {
-      const { data: existing, error } = await supabase
+      // Single read
+      const { data: existing, error: readError } = await supabase
         .from(TABLE)
-        .select('data, status')
+        .select('data, status, category')
         .eq('id', id)
         .single()
-      if (error) throw error
+      if (readError) throw readError
 
       const d = (existing?.data ?? {}) as InvoiceData
       const prevPaid = d.paidAmount ?? 0
@@ -818,16 +824,26 @@ export function useRecordPayment(id: string) {
         receiptNo: `REC-${Date.now()}`,
       }
 
-      await mergeUpdateInvoice(id, {
+      // Single write — build merged data here, no second read
+      const mergedData: InvoiceData = {
+        ...d,
+        paidAmount: newPaid,
+        remainingAmount: newRemaining,
         status: newStatus,
-        data: {
-          paidAmount: newPaid,
-          remainingAmount: newRemaining,
-          status: newStatus,
-          payments: [...(d.payments ?? []), payment],
-          paidAt: newStatus === 'paid' ? input.date : d.paidAt as string | undefined,
-        } as Partial<InvoiceData>,
-      })
+        payments: [...(d.payments ?? []), payment],
+        paidAt: newStatus === 'paid' ? input.date : (d.paidAt as string | undefined),
+      }
+
+      const { data: updated, error: writeError } = await supabase
+        .from(TABLE)
+        .update({ data: mergedData, status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id')
+      if (writeError) throw writeError
+      if (!updated || updated.length === 0) {
+        throw new Error('ไม่พบใบแจ้งหนี้ หรือไม่มีสิทธิ์แก้ไข (RLS)')
+      }
+
       void logActivity({
         action: 'update',
         entity: 'invoices',

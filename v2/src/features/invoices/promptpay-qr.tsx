@@ -21,7 +21,8 @@ function tlv(tag: string, value: string): string {
   return `${tag}${String(value.length).padStart(2, '0')}${value}`
 }
 
-export function buildPromptPayPayload(promptPayId: string, amount?: number): string {
+/** txId makes the payload stable across renders for the same invoice */
+export function buildPromptPayPayload(promptPayId: string, amount?: number, txId?: string): string {
   const id = promptPayId.replace(/[^0-9]/g, '')
 
   // Identify type: 10-digit mobile, 13-digit citizen/tax, 15-digit e-wallet
@@ -38,7 +39,7 @@ export function buildPromptPayPayload(promptPayId: string, amount?: number): str
     tlv('53', '764') + // THB
     (amount != null && amount > 0 ? tlv('54', amount.toFixed(2)) : '') +
     tlv('58', 'TH') +
-    tlv('62', tlv('07', 'TXID' + Date.now().toString().slice(-8))) +
+    tlv('62', tlv('07', 'TXID' + (txId ?? Date.now().toString()).slice(-8))) +
     '6304'
 
   payload += crc16(payload)
@@ -51,14 +52,16 @@ interface Props {
   amount?: number
   size?: number
   label?: string
+  /** Stable ID for this QR (e.g. invoice.id) — prevents re-render churn */
+  txId?: string
 }
 
-export function PromptPayQR({ promptPayId, amount, size = 160, label }: Props) {
+export function PromptPayQR({ promptPayId, amount, size = 160, label, txId }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     if (!promptPayId || !canvasRef.current) return
-    const payload = buildPromptPayPayload(promptPayId, amount)
+    const payload = buildPromptPayPayload(promptPayId, amount, txId)
 
     // Use built-in QRCode via dynamic import from qrcode package (bundled in app)
     import('qrcode').then((QRCode) => {
@@ -79,7 +82,7 @@ export function PromptPayQR({ promptPayId, amount, size = 160, label }: Props) {
         ctx.fillText('QR N/A', size / 2, size / 2)
       }
     })
-  }, [promptPayId, amount, size])
+  }, [promptPayId, amount, size, txId])
 
   return (
     <div className='flex flex-col items-center gap-1'>

@@ -6,7 +6,7 @@ interface Props {
   total?: number
 }
 
-export function PromptPayQRCard({ total }: Props) {
+export function PromptPayQRCard({ invoiceId, total }: Props) {
   const { data: company } = useCompanySettings()
   const ppId = company?.promptPayId?.trim()
 
@@ -16,7 +16,7 @@ export function PromptPayQRCard({ total }: Props) {
     <div className='rounded-md border bg-card p-4 space-y-2'>
       <p className='text-xs font-semibold text-muted-foreground'>PromptPay QR</p>
       <div className='flex items-start gap-3'>
-        <PromptPayQR promptPayId={ppId} amount={total} size={120} />
+        <PromptPayQR promptPayId={ppId} amount={total} size={120} txId={invoiceId} />
         <div className='text-xs space-y-1 text-muted-foreground'>
           <p className='font-medium text-foreground'>{company?.promptPayName || ppId}</p>
           {company?.bankName && <p>{company.bankName}</p>}

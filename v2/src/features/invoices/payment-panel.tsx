@@ -27,7 +27,8 @@ export function PaymentPanel({ invoice }: Props) {
   const data = invoice.data
   const payments = data?.payments ?? []
   const remaining = data?.remainingAmount ?? (data?.total ?? 0) - (data?.paidAmount ?? 0)
-  const isFullyPaid = (data?.remainingAmount ?? 1) <= 0
+  // use computed `remaining` — avoids false negative for v1 invoices lacking remainingAmount field
+  const isFullyPaid = remaining <= 0 && (data?.paidAmount ?? 0) > 0
 
   const [adding, setAdding] = useState(false)
   const [amount, setAmount] = useState(String(Math.max(remaining, 0) || ''))
