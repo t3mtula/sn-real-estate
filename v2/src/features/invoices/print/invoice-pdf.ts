@@ -94,9 +94,11 @@ function sectionBar(label: string, sub?: string): Content {
   if (sub) {
     cells.push({ text: sub, color: C.brandSoft, fontSize: 11, alignment: 'right' })
   }
+  // widths array length MUST match number of cells in row — else pdfmake → NaN
+  const widths = sub ? ['*', 'auto'] : ['*']
   return {
     table: {
-      widths: ['*', 'auto'],
+      widths,
       body: [cells],
     },
     layout: {
