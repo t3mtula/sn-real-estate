@@ -4,12 +4,20 @@ import { toast } from 'sonner'
 import { DateInputBE } from '@/components/date-input-be'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { amt } from '@/lib/thai'
 import { useRecordPayment } from './mutations'
+import { getInvoiceDisplay } from './queries'
 import type { Invoice } from './types'
 
 interface Props {
@@ -23,6 +31,143 @@ const METHODS = [
   { value: 'promptpay', label: 'PromptPay' },
   { value: 'other', label: 'อื่นๆ' },
 ]
+
+/**
+ * Standalone quick-record-payment dialog for use in invoice list rows.
+ * Reuses the same record-payment mutation as `PaymentPanel`.
+ */
+export function QuickPaymentDialog({
+  invoice,
+  open,
+  onOpenChange,
+}: {
+  invoice: Invoice
+  open: boolean
+  onOpenChange: (v: boolean) => void
+}) {
+  const data = invoice.data
+  const remaining = data?.remainingAmount ?? (data?.total ?? 0) - (data?.paidAmount ?? 0)
+  const [amount, setAmount] = useState(String(Math.max(remaining, 0) || ''))
+  const [method, setMethod] = useState(() => {
+    if (typeof window === 'undefined') return 'transfer'
+    const saved = window.localStorage.getItem('payment.lastMethod')
+    return saved && METHODS.some((m) => m.value === saved) ? saved : 'transfer'
+  })
+  const [date, setDate] = useState(() => {
+    const now = new Date()
+    const d = String(now.getDate()).padStart(2, '0')
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const y = now.getFullYear() + 543
+    return `${d}/${m}/${y}`
+  })
+  const [ref, setRef] = useState('')
+  const [note, setNote] = useState('')
+
+  const record = useRecordPayment(invoice.id)
+
+  function handleSave() {
+    const n = Number.parseFloat(amount)
+    if (!n || n <= 0) {
+      toast.error('ใส่ยอดที่ถูกต้อง')
+      return
+    }
+    if (!date.trim()) {
+      toast.error('ใส่วันที่')
+      return
+    }
+    record.mutate(
+      { amount: n, method, date: date.trim(), ref: ref.trim(), note: note.trim() },
+      {
+        onSuccess: () => {
+          toast.success('บันทึกการชำระเงินแล้ว')
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('payment.lastMethod', method)
+          }
+          onOpenChange(false)
+        },
+        onError: (e) => toast.error('บันทึกไม่สำเร็จ', { description: String(e) }),
+      },
+    )
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className='sm:max-w-md'
+        onClick={(e) => e.stopPropagation()}
+      >
+        <DialogHeader>
+          <DialogTitle>บันทึกรับเงิน · {getInvoiceDisplay(invoice)}</DialogTitle>
+          <DialogDescription>
+            {data?.tenant ? `${data.tenant} · ` : ''}คงค้าง {amt(remaining)} ฿
+          </DialogDescription>
+        </DialogHeader>
+        <div className='grid gap-3 sm:grid-cols-2'>
+          <div className='space-y-1'>
+            <Label className='text-xs'>ยอดรับ (บาท)</Label>
+            <Input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              type='number'
+              min={0}
+              className='h-9 text-sm'
+              autoFocus
+            />
+          </div>
+          <div className='space-y-1'>
+            <Label className='text-xs'>ช่องทาง</Label>
+            <Select value={method} onValueChange={setMethod}>
+              <SelectTrigger className='h-9 text-sm'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {METHODS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className='space-y-1'>
+            <Label className='text-xs'>วันที่รับเงิน</Label>
+            <DateInputBE value={date} onChange={setDate} className='h-9 text-sm' />
+          </div>
+          <div className='space-y-1'>
+            <Label className='text-xs'>เลขอ้างอิง / เลข slip</Label>
+            <Input
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              placeholder='xxxxxxxx'
+              className='h-9 text-sm'
+            />
+          </div>
+          <div className='space-y-1 sm:col-span-2'>
+            <Label className='text-xs'>หมายเหตุ</Label>
+            <Input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder='บันทึกเพิ่มเติม'
+              className='h-9 text-sm'
+            />
+          </div>
+        </div>
+        <div className='flex justify-end gap-2'>
+          <Button
+            variant='ghost'
+            onClick={() => onOpenChange(false)}
+            disabled={record.isPending}
+          >
+            ยกเลิก
+          </Button>
+          <Button onClick={handleSave} disabled={record.isPending}>
+            บันทึก
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export function PaymentPanel({ invoice }: Props) {
   const data = invoice.data

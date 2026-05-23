@@ -19,6 +19,7 @@ import {
   Search,
   Send,
   Sparkles,
+  Wallet,
   X,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -77,6 +78,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '@/features/invoices/types'
+import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -108,6 +110,7 @@ export function Invoices() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   const rows = useMemo<Row[]>(() => {
@@ -259,6 +262,31 @@ export function Invoices() {
           if (!value || value === 'all') return true
           if (value === 'overdue') return row.original._overdue > 0
           return row.original._status === value
+        },
+      },
+      {
+        id: 'actions',
+        size: 60,
+        enableSorting: false,
+        header: () => <span className='sr-only'>การกระทำ</span>,
+        cell: ({ row }) => {
+          const st = row.original._status
+          // hide on terminal states — paid/voided
+          if (st === 'paid' || st === 'voided') return null
+          return (
+            <Button
+              size='icon'
+              variant='ghost'
+              className='size-7 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400'
+              title='บันทึกรับเงิน'
+              onClick={(e) => {
+                e.stopPropagation()
+                setPayQuickId(row.original.id)
+              }}
+            >
+              <Wallet className='size-4' />
+            </Button>
+          )
         },
       },
     ],
@@ -634,6 +662,18 @@ export function Invoices() {
           </div>
         </div>
       )}
+
+      {payQuickId && (() => {
+        const inv = invoices?.find((x) => x.id === payQuickId)
+        if (!inv) return null
+        return (
+          <QuickPaymentDialog
+            invoice={inv}
+            open={true}
+            onOpenChange={(v) => { if (!v) setPayQuickId(null) }}
+          />
+        )
+      })()}
 
       <AlertDialog open={voidOpen} onOpenChange={setVoidOpen}>
         <AlertDialogContent>
