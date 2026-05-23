@@ -2,6 +2,8 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import {
   ArrowLeft,
   Building2,
+  Check,
+  CheckCircle2,
   CreditCard,
   Landmark,
   MapPin,
@@ -11,10 +13,12 @@ import {
   Plus,
   QrCode,
   ScrollText,
+  Star,
   Trash2,
   UserRound,
+  Users,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { BankLogo } from '@/components/yonghua/bank-logo'
 import { Header } from '@/components/layout/header'
@@ -44,7 +48,28 @@ import {
   LANDLORD_FORM_DEFAULTS,
   type LandlordFormValues,
 } from '@/features/landlords/schema'
-import { useBankAccountsByOwner } from '@/features/bank-accounts/queries'
+import { useBankAccounts } from '@/features/bank-accounts/queries'
+import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
+import {
+  useAddLandlordBank,
+  useRemoveLandlordBank,
+  useSetDefaultLandlordBank,
+} from '@/features/landlord-banks/mutations'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { getPropertyAddressShort, useProperties } from '@/features/properties/queries'
 import { PROPERTY_TYPES } from '@/features/properties/types'
 
@@ -92,7 +117,7 @@ function InfoRow({
 export function LandlordDetail({ id }: { id: string }) {
   const { data: landlord, isLoading, error } = useLandlord(id)
   const contracts = useLandlordContracts(landlord ?? null)
-  const banks = useBankAccountsByOwner(id)
+  const banks = useBankAccountsForLandlord(id)
   const allProperties = useProperties()
   const ownedProperties =
     allProperties.data?.filter((p) => p.data?.ownerLandlordId === id) ?? []
@@ -224,6 +249,7 @@ function LandlordEditing({
     promptPayBank: t.promptPayBank ?? '',
     promptPayName: t.promptPayName ?? '',
     notes: t.notes ?? '',
+    witnesses: Array.isArray(t.witnesses) ? t.witnesses : [],
   }
   return (
     <>
@@ -278,7 +304,7 @@ function Content({
 }: {
   landlord: NonNullable<ReturnType<typeof useLandlord>['data']>
   contracts: Array<{ id: string; data: Record<string, unknown> }>
-  banks: NonNullable<ReturnType<typeof useBankAccountsByOwner>['data']>
+  banks: NonNullable<ReturnType<typeof useBankAccountsForLandlord>['data']>
   ownedProperties: NonNullable<ReturnType<typeof useProperties>['data']>
   onDelete: () => Promise<void>
   deleting: boolean
@@ -408,78 +434,7 @@ function Content({
           </CardContent>
         </Card>
 
-        <Card className='lg:col-span-3'>
-          <CardHeader className='flex flex-row items-center justify-between gap-2 space-y-0'>
-            <CardTitle className='text-base'>
-              <Landmark className='-mt-0.5 mr-1 inline size-4' />
-              บัญชีธนาคาร ({banks.length})
-            </CardTitle>
-            <Button asChild variant='outline' size='sm'>
-              <Link to='/bank-accounts/new' search={{ owner: landlord.id }}>
-                <Plus className='size-3' />
-                เพิ่มบัญชี
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {banks.length === 0 ? (
-              <p className='text-sm text-muted-foreground'>
-                ยังไม่มีบัญชีธนาคารผูกกับผู้ให้เช่ารายนี้ · กด "เพิ่มบัญชี" เพื่อเริ่ม
-              </p>
-            ) : (
-              <ul className='divide-y'>
-                {banks.map((ba) => {
-                  const b = ba.data
-                  const active = b.active !== false
-                  return (
-                    <li
-                      key={ba.id}
-                      className='grid gap-2 py-3 sm:grid-cols-[1fr_120px_180px_1fr_auto] sm:items-center sm:gap-4'
-                    >
-                      <div className='flex items-center gap-2'>
-                        <BankLogo name={b.bank} size='md' />
-                        <div className='min-w-0'>
-                          <p className='text-xs text-muted-foreground'>ธนาคาร</p>
-                          <Link
-                            to='/bank-accounts/$id'
-                            params={{ id: ba.id }}
-                            className='block truncate text-sm font-medium hover:underline'
-                          >
-                            {b.bank || '—'}
-                          </Link>
-                        </div>
-                      </div>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>สาขา</p>
-                        <p className='text-sm'>{b.branch || '—'}</p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>เลขบัญชี</p>
-                        <p className='font-mono text-sm'>{b.acctNo || '—'}</p>
-                      </div>
-                      <div>
-                        <p className='text-xs text-muted-foreground'>ชื่อบัญชี</p>
-                        <p className='text-sm'>{b.accountName || '—'}</p>
-                      </div>
-                      <div className='flex gap-1'>
-                        {b.label && (
-                          <Badge variant='outline' className='font-normal'>
-                            {b.label}
-                          </Badge>
-                        )}
-                        {!active && (
-                          <Badge variant='outline' className='font-normal text-muted-foreground'>
-                            ปิด
-                          </Badge>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+        <LandlordBanksPanel landlordId={landlord.id} banks={banks} />
 
         {(t.promptPayId || t.promptPayBank || t.promptPayName) && (
           <Card className='lg:col-span-3'>
@@ -632,6 +587,26 @@ function Content({
           </CardContent>
         </Card>
 
+        {Array.isArray(t.witnesses) && t.witnesses.length > 0 && (
+          <Card className='lg:col-span-3'>
+            <CardHeader>
+              <CardTitle className='text-base'>
+                <Users className='-mt-0.5 mr-1 inline size-4' />
+                พยานประจำ ({t.witnesses.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className='flex flex-wrap gap-2'>
+                {t.witnesses.map((w, i) => (
+                  <Badge key={i} variant='secondary' className='font-normal'>
+                    {w}
+                  </Badge>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {t.notes && (
           <Card className='lg:col-span-3'>
             <CardHeader>
@@ -643,6 +618,268 @@ function Content({
           </Card>
         )}
       </div>
+    </>
+  )
+}
+
+/* ---------- Bank picker panel ---------- */
+
+function LandlordBanksPanel({
+  landlordId,
+  banks,
+}: {
+  landlordId: string
+  banks: NonNullable<ReturnType<typeof useBankAccountsForLandlord>['data']>
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const confirm = useConfirm()
+  const allBanks = useBankAccounts()
+  const addLink = useAddLandlordBank()
+  const removeLink = useRemoveLandlordBank()
+  const setDefault = useSetDefaultLandlordBank()
+
+  const linkedIds = useMemo(() => new Set(banks.map((b) => b.id)), [banks])
+  const availableBanks = useMemo(() => {
+    const rows = allBanks.data ?? []
+    const q = search.trim().toLowerCase()
+    return rows
+      .filter((ba) => !linkedIds.has(ba.id))
+      .filter((ba) => {
+        if (!q) return true
+        const d = ba.data
+        return (
+          (d?.bank ?? '').toLowerCase().includes(q) ||
+          (d?.acctNo ?? '').toLowerCase().includes(q) ||
+          (d?.accountName ?? '').toLowerCase().includes(q) ||
+          (d?.branch ?? '').toLowerCase().includes(q)
+        )
+      })
+  }, [allBanks.data, linkedIds, search])
+
+  async function handleRemove(bankAccountId: string, label: string) {
+    const ok = await confirm({
+      title: `ลบบัญชี "${label}" ออกจากผู้ให้เช่ารายนี้?`,
+      description: 'จะไม่ลบบัญชีออกจากระบบ · แค่ยกเลิกการผูก',
+      confirmLabel: 'ลบการผูก',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await removeLink.mutateAsync({ landlordId, bankAccountId })
+      toast.success('ยกเลิกการผูกบัญชีแล้ว')
+    } catch (err) {
+      toast.error('ทำไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleSetDefault(bankAccountId: string) {
+    try {
+      await setDefault.mutateAsync({ landlordId, bankAccountId })
+      toast.success('ตั้งเป็นบัญชีหลักแล้ว')
+    } catch (err) {
+      toast.error('ทำไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleAdd(bankAccountId: string) {
+    try {
+      await addLink.mutateAsync({ landlordId, bankAccountId })
+      toast.success('เพิ่มบัญชีแล้ว')
+      setSearch('')
+      setPickerOpen(false)
+    } catch (err) {
+      toast.error('เพิ่มไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  return (
+    <>
+      <Card className='lg:col-span-3'>
+        <CardHeader className='flex flex-row items-center justify-between gap-2 space-y-0'>
+          <CardTitle className='text-base'>
+            <Landmark className='-mt-0.5 mr-1 inline size-4' />
+            บัญชีรับโอนของผู้ให้เช่ารายนี้ ({banks.length})
+          </CardTitle>
+          <div className='flex gap-2'>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => {
+                setSearch('')
+                setPickerOpen(true)
+              }}
+            >
+              <Plus className='size-3' />
+              เพิ่มบัญชี
+            </Button>
+            <Button asChild variant='ghost' size='sm'>
+              <Link to='/bank-accounts/new' search={{ owner: landlordId }}>
+                บัญชีใหม่
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {banks.length === 0 ? (
+            <p className='text-sm text-muted-foreground'>
+              ยังไม่มีบัญชีผูกกับผู้ให้เช่ารายนี้ · กด "เพิ่มบัญชี" เพื่อเลือกจาก
+              pool หรือ "บัญชีใหม่" เพื่อสร้าง
+            </p>
+          ) : (
+            <ul className='divide-y'>
+              {banks.map((ba) => {
+                const b = ba.data
+                const active = b.active !== false
+                const label = `${b.bank ?? ''} ${b.acctNo ?? ''}`.trim() || '—'
+                return (
+                  <li
+                    key={ba.id}
+                    className='grid gap-2 py-3 sm:grid-cols-[1fr_120px_180px_1fr_auto] sm:items-center sm:gap-4'
+                  >
+                    <div className='flex items-center gap-2'>
+                      <BankLogo name={b.bank} size='md' />
+                      <div className='min-w-0'>
+                        <p className='text-xs text-muted-foreground'>ธนาคาร</p>
+                        <Link
+                          to='/bank-accounts/$id'
+                          params={{ id: ba.id }}
+                          className='block truncate text-sm font-medium hover:underline'
+                        >
+                          {b.bank || '—'}
+                        </Link>
+                      </div>
+                    </div>
+                    <div>
+                      <p className='text-xs text-muted-foreground'>สาขา</p>
+                      <p className='text-sm'>{b.branch || '—'}</p>
+                    </div>
+                    <div>
+                      <p className='text-xs text-muted-foreground'>เลขบัญชี</p>
+                      <p className='font-mono text-sm'>{b.acctNo || '—'}</p>
+                    </div>
+                    <div>
+                      <p className='text-xs text-muted-foreground'>ชื่อบัญชี</p>
+                      <p className='text-sm'>{b.accountName || '—'}</p>
+                    </div>
+                    <div className='flex flex-wrap items-center justify-end gap-1'>
+                      {ba.is_default && (
+                        <Badge variant='default' className='font-normal'>
+                          <Star className='mr-1 size-3' />
+                          ค่าเริ่มต้น
+                        </Badge>
+                      )}
+                      {b.label && (
+                        <Badge variant='outline' className='font-normal'>
+                          {b.label}
+                        </Badge>
+                      )}
+                      {!active && (
+                        <Badge
+                          variant='outline'
+                          className='font-normal text-muted-foreground'
+                        >
+                          ปิด
+                        </Badge>
+                      )}
+                      {!ba.is_default && (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          disabled={setDefault.isPending}
+                          onClick={() => handleSetDefault(ba.id)}
+                          title='ตั้งเป็นค่าเริ่มต้น'
+                        >
+                          <CheckCircle2 className='size-3' />
+                          <span className='ml-1 hidden sm:inline'>
+                            ตั้งเป็นค่าเริ่มต้น
+                          </span>
+                        </Button>
+                      )}
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        disabled={removeLink.isPending}
+                        onClick={() => handleRemove(ba.id, label)}
+                        className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+                        title='ลบการผูก'
+                      >
+                        <Trash2 className='size-3' />
+                        <span className='ml-1 hidden sm:inline'>ลบ</span>
+                      </Button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent className='max-w-2xl p-0'>
+          <DialogHeader className='border-b p-4'>
+            <DialogTitle className='text-base'>เลือกบัญชีเพิ่ม</DialogTitle>
+            <DialogDescription className='text-xs'>
+              ค้นจากบัญชีที่มีในระบบ · เลือกแล้วระบบจะผูกกับผู้ให้เช่ารายนี้
+            </DialogDescription>
+          </DialogHeader>
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder='ค้นจากชื่อธนาคาร / เลขบัญชี / ชื่อบัญชี / สาขา'
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList className='max-h-[400px]'>
+              <CommandEmpty>
+                {allBanks.isLoading
+                  ? 'กำลังโหลด…'
+                  : availableBanks.length === 0 && (allBanks.data?.length ?? 0) > 0
+                    ? 'บัญชีทั้งหมดในระบบถูกผูกครบแล้ว'
+                    : 'ไม่พบบัญชีที่ตรงกับคำค้น'}
+              </CommandEmpty>
+              <CommandGroup>
+                {availableBanks.map((ba) => {
+                  const b = ba.data
+                  return (
+                    <CommandItem
+                      key={ba.id}
+                      value={ba.id}
+                      onSelect={() => handleAdd(ba.id)}
+                      disabled={addLink.isPending}
+                      className='flex items-center gap-3'
+                    >
+                      <BankLogo name={b.bank} size='md' />
+                      <div className='min-w-0 flex-1'>
+                        <p className='truncate text-sm font-medium'>
+                          {b.bank || '—'}
+                          {b.branch ? (
+                            <span className='font-normal text-muted-foreground'>
+                              {' '}
+                              · {b.branch}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className='truncate text-xs text-muted-foreground'>
+                          <span className='font-mono'>{b.acctNo || '—'}</span>
+                          {b.accountName ? ` · ${b.accountName}` : ''}
+                        </p>
+                      </div>
+                      <Check className='size-4 opacity-0 data-[selected=true]:opacity-100' />
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

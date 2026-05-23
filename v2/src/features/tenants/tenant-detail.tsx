@@ -8,6 +8,7 @@ import {
   ScrollText,
   Trash2,
   UserRound,
+  Users,
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -194,6 +195,7 @@ function TenantEditing({
     addrDistrict: t.addrDistrict ?? '',
     addrProvince: t.addrProvince ?? '',
     addrPostal: t.addrPostal ?? '',
+    witnesses: Array.isArray(t.witnesses) ? t.witnesses : [],
   }
   return (
     <>
@@ -331,6 +333,26 @@ function Content({
             </div>
           </CardContent>
         </Card>
+
+        {Array.isArray(t.witnesses) && t.witnesses.length > 0 && (
+          <Card className='lg:col-span-3'>
+            <CardHeader>
+              <CardTitle className='text-base'>
+                <Users className='-mt-0.5 mr-1 inline size-4' />
+                พยานของผู้เช่า ({t.witnesses.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className='flex flex-wrap gap-2'>
+                {t.witnesses.map((w, i) => (
+                  <Badge key={i} variant='secondary' className='font-normal'>
+                    {w}
+                  </Badge>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className='lg:col-span-3'>
           <CardHeader>

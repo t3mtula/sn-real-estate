@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,12 @@ export function TenantForm({
   const taxIdFormatted = fmtTaxId(taxIdValue)
   const showTaxIdPreview =
     taxIdValue.trim().length > 0 && taxIdFormatted !== taxIdValue.trim()
+
+  const witnesses = form.watch('witnesses') ?? []
+
+  function setWitnesses(next: string[]) {
+    form.setValue('witnesses', next, { shouldDirty: true })
+  }
 
   const addrLine = form.watch('addrLine')
   const addrSubdistrict = form.watch('addrSubdistrict')
@@ -238,6 +244,60 @@ export function TenantForm({
             form.setValue('addrPostal', addr.postal, { shouldDirty: true })
           }}
         />
+      </section>
+
+      {/* Witnesses */}
+      <section className='rounded-md border bg-card p-4'>
+        <div className='mb-2 flex items-center justify-between gap-2'>
+          <div>
+            <p className='text-sm font-medium'>พยานของผู้เช่า</p>
+            <p className='text-xs text-muted-foreground'>
+              ชื่อพยานที่มักใช้ในสัญญาของผู้เช่ารายนี้ · auto-fill ตอนทำสัญญา
+            </p>
+          </div>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={() => setWitnesses([...witnesses, ''])}
+          >
+            <Plus className='size-3' />
+            เพิ่มพยาน
+          </Button>
+        </div>
+        {witnesses.length === 0 ? (
+          <p className='text-xs italic text-muted-foreground'>
+            ยังไม่มีพยาน · ว่างได้
+          </p>
+        ) : (
+          <ul className='space-y-2'>
+            {witnesses.map((w, i) => (
+              <li key={i} className='flex items-center gap-2'>
+                <Input
+                  value={w}
+                  onChange={(e) => {
+                    const next = [...witnesses]
+                    next[i] = e.target.value
+                    setWitnesses(next)
+                  }}
+                  placeholder='ชื่อ-นามสกุล พยาน'
+                />
+                <Button
+                  type='button'
+                  variant='ghost'
+                  size='icon'
+                  aria-label={`ลบพยานคนที่ ${i + 1}`}
+                  onClick={() =>
+                    setWitnesses(witnesses.filter((_, idx) => idx !== i))
+                  }
+                  className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+                >
+                  <Trash2 className='size-4' />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       {/* Actions */}
