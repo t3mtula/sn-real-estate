@@ -28,7 +28,8 @@ export function OutstandingReport() {
     if (!invoices) return []
     const outstanding = invoices.filter((inv) => {
       const s = getEffectiveStatus(inv)
-      return s !== 'paid' && s !== 'voided' && (inv.data?.remainingAmount ?? inv.data?.total ?? 0) > 0
+      const isDeposit = inv.data?.category === 'deposit' || (inv as any).category === 'deposit'
+      return !isDeposit && s !== 'paid' && s !== 'voided' && (inv.data?.remainingAmount ?? inv.data?.total ?? 0) > 0
     })
 
     const map = new Map<string, Invoice[]>()

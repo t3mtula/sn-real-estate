@@ -727,10 +727,6 @@ function Content({
           </CardHeader>
           <CardContent className='space-y-3 text-sm'>
             <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>รหัส (legacy pid)</span>
-              <span className='font-medium tabular-nums'>{c.pid ?? '—'}</span>
-            </div>
-            <div className='flex justify-between gap-3'>
               <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
               <span className='font-medium'>{formatTimestamp(contract.created_at)}</span>
             </div>
