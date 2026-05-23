@@ -17,6 +17,8 @@ import { useContracts } from '@/features/contracts/queries'
 import { useInvoices } from '@/features/invoices/queries'
 import { useProperties } from '@/features/properties/queries'
 import { useTenants } from '@/features/tenants/queries'
+import { useLandlords } from '@/features/landlords/queries'
+import { useBankAccounts } from '@/features/bank-accounts/queries'
 import {
   CommandDialog,
   CommandEmpty,
@@ -46,6 +48,8 @@ export function CommandMenu() {
   const { data: invoices } = useInvoices()
   const { data: properties } = useProperties()
   const { data: tenants } = useTenants()
+  const { data: landlords } = useLandlords()
+  const { data: bankAccounts } = useBankAccounts()
 
   const runCommand = React.useCallback(
     (command: () => unknown) => {
@@ -86,14 +90,29 @@ export function CommandMenu() {
       .slice(0, MAX_RESULTS)
   }, [q, tenants])
 
+  const filteredLandlords = useMemo(() => {
+    if (!q || !landlords) return []
+    return landlords
+      .filter((l) => matches([l.data?.name, l.data?.shortName, l.data?.taxId, l.data?.phone], q))
+      .slice(0, MAX_RESULTS)
+  }, [q, landlords])
+
+  const filteredBanks = useMemo(() => {
+    if (!q || !bankAccounts) return []
+    return bankAccounts
+      .filter((b) => matches([b.data?.bank, b.data?.acctNo, b.data?.accountName, b.data?.label], q))
+      .slice(0, MAX_RESULTS)
+  }, [q, bankAccounts])
+
   const hasResults =
     filteredContracts.length + filteredInvoices.length +
-    filteredProperties.length + filteredTenants.length > 0
+    filteredProperties.length + filteredTenants.length +
+    filteredLandlords.length + filteredBanks.length > 0
 
   return (
     <CommandDialog modal open={open} onOpenChange={(v) => { setOpen(v); if (!v) setQuery('') }}>
       <CommandInput
-        placeholder='ค้นหาสัญญา · ใบแจ้งหนี้ · ทรัพย์สิน · ผู้เช่า…'
+        placeholder='ค้นหาสัญญา · ใบแจ้งหนี้ · ทรัพย์สิน · ผู้เช่า · ผู้ให้เช่า · บัญชี…'
         value={query}
         onValueChange={setQuery}
       />
@@ -168,6 +187,42 @@ export function CommandMenu() {
                   {t.data?.taxId && (
                     <span className='ml-2 text-xs text-muted-foreground'>{t.data.taxId}</span>
                   )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {filteredLandlords.length > 0 && (
+            <CommandGroup heading='🏛 ผู้ให้เช่า'>
+              {filteredLandlords.map((l) => (
+                <CommandItem
+                  key={l.id}
+                  value={`landlord-${l.id}`}
+                  onSelect={() => runCommand(() => navigate({ to: '/landlords/$id', params: { id: l.id } }))}
+                >
+                  <Building2 className='size-4 text-muted-foreground' />
+                  <span>{l.data?.name || '—'}</span>
+                  {l.data?.taxId && (
+                    <span className='ml-2 text-xs text-muted-foreground'>{l.data.taxId}</span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {filteredBanks.length > 0 && (
+            <CommandGroup heading='🏦 บัญชีธนาคาร'>
+              {filteredBanks.map((b) => (
+                <CommandItem
+                  key={b.id}
+                  value={`bank-${b.id}`}
+                  onSelect={() => runCommand(() => navigate({ to: '/bank-accounts/$id', params: { id: b.id } }))}
+                >
+                  <Receipt className='size-4 text-muted-foreground' />
+                  <div className='flex-1 min-w-0'>
+                    <span className='font-medium'>{b.data?.bank ?? '—'} · {b.data?.acctNo ?? ''}</span>
+                    <span className='ml-2 text-xs text-muted-foreground truncate'>{b.data?.accountName ?? ''}</span>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedActivityLogRouteImport } from './routes/_authenticated/activity-log'
 import { Route as errors503RouteImport } from './routes/(errors)/503'
@@ -72,6 +73,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedValidationRoute = AuthenticatedValidationRouteImport.update({
+  id: '/validation',
+  path: '/validation',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -395,6 +401,7 @@ export interface FileRoutesByFullPath {
   '/503': typeof errors503Route
   '/activity-log': typeof AuthenticatedActivityLogRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/validation': typeof AuthenticatedValidationRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
@@ -449,6 +456,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/activity-log': typeof AuthenticatedActivityLogRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/validation': typeof AuthenticatedValidationRoute
   '/': typeof AuthenticatedIndexRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
@@ -507,6 +515,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/activity-log': typeof AuthenticatedActivityLogRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/validation': typeof AuthenticatedValidationRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/_authenticated/contracts/new': typeof AuthenticatedContractsNewRoute
@@ -566,6 +575,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/activity-log'
     | '/dashboard'
+    | '/validation'
     | '/bank-accounts/new'
     | '/contracts/new'
     | '/contracts/renewals'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/activity-log'
     | '/dashboard'
+    | '/validation'
     | '/'
     | '/bank-accounts/new'
     | '/contracts/new'
@@ -677,6 +688,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/activity-log'
     | '/_authenticated/dashboard'
+    | '/_authenticated/validation'
     | '/_authenticated/'
     | '/_authenticated/bank-accounts/new'
     | '/_authenticated/contracts/new'
@@ -748,6 +760,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/validation': {
+      id: '/_authenticated/validation'
+      path: '/validation'
+      fullPath: '/validation'
+      preLoaderRoute: typeof AuthenticatedValidationRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -1151,6 +1170,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRouteRoute: typeof AuthenticatedSettingsRouteRouteWithChildren
   AuthenticatedActivityLogRoute: typeof AuthenticatedActivityLogRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedValidationRoute: typeof AuthenticatedValidationRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBankAccountsNewRoute: typeof AuthenticatedBankAccountsNewRoute
   AuthenticatedContractsNewRoute: typeof AuthenticatedContractsNewRoute
@@ -1192,6 +1212,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRouteRoute: AuthenticatedSettingsRouteRouteWithChildren,
   AuthenticatedActivityLogRoute: AuthenticatedActivityLogRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedValidationRoute: AuthenticatedValidationRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBankAccountsNewRoute: AuthenticatedBankAccountsNewRoute,
   AuthenticatedContractsNewRoute: AuthenticatedContractsNewRoute,
