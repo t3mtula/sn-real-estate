@@ -3,15 +3,18 @@
  * Port from v1 showAllOutstanding()
  */
 import { Link } from '@tanstack/react-router'
+import { Download } from 'lucide-react'
 import { useMemo } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { amt } from '@/lib/thai'
-import { useInvoices, daysOverdue, getEffectiveStatus } from '@/features/invoices/queries'
+import { useInvoices, daysOverdue, getEffectiveStatus, getInvoiceDisplay, formatMonth } from '@/features/invoices/queries'
 import type { Invoice } from '@/features/invoices/types'
 
 type TenantGroup = {
@@ -52,6 +55,35 @@ export function OutstandingReport() {
   const grandTotal = groups.reduce((s, g) => s + g.totalOutstanding, 0)
   const totalInvoices = groups.reduce((s, g) => s + g.invoices.length, 0)
 
+  const exportXlsx = useExportXlsx()
+  function handleExport() {
+    const rows = groups.flatMap((g) =>
+      g.invoices.map((inv) => ({
+        tenant: g.tenant,
+        no: getInvoiceDisplay(inv),
+        month: formatMonth(inv.data?.month),
+        property: inv.data?.property ?? '',
+        dueDate: inv.data?.dueDate ?? '',
+        remaining: inv.data?.remainingAmount ?? inv.data?.total ?? 0,
+        overdue: daysOverdue(inv) > 0 ? daysOverdue(inv) : '',
+      })),
+    )
+    void exportXlsx(
+      xlsxFilename('ลูกหนี้ค้างชำระ'),
+      [
+        { header: 'ผู้เช่า', key: 'tenant', width: 28 },
+        { header: 'เลขที่', key: 'no', width: 16 },
+        { header: 'เดือน', key: 'month', width: 12 },
+        { header: 'ทรัพย์สิน', key: 'property', width: 24 },
+        { header: 'วันครบกำหนด', key: 'dueDate', width: 14 },
+        { header: 'ค้างชำระ', key: 'remaining', width: 14 },
+        { header: 'เกินกำหนด (วัน)', key: 'overdue', width: 16 },
+      ],
+      rows,
+      { sheetName: 'ลูกหนี้ค้างชำระ' },
+    )
+  }
+
   return (
     <>
       <Header fixed>
@@ -62,11 +94,17 @@ export function OutstandingReport() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-5'>
-        <header>
-          <h1 className='text-2xl font-bold tracking-tight'>ลูกหนี้ค้างชำระ</h1>
-          <p className='mt-1 text-sm text-muted-foreground'>
-            {groups.length} ราย · {totalInvoices} ใบ · รวม {amt(grandTotal)}
-          </p>
+        <header className='flex flex-wrap items-center justify-between gap-3'>
+          <div>
+            <h1 className='text-2xl font-bold tracking-tight'>ลูกหนี้ค้างชำระ</h1>
+            <p className='mt-1 text-sm text-muted-foreground'>
+              {groups.length} ราย · {totalInvoices} ใบ · รวม {amt(grandTotal)}
+            </p>
+          </div>
+          <Button variant='outline' onClick={handleExport} disabled={totalInvoices === 0}>
+            <Download className='size-4' />
+            Export Excel
+          </Button>
         </header>
 
         {isLoading ? (

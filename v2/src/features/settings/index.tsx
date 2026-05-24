@@ -18,7 +18,7 @@ export function Settings() {
   const { pathname } = useLocation()
   const pageTitle = useMemo(() => {
     const titles: Record<string, { title: string; desc: string }> = {
-      '/settings/system': { title: 'การตั้งค่าทั่วไป', desc: 'รูปแบบเลข · เกณฑ์แจ้งเตือน · LINE/SlipOK' },
+      '/settings/system': { title: 'การตั้งค่าทั่วไป', desc: 'รูปแบบเลข · เกณฑ์แจ้งเตือน · LINE' },
       '/settings/staff': { title: 'พนักงาน', desc: 'จัดการพนักงานในระบบ + บทบาท + ลายเซ็น' },
       '/settings/invoice-settings': { title: 'ใบแจ้งหนี้/ใบเสร็จ', desc: 'ค่าเริ่มต้น VAT · วันครบกำหนด · ข้อความท้ายเอกสาร' },
       '/settings/appearance': { title: 'ธีม', desc: 'ปรับสว่าง/มืด · ฟอนต์ของแอป' },

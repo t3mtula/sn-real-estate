@@ -30,8 +30,10 @@ export type InvoiceSettings = {
   vatMode?: 'none' | 'inclusive' | 'exclusive'
   vatRate?: number
   invoiceNote?: string
-  slipOkBranchId?: string
-  slipOkApiKey?: string
+  /** Auto-void drafts older than draftVoidDays · default true */
+  draftVoidEnabled?: boolean
+  /** Number of days before auto-void kicks in · default 60 */
+  draftVoidDays?: number
 }
 
 async function fetchSetting<T>(key: string): Promise<T> {

@@ -28,7 +28,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import {
@@ -44,8 +44,11 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { BatchPaymentDialog } from '@/features/invoices/batch-payment-dialog'
+import { BatchReceiptPrintButton } from '@/features/invoices/batch-receipt-print'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
-import { useBatchMarkSent, useBatchVoid } from '@/features/invoices/mutations'
+import { useAutoVoidExpiredDrafts, useBatchMarkSent, useBatchVoid, useSendAllDraftsGlobal } from '@/features/invoices/mutations'
+import { useInvoiceSettings } from '@/features/settings/queries'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -79,7 +82,6 @@ import {
   getStatusMeta,
   useInvoices,
 } from '@/features/invoices/queries'
-import { useRef } from 'react'
 import { CursorPopover } from '@/components/cursor-popover'
 import { InvoiceRowPreview, type InvoicePreviewKind } from '@/features/invoices/invoice-row-preview'
 import {
@@ -453,9 +455,24 @@ export function Invoices() {
   const [genOpen, setGenOpen] = useState(false)
   const [voidOpen, setVoidOpen] = useState(false)
   const [voidReason, setVoidReason] = useState('')
+  const [batchPayOpen, setBatchPayOpen] = useState(false)
   const exportXlsx = useExportXlsx()
   const batchMarkSent = useBatchMarkSent()
   const batchVoid = useBatchVoid()
+  const sendAllDrafts = useSendAllDraftsGlobal()
+  const autoVoid = useAutoVoidExpiredDrafts()
+  const { data: invSettings } = useInvoiceSettings()
+
+  // Auto-void expired drafts once per session (on mount)
+  const autoVoidRanRef = useRef(false)
+  useEffect(() => {
+    if (autoVoidRanRef.current) return
+    autoVoidRanRef.current = true
+    const enabled = invSettings?.draftVoidEnabled ?? true
+    const days = invSettings?.draftVoidDays ?? 60
+    autoVoid.mutate({ enabled, days })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
   const selectedIds = selectedRows.map((r) => r.id)
@@ -470,6 +487,10 @@ export function Invoices() {
   const voidableSelectedIds = selectedRows
     .filter((r) => r._status !== 'voided')
     .map((r) => r.id)
+  // Invoices eligible for batch payment (not yet fully paid / not voided)
+  const payableSelectedRows = selectedRows.filter(
+    (r) => r._status !== 'paid' && r._status !== 'voided',
+  )
 
   async function handleBatchMarkSent() {
     if (draftSelectedIds.length === 0) return
@@ -576,6 +597,31 @@ export function Invoices() {
             <Button variant='outline' onClick={() => setGenOpen(true)}>
               <Sparkles className='size-4' />
               สร้างรายเดือน
+            </Button>
+            <Button
+              variant='outline'
+              disabled={sendAllDrafts.isPending}
+              onClick={async () => {
+                try {
+                  const res = await sendAllDrafts.mutateAsync()
+                  if (res.done === 0) {
+                    toast.info('ไม่มีใบร่างที่ยังไม่ได้ส่ง')
+                  } else if (res.errors.length === 0) {
+                    toast.success(`ส่งร่างทั้งหมดแล้ว ${res.done} ใบ`)
+                  } else {
+                    toast.warning(`ส่งสำเร็จ ${res.done} · ผิดพลาด ${res.errors.length}`)
+                  }
+                } catch (err) {
+                  toast.error('ส่งร่างไม่สำเร็จ', { description: err instanceof Error ? err.message : String(err) })
+                }
+              }}
+            >
+              {sendAllDrafts.isPending ? (
+                <Loader2 className='size-4 animate-spin' />
+              ) : (
+                <Send className='size-4' />
+              )}
+              ส่งร่างทั้งหมด
             </Button>
             <Button asChild>
               <Link to='/invoices/new'>
@@ -796,6 +842,17 @@ export function Invoices() {
             <Button
               size='sm'
               variant='outline'
+              disabled={payableSelectedRows.length === 0}
+              onClick={() => setBatchPayOpen(true)}
+              className='border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/30'
+            >
+              <Wallet className='size-4' />
+              รับเงิน
+              {payableSelectedRows.length > 0 && ` (${payableSelectedRows.length})`}
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
               disabled={draftSelectedIds.length === 0 || batchMarkSent.isPending}
               onClick={handleBatchMarkSent}
             >
@@ -817,6 +874,7 @@ export function Invoices() {
               ยกเลิก
               {voidableSelectedIds.length > 0 && ` (${voidableSelectedIds.length})`}
             </Button>
+            <BatchReceiptPrintButton invoices={selectedRows} />
             <span className='h-4 w-px bg-border' />
             <Button
               size='sm'
@@ -829,6 +887,13 @@ export function Invoices() {
           </div>
         </div>
       )}
+
+      <BatchPaymentDialog
+        open={batchPayOpen}
+        onOpenChange={setBatchPayOpen}
+        invoices={payableSelectedRows}
+        onSuccess={() => setRowSelection({})}
+      />
 
       {payQuickId && (() => {
         const inv = invoices?.find((x) => x.id === payQuickId)

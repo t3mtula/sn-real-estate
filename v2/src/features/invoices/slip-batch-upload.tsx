@@ -82,11 +82,13 @@ function SlipRow({
   options,
   onChangeInvoice,
   onRemove,
+  isDuplicate,
 }: {
   slip: SlipFile
   options: Array<{ id: string; label: string }>
   onChangeInvoice: (invoiceId: string) => void
   onRemove: () => void
+  isDuplicate?: boolean
 }) {
   return (
     <div className='flex items-start gap-3 rounded-lg border bg-card p-3'>
@@ -124,6 +126,9 @@ function SlipRow({
           options={options}
         />
 
+        {isDuplicate && (
+          <p className='text-[11px] font-medium text-amber-600'>⚠ ใบแจ้งหนี้นี้ถูกเลือกซ้ำ</p>
+        )}
         {slip.saveStatus === 'error' && (
           <p className='text-[11px] text-destructive'>บันทึกไม่สำเร็จ — ลองใหม่</p>
         )}
@@ -233,6 +238,15 @@ function useSaveAll(
   async function run() {
     const targets = slips.filter((s) => s.invoiceId && s.saveStatus === 'idle')
     if (targets.length === 0) return
+
+    // Dedup check: warn if same invoice assigned to multiple slips
+    const invoiceIds = targets.map((s) => s.invoiceId)
+    const dupIds = invoiceIds.filter((id, i) => invoiceIds.indexOf(id) !== i)
+    if (dupIds.length > 0) {
+      toast.warning('มีใบแจ้งหนี้ถูกเลือกซ้ำในหลาย slip · กรุณาตรวจสอบก่อนบันทึก')
+      return
+    }
+
     setIsSaving(true)
 
     // Mark all targets as saving
@@ -357,6 +371,12 @@ export function SlipBatchUpload() {
   const doneCount = slips.filter((s) => s.saveStatus === 'done').length
   const hasAny = slips.length > 0
 
+  // Compute duplicate invoice assignments for visual warning
+  const assignedIds = slips.map((s) => s.invoiceId).filter(Boolean)
+  const duplicateInvoiceIds = new Set(
+    assignedIds.filter((id, i) => assignedIds.indexOf(id) !== i),
+  )
+
   return (
     <div className='space-y-6'>
       <div>
@@ -377,6 +397,7 @@ export function SlipBatchUpload() {
               options={outstandingOptions}
               onChangeInvoice={(v) => setInvoiceId(slip.key, v)}
               onRemove={() => removeSlip(slip.key)}
+              isDuplicate={slip.invoiceId ? duplicateInvoiceIds.has(slip.invoiceId) : false}
             />
           ))}
         </div>
