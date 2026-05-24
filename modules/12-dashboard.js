@@ -743,7 +743,7 @@ function renderDash(){
       <div class="section-card col-span-2">
         <h2 class="section-title" style="--section-color:#6366f1">แผนที่ทรัพย์สิน</h2>
         <div class="map-wrap">
-          <div class="map-svg-box" style="flex:0 0 380px;padding:12px">${thaiMap}</div>
+          <div class="map-svg-box" style="flex:0 0 240px;padding:8px">${thaiMap}</div>
           <div class="map-detail">
             <div style="font-size:12px;color:#64748b;margin-bottom:16px">กดจังหวัดบนแผนที่เพื่อดูรายละเอียด</div>
             ${locEntries.slice(0,5).map(([loc,d])=>{
