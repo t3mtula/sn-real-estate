@@ -49,7 +49,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: v2
-          # --branch=production ทำให้ deploy ขึ้น sn-real-estate-v2.pages.dev (production URL)
-          # ตาม v1 workflow pattern (v2 เคยใช้ --branch=main ทำให้ขึ้นแค่ branch alias)
-          # commit-message ASCII เพราะ Cloudflare API ไม่รับ UTF-8 (lesson เก่า)
-          command: pages deploy dist --project-name=sn-real-estate-v2 --branch=production --commit-dirty=true --commit-hash=${{ github.sha }} --commit-message="Auto-deploy ${{ github.sha }}"
+          # sn-real-estate-v2: Production branch = main (ยืนยันด้วย deployment list · 24 พ.ค. 2026)
+          # → --branch=main ขึ้น sn-real-estate-v2.pages.dev (production URL)
+          # → --branch=production ขึ้นแค่ preview alias (ตรงข้ามกับ v1)
+          # LESSON: ก่อนเปลี่ยน --branch ต้อง wrangler pages deployment list แล้วดู Environment=Production
+          # commit-message ASCII เพราะ Cloudflare API ไม่รับ UTF-8
+          command: pages deploy dist --project-name=sn-real-estate-v2 --branch=main --commit-dirty=true --commit-hash=${{ github.sha }} --commit-message="Auto-deploy ${{ github.sha }}"
