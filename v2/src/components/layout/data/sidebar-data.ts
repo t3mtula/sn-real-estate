@@ -19,6 +19,19 @@ import {
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
+/**
+ * Sidebar nav — จัดเป็น 4 กลุ่มหลัก + ระบบ
+ *
+ * Grouping rationale (UX):
+ *   1. ภาพรวม   — เปิดดูเป็นอันดับแรก · summary level
+ *   2. การเงิน   — ใช้บ่อยที่สุดสำหรับพนักงาน (เก็บเงิน · ตามหนี้)
+ *   3. สัญญา    — operations รอง · บริหารสัญญา
+ *   4. ข้อมูลหลัก — master data · ตั้งครั้งเดียว ใช้ดูเป็นครั้งคราว
+ *   5. ระบบ     — admin · ตั้งค่า · log
+ *
+ * Mirrors Nielsen #4 "Match between system and the real world" — grouped by
+ * task (การเงิน, สัญญา) not by entity-type-soup. Miller's 7±2 within each group.
+ */
 export const sidebarData: SidebarData = {
   user: {
     name: 'Tem',
@@ -34,13 +47,63 @@ export const sidebarData: SidebarData = {
   ],
   navGroups: [
     {
-      title: 'หลัก',
+      title: 'ภาพรวม',
       items: [
         {
           title: 'แดชบอร์ด',
           url: '/dashboard',
           icon: LayoutDashboard,
         },
+        {
+          title: 'สรุปรายเดือน',
+          url: '/reports/monthly',
+          icon: TrendingUp,
+        },
+      ],
+    },
+    {
+      title: 'การเงิน',
+      items: [
+        {
+          title: 'ใบแจ้งหนี้',
+          url: '/invoices',
+          icon: Receipt,
+        },
+        {
+          title: 'ลูกหนี้ค้างชำระ',
+          url: '/reports/outstanding',
+          icon: AlertCircle,
+        },
+        {
+          title: 'นัดชำระ',
+          url: '/reports/follow-up',
+          icon: CalendarClock,
+        },
+        {
+          title: 'รายงานอายุหนี้',
+          url: '/reports/aging',
+          icon: BarChart3,
+        },
+      ],
+    },
+    {
+      title: 'สัญญา',
+      items: [
+        {
+          title: 'สัญญาเช่า',
+          url: '/contracts',
+          icon: FileText,
+        },
+        {
+          title: 'สัญญาใกล้หมด',
+          url: '/contracts/renewals',
+          icon: CalendarClock,
+        },
+      ],
+    },
+    {
+      title: 'ข้อมูลหลัก',
+      items: [
         {
           title: 'ทรัพย์สิน',
           url: '/properties',
@@ -62,49 +125,14 @@ export const sidebarData: SidebarData = {
           icon: CreditCard,
         },
         {
-          title: 'สัญญาเช่า',
-          url: '/contracts',
-          icon: FileText,
-        },
-        {
-          title: 'สัญญาใกล้หมด',
-          url: '/contracts/renewals',
-          icon: CalendarClock,
-        },
-        {
-          title: 'ใบแจ้งหนี้',
-          url: '/invoices',
-          icon: Receipt,
-        },
-        {
           title: 'มิเตอร์น้ำ/ไฟ',
           url: '/meters',
           icon: Gauge,
         },
-        {
-          title: 'รายงานอายุหนี้',
-          url: '/reports/aging',
-          icon: BarChart3,
-        },
-        {
-          title: 'นัดชำระ',
-          url: '/reports/follow-up',
-          icon: CalendarClock,
-        },
-        {
-          title: 'ลูกหนี้ค้างชำระ',
-          url: '/reports/outstanding',
-          icon: AlertCircle,
-        },
-        {
-          title: 'สรุปรายเดือน',
-          url: '/reports/monthly',
-          icon: TrendingUp,
-        },
       ],
     },
     {
-      title: 'อื่น',
+      title: 'ระบบ',
       items: [
         {
           title: 'บันทึกกิจกรรม',
