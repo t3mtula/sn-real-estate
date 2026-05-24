@@ -1,6 +1,5 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate  } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   Calendar,
   FileText,
   Gauge,
@@ -31,6 +30,7 @@ import {
 } from '@/features/meters/schema'
 import { MeterForm } from '@/features/meters/meter-form'
 import type { MeterReadingData } from '@/features/meters/types'
+import { BackButton } from '@/components/yonghua/back-button'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -124,12 +124,7 @@ export function MeterDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/meters'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/meters' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -137,12 +132,7 @@ export function MeterDetail({ id }: { id: string }) {
           </>
         ) : !reading ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/meters'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/meters' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบรายการมิเตอร์</CardTitle>
@@ -240,11 +230,7 @@ function MeterContent({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/meters' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/meters' />
           <div className='mt-0.5 text-muted-foreground'>
             <MeterTypeIcon type={data.type} />
           </div>

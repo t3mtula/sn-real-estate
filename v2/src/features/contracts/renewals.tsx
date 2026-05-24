@@ -1,5 +1,6 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { FileText } from 'lucide-react'
+import { BackButton } from '@/components/yonghua/back-button'
 import { useMemo } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -64,7 +65,6 @@ function bucketKey(daysLeft: number): keyof typeof BUCKETS | null {
 }
 
 export function Renewals() {
-  const navigate = useNavigate()
   const { data: contracts, isLoading } = useContracts()
 
   const rows = useMemo<Row[]>(() => {
@@ -106,14 +106,7 @@ export function Renewals() {
 
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex items-center gap-3'>
-          <button
-            type='button'
-            onClick={() => navigate({ to: '/contracts' })}
-            className='inline-flex size-9 items-center justify-center rounded-md hover:bg-muted'
-            aria-label='กลับ'
-          >
-            <ArrowLeft className='size-4' />
-          </button>
+          <BackButton fallback='/contracts' className='mt-0' />
           <div>
             <h1 className='text-2xl font-bold tracking-tight'>สัญญาใกล้หมด</h1>
             <p className='text-sm text-muted-foreground'>

@@ -46,7 +46,7 @@ export function CursorPopover({ open, x, y, children, className }: Props) {
       ref={ref}
       role='tooltip'
       className={cn(
-        'fixed z-[100] pointer-events-none w-96 rounded-md border bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-black/5',
+        'fixed z-[100] pointer-events-none w-[min(440px,calc(100vw-1rem))] rounded-md border bg-popover p-4 text-popover-foreground shadow-lg ring-1 ring-black/5',
         className,
       )}
       style={{ left, top }}

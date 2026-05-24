@@ -1,13 +1,12 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { useNavigate  } from '@tanstack/react-router'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Button } from '@/components/ui/button'
 import { MeterForm } from '@/features/meters/meter-form'
 import { useCreateMeterReading } from '@/features/meters/mutations'
 import { METER_READING_FORM_DEFAULTS } from '@/features/meters/schema'
+import { BackButton } from '@/components/yonghua/back-button'
 
 export function MeterNew() {
   const create = useCreateMeterReading()
@@ -24,11 +23,7 @@ export function MeterNew() {
 
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex items-center gap-3'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link to='/meters' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/meters' />
           <div>
             <h1 className='text-2xl font-semibold tracking-tight'>
               เพิ่มการอ่านมิเตอร์

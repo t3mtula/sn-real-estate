@@ -1,6 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   Building2,
   Check,
   CheckCircle2,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { BackButton } from '@/components/yonghua/back-button'
 import { BankLogo } from '@/components/yonghua/bank-logo'
 import { CopyButton } from '@/components/copy-button'
 import { Header } from '@/components/layout/header'
@@ -169,12 +169,7 @@ export function LandlordDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/landlords'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/landlords' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -182,12 +177,7 @@ export function LandlordDetail({ id }: { id: string }) {
           </>
         ) : !landlord ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/landlords'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/landlords' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบผู้ให้เช่า</CardTitle>
@@ -321,11 +311,7 @@ function Content({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/landlords' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/landlords' />
           {t.logo ? (
             <img
               src={t.logo}

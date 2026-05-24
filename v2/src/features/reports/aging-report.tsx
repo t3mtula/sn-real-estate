@@ -1,5 +1,6 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Download, FileText } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Download, FileText } from 'lucide-react'
+import { BackButton } from '@/components/yonghua/back-button'
 import { useMemo } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { Button } from '@/components/ui/button'
@@ -62,7 +63,6 @@ function bucketOf(inv: Invoice): Bucket['key'] {
 }
 
 export function AgingReport() {
-  const navigate = useNavigate()
   const { data: invoices, isLoading } = useInvoices()
 
   const buckets = useMemo<Bucket[]>(() => {
@@ -138,14 +138,7 @@ export function AgingReport() {
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex flex-wrap items-center justify-between gap-3'>
           <div className='flex items-center gap-3'>
-            <button
-              type='button'
-              onClick={() => navigate({ to: '/invoices' })}
-              className='inline-flex size-9 items-center justify-center rounded-md hover:bg-muted'
-              aria-label='กลับ'
-            >
-              <ArrowLeft className='size-4' />
-            </button>
+            <BackButton fallback='/invoices' className='mt-0' />
             <div>
               <h1 className='text-2xl font-bold tracking-tight'>รายงานอายุหนี้</h1>
               <p className='text-sm text-muted-foreground'>

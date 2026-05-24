@@ -73,6 +73,7 @@ import {
 import { type InvoiceStatus } from '@/features/invoices/types'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
+import { BackButton } from '@/components/yonghua/back-button'
 
 const STATUS_TONE_CLASS: Record<string, string> = {
   success: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
@@ -201,11 +202,7 @@ export function InvoiceDetail({ id }: { id: string }) {
 
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex flex-wrap items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link to='/invoices' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/invoices' />
           <div className='flex-1'>
             <div className='flex flex-wrap items-center gap-2'>
               <h1 className='text-2xl font-semibold tracking-tight'>{display}</h1>
