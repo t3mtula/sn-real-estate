@@ -364,7 +364,7 @@ function clausesBody(refs: Refs): Content[] {
   out.push({
     text: htmlToInlineParts(renderTemplateText(tpl.intro, ctx)),
     alignment: 'justify',
-    margin: [0, 4, 0, 4] as [number, number, number, number],
+    margin: [0, 6, 0, 8] as [number, number, number, number],
   })
 
   tpl.clauses.forEach((cl, i) => {
@@ -376,7 +376,7 @@ function clausesBody(refs: Refs): Content[] {
         ...htmlToInlineParts(renderTemplateText(mainText, ctx)),
       ],
       alignment: 'justify',
-      margin: [0, 0, 0, 2] as [number, number, number, number],
+      margin: [0, 2, 0, 6] as [number, number, number, number],
     } as Content)
     ;(cl.sub ?? []).forEach((sub, j) => {
       // Override key "i.j" replaces a sub-clause
@@ -387,8 +387,8 @@ function clausesBody(refs: Refs): Content[] {
           ...htmlToInlineParts(renderTemplateText(subText, ctx)),
         ],
         alignment: 'justify',
-        fontSize: 11,
-        margin: [20, 0, 0, 1] as [number, number, number, number],
+        fontSize: 12.5,
+        margin: [20, 1, 0, 4] as [number, number, number, number],
       } as Content)
     })
   })
@@ -396,7 +396,7 @@ function clausesBody(refs: Refs): Content[] {
   out.push({
     text: htmlToInlineParts(renderTemplateText(tpl.closing, ctx)),
     alignment: 'justify',
-    margin: [0, 6, 0, 0] as [number, number, number, number],
+    margin: [0, 10, 0, 0] as [number, number, number, number],
   })
 
   return out
@@ -668,6 +668,7 @@ function kvTable(rows: unknown[][]): Content {
 
 function appendixHeader(contractNo: string, madeDate: string): Content {
   return {
+    pageBreak: 'before',
     stack: [
       {
         canvas: [
@@ -989,8 +990,8 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
 
     defaultStyle: {
       font: 'THSarabunNew',
-      fontSize: 12,
-      lineHeight: 1.35,
+      fontSize: 14,
+      lineHeight: 1.6,
       color: C.ink,
     },
   }
