@@ -599,13 +599,13 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 11px; color: #1e293b; line-height: 1.55; margin-top: 2px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
 
-.c-body { font-size: 12px; line-height: 1.75; color: #1e293b; text-align: justify; margin-bottom: 20px; }
-.c-intro { margin: 0 0 14px 0; text-indent: 24px; }
-.clause { margin: 14px 0; padding-left: 0; }
+.c-body { font-size: 12px; line-height: 1.85; color: #1e293b; text-align: justify; margin-bottom: 20px; }
+.c-intro { margin: 0 0 22px 0; text-indent: 24px; }
+.clause { margin: 22px 0; padding-left: 0; }
 .clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; margin-right: 4px; }
-.sub-clause { margin: 10px 0 10px 28px; font-size: 11.5px; color: #1e293b; line-height: 1.75; }
+.sub-clause { margin: 14px 0 14px 28px; font-size: 11.5px; color: #1e293b; line-height: 1.8; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 4px; }
-.c-closing { margin: 20px 0 0 0; text-indent: 24px; }
+.c-closing { margin: 28px 0 0 0; text-indent: 24px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
