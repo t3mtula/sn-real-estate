@@ -575,9 +575,8 @@ const CONTRACT_CSS = `
 @page { size: A4; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
 body { background: #fff; color: #1a202c; }
-.page { width: 210mm; min-height: 297mm; padding: 18mm 22mm 18mm; margin: 0 auto; position: relative; page-break-after: always; display: flex; flex-direction: column; }
+.page { width: 210mm; padding: 18mm 22mm 18mm; margin: 0 auto; position: relative; page-break-after: always; }
 .page:last-child { page-break-after: auto; }
-.page-body { display: flex; flex-direction: column; flex: 1; }
 
 .c-header { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .c-header-center { flex: 1; }
@@ -613,9 +612,21 @@ body { background: #fff; color: #1a202c; }
 
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
-.sig-section { margin-top: auto; padding-top: 28px; }
-.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
-.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px; }
+/* Sig section ขึ้นหน้าของตัวเอง · center กลางหน้า · ไม่มีปัญหา whitespace ลอยใต้
+   sig อีก (เดิม margin-top:auto ใช้ไม่ได้กับ multi-page print pagination) */
+.sig-section {
+  page-break-before: always;
+  break-before: page;
+  min-height: 240mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+}
+.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 24px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 28px; }
+.sig-grid:last-child { margin-bottom: 0; }
 .sig-block { text-align: center; }
 .sig-img-area { height: 44px; display: flex; align-items: flex-end; justify-content: center; }
 .sig-img-area img { max-height: 50px; max-width: 145px; object-fit: contain; }
