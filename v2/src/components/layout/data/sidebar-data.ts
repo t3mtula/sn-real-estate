@@ -7,7 +7,6 @@ import {
   CreditCard,
   FileText,
   Gauge,
-  KeyRound,
   LayoutDashboard,
   Landmark,
   Palette,
@@ -17,6 +16,7 @@ import {
   UserCog,
   Users,
 } from 'lucide-react'
+import { SnLogo } from '@/components/yonghua/sn-logo'
 import { type SidebarData } from '../types'
 
 /**
@@ -41,7 +41,7 @@ export const sidebarData: SidebarData = {
   teams: [
     {
       name: 'SN Rental Studio',
-      logo: KeyRound,
+      logo: SnLogo,
       plan: 'ระบบบริหารสัญญาเช่า',
     },
   ],
