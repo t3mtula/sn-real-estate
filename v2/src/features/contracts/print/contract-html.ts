@@ -599,33 +599,23 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 11px; color: #1e293b; line-height: 1.55; margin-top: 2px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
 
-.c-body { font-size: 12px; line-height: 1.85; color: #1e293b; text-align: justify; margin-bottom: 20px; }
-.c-intro { margin: 0 0 22px 0; text-indent: 24px; }
-.clause { margin: 22px 0; padding-left: 0; }
+.c-body { font-size: 11.5px; line-height: 1.65; color: #1e293b; text-align: justify; margin-bottom: 14px; }
+.c-intro { margin: 0 0 12px 0; text-indent: 24px; }
+.clause { margin: 12px 0; padding-left: 0; }
 .clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; margin-right: 4px; }
-.sub-clause { margin: 14px 0 14px 28px; font-size: 11.5px; color: #1e293b; line-height: 1.8; }
+.sub-clause { margin: 8px 0 8px 28px; font-size: 11px; color: #1e293b; line-height: 1.65; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 4px; }
-.c-closing { margin: 28px 0 0 0; text-indent: 24px; }
+.c-closing { margin: 16px 0 0 0; text-indent: 24px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
 
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
-/* Sig section ขึ้นหน้าของตัวเอง · center กลางหน้า · ไม่มีปัญหา whitespace ลอยใต้
-   sig อีก (เดิม margin-top:auto ใช้ไม่ได้กับ multi-page print pagination) */
-.sig-section {
-  page-break-before: always;
-  break-before: page;
-  min-height: 240mm;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-}
-.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 24px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
-.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 28px; }
+/* Sig ติดต่อจาก closing · ไม่ force หน้าแยก · ทั้งสัญญา (clauses + sig) อยู่ใน 2 หน้า */
+.sig-section { margin-top: 28px; padding-top: 12px; page-break-inside: avoid; break-inside: avoid; }
+.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 14px; }
 .sig-grid:last-child { margin-bottom: 0; }
 .sig-block { text-align: center; }
 .sig-img-area { height: 44px; display: flex; align-items: flex-end; justify-content: center; }
