@@ -853,7 +853,7 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
   return {
     info: {
       title: `สัญญาเช่า ${contractNo}`,
-      author: 'SN Real Estate',
+      author: 'SN Rental Studio',
       subject: `${tenantName} เช่า ${propName}`,
     },
     pageSize: 'A4',

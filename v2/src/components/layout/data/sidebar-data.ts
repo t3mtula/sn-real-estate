@@ -6,8 +6,8 @@ import {
   CalendarClock,
   CreditCard,
   FileText,
-  GalleryVerticalEnd,
   Gauge,
+  KeyRound,
   LayoutDashboard,
   Landmark,
   Palette,
@@ -40,8 +40,8 @@ export const sidebarData: SidebarData = {
   },
   teams: [
     {
-      name: 'SN Real Estate',
-      logo: GalleryVerticalEnd,
+      name: 'SN Rental Studio',
+      logo: KeyRound,
       plan: 'ระบบบริหารสัญญาเช่า',
     },
   ],
