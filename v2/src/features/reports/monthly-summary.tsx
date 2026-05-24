@@ -3,12 +3,15 @@
  * รายได้ที่ออก vs รายได้ที่รับ vs ค้าง per month
  */
 import { useMemo, useState } from 'react'
+import { Download } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { amt } from '@/lib/thai'
 import { useInvoices, getEffectiveStatus } from '@/features/invoices/queries'
 
@@ -69,6 +72,30 @@ export function MonthlySummary() {
     count: acc.count + r.count,
   }), { issued: 0, paid: 0, outstanding: 0, count: 0 })
 
+  const exportXlsx = useExportXlsx()
+  function handleExport() {
+    void exportXlsx(
+      xlsxFilename('สรุปรายเดือน'),
+      [
+        { header: 'เดือน', key: 'label', width: 16 },
+        { header: 'จำนวนใบ', key: 'count', width: 10 },
+        { header: 'ออกใบรวม', key: 'issued', width: 14 },
+        { header: 'รับแล้ว', key: 'paid', width: 14 },
+        { header: 'ค้าง', key: 'outstanding', width: 14 },
+        { header: 'ชำระแล้ว (ใบ)', key: 'paidCount', width: 14 },
+      ],
+      filtered.map((r) => ({
+        label: r.label,
+        count: r.count,
+        issued: r.issued,
+        paid: r.paid,
+        outstanding: r.outstanding,
+        paidCount: r.paidCount,
+      })),
+      { sheetName: 'สรุปรายเดือน' },
+    )
+  }
+
   return (
     <>
       <Header fixed>
@@ -84,6 +111,10 @@ export function MonthlySummary() {
             <h1 className='text-2xl font-bold tracking-tight'>สรุปรายเดือน</h1>
             <p className='mt-1 text-sm text-muted-foreground'>รายได้ที่ออกใบ vs รับแล้ว vs ค้าง · ไม่นับใบยกเลิก</p>
           </div>
+          <Button variant='outline' onClick={handleExport} disabled={filtered.length === 0}>
+            <Download className='size-4' />
+            Export Excel
+          </Button>
           <Select value={yearFilter} onValueChange={setYearFilter}>
             <SelectTrigger className='w-28'>
               <SelectValue placeholder='ปี' />

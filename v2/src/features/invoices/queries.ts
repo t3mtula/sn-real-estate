@@ -148,8 +148,12 @@ export function formatMonth(month: string | undefined): string {
 
 /* ---------- amount + frequency helpers (ported from v1 modules/19-invoices.js) ---------- */
 
-/** Payment frequency mapping · v2 uses contract.payment string */
+/** Payment frequency mapping · v2 uses contract.payment string
+ *  Includes v1 keyword variants (เดือนละ / ไตรมาสละ / ครึ่งปีละ / ปีละ)
+ *  for backward compat with legacy contract data
+ */
 const PAYMENT_FREQ_MAP: Record<string, { type: InvoiceData['freqType']; months: number; label: string }> = {
+  // v2 canonical strings
   'รายเดือน': { type: 'monthly', months: 1, label: 'ค่าเช่ารายเดือน' },
   'รายไตรมาส': { type: 'quarterly', months: 3, label: 'ค่าเช่ารายไตรมาส' },
   'ทุก 3 เดือน': { type: 'quarterly', months: 3, label: 'ค่าเช่าทุก 3 เดือน' },
@@ -157,6 +161,12 @@ const PAYMENT_FREQ_MAP: Record<string, { type: InvoiceData['freqType']; months: 
   'ครึ่งปี': { type: 'semi', months: 6, label: 'ค่าเช่าครึ่งปี' },
   'รายปี': { type: 'yearly', months: 12, label: 'ค่าเช่ารายปี' },
   'ตามสัญญา': { type: 'lump', months: 1, label: 'ค่าเช่า (ชำระครั้งเดียว)' },
+  // v1 keyword aliases (legacy contract data backward compat)
+  'เดือนละ': { type: 'monthly', months: 1, label: 'ค่าเช่ารายเดือน' },
+  'ไตรมาสละ': { type: 'quarterly', months: 3, label: 'ค่าเช่ารายไตรมาส' },
+  'ครึ่งปีละ': { type: 'semi', months: 6, label: 'ค่าเช่าครึ่งปี' },
+  'ปีละ': { type: 'yearly', months: 12, label: 'ค่าเช่ารายปี' },
+  'ทุกปี': { type: 'yearly', months: 12, label: 'ค่าเช่ารายปี' },
 }
 
 export type PaymentFreq = {

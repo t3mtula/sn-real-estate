@@ -1,14 +1,16 @@
 import { Link } from '@tanstack/react-router'
-import { Calendar } from 'lucide-react'
+import { Calendar, Download } from 'lucide-react'
 import { useMemo } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { amt, parseBE } from '@/lib/thai'
-import { useInvoices, daysOverdue, getEffectiveStatus } from '@/features/invoices/queries'
+import { useInvoices, daysOverdue, getEffectiveStatus, getInvoiceDisplay, formatMonth } from '@/features/invoices/queries'
 import type { Invoice } from '@/features/invoices/types'
 
 type Group = { label: string; color: string; items: Invoice[] }
@@ -137,6 +139,41 @@ export function FollowUpDashboard() {
 
   const total = groups.reduce((s, g) => s + g.items.length, 0)
 
+  const exportXlsx = useExportXlsx()
+  function handleExport() {
+    const rows = groups.flatMap((g) =>
+      g.items.map((inv) => ({
+        group: g.label.replace(/^[^\s]+ /, ''), // strip emoji
+        no: getInvoiceDisplay(inv),
+        tenant: inv.data?.tenant ?? '',
+        property: inv.data?.property ?? '',
+        month: formatMonth(inv.data?.month),
+        dueDate: inv.data?.dueDate ?? '',
+        followUpDate: inv.data?.followUpDate ?? '',
+        followUpNote: inv.data?.followUpNote ?? '',
+        remaining: inv.data?.remainingAmount ?? inv.data?.total ?? 0,
+        overdue: daysOverdue(inv) > 0 ? daysOverdue(inv) : '',
+      })),
+    )
+    void exportXlsx(
+      xlsxFilename('นัดติดตามชำระ'),
+      [
+        { header: 'กลุ่ม', key: 'group', width: 20 },
+        { header: 'เลขที่', key: 'no', width: 16 },
+        { header: 'ผู้เช่า', key: 'tenant', width: 28 },
+        { header: 'ทรัพย์สิน', key: 'property', width: 24 },
+        { header: 'เดือน', key: 'month', width: 12 },
+        { header: 'วันครบกำหนด', key: 'dueDate', width: 14 },
+        { header: 'วันนัด', key: 'followUpDate', width: 14 },
+        { header: 'หมายเหตุนัด', key: 'followUpNote', width: 28 },
+        { header: 'ค้างชำระ', key: 'remaining', width: 14 },
+        { header: 'เกินกำหนด', key: 'overdue', width: 12 },
+      ],
+      rows,
+      { sheetName: 'นัดติดตามชำระ' },
+    )
+  }
+
   return (
     <>
       <Header fixed>
@@ -147,14 +184,20 @@ export function FollowUpDashboard() {
       </Header>
 
       <Main className='flex flex-1 flex-col gap-5'>
-        <header>
-          <div className='flex items-center gap-2'>
-            <Calendar className='size-5 text-indigo-500' />
-            <h1 className='text-2xl font-bold tracking-tight'>นัดติดตามชำระ</h1>
+        <header className='flex flex-wrap items-center justify-between gap-3'>
+          <div>
+            <div className='flex items-center gap-2'>
+              <Calendar className='size-5 text-indigo-500' />
+              <h1 className='text-2xl font-bold tracking-tight'>นัดติดตามชำระ</h1>
+            </div>
+            <p className='mt-1 text-sm text-muted-foreground'>
+              ใบแจ้งหนี้ค้างชำระที่มีหรือยังไม่มีวันนัด · {total} รายการ
+            </p>
           </div>
-          <p className='mt-1 text-sm text-muted-foreground'>
-            ใบแจ้งหนี้ค้างชำระที่มีหรือยังไม่มีวันนัด · {total} รายการ
-          </p>
+          <Button variant='outline' onClick={handleExport} disabled={total === 0}>
+            <Download className='size-4' />
+            Export Excel
+          </Button>
         </header>
 
         {isLoading ? (
