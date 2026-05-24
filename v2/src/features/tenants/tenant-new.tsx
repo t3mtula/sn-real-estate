@@ -1,13 +1,12 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { useNavigate  } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Button } from '@/components/ui/button'
 import { TenantForm } from '@/features/tenants/components/tenant-form'
 import { DuplicateTaxIdError, useCreateTenant } from '@/features/tenants/mutations'
+import { BackButton } from '@/components/yonghua/back-button'
 
 export function TenantNew() {
   const create = useCreateTenant()
@@ -24,11 +23,7 @@ export function TenantNew() {
 
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex items-center gap-3'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link to='/tenants' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/tenants' />
           <div>
             <h1 className='text-2xl font-semibold tracking-tight'>
               เพิ่มผู้เช่ารายใหม่

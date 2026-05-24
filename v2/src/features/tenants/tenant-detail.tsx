@@ -1,6 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   Building2,
   MapPin,
   Pencil,
@@ -22,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
+import { BackButton } from '@/components/yonghua/back-button'
 import { TenantForm } from '@/features/tenants/components/tenant-form'
 import {
   fmtTaxId,
@@ -135,12 +135,7 @@ export function TenantDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/tenants'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/tenants' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -148,12 +143,7 @@ export function TenantDetail({ id }: { id: string }) {
           </>
         ) : !tenant ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/tenants'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/tenants' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบผู้เช่า</CardTitle>
@@ -266,11 +256,7 @@ function Content({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/tenants' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/tenants' />
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
               <Icon className='size-5 text-muted-foreground' />

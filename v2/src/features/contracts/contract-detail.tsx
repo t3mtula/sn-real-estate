@@ -1,7 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   AlertCircle,
-  ArrowLeft,
   Building2,
   Calendar,
   ChevronDown,
@@ -80,6 +79,7 @@ import { coerceDurMonths, coerceNumber } from '@/lib/contract-normalize'
 import { amt, todayBE } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import type { ContractStatus } from '@/features/contracts/types'
+import { BackButton } from '@/components/yonghua/back-button'
 
 const STATUS_TONE_CLASS: Record<string, string> = {
   success: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
@@ -178,12 +178,7 @@ export function ContractDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/contracts'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/contracts' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -191,12 +186,7 @@ export function ContractDetail({ id }: { id: string }) {
           </>
         ) : !contract ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/contracts'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/contracts' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบสัญญา</CardTitle>
@@ -434,11 +424,7 @@ function Content({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/contracts' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/contracts' />
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
               <FileText className='size-5 text-muted-foreground' />

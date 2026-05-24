@@ -1,6 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   Building2,
   Landmark,
   MapPin,
@@ -41,6 +40,7 @@ import {
   type PropertyFormValues,
 } from '@/features/properties/schema'
 import { PROPERTY_TYPES, type PropertyTypeValue } from '@/features/properties/types'
+import { BackButton } from '@/components/yonghua/back-button'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
   PROPERTY_TYPES.map((t) => [t.value, t.label])
@@ -157,12 +157,7 @@ export function PropertyDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/properties'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/properties' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -170,12 +165,7 @@ export function PropertyDetail({ id }: { id: string }) {
           </>
         ) : !property ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/properties'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/properties' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบทรัพย์สิน</CardTitle>
@@ -300,11 +290,7 @@ function PropertyContent({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/properties' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/properties' />
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
               <h1 className='text-2xl font-semibold tracking-tight'>

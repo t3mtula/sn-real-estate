@@ -9,31 +9,12 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, MapPin, Plus, Search, StickyNote, UserRound, Users } from 'lucide-react'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, MapPin, Plus, Search, StickyNote, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
-
-/**
- * Friendly short label for payment frequency.
- * Prefers structured data.payFreq · falls back to keyword parse on data.payment string.
- */
-function freqShortLabel(d: Record<string, unknown> | undefined): string {
-  if (!d) return ''
-  const pf = String(d.payFreq ?? '').toLowerCase()
-  if (pf === 'monthly') return 'รายเดือน'
-  if (pf === 'quarterly') return 'รายไตรมาส'
-  if (pf === 'semiannual' || pf === 'semi') return 'ครึ่งปี'
-  if (pf === 'annual' || pf === 'yearly') return 'รายปี'
-  if (pf === 'lump') return 'จ่ายครั้งเดียว'
-  // Fallback: parse payment string
-  const s = String(d.payment ?? '')
-  if (/ปีละ|รายปี|ต่อปี/.test(s)) return 'รายปี'
-  if (/ไตรมาส/.test(s)) return 'รายไตรมาส'
-  if (/ครึ่งปี|6 เดือน/.test(s)) return 'ครึ่งปี'
-  if (/ลำพ|ทั้งหมด|ครั้งเดียว|วันเซ็น/.test(s)) return 'จ่ายครั้งเดียว'
-  if (/เดือนละ|รายเดือน|ทุกเดือน|ของทุกเดือน/.test(s)) return 'รายเดือน'
-  return ''
-}
+import { freqShortLabel, monthlyRevenue } from '@/lib/contracts/stats'
+import { OverdueBadge } from '@/components/yonghua/overdue-badge'
+import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -76,7 +57,11 @@ import {
 } from '@/features/contracts/types'
 import { cn } from '@/lib/utils'
 
-type Row = Contract & { _status: ContractStatus }
+type Row = Contract & {
+  _status: ContractStatus
+  _overdueCount: number
+  _overdueAmount: number
+}
 
 const STATUS_TONE_CLASS: Record<string, string> = {
   success: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
@@ -111,6 +96,7 @@ function StatusBadge({ status }: { status: ContractStatus }) {
 
 export function Contracts() {
   const { data: contracts, isLoading, error } = useContracts()
+  const { data: invoiceStats } = useInvoiceStatsByContract()
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'end', desc: true },
   ])
@@ -139,8 +125,16 @@ export function Contracts() {
 
   const rows = useMemo<Row[]>(() => {
     if (!contracts) return []
-    return contracts.map((c) => ({ ...c, _status: getContractStatus(c.data) }))
-  }, [contracts])
+    return contracts.map((c) => {
+      const s = invoiceStats?.get(c.id)
+      return {
+        ...c,
+        _status: getContractStatus(c.data),
+        _overdueCount: s?.overdueCount ?? 0,
+        _overdueAmount: s?.overdueAmount ?? 0,
+      }
+    })
+  }, [contracts, invoiceStats])
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -190,6 +184,21 @@ export function Contracts() {
         },
       },
       {
+        id: 'property',
+        accessorFn: (row) => String(row.data?.property ?? ''),
+        header: ({ column }) => (
+          <SortableHeader column={column}>ทรัพย์สิน</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const v = String(row.original.data?.property ?? '').trim() || '—'
+          return (
+            <span className='block max-w-[180px] truncate text-sm' title={v}>
+              {v}
+            </span>
+          )
+        },
+      },
+      {
         id: 'end',
         accessorFn: (row) => row.data?.end ?? '',
         header: ({ column }) => (
@@ -231,7 +240,7 @@ export function Contracts() {
           if (formatted === '—') {
             return <span className='text-sm text-muted-foreground'>—</span>
           }
-          const freqLabel = freqShortLabel(d as unknown as Record<string, unknown>)
+          const freqLabel = freqShortLabel(d ?? {})
           return (
             <span className='text-sm tabular-nums'>
               {formatted}
@@ -250,7 +259,18 @@ export function Contracts() {
         header: ({ column }) => (
           <SortableHeader column={column}>สถานะ</SortableHeader>
         ),
-        cell: ({ row }) => <StatusBadge status={row.original._status} />,
+        cell: ({ row }) => (
+          <div className='flex flex-col items-start gap-1'>
+            <StatusBadge status={row.original._status} />
+            {row.original._overdueCount > 0 && (
+              <OverdueBadge
+                count={row.original._overdueCount}
+                amount={row.original._overdueAmount}
+                unit='ใบ'
+              />
+            )}
+          </div>
+        ),
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
           return row.original._status === value
@@ -329,35 +349,30 @@ export function Contracts() {
     let expired = 0
     let cancelled = 0
     let monthlyRev = 0
+    let overdueAmount = 0
+    let overdueCount = 0
     for (const c of visible) {
       const s = c._status
       if (s === 'active') active++
       else if (s === 'expiring') expiring++
       else if (s === 'expired') expired++
       else if (s === 'cancelled') cancelled++
-      // sum monthly revenue from active + expiring (rough · uses raw rate / freq guess)
       if (s === 'active' || s === 'expiring') {
-        const raw = amt(c.data?.rate as number | string | undefined, {
-          symbol: false,
-          decimal: 0,
-          emDash: false,
-        })
-        const num = raw ? Number(raw.replace(/[,\s]/g, '')) : 0
-        if (Number.isFinite(num) && num > 0) {
-          const payFreq = freqShortLabel(c.data as unknown as Record<string, unknown>)
-          // normalize to monthly
-          if (payFreq === 'รายปี') monthlyRev += num / 12
-          else if (payFreq === 'รายไตรมาส') monthlyRev += num / 3
-          else if (payFreq === 'ครึ่งปี') monthlyRev += num / 6
-          else if (payFreq === 'จ่ายครั้งเดียว') {
-            // skip — lump sum doesn't translate to monthly revenue
-          } else {
-            monthlyRev += num
-          }
-        }
+        monthlyRev += monthlyRevenue(c.data?.rate as number | string | undefined, c.data ?? {})
       }
+      overdueAmount += c._overdueAmount
+      overdueCount += c._overdueCount
     }
-    return { active, expiring, expired, cancelled, monthlyRev, count: visible.length }
+    return {
+      active,
+      expiring,
+      expired,
+      cancelled,
+      monthlyRev,
+      overdueAmount,
+      overdueCount,
+      count: visible.length,
+    }
   }, [table.getRowModel().rows])
   const exportXlsx = useExportXlsx()
 
@@ -470,7 +485,7 @@ export function Contracts() {
         )}
 
         {!isLoading && kpi.count > 0 && (
-          <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
+          <div className='grid grid-cols-2 gap-2 sm:grid-cols-6'>
             <KpiCard
               label='ทั้งหมด'
               value={kpi.count.toLocaleString('th-TH')}
@@ -501,11 +516,17 @@ export function Contracts() {
               sub='บาท · ประมาณการ'
               tone='neutral'
             />
+            <KpiCard
+              label='ค้างเก็บ'
+              value={amt(kpi.overdueAmount, { symbol: false, decimal: 0 })}
+              sub={`${kpi.overdueCount.toLocaleString('th-TH')} ใบ`}
+              tone={kpi.overdueAmount > 0 ? 'destructive' : 'neutral'}
+            />
           </div>
         )}
 
         <div className='overflow-x-auto rounded-md border bg-card'>
-          <Table className='min-w-[800px]'>
+          <Table className='min-w-[960px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>
@@ -603,23 +624,11 @@ export function Contracts() {
 
 function ContractHoverDetail({ contract }: { contract: Row }) {
   const d = contract.data ?? {}
+  // Hover shows only data NOT visible on the row (tenant, landlord, property,
+  // rate, timeline, status are already on the row). Focus on secondary fields:
+  // deposit, payment terms, signing context, tax id, notes, overdue detail.
   const items: { icon: typeof Calendar; label: string; value: string }[] = []
-  if (d.tenant) items.push({ icon: UserRound, label: 'ผู้เช่า', value: String(d.tenant) })
-  if (d.landlord) items.push({ icon: Users, label: 'ผู้ให้เช่า', value: String(d.landlord) })
-  const propVal = d.property as string | undefined
-  if (propVal) items.push({ icon: MapPin, label: 'ทรัพย์สิน', value: propVal })
-  if (d.start || d.end)
-    items.push({
-      icon: Calendar,
-      label: 'ระยะเวลา',
-      value: `${d.start ?? '—'} → ${d.end ?? '—'}`,
-    })
-  if (d.rate != null) {
-    const fmt = amt(d.rate as number | string | undefined, { symbol: false, decimal: 0 })
-    if (fmt !== '—') {
-      items.push({ icon: CreditCard, label: 'ค่าเช่า', value: `${fmt} บาท${d.payment ? ` · ${d.payment}` : ''}` })
-    }
-  }
+  if (d.payment) items.push({ icon: Calendar, label: 'รอบจ่าย', value: String(d.payment) })
   if (d.deposit != null && Number(d.deposit) > 0) {
     items.push({
       icon: Landmark,
@@ -630,7 +639,18 @@ function ContractHoverDetail({ contract }: { contract: Row }) {
   if (d.madeAt)
     items.push({ icon: MapPin, label: 'ที่ทำสัญญา', value: String(d.madeAt) })
   if (d.taxId)
-    items.push({ icon: FileText, label: 'เลขผู้เสียภาษี', value: String(d.taxId) })
+    items.push({ icon: FileText, label: 'เลขผู้เสียภาษี (ผู้เช่า)', value: String(d.taxId) })
+  if (d.wit1 || d.wit2) {
+    const wit = [d.wit1, d.wit2].filter(Boolean).join(' · ')
+    items.push({ icon: UserRound, label: 'พยาน', value: wit })
+  }
+  if (contract._overdueCount > 0) {
+    items.push({
+      icon: CreditCard,
+      label: 'ค้างชำระ',
+      value: `${amt(contract._overdueAmount, { symbol: false, decimal: 0 })} บาท · ${contract._overdueCount} ใบ`,
+    })
+  }
   const notes = (d as { notes?: string }).notes
   return (
     <div className='space-y-2 text-xs'>
@@ -639,6 +659,9 @@ function ContractHoverDetail({ contract }: { contract: Row }) {
         <span className='font-semibold'>{getContractDisplay(contract)}</span>
         <StatusBadge status={contract._status} />
       </div>
+      {items.length === 0 && !notes && (
+        <p className='text-[11px] text-muted-foreground'>—</p>
+      )}
       <div className='space-y-1.5'>
         {items.map((it, i) => (
           <div key={i} className='flex items-start gap-2'>

@@ -1,6 +1,5 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate  } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   GripVertical,
@@ -38,6 +37,7 @@ import {
   type TemplateAttachment,
   type TemplateData,
 } from './types'
+import { BackButton } from '@/components/yonghua/back-button'
 
 type Mode = 'new' | 'edit'
 
@@ -247,11 +247,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
 
       <Main fixed className='flex flex-1 flex-col overflow-hidden'>
         <header className='mb-4 flex flex-wrap items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link to='/templates' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/templates' />
           <div className='flex-1'>
             <div className='flex flex-wrap items-center gap-2'>
               <h1 className='text-2xl font-semibold tracking-tight'>

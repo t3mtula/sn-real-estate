@@ -8,11 +8,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Building2, CreditCard, Download, FileText, Landmark, MapPin, Phone, Plus, Search, StickyNote, UserRound } from 'lucide-react'
+import { Building2, Clock, CreditCard, Download, FileText, Landmark, MapPin, Phone, Plus, Search, StickyNote, UserRound } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { useRowHover } from '@/hooks/use-row-hover'
 import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
+import { OverdueBadge } from '@/components/yonghua/overdue-badge'
+import { OccupancyBar } from '@/components/yonghua/occupancy-bar'
+import { MetricDisplay } from '@/components/yonghua/metric-display'
 import { useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -36,10 +39,20 @@ import {
 } from '@/features/landlords/queries'
 import { PARTY_TYPES, type Landlord } from '@/features/landlords/types'
 import { useAllLandlordBankLinks } from '@/features/landlord-banks/queries'
+import { useBankAccounts } from '@/features/bank-accounts/queries'
+import type { BankAccount } from '@/features/bank-accounts/types'
 import {
   type ContractMatchRow,
   useContractMatchKeys,
 } from '@/lib/queries/contract-match'
+import {
+  daysUntil,
+  monthlyRevenue,
+} from '@/lib/contracts/stats'
+import { parseBE } from '@/lib/thai'
+import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
+import { ContractMiniRow } from '@/components/yonghua/contract-mini-row'
+import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 
 const PARTY_LABEL: Record<string, string> = Object.fromEntries(
@@ -47,30 +60,52 @@ const PARTY_LABEL: Record<string, string> = Object.fromEntries(
 )
 
 /**
- * Derive contract count per landlord — matched by landlord_id / invHeaderId /
- * name fallback. Uses the shared lightweight match-keys query (cache shared
- * across landlords list, tenants list, and detail pages).
+ * Resolve all contracts belonging to a landlord — matched by landlord_id /
+ * invHeaderId / name fallback. Uses the shared lightweight match-keys query
+ * (cache shared across landlords list, tenants list, and detail pages).
  */
-function countContracts(
+function landlordContracts(
   landlord: Landlord,
   contracts: ContractMatchRow[],
-): number {
+): ContractMatchRow[] {
+  // Filter cancelled — semantics match properties: _contractCount means
+  // "non-cancelled contracts attached", _activeCount carries the non-expired
+  // subset for KPI display.
   const headerId = (landlord.data.invoiceHeaderId ?? '').trim()
   const nm = (landlord.data.name ?? '').trim()
   return contracts.filter((c) => {
+    if (c.data.cancelled) return false
     if (c.data.landlord_id === landlord.id) return true
     if (headerId && c.data.invHeaderId === headerId) return true
     if (c.data.landlord === nm) return true
     return false
-  }).length
+  })
 }
 
-type LandlordRow = Landlord & { _contractCount: number; _bankCount: number }
+type RelatedContract = {
+  contract: ContractMatchRow
+  overdueAmount: number
+  overdueCount: number
+}
+
+type LandlordRow = Landlord & {
+  _contractCount: number
+  _activeCount: number
+  _expiringCount: number
+  _bankCount: number
+  _banks: Array<BankAccount & { isDefault: boolean }>
+  _relatedContracts: RelatedContract[]
+  _monthlyRevenue: number
+  _overdueAmount: number
+  _overdueCount: number
+}
 
 export function Landlords() {
   const { data: landlords, isLoading, error } = useLandlords()
   const { data: contracts } = useContractMatchKeys()
   const { data: allLinks } = useAllLandlordBankLinks()
+  const { data: allBanks } = useBankAccounts()
+  const { data: invoiceStats } = useInvoiceStatsByContract()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -87,18 +122,75 @@ export function Landlords() {
     return map
   }, [allLinks])
 
-  const rows = useMemo(() => {
-    if (!landlords) return []
-    return landlords.map((l) => ({
-      ...l,
-      _contractCount: contracts ? countContracts(l, contracts) : 0,
-      _bankCount: bankCountByOwner.get(l.id) ?? 0,
-    }))
-  }, [landlords, contracts, bankCountByOwner])
+  // Resolved bank accounts per landlord (for hover preview)
+  const banksByOwner = useMemo(() => {
+    const map = new Map<string, Array<BankAccount & { isDefault: boolean }>>()
+    if (!allLinks || !allBanks) return map
+    const bankMap = new Map(allBanks.map((b) => [b.id, b]))
+    for (const link of allLinks) {
+      const bank = bankMap.get(link.bank_account_id)
+      if (!bank) continue
+      const arr = map.get(link.landlord_id) ?? []
+      arr.push({ ...bank, isDefault: !!link.is_default })
+      map.set(link.landlord_id, arr)
+    }
+    // Sort: default first, then by bank name
+    for (const arr of map.values()) {
+      arr.sort((a, b) => {
+        if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1
+        return (a.data?.bank ?? '').localeCompare(b.data?.bank ?? '', 'th')
+      })
+    }
+    return map
+  }, [allLinks, allBanks])
 
-  const columns = useMemo<
-    ColumnDef<Landlord & { _contractCount: number; _bankCount: number }>[]
-  >(
+  const rows = useMemo<LandlordRow[]>(() => {
+    if (!landlords) return []
+    return landlords.map((l) => {
+      const list = contracts ? landlordContracts(l, contracts) : []
+      let active = 0
+      let expiring = 0
+      let monthlyRev = 0
+      let overdueAmount = 0
+      let overdueCount = 0
+      for (const c of list) {
+        if (c.data?.cancelled || c.data?.closed) continue
+        const days = daysUntil(c.data?.end ?? null)
+        if (days == null || days < 0) continue // skip expired
+        active++
+        if (days <= 90) expiring++
+        monthlyRev += monthlyRevenue(c.data?.rate ?? null, c.data ?? {})
+        const stat = invoiceStats?.get(c.id)
+        if (stat) {
+          overdueAmount += stat.overdueAmount
+          overdueCount += stat.overdueCount
+        }
+      }
+      const related: RelatedContract[] = list.map((c) => {
+        const s = invoiceStats?.get(c.id)
+        return {
+          contract: c,
+          overdueAmount: s?.overdueAmount ?? 0,
+          overdueCount: s?.overdueCount ?? 0,
+        }
+      })
+      const banks = banksByOwner.get(l.id) ?? []
+      return {
+        ...l,
+        _contractCount: list.length,
+        _activeCount: active,
+        _expiringCount: expiring,
+        _bankCount: bankCountByOwner.get(l.id) ?? banks.length,
+        _banks: banks,
+        _relatedContracts: related,
+        _monthlyRevenue: monthlyRev,
+        _overdueAmount: overdueAmount,
+        _overdueCount: overdueCount,
+      }
+    })
+  }, [landlords, contracts, bankCountByOwner, banksByOwner, invoiceStats])
+
+  const columns = useMemo<ColumnDef<LandlordRow>[]>(
     () => [
       {
         id: 'name',
@@ -267,6 +359,31 @@ export function Landlords() {
 
   const totalRows = landlords?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
+
+  /** Running KPI · count + active + revenue + overdue + expiring */
+  const kpi = useMemo(() => {
+    const visible = table.getRowModel().rows.map((r) => r.original)
+    let monthlyRev = 0
+    let activeCount = 0
+    let expiringCount = 0
+    let overdueAmount = 0
+    let overdueCount = 0
+    for (const l of visible) {
+      monthlyRev += l._monthlyRevenue
+      activeCount += l._activeCount
+      expiringCount += l._expiringCount
+      overdueAmount += l._overdueAmount
+      overdueCount += l._overdueCount
+    }
+    return {
+      count: visible.length,
+      activeCount,
+      monthlyRev,
+      expiringCount,
+      overdueAmount,
+      overdueCount,
+    }
+  }, [table.getRowModel().rows])
   const exportXlsx = useExportXlsx()
 
   function handleExport() {
@@ -370,6 +487,42 @@ export function Landlords() {
           </div>
         )}
 
+        {/* KPI strip — revenue + portfolio health */}
+        {!isLoading && kpi.count > 0 && (
+          <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
+            <KpiCard
+              label='ทั้งหมด'
+              value={kpi.count.toLocaleString('th-TH')}
+              sub='ผู้ให้เช่า'
+              tone='neutral'
+            />
+            <KpiCard
+              label='สัญญาใช้งาน'
+              value={kpi.activeCount.toLocaleString('th-TH')}
+              sub='ทั้งหมด'
+              tone='success'
+            />
+            <KpiCard
+              label='รายได้/เดือน'
+              value={amt(kpi.monthlyRev, { symbol: false, decimal: 0 })}
+              sub='บาท · ประมาณการ'
+              tone='neutral'
+            />
+            <KpiCard
+              label='ใกล้หมด'
+              value={kpi.expiringCount.toLocaleString('th-TH')}
+              sub='สัญญา (90 วัน)'
+              tone='warning'
+            />
+            <KpiCard
+              label='ค้างเก็บ'
+              value={amt(kpi.overdueAmount, { symbol: false, decimal: 0 })}
+              sub={`${kpi.overdueCount.toLocaleString('th-TH')} ใบ`}
+              tone={kpi.overdueAmount > 0 ? 'destructive' : 'neutral'}
+            />
+          </div>
+        )}
+
         {/* Card list — v1-style: avatar + name + signer chips + address · counts on right */}
         <div className='space-y-2'>
           {isLoading ? (
@@ -421,71 +574,172 @@ export function Landlords() {
 function LandlordHoverDetail({ row }: { row: LandlordRow }) {
   const d = row.data ?? {}
   const partyLabel = PARTY_LABEL[d.partyType ?? 'person'] ?? '—'
+  // Mini-preview of landlord detail page — saves a click.
+  // Sections: header → metrics → contact + tax → banks list → contracts list → notes.
   const addr = [d.addrLine, d.addrSubdistrict, d.addrDistrict, d.addrProvince, d.addrPostal]
     .filter(Boolean)
     .join(' ')
     .trim()
-  const items: { icon: typeof MapPin; label: string; value: string }[] = []
-  items.push({ icon: UserRound, label: 'ประเภท', value: partyLabel })
-  if (d.taxId) items.push({ icon: FileText, label: 'เลขผู้เสียภาษี', value: fmtTaxId(d.taxId) })
-  if (d.phone) items.push({ icon: Phone, label: 'โทร', value: String(d.phone) })
-  if (addr) items.push({ icon: MapPin, label: 'ที่อยู่', value: addr })
-  if (d.signerName) {
-    items.push({
-      icon: UserRound,
-      label: 'ผู้ลงนาม',
-      value: `${d.signerName}${d.signerTitle ? ` (${d.signerTitle})` : ''}`,
-    })
-  }
-  if (d.promptPayId) {
-    items.push({
-      icon: CreditCard,
-      label: 'PromptPay',
-      value: `${d.promptPayId}${d.promptPayBank ? ` · ${d.promptPayBank}` : ''}`,
-    })
-  }
-  if (d.vatRegistered) {
-    items.push({ icon: FileText, label: 'VAT', value: `${d.vatRate ?? 7}%` })
-  }
-  items.push({
-    icon: Landmark,
-    label: 'บัญชี',
-    value: `${row._bankCount.toLocaleString('th-TH')} บัญชี`,
-  })
-  items.push({
-    icon: FileText,
-    label: 'สัญญา',
-    value: `${row._contractCount.toLocaleString('th-TH')} ฉบับ`,
-  })
   const note = (d as { notes?: string }).notes
+  const visibleBanks = row._banks.slice(0, 3)
+  const moreBanks = row._banks.length - visibleBanks.length
+  // Sort contracts: active first, then by end-date (BE) desc.
+  // BE strings "DD/MM/YYYY" cannot be sorted by string compare — parse first.
+  const sortedContracts = [...row._relatedContracts].sort((a, b) => {
+    const ad = a.contract.data
+    const bd = b.contract.data
+    const aActive = !ad?.cancelled && !ad?.closed
+    const bActive = !bd?.cancelled && !bd?.closed
+    if (aActive !== bActive) return aActive ? -1 : 1
+    const aT = parseBE(ad?.end ?? '')?.toDate().getTime() ?? 0
+    const bT = parseBE(bd?.end ?? '')?.toDate().getTime() ?? 0
+    return bT - aT
+  })
+  const visibleContracts = sortedContracts.slice(0, 3)
+  const moreContracts = sortedContracts.length - visibleContracts.length
   return (
-    <div className='space-y-2 text-xs'>
+    <div className='space-y-2.5 text-xs'>
+      {/* Header */}
       <div className='flex items-center gap-2 border-b pb-2'>
         <Landmark className='size-4 text-muted-foreground' />
-        <span className='font-semibold'>{getLandlordName(row.data)}</span>
-        <Badge variant='outline' className='ml-auto text-[10px] font-normal'>
+        <span className='truncate font-semibold'>{getLandlordName(row.data)}</span>
+        <Badge variant='outline' className='ml-auto shrink-0 text-[10px] font-normal'>
           {partyLabel}
         </Badge>
       </div>
-      <div className='space-y-1.5'>
-        {items.map((it, i) => (
-          <div key={i} className='flex items-start gap-2'>
-            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
-            <div className='min-w-0 flex-1'>
-              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-                {it.label}
-              </span>
-              <p className='leading-snug'>{it.value}</p>
-            </div>
-          </div>
-        ))}
-        {note && (
-          <div className='flex items-start gap-2 border-t pt-1.5'>
-            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
-            <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
-          </div>
+
+      {/* Metrics */}
+      <div className='grid grid-cols-3 gap-2 rounded border bg-muted/20 px-2 py-1.5'>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>รายได้/ด.</p>
+          <p className='text-sm font-semibold tabular-nums'>
+            {amt(row._monthlyRevenue, { symbol: false, decimal: 0 })}
+          </p>
+        </div>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>สัญญาใช้งาน</p>
+          <p className='text-sm font-semibold tabular-nums'>
+            {row._activeCount}<span className='text-[10px] text-muted-foreground'>/{row._contractCount}</span>
+          </p>
+        </div>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>ค้างเก็บ</p>
+          <p className={cn(
+            'text-sm font-semibold tabular-nums',
+            row._overdueAmount > 0 ? 'text-red-700 dark:text-red-400' : '',
+          )}>
+            {amt(row._overdueAmount, { symbol: false, decimal: 0 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Contact + tax */}
+      <div className='space-y-1'>
+        <div className='flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground'>
+          {d.taxId && (
+            <span className='inline-flex items-center gap-1'>
+              <FileText className='size-2.5' /> {fmtTaxId(d.taxId)}
+            </span>
+          )}
+          {d.phone && (
+            <span className='inline-flex items-center gap-1'>
+              <Phone className='size-2.5' /> {String(d.phone)}
+            </span>
+          )}
+          {d.vatRegistered && (
+            <span className='inline-flex items-center gap-1 text-amber-700 dark:text-amber-300'>
+              VAT {d.vatRate ?? 7}%
+            </span>
+          )}
+          {d.promptPayId && (
+            <span className='inline-flex items-center gap-1'>
+              <CreditCard className='size-2.5' /> PromptPay {d.promptPayId}
+            </span>
+          )}
+        </div>
+        {addr && (
+          <p className='flex items-start gap-1.5 leading-snug'>
+            <MapPin className='mt-0.5 size-3 shrink-0 text-muted-foreground' />
+            <span>{addr}</span>
+          </p>
         )}
       </div>
+
+      {/* Banks list */}
+      {visibleBanks.length > 0 && (
+        <div className='space-y-1'>
+          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+            บัญชีรับเงิน ({row._bankCount})
+          </p>
+          <div className='space-y-1'>
+            {visibleBanks.map((b) => (
+              <div
+                key={b.id}
+                className='flex items-center justify-between gap-2 border-l-2 border-l-muted-foreground/20 pl-2 py-0.5 text-[11px]'
+              >
+                <div className='min-w-0 flex-1'>
+                  <span className='font-medium'>{b.data?.bank ?? '—'}</span>
+                  {b.data?.branch && (
+                    <span className='ms-1 text-muted-foreground'>· {b.data.branch}</span>
+                  )}
+                </div>
+                <span className='shrink-0 tabular-nums text-muted-foreground'>
+                  {b.data?.acctNo ?? '—'}
+                </span>
+                {b.isDefault && (
+                  <span className='shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-px text-[9px] text-emerald-700 dark:text-emerald-300'>
+                    หลัก
+                  </span>
+                )}
+              </div>
+            ))}
+            {moreBanks > 0 && (
+              <p className='text-[10px] text-muted-foreground'>
+                + อีก {moreBanks} บัญชี
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Contracts list */}
+      {visibleContracts.length > 0 && (
+        <div className='space-y-1'>
+          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+            สัญญา ({row._activeCount} ใช้งาน / {row._contractCount} ทั้งหมด)
+            {row._expiringCount > 0 && (
+              <span className='ms-1 inline-flex items-center gap-0.5 rounded-full bg-amber-500/20 px-1.5 py-px text-[9px] text-amber-700 dark:text-amber-300'>
+                <Clock className='size-2' />
+                ใกล้หมด {row._expiringCount}
+              </span>
+            )}
+          </p>
+          <div className='space-y-1'>
+            {visibleContracts.map((rc) => (
+              <ContractMiniRow
+                key={rc.contract.id}
+                contract={rc.contract}
+                titleField='tenant'
+                overdueAmount={rc.overdueAmount}
+                overdueCount={rc.overdueCount}
+              />
+            ))}
+            {moreContracts > 0 && (
+              <p className='text-[10px] text-muted-foreground'>
+                + อีก {moreContracts} สัญญา
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {note && (
+        <div className='flex items-start gap-2 border-t pt-1.5'>
+          <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+          <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -580,21 +834,80 @@ function LandlordCard({
         )}
       </div>
 
-      {/* Right counts (v1 style) */}
-      <div className='flex shrink-0 items-center gap-4 text-right'>
-        <div>
-          <p className='text-lg font-bold tabular-nums leading-tight'>
-            {row._bankCount.toLocaleString('th-TH')}
-          </p>
-          <p className='text-[10px] text-muted-foreground'>บัญชี</p>
+      {/* Right side — revenue-first, then operational counts + alerts */}
+      <div className='flex shrink-0 flex-col items-end gap-1.5 text-right'>
+        <MetricDisplay
+          value={amt(row._monthlyRevenue, { symbol: false, decimal: 0 })}
+          label='บาท / เดือน'
+          size='lg'
+          align='right'
+        />
+        {row._activeCount > 0 && (
+          <OccupancyBar
+            occupied={row._activeCount}
+            total={row._contractCount || row._activeCount}
+            widthClass='w-24'
+          />
+        )}
+        <div className='flex flex-wrap items-center justify-end gap-1.5 text-[10px] text-muted-foreground'>
+          <span className='tabular-nums'>
+            <Landmark className='mr-0.5 inline size-3' />
+            {row._bankCount} บัญชี
+          </span>
+          <span>·</span>
+          <span className='tabular-nums'>
+            <FileText className='mr-0.5 inline size-3' />
+            {row._activeCount}/{row._contractCount} สัญญา
+          </span>
         </div>
-        <div>
-          <p className='text-lg font-bold tabular-nums leading-tight'>
-            {row._contractCount.toLocaleString('th-TH')}
-          </p>
-          <p className='text-[10px] text-muted-foreground'>สัญญา</p>
+        <div className='flex flex-wrap items-center justify-end gap-1'>
+          {row._expiringCount > 0 && (
+            <span className='inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300'>
+              <Clock className='size-2.5' />
+              ใกล้หมด {row._expiringCount}
+            </span>
+          )}
+          {row._overdueCount > 0 && (
+            <OverdueBadge
+              count={row._overdueCount}
+              amount={row._overdueAmount}
+              unit='ใบ'
+            />
+          )}
         </div>
       </div>
     </button>
+  )
+}
+
+const KPI_TONE: Record<string, { card: string; value: string }> = {
+  neutral: { card: 'border-border', value: 'text-foreground' },
+  success: { card: 'border-emerald-500/30 bg-emerald-500/5', value: 'text-emerald-700 dark:text-emerald-400' },
+  warning: { card: 'border-amber-500/30 bg-amber-500/5', value: 'text-amber-700 dark:text-amber-400' },
+  destructive: { card: 'border-red-500/30 bg-red-500/5', value: 'text-red-700 dark:text-red-400' },
+}
+
+function KpiCard({
+  label,
+  value,
+  sub,
+  tone = 'neutral',
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'neutral' | 'success' | 'warning' | 'destructive'
+}) {
+  const t = KPI_TONE[tone] ?? KPI_TONE.neutral
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2', t.card)}>
+      <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+        {label}
+      </p>
+      <p className={cn('mt-0.5 text-xl font-bold tabular-nums leading-tight', t.value)}>
+        {value}
+      </p>
+      {sub && <p className='text-[10px] text-muted-foreground'>{sub}</p>}
+    </div>
   )
 }

@@ -1,10 +1,9 @@
-import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Button } from '@/components/ui/button'
+import { BackButton } from '@/components/yonghua/back-button'
 import { BankAccountForm } from '@/features/bank-accounts/components/bank-account-form'
 import { useCreateBankAccount } from '@/features/bank-accounts/mutations'
 import {
@@ -35,11 +34,7 @@ export function BankAccountNew() {
 
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex items-center gap-3'>
-          <Button variant='ghost' size='icon' asChild>
-            <Link to='/bank-accounts' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/bank-accounts' className='mt-0' />
           <div>
             <h1 className='text-2xl font-semibold tracking-tight'>
               เพิ่มบัญชีธนาคาร

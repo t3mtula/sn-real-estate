@@ -27,6 +27,9 @@ import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { useRowHover } from '@/hooks/use-row-hover'
 import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
+import { DaysRemainingChip } from '@/components/yonghua/days-remaining-chip'
+import { OverdueBadge } from '@/components/yonghua/overdue-badge'
+import { SEVERITY_STRIP } from '@/components/yonghua/severity'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -59,7 +62,20 @@ import {
   useProperties,
 } from '@/features/properties/queries'
 import { PROPERTY_TYPES, type Property } from '@/features/properties/types'
-import { useContractMatchKeys } from '@/lib/queries/contract-match'
+import {
+  type ContractMatchRow,
+  useContractMatchKeys,
+} from '@/lib/queries/contract-match'
+import {
+  daysUntil,
+  freqShortLabel,
+  monthlyRevenue,
+  severityByDaysRemaining,
+  type Severity,
+} from '@/lib/contracts/stats'
+import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
+import { ContractMiniRow } from '@/components/yonghua/contract-mini-row'
+import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
@@ -71,11 +87,27 @@ function typeLabel(value: string | undefined): string {
   return TYPE_LABEL[value] ?? value
 }
 
-type Row = Property & { _contractCount: number; _currentTenant: string | null }
+type RelatedContract = {
+  contract: ContractMatchRow
+  overdueAmount: number
+  overdueCount: number
+}
+
+type Row = Property & {
+  _contractCount: number
+  _currentTenant: string | null
+  _activeContract: ContractMatchRow | null
+  _relatedContracts: RelatedContract[]
+  _monthlyRent: number
+  _overdueAmount: number
+  _overdueCount: number
+  _severity: Severity
+}
 
 export function Properties() {
   const { data: properties, isLoading, error } = useProperties()
   const { data: contractKeys } = useContractMatchKeys()
+  const { data: invoiceStats } = useInvoiceStatsByContract()
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -96,9 +128,11 @@ export function Properties() {
     })
   }, [search.province])
 
-  // Count active (non-cancelled) contracts per property — match by pid_property or legacy pid
-  const contractCountByPid = useMemo(() => {
-    const map = new Map<number, number>()
+  // Group non-cancelled contracts by property pid — used for count + current
+  // tenant + active contract (rate/timeline/overdue).
+  // "Active" = first non-cancelled · not yet expired (or fallback to first if all expired).
+  const contractsByPid = useMemo(() => {
+    const map = new Map<number, ContractMatchRow[]>()
     if (!contractKeys) return map
     contractKeys.forEach((c) => {
       if (c.data?.cancelled) return
@@ -106,24 +140,9 @@ export function Properties() {
       if (pid == null) return
       const n = Number(pid)
       if (Number.isNaN(n)) return
-      map.set(n, (map.get(n) ?? 0) + 1)
-    })
-    return map
-  }, [contractKeys])
-
-  // Map pid → current tenant name (first non-cancelled contract per property)
-  const tenantByPid = useMemo(() => {
-    const map = new Map<number, string>()
-    if (!contractKeys) return map
-    contractKeys.forEach((c) => {
-      if (c.data?.cancelled) return
-      const pid = c.data?.pid_property ?? c.data?.pid
-      if (pid == null) return
-      const n = Number(pid)
-      if (Number.isNaN(n)) return
-      if (!map.has(n) && c.data?.tenant) {
-        map.set(n, c.data.tenant)
-      }
+      const arr = map.get(n) ?? []
+      arr.push(c)
+      map.set(n, arr)
     })
     return map
   }, [contractKeys])
@@ -133,13 +152,53 @@ export function Properties() {
     return properties.map((p) => {
       const pid = p.data?.pid ?? Number.parseInt(p.id, 10)
       const n = Number(pid)
+      const list = contractsByPid.get(n) ?? []
+      // Pick the "active" contract: prefer the one with latest non-expired end · fallback first
+      const now = Date.now()
+      const active =
+        list.find((c) => {
+          const days = daysUntil(c.data?.end ?? null)
+          return days != null && days >= 0
+        }) ??
+        list[0] ??
+        null
+      const monthlyRent = active
+        ? monthlyRevenue(active.data?.rate ?? null, active.data ?? {})
+        : 0
+      const stat = active ? invoiceStats?.get(active.id) : undefined
+      const days = active ? daysUntil(active.data?.end ?? null) : null
+      const startDays = active ? daysUntil(active.data?.start ?? null) : null
+      const started = startDays == null || startDays <= 0
+      const severity: Severity = active
+        ? severityByDaysRemaining(days, {
+            started,
+            cancelled: !!active.data?.cancelled,
+            closed: !!active.data?.closed,
+          })
+        : 'muted'
+      // ignore unused now (kept for cache invalidation reactivity)
+      void now
+      const related: RelatedContract[] = list.map((c) => {
+        const s = invoiceStats?.get(c.id)
+        return {
+          contract: c,
+          overdueAmount: s?.overdueAmount ?? 0,
+          overdueCount: s?.overdueCount ?? 0,
+        }
+      })
       return {
         ...p,
-        _contractCount: contractCountByPid.get(n) ?? 0,
-        _currentTenant: tenantByPid.get(n) ?? null,
+        _contractCount: list.length,
+        _currentTenant: active?.data?.tenant ?? null,
+        _activeContract: active,
+        _relatedContracts: related,
+        _monthlyRent: monthlyRent,
+        _overdueAmount: stat?.overdueAmount ?? 0,
+        _overdueCount: stat?.overdueCount ?? 0,
+        _severity: severity,
       }
     })
-  }, [properties, contractCountByPid, tenantByPid])
+  }, [properties, contractsByPid, invoiceStats])
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -210,66 +269,70 @@ export function Properties() {
         },
       },
       {
-        id: 'area',
-        accessorFn: (row) => row.data?.area ?? '',
+        id: 'rental',
+        accessorFn: (row) => row._monthlyRent,
         header: ({ column }) => (
-          <SortableHeader column={column}>เนื้อที่</SortableHeader>
+          <SortableHeader column={column}>การเช่า</SortableHeader>
         ),
         cell: ({ row }) => {
-          const v = row.original.data?.area?.trim() || '—'
-          return (
-            <span
-              className='block max-w-[180px] truncate text-sm text-muted-foreground'
-              title={v}
-            >
-              {v}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'contracts',
-        accessorFn: (row) => row._contractCount,
-        header: ({ column }) => (
-          <SortableHeader column={column}>สัญญา</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const n = row.original._contractCount
-          return (
-            <Badge
-              variant={n > 0 ? 'default' : 'outline'}
-              className='font-normal'
-            >
-              <FileText className='mr-1 size-3' />
-              {n.toLocaleString('th-TH')}
-            </Badge>
-          )
-        },
-      },
-      {
-        id: 'current_tenant',
-        accessorFn: (row) => row._currentTenant ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>ผู้เช่าปัจจุบัน</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const tenant = row.original._currentTenant
-          if (tenant) {
+          const r = row.original
+          const tenant = r._currentTenant
+          const active = r._activeContract
+          if (!tenant || !active) {
             return (
-              <Badge
-                variant='outline'
-                className='font-normal bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300 max-w-[180px] truncate block'
-                title={tenant}
-              >
-                <User className='mr-1 size-3 inline' />
-                {tenant}
+              <Badge variant='outline' className='font-normal text-muted-foreground'>
+                ว่าง
               </Badge>
             )
           }
+          const rentText = r._monthlyRent > 0
+            ? amt(r._monthlyRent, { symbol: false, decimal: 0 })
+            : amt(active.data?.rate ?? null, { symbol: false, decimal: 0 })
+          const freq = freqShortLabel(active.data ?? {})
+          const extraCount = r._contractCount - 1
           return (
-            <Badge variant='outline' className='font-normal text-muted-foreground'>
-              ว่าง
-            </Badge>
+            <div className='flex min-w-[200px] max-w-[260px] flex-col gap-1'>
+              <div className='flex items-center gap-1.5'>
+                <User className='size-3 shrink-0 text-emerald-600 dark:text-emerald-400' />
+                <span
+                  className='truncate text-sm font-medium'
+                  title={tenant}
+                >
+                  {tenant}
+                </span>
+                {extraCount > 0 && (
+                  <span className='shrink-0 text-[10px] text-muted-foreground'>
+                    +{extraCount}
+                  </span>
+                )}
+              </div>
+              <div className='flex flex-wrap items-center gap-1.5'>
+                <span className='text-xs font-semibold tabular-nums'>
+                  {rentText}
+                  <span className='ms-0.5 text-[10px] font-normal text-muted-foreground'>
+                    /ด.
+                  </span>
+                </span>
+                {freq && freq !== 'รายเดือน' && (
+                  <span className='rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground'>
+                    {freq}
+                  </span>
+                )}
+                <DaysRemainingChip
+                  end={active.data?.end ?? null}
+                  start={active.data?.start ?? null}
+                  cancelled={!!active.data?.cancelled}
+                  closed={!!active.data?.closed}
+                />
+              </div>
+              {r._overdueCount > 0 && (
+                <OverdueBadge
+                  count={r._overdueCount}
+                  amount={r._overdueAmount}
+                  unit='ใบ'
+                />
+              )}
+            </div>
           )
         },
       },
@@ -361,19 +424,31 @@ export function Properties() {
   const totalRows = properties?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
 
-  /** v1-style running KPI · count + occupancy + with-contract */
+  /** v1-style running KPI · count + occupancy + revenue + overdue */
   const kpi = useMemo(() => {
     const visible = table.getRowModel().rows.map((r) => r.original)
     let withContract = 0
     let vacant = 0
-    let totalImg = 0
+    let monthlyRev = 0
+    let overdueAmount = 0
+    let overdueCount = 0
     for (const p of visible) {
       if (p._contractCount > 0) withContract++
       else vacant++
-      totalImg += getPropertyImageCount(p.data) || 0
+      monthlyRev += p._monthlyRent
+      overdueAmount += p._overdueAmount
+      overdueCount += p._overdueCount
     }
     const occupancy = visible.length > 0 ? Math.round((withContract / visible.length) * 100) : 0
-    return { count: visible.length, withContract, vacant, occupancy, totalImg }
+    return {
+      count: visible.length,
+      withContract,
+      vacant,
+      occupancy,
+      monthlyRev,
+      overdueAmount,
+      overdueCount,
+    }
   }, [table.getRowModel().rows])
   const exportXlsx = useExportXlsx()
 
@@ -499,7 +574,7 @@ export function Properties() {
 
         {/* KPI strip · v1-style running totals */}
         {!isLoading && kpi.count > 0 && (
-          <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+          <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
             <KpiCard
               label='ทั้งหมด'
               value={kpi.count.toLocaleString('th-TH')}
@@ -519,17 +594,23 @@ export function Properties() {
               tone='warning'
             />
             <KpiCard
-              label='รูปทรัพย์'
-              value={kpi.totalImg.toLocaleString('th-TH')}
-              sub='รูปทั้งหมด'
+              label='รายได้/เดือน'
+              value={amt(kpi.monthlyRev, { symbol: false, decimal: 0 })}
+              sub='บาท · ประมาณการ'
               tone='neutral'
+            />
+            <KpiCard
+              label='ค้างเก็บ'
+              value={amt(kpi.overdueAmount, { symbol: false, decimal: 0 })}
+              sub={`${kpi.overdueCount.toLocaleString('th-TH')} ใบ`}
+              tone={kpi.overdueAmount > 0 ? 'destructive' : 'neutral'}
             />
           </div>
         )}
 
         {/* Table */}
         <div className='overflow-x-auto rounded-md border bg-card'>
-          <Table className='min-w-[820px]'>
+          <Table className='min-w-[900px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>
@@ -581,7 +662,10 @@ export function Properties() {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={cn('cursor-pointer', 'hover:bg-muted/40')}
+                    className={cn(
+                      'cursor-pointer hover:bg-muted/40',
+                      SEVERITY_STRIP[row.original._severity],
+                    )}
                     onClick={() =>
                       navigate({
                         to: '/properties/$id',
@@ -618,6 +702,8 @@ export function Properties() {
 function PropertyHoverDetail({ row }: { row: Row }) {
   const d = row.data ?? {}
   const dr = d as Record<string, unknown>
+  // Mini-preview of the detail page — saves a click.
+  // Sections: header → metrics → full address + ownership → contracts list → notes.
   const addrParts = [
     dr.addr_line,
     dr.addr_subdistrict ? `ต.${dr.addr_subdistrict}` : '',
@@ -629,54 +715,115 @@ function PropertyHoverDetail({ row }: { row: Row }) {
     .map(String)
     .join(' ')
     .trim()
-  const items: { icon: typeof MapPin; label: string; value: string }[] = []
-  if (d.type) items.push({ icon: Building2, label: 'ประเภท', value: typeLabel(d.type) })
-  if (addrParts) items.push({ icon: MapPin, label: 'ที่อยู่', value: addrParts })
-  if (d.area) items.push({ icon: Ruler, label: 'พื้นที่', value: String(d.area) })
-  if (d.titleDeed) items.push({ icon: FileText, label: 'เอกสารสิทธิ์', value: String(d.titleDeed) })
-  if (dr.owner) items.push({ icon: User, label: 'เจ้าของ (กรอกเอง)', value: String(dr.owner) })
-  if (row._currentTenant) {
-    items.push({ icon: Users, label: 'ผู้เช่าปัจจุบัน', value: row._currentTenant })
-  }
-  items.push({
-    icon: FileText,
-    label: 'สัญญา',
-    value: `${row._contractCount.toLocaleString('th-TH')} ฉบับ`,
-  })
-  const imgCount = getPropertyImageCount(row.data)
-  if (imgCount > 0) {
-    items.push({
-      icon: ImageIcon,
-      label: 'รูป',
-      value: `${imgCount.toLocaleString('th-TH')} รูป`,
-    })
-  }
   const note = (d as { notes?: string }).notes
+  const imgCount = getPropertyImageCount(row.data)
+  const visibleContracts = row._relatedContracts.slice(0, 4)
+  const moreCount = row._relatedContracts.length - visibleContracts.length
   return (
-    <div className='space-y-2 text-xs'>
+    <div className='space-y-2.5 text-xs'>
+      {/* Header */}
       <div className='flex items-center gap-2 border-b pb-2'>
         <Building2 className='size-4 text-muted-foreground' />
-        <span className='font-semibold'>{getPropertyName(row.data)}</span>
+        <span className='truncate font-semibold'>{getPropertyName(row.data)}</span>
+        <Badge variant='outline' className='ml-auto shrink-0 text-[10px] font-normal'>
+          {typeLabel(d.type)}
+        </Badge>
       </div>
-      <div className='space-y-1.5'>
-        {items.map((it, i) => (
-          <div key={i} className='flex items-start gap-2'>
-            <it.icon className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
-            <div className='min-w-0 flex-1'>
-              <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-                {it.label}
-              </span>
-              <p className='leading-snug'>{it.value}</p>
-            </div>
-          </div>
-        ))}
-        {note && (
-          <div className='flex items-start gap-2 border-t pt-1.5'>
-            <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
-            <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
-          </div>
+
+      {/* Metrics row */}
+      <div className='grid grid-cols-3 gap-2 rounded border bg-muted/20 px-2 py-1.5'>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>สัญญา</p>
+          <p className='text-sm font-semibold tabular-nums'>
+            {row._contractCount}
+          </p>
+        </div>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>รายได้/ด.</p>
+          <p className='text-sm font-semibold tabular-nums'>
+            {amt(row._monthlyRent, { symbol: false, decimal: 0 })}
+          </p>
+        </div>
+        <div>
+          <p className='text-[9px] uppercase text-muted-foreground'>ค้างเก็บ</p>
+          <p className={cn(
+            'text-sm font-semibold tabular-nums',
+            row._overdueAmount > 0 ? 'text-red-700 dark:text-red-400' : '',
+          )}>
+            {amt(row._overdueAmount, { symbol: false, decimal: 0 })}
+          </p>
+        </div>
+      </div>
+
+      {/* Address + meta */}
+      <div className='space-y-1'>
+        {addrParts && (
+          <p className='flex items-start gap-1.5 leading-snug'>
+            <MapPin className='mt-0.5 size-3 shrink-0 text-muted-foreground' />
+            <span>{addrParts}</span>
+          </p>
         )}
+        <div className='flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground'>
+          {d.area && (
+            <span className='inline-flex items-center gap-1'>
+              <Ruler className='size-2.5' /> {String(d.area)}
+            </span>
+          )}
+          {d.titleDeed && (
+            <span className='inline-flex items-center gap-1'>
+              <FileText className='size-2.5' /> โฉนด {String(d.titleDeed)}
+            </span>
+          )}
+          {dr.owner ? (
+            <span className='inline-flex items-center gap-1'>
+              <User className='size-2.5' /> เจ้าของ: {String(dr.owner)}
+            </span>
+          ) : null}
+          {d.multiTenant && (
+            <span className='inline-flex items-center gap-1 text-accent'>
+              <Users className='size-2.5' /> หลายผู้เช่า
+            </span>
+          )}
+          {imgCount > 0 && (
+            <span className='inline-flex items-center gap-1'>
+              <ImageIcon className='size-2.5' /> {imgCount} รูป
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Contracts list */}
+      {visibleContracts.length > 0 && (
+        <div className='space-y-1.5'>
+          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+            สัญญาที่ทรัพย์นี้
+          </p>
+          <div className='space-y-1'>
+            {visibleContracts.map((rc) => (
+              <ContractMiniRow
+                key={rc.contract.id}
+                contract={rc.contract}
+                titleField='tenant'
+                overdueAmount={rc.overdueAmount}
+                overdueCount={rc.overdueCount}
+              />
+            ))}
+            {moreCount > 0 && (
+              <p className='text-[10px] text-muted-foreground'>
+                + อีก {moreCount} สัญญา
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {note && (
+        <div className='flex items-start gap-2 border-t pt-1.5'>
+          <StickyNote className='mt-0.5 size-3.5 shrink-0 text-muted-foreground' />
+          <p className='leading-snug whitespace-pre-wrap'>{String(note)}</p>
+        </div>
+      )}
     </div>
   )
 }

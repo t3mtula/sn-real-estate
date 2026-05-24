@@ -1,6 +1,5 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate  } from '@tanstack/react-router'
 import {
-  ArrowLeft,
   CreditCard,
   Landmark,
   Pencil,
@@ -30,6 +29,7 @@ import {
   BANK_ACCOUNT_FORM_DEFAULTS,
   type BankAccountFormValues,
 } from '@/features/bank-accounts/schema'
+import { BackButton } from '@/components/yonghua/back-button'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -112,12 +112,7 @@ export function BankAccountDetail({ id }: { id: string }) {
           </>
         ) : error ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/bank-accounts'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/bank-accounts' variant='text' />
             <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
               โหลดข้อมูลไม่สำเร็จ —{' '}
               {error instanceof Error ? error.message : String(error)}
@@ -125,12 +120,7 @@ export function BankAccountDetail({ id }: { id: string }) {
           </>
         ) : !ba ? (
           <>
-            <Button variant='ghost' size='sm' asChild className='self-start'>
-              <Link to='/bank-accounts'>
-                <ArrowLeft className='size-4' />
-                กลับ
-              </Link>
-            </Button>
+            <BackButton fallback='/bank-accounts' variant='text' />
             <Card>
               <CardHeader>
                 <CardTitle>ไม่พบบัญชี</CardTitle>
@@ -224,11 +214,7 @@ function Content({
     <>
       <header className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-3'>
-          <Button variant='ghost' size='icon' asChild className='mt-0.5'>
-            <Link to='/bank-accounts' aria-label='กลับ'>
-              <ArrowLeft className='size-4' />
-            </Link>
-          </Button>
+          <BackButton fallback='/bank-accounts' />
           <BankLogo name={data.bank} size='lg' className='mt-0.5' />
           <div className='min-w-0'>
             <div className='flex flex-wrap items-center gap-2'>
