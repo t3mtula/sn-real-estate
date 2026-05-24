@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useInvoiceSettings } from '../queries'
 import { useSaveInvoiceSettings } from '../mutations'
@@ -16,8 +17,8 @@ const DEFAULT_FORM: InvoiceSettings = {
   vatMode: 'none',
   vatRate: 7,
   invoiceNote: '',
-  slipOkBranchId: '',
-  slipOkApiKey: '',
+  draftVoidEnabled: true,
+  draftVoidDays: 60,
 }
 
 export function InvoiceSettingsSection() {
@@ -46,7 +47,7 @@ export function InvoiceSettingsSection() {
     <div className='space-y-6 w-full max-w-2xl'>
       <div>
         <h3 className='text-lg font-medium'>ใบแจ้งหนี้</h3>
-        <p className='text-sm text-muted-foreground'>ค่าเริ่มต้นสำหรับใบแจ้งหนี้ · VAT · SlipOK</p>
+        <p className='text-sm text-muted-foreground'>ค่าเริ่มต้นสำหรับใบแจ้งหนี้ · VAT</p>
       </div>
       <Separator />
 
@@ -130,20 +131,34 @@ export function InvoiceSettingsSection() {
 
       <Separator />
 
-      {/* SlipOK */}
+      {/* Auto-void expired drafts */}
       <section className='space-y-3'>
-        <h4 className='font-medium'>SlipOK API (ตรวจสลิปอัตโนมัติ)</h4>
-        <p className='text-xs text-muted-foreground'>ใส่ข้อมูลจาก slipok.com เพื่อเปิดใช้การตรวจสลิปอัตโนมัติ</p>
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div className='space-y-1'>
-            <Label>Branch ID</Label>
-            <Input value={form.slipOkBranchId ?? ''} onChange={(e) => set('slipOkBranchId', e.target.value)} placeholder='BXXXXXXX' />
-          </div>
-          <div className='space-y-1'>
-            <Label>API Key</Label>
-            <Input type='password' value={form.slipOkApiKey ?? ''} onChange={(e) => set('slipOkApiKey', e.target.value)} placeholder='sk_...' />
-          </div>
+        <h4 className='font-medium'>ยกเลิกร่างอัตโนมัติ</h4>
+        <p className='text-xs text-muted-foreground'>
+          ระบบจะยกเลิกใบแจ้งหนี้ที่เป็นร่างค้างนานเกินกำหนดโดยอัตโนมัติทุกครั้งที่เปิดแอป
+        </p>
+        <div className='flex items-center gap-3'>
+          <Switch
+            id='draft-void-enabled'
+            checked={form.draftVoidEnabled ?? true}
+            onCheckedChange={(v) => set('draftVoidEnabled', v)}
+          />
+          <Label htmlFor='draft-void-enabled'>เปิดใช้งาน</Label>
         </div>
+        {(form.draftVoidEnabled ?? true) && (
+          <div className='space-y-1 max-w-[200px]'>
+            <Label htmlFor='draft-void-days'>จำนวนวันก่อนยกเลิก</Label>
+            <Input
+              id='draft-void-days'
+              type='number'
+              min={7}
+              max={365}
+              value={form.draftVoidDays ?? 60}
+              onChange={(e) => set('draftVoidDays', Number(e.target.value))}
+            />
+            <p className='text-xs text-muted-foreground'>ค่าเริ่มต้น: 60 วัน</p>
+          </div>
+        )}
       </section>
 
       <div className='flex justify-end'>

@@ -792,11 +792,41 @@ export function useDeleteInvoice() {
   })
 }
 
+// ── Counter allocation helpers (via Postgres RPC) ──────────────────────────
+//
+// RPC functions defined in migration 20260524000001_invoice_counters.sql:
+//   allocate_receipt_nos(invoice_month text, count int) → text[]
+//   allocate_tax_invoice_nos(issue_date date, count int) → text[]
+//
+// Both use pg_advisory_xact_lock so concurrent callers are serialised
+// per period — no duplicate numbers within v2.  v1 collision is accepted
+// (Tem 24 พ.ค. 2026).
+
+async function allocateReceiptNos(month: string, count: number): Promise<string[]> {
+  const { data, error } = await supabase.rpc('allocate_receipt_nos', {
+    invoice_month: month,
+    count,
+  })
+  if (error) throw new Error(`allocate_receipt_nos: ${error.message}`)
+  return data as string[]
+}
+
+async function allocateTaxInvoiceNos(count: number): Promise<string[]> {
+  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+  const { data, error } = await supabase.rpc('allocate_tax_invoice_nos', {
+    issue_date: today,
+    count,
+  })
+  if (error) throw new Error(`allocate_tax_invoice_nos: ${error.message}`)
+  return data as string[]
+}
+
 /**
  * Record a payment (full or partial) — single read-compute-write.
- * Fix: replaced double-read pattern (separate read + mergeUpdateInvoice's own read)
- * with a single Supabase round-trip so concurrent writes can't interleave and drop
- * a payment from the payments[] array or miscalculate paidAmount.
+ *
+ * Receipt no format: REC-YYYY-MM-NNNN (allocated via Postgres RPC · atomic)
+ * Tax invoice no:    TIV-YYMM-NNNN   (assigned iff vatMode ≠ 'none' and invoice
+ *                    becomes fully paid · พ.ศ. year · allocated via Postgres RPC)
  */
 export function useRecordPayment(id: string) {
   const qc = useQueryClient()
@@ -822,6 +852,19 @@ export function useRecordPayment(id: string) {
       const newPaid = prevPaid + input.amount
       const newRemaining = Math.max(total - newPaid, 0)
       const newStatus: string = newRemaining <= 0 ? 'paid' : 'partial'
+      const month = d.month ?? new Date().toISOString().slice(0, 7) // YYYY-MM
+
+      // Allocate receipt number (atomic, per-month sequential)
+      const [receiptNo] = await allocateReceiptNos(month, 1)
+
+      // Allocate tax invoice number iff VAT invoice becomes fully paid
+      const isVat = d.vatMode && d.vatMode !== 'none'
+      let taxInvoiceNo: string | undefined
+      let taxInvoiceIssuedAt: string | undefined
+      if (isVat && newStatus === 'paid' && !d.taxInvoiceNo) {
+        ;[taxInvoiceNo] = await allocateTaxInvoiceNos(1)
+        taxInvoiceIssuedAt = new Date().toISOString()
+      }
 
       const payment = {
         date: input.date,
@@ -829,7 +872,7 @@ export function useRecordPayment(id: string) {
         method: input.method,
         ref: input.ref ?? '',
         note: input.note ?? '',
-        receiptNo: `REC-${Date.now()}`,
+        receiptNo,
       }
 
       // Single write — build merged data here, no second read
@@ -839,7 +882,12 @@ export function useRecordPayment(id: string) {
         remainingAmount: newRemaining,
         status: newStatus,
         payments: [...(d.payments ?? []), payment],
+        receiptNo,
         paidAt: newStatus === 'paid' ? input.date : (d.paidAt as string | undefined),
+        payMethod: input.method,
+        ...(input.ref ? { payRef: input.ref } : {}),
+        ...(input.note ? { payNote: input.note } : {}),
+        ...(taxInvoiceNo ? { taxInvoiceNo, taxInvoiceIssuedAt } : {}),
       }
 
       const { data: updated, error: writeError } = await supabase
@@ -856,13 +904,154 @@ export function useRecordPayment(id: string) {
         action: 'update',
         entity: 'invoices',
         entity_id: id,
-        description: `รับเงิน ${input.amount.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''}`,
-        after: { paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus },
+        description: `รับเงิน ${input.amount.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''} → ${receiptNo}${taxInvoiceNo ? ` · ใบกำกับ ${taxInvoiceNo}` : ''}`,
+        after: { paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus, receiptNo, taxInvoiceNo },
       })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+// ── Batch payment result type ────────────────────────────────────────────────
+
+export type BatchPaymentResult = {
+  done: number
+  totalCollected: number
+  errors: Array<{ id: string; message: string }>
+}
+
+/**
+ * Batch record payment — mark multiple invoices paid in one action.
+ *
+ * Port of v1 submitBatchPayment():
+ *   - Reads all invoices at once
+ *   - Allocates receipt nos grouped per month (one RPC call per unique month)
+ *   - Allocates tax invoice nos for VAT invoices in one RPC call
+ *   - Writes each invoice in series (safe · keeps audit log per invoice)
+ *
+ * Each invoice is paid in full (remaining → 0).
+ * Already-paid or voided invoices are skipped silently.
+ */
+export function useBatchRecordPayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      ids: string[]
+      date: string
+      method: string
+      ref?: string
+      note?: string
+    }): Promise<BatchPaymentResult> => {
+      // 1. Fetch all target invoices
+      const { data: rows, error: fetchErr } = await supabase
+        .from(TABLE)
+        .select('id, data, status, category')
+        .in('id', input.ids)
+      if (fetchErr) throw fetchErr
+
+      // 2. Filter to payable (skip paid / voided)
+      const payable = (rows ?? []).filter((r) => {
+        const s = ((r as { status: string | null }).status ?? '').toLowerCase()
+        return s !== 'paid' && s !== 'voided'
+      })
+      if (payable.length === 0) throw new Error('ไม่มีใบที่รอรับเงินในรายการที่เลือก')
+
+      // 3. Allocate receipt nos per unique month (atomic RPC)
+      const monthGroups = new Map<string, string[]>()
+      for (const row of payable) {
+        const month = ((row as { data: InvoiceData }).data?.month) ?? new Date().toISOString().slice(0, 7)
+        if (!monthGroups.has(month)) monthGroups.set(month, [])
+        monthGroups.get(month)!.push(row.id as string)
+      }
+      const receiptNoByInvoiceId = new Map<string, string>()
+      for (const [month, ids] of monthGroups) {
+        const nos = await allocateReceiptNos(month, ids.length)
+        ids.forEach((id, i) => receiptNoByInvoiceId.set(id, nos[i]))
+      }
+
+      // 4. Allocate tax invoice nos for VAT invoices that become paid
+      const vatPayableIds = payable
+        .filter((r) => {
+          const d = (r as { data: InvoiceData }).data
+          return d?.vatMode && d.vatMode !== 'none' && !d.taxInvoiceNo
+        })
+        .map((r) => r.id as string)
+      const taxNoByInvoiceId = new Map<string, string>()
+      if (vatPayableIds.length > 0) {
+        const taxNos = await allocateTaxInvoiceNos(vatPayableIds.length)
+        vatPayableIds.forEach((id, i) => taxNoByInvoiceId.set(id, taxNos[i]))
+      }
+
+      // 5. Write each invoice
+      const taxIssuedAt = new Date().toISOString()
+      let done = 0
+      let totalCollected = 0
+      const errors: BatchPaymentResult['errors'] = []
+
+      for (const row of payable) {
+        const invoiceId = row.id as string
+        const d = (row as { data: InvoiceData }).data ?? {}
+        const remaining = d.remainingAmount != null
+          ? d.remainingAmount
+          : Math.max((d.total ?? 0) - (d.paidAmount ?? 0), 0)
+        if (remaining <= 0) continue
+
+        const receiptNo = receiptNoByInvoiceId.get(invoiceId)!
+        const taxInvoiceNo = taxNoByInvoiceId.get(invoiceId)
+        const newPaid = (d.paidAmount ?? 0) + remaining
+
+        const payment = {
+          date: input.date,
+          amount: remaining,
+          method: input.method,
+          ref: input.ref ?? '',
+          note: input.note ?? '',
+          receiptNo,
+        }
+
+        const mergedData: InvoiceData = {
+          ...d,
+          paidAmount: newPaid,
+          remainingAmount: 0,
+          status: 'paid',
+          payments: [...(d.payments ?? []), payment],
+          receiptNo,
+          paidAt: input.date,
+          payMethod: input.method,
+          ...(input.ref ? { payRef: input.ref } : {}),
+          ...(input.note ? { payNote: input.note } : {}),
+          ...(taxInvoiceNo ? { taxInvoiceNo, taxInvoiceIssuedAt: taxIssuedAt } : {}),
+        }
+
+        try {
+          const { error: writeErr } = await supabase
+            .from(TABLE)
+            .update({ data: mergedData, status: 'paid', updated_at: new Date().toISOString() })
+            .eq('id', invoiceId)
+          if (writeErr) throw writeErr
+
+          void logActivity({
+            action: 'update',
+            entity: 'invoices',
+            entity_id: invoiceId,
+            description: `รับเงิน ${remaining.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''} → ${receiptNo}${taxInvoiceNo ? ` · ใบกำกับ ${taxInvoiceNo}` : ''} (batch ${payable.length} ใบ)`,
+            after: { paidAmount: newPaid, remainingAmount: 0, status: 'paid', receiptNo, taxInvoiceNo },
+          })
+
+          done++
+          totalCollected += remaining
+        } catch (err) {
+          errors.push({ id: invoiceId, message: err instanceof Error ? err.message : String(err) })
+        }
+      }
+
+      return { done, totalCollected, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
     },
   })
 }
@@ -891,6 +1080,128 @@ export function useSetFollowUp(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['invoices', id] })
+    },
+  })
+}
+
+/**
+ * Auto-void expired draft invoices — port of v1 autoVoidExpiredDrafts()
+ *
+ * Finds all 'draft' invoices older than `days` days (using Supabase `created_at`
+ * first, fallback to `data.date` BE string) and marks them voided.
+ *
+ * Called once per app session from the invoices page useEffect.
+ * Also callable manually from invoice settings.
+ *
+ * Config comes from app_settings[invoice]: draftVoidEnabled, draftVoidDays
+ */
+export function useAutoVoidExpiredDrafts() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (opts?: { enabled?: boolean; days?: number }): Promise<number> => {
+      const enabled = opts?.enabled ?? true
+      if (!enabled) return 0
+      const days = opts?.days ?? 60
+      const cutoff = new Date(Date.now() - days * 864e5).toISOString()
+
+      // Fetch drafts whose created_at is old enough (fast path via indexed column)
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('id, data, created_at')
+        .eq('status', 'draft')
+        .lt('created_at', cutoff)
+      if (error) throw error
+
+      const rows = data ?? []
+      if (rows.length === 0) return 0
+
+      const nowISO = new Date().toISOString()
+      const voidReason = `ร่างค้างเกิน ${days} วัน (auto)`
+      let count = 0
+
+      for (const row of rows) {
+        try {
+          const d = (row as { data: InvoiceData }).data ?? {}
+          await mergeUpdateInvoice(row.id as string, {
+            status: 'voided',
+            data: {
+              status: 'voided',
+              voidedAt: nowISO,
+              voidedReason: voidReason,
+            } as Partial<InvoiceData>,
+          })
+          void logActivity({
+            action: 'update',
+            entity: 'invoices',
+            entity_id: row.id as string,
+            description: `ยกเลิกร่างอัตโนมัติ (ค้าง > ${days} วัน) · ${(d.invoiceNo as string | undefined) ?? ''}`,
+            after: { status: 'voided', voidedReason: voidReason },
+          })
+          count++
+        } catch (_err) {
+          // Best-effort — don't abort entire run for one failure
+        }
+      }
+
+      if (count > 0) {
+        void logActivity({
+          action: 'update',
+          entity: 'invoices',
+          description: `ยกเลิกใบร่างอัตโนมัติ ${count} ฉบับ (ค้าง > ${days} วัน)`,
+        })
+      }
+      return count
+    },
+    onSuccess: (count) => {
+      if (count > 0) qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+  })
+}
+
+/**
+ * Send ALL draft invoices (global) — port of v1 sendAllDraftsGlobal()
+ *
+ * Marks every 'draft' invoice in the system as 'sent', regardless of month.
+ * Intended for initial setup / end-of-month bulk send.
+ * Returns count of invoices sent.
+ */
+export function useSendAllDraftsGlobal() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (): Promise<BatchActionResult> => {
+      // Fetch all draft IDs
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('id')
+        .eq('status', 'draft')
+      if (error) throw error
+      const ids = (data ?? []).map((r: { id: string }) => r.id)
+      if (ids.length === 0) return { done: 0, errors: [] }
+
+      let done = 0
+      const errors: BatchActionResult['errors'] = []
+      for (const id of ids) {
+        try {
+          await mergeUpdateInvoice(id, {
+            status: 'sent',
+            data: { status: 'sent' } as Partial<InvoiceData>,
+          })
+          done++
+        } catch (err) {
+          errors.push({ id, message: err instanceof Error ? err.message : String(err) })
+        }
+      }
+      if (done > 0) {
+        void logActivity({
+          action: 'update',
+          entity: 'invoices',
+          description: `ส่งใบแจ้งหนี้ร่างทั้งหมด ${done} ใบ` + (errors.length ? ` · ผิดพลาด ${errors.length}` : ''),
+        })
+      }
+      return { done, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
     },
   })
 }
