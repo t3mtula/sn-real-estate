@@ -14,8 +14,9 @@
  *      editor doesn't rebuild the document every keystroke.
  */
 
-import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ExternalLink, Loader2, Printer } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
 import type { BankAccount } from '@/features/bank-accounts/types'
 import type { Contract } from '@/features/contracts/types'
@@ -126,6 +127,7 @@ const SAMPLE_BANK: BankAccount = {
 export function TemplateA4Preview({ draft }: Props) {
   const [html, setHtml] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   // Debounce regeneration on draft changes (500ms)
   useEffect(() => {
@@ -156,16 +158,52 @@ export function TemplateA4Preview({ draft }: Props) {
     return () => clearTimeout(timer)
   }, [draft])
 
+  /** Trigger browser print dialog on the preview iframe content */
+  function handlePrint() {
+    iframeRef.current?.contentWindow?.print()
+  }
+
+  /** Open preview in a new window (full screen, real print URL) */
+  function handleOpenFullscreen() {
+    if (!html) return
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.open()
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div className='flex h-full flex-col'>
       <div className='mb-3 flex items-center gap-2'>
         <span className='text-sm font-medium text-muted-foreground'>
           A4 Preview · ผลลัพธ์การพิมพ์จริง
         </span>
-        <span className='ml-auto text-xs text-muted-foreground'>
-          ตัวอย่างใช้ข้อมูลสมมุติ
-        </span>
+        <div className='ml-auto flex items-center gap-2'>
+          <Button
+            size='sm'
+            variant='outline'
+            onClick={handleOpenFullscreen}
+            disabled={!html}
+            title='เปิดดูแบบเต็มจอ (tab ใหม่)'
+          >
+            <ExternalLink className='size-3.5' />
+            ดูเต็มจอ
+          </Button>
+          <Button
+            size='sm'
+            onClick={handlePrint}
+            disabled={!html}
+            title='พิมพ์ตัวอย่าง / บันทึก PDF'
+          >
+            <Printer className='size-3.5' />
+            พิมพ์ตัวอย่าง
+          </Button>
+        </div>
       </div>
+      <p className='mb-2 text-[10px] text-muted-foreground'>
+        ตัวอย่างใช้ข้อมูลสมมุติ · กดปุ่ม "พิมพ์ตัวอย่าง" เพื่อดูหน้ากระดาษจริง
+      </p>
 
       <div className='flex-1 overflow-hidden rounded-md border bg-muted/30'>
         {err ? (
@@ -175,6 +213,7 @@ export function TemplateA4Preview({ draft }: Props) {
           </div>
         ) : html ? (
           <iframe
+            ref={iframeRef}
             title='Contract template preview'
             srcDoc={html}
             className='h-full w-full border-0'

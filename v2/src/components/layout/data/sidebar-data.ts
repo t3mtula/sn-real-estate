@@ -9,11 +9,9 @@ import {
   Gauge,
   LayoutDashboard,
   Landmark,
-  Palette,
   Receipt,
   Settings,
   TrendingUp,
-  UserCog,
   Users,
 } from 'lucide-react'
 import { SnLogo } from '@/components/yonghua/sn-logo'
@@ -146,19 +144,8 @@ export const sidebarData: SidebarData = {
         },
         {
           title: 'ตั้งค่า',
+          url: '/settings',
           icon: Settings,
-          items: [
-            {
-              title: 'โปรไฟล์',
-              url: '/settings',
-              icon: UserCog,
-            },
-            {
-              title: 'ธีม',
-              url: '/settings/appearance',
-              icon: Palette,
-            },
-          ],
         },
       ],
     },

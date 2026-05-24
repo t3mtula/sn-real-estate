@@ -575,7 +575,7 @@ const CONTRACT_CSS = `
 @page { size: A4; margin: 0; }
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
 body { background: #fff; color: #1a202c; }
-.page { width: 210mm; padding: 14mm 20mm 14mm; margin: 0 auto; position: relative; page-break-after: always; }
+.page { width: 210mm; padding: 18mm 22mm 18mm; margin: 0 auto; position: relative; page-break-after: always; }
 .page:last-child { page-break-after: auto; }
 
 .c-header { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
@@ -586,35 +586,35 @@ body { background: #fff; color: #1a202c; }
 .c-meta-badge .label { color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
 .c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 12px; display: block; margin-top: 1px; font-variant-numeric: tabular-nums; }
 
-.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 7px 14px; font-size: 12px; color: #334155; margin-bottom: 12px; line-height: 1.55; }
+.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 8px 14px; font-size: 12px; color: #334155; margin-bottom: 16px; line-height: 1.55; }
 .c-date-strip b { color: #1e3a5f; font-weight: 700; }
 
-.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 14px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
-.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 5px 12px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
+.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 6px 14px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .parties-table .party-row td { padding: 0; vertical-align: top; }
-.party-cell { padding: 8px 12px; border-right: 1px solid #e2e8f0; }
+.party-cell { padding: 11px 14px; border-right: 1px solid #e2e8f0; }
 .party-cell:last-child { border-right: none; }
-.party-label { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 3px; }
-.party-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 3px; line-height: 1.3; }
-.party-detail { font-size: 11px; color: #1e293b; line-height: 1.5; margin-top: 1px; }
+.party-label { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+.party-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
+.party-detail { font-size: 11px; color: #1e293b; line-height: 1.55; margin-top: 2px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
 
-.c-body { font-size: 12px; line-height: 1.6; color: #1e293b; text-align: justify; margin-bottom: 14px; }
-.c-intro { margin: 0 0 10px 0; text-indent: 24px; }
-.clause { margin: 10px 0; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; }
-.sub-clause { margin: 6px 0 6px 24px; font-size: 11.5px; color: #1e293b; line-height: 1.6; }
-.sub-clause-num { font-weight: 600; color: #1e3a5f; }
-.c-closing { margin: 14px 0 0 0; text-indent: 24px; }
+.c-body { font-size: 12px; line-height: 1.75; color: #1e293b; text-align: justify; margin-bottom: 20px; }
+.c-intro { margin: 0 0 14px 0; text-indent: 24px; }
+.clause { margin: 14px 0; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; margin-right: 4px; }
+.sub-clause { margin: 10px 0 10px 28px; font-size: 11.5px; color: #1e293b; line-height: 1.75; }
+.sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 4px; }
+.c-closing { margin: 20px 0 0 0; text-indent: 24px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
 
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
-.sig-section { margin-top: 24px; padding-top: 10px; }
-.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
-.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 10px; }
+.sig-section { margin-top: 32px; padding-top: 12px; }
+.sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
+.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 16px; }
 .sig-block { text-align: center; }
 .sig-img-area { height: 44px; display: flex; align-items: flex-end; justify-content: center; }
 .sig-img-area img { max-height: 50px; max-width: 145px; object-fit: contain; }
@@ -650,7 +650,7 @@ body { background: #fff; color: #1a202c; }
 .ap-notes-text { padding: 12px 14px; font-size: 12.5px; color: #1e293b; line-height: 1.7; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
 
 @media print {
-  @page { size: A4; margin: 12mm 18mm 12mm; }
+  @page { size: A4; margin: 16mm 20mm 16mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
   .page { padding: 0 !important; min-height: 0 !important; height: auto !important; margin: 0; box-shadow: none; display: block; page-break-after: always; break-after: page; }
