@@ -9,7 +9,7 @@
  */
 import { Printer } from 'lucide-react'
 import { toast } from 'sonner'
-import { amt, fmtBE } from '@/lib/thai'
+import { fmtBE } from '@/lib/thai'
 import { Button } from '@/components/ui/button'
 import type { Invoice, InvoicePayment } from './types'
 
