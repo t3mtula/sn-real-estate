@@ -170,7 +170,7 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
                         ) : (
                           <span className='font-mono text-xs text-muted-foreground'>{alloc.invoice_id}</span>
                         )}
-                        {iv?.data?.description && (
+                        {iv?.data?.description != null && (
                           <span className='ml-2 text-muted-foreground'>{String(iv.data.description)}</span>
                         )}
                       </div>

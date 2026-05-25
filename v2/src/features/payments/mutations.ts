@@ -119,7 +119,7 @@ export function useCreatePayment() {
           action: 'create',
           entity: 'payment',
           entity_id: payment.id,
-          detail: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'}`,
+          description: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'}`,
         })
 
         return payment
@@ -152,7 +152,7 @@ export function useCreatePayment() {
         action: 'create',
         entity: 'payment',
         entity_id: (data as Payment).id,
-        detail: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'} — ยังไม่จับคู่`,
+        description: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'} — ยังไม่จับคู่`,
       })
 
       return data as Payment
@@ -228,7 +228,7 @@ export function useDeletePayment() {
         action: 'delete',
         entity: 'payment',
         entity_id: payment.id,
-        detail: `ลบรายการรับเงิน ${payment.data.receiptNo ?? payment.id}`,
+        description: `ลบรายการรับเงิน ${payment.data.receiptNo ?? payment.id}`,
       })
     },
 

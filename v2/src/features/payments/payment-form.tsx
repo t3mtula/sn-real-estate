@@ -120,7 +120,7 @@ export function PaymentForm({ defaultValues, submitting, onSubmit, onCancel }: P
                 .filter((c) => !c.data?.cancelled)
                 .map((c) => (
                   <SelectItem key={c.id} value={c.id}>
-                    {c.data?.no} · {c.data?.tenant ?? c.data?.tenantName ?? ''}
+                    {String(c.data?.no ?? '')} · {String(c.data?.tenant ?? c.data?.tenantName ?? '')}
                   </SelectItem>
                 ))}
             </SelectContent>
@@ -232,7 +232,7 @@ export function PaymentForm({ defaultValues, submitting, onSubmit, onCancel }: P
                     />
                     <div className='flex flex-1 items-center justify-between gap-2 text-sm'>
                       <span className='font-medium'>{iv.data?.invoiceNo ?? iv.id}</span>
-                      <span className='text-muted-foreground'>{iv.data?.description ?? iv.data?.month ?? ''}</span>
+                      <span className='text-muted-foreground'>{String(iv.data?.description ?? iv.data?.month ?? '')}</span>
                       <span className='font-semibold'>{amt(outstanding, { decimal: 0 })} บาท</span>
                     </div>
                   </label>
