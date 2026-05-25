@@ -142,8 +142,33 @@ export function useValidationScan() {
         }
       }
 
-      // 6. Bank accounts not linked to any landlord
-      // (would require landlord_banks query — skip for now)
+      // 6. Contract — madeAt empty or has no address component
+      const HAS_ADDR = /ต\.|อ\.|จ\.|แขวง|เขต|กทม|กรุงเทพ|ซอย|หมู่/
+      for (const c of contracts ?? []) {
+        if (c.data?.cancelled) continue
+        const madeAt = String(c.data?.madeAt ?? '').trim()
+        if (!madeAt) {
+          issues.push({
+            entity: 'contract',
+            entityId: c.id,
+            entityLabel: c.data?.no ?? c.id,
+            severity: 'warning',
+            rule: 'missing-made-at',
+            detail: 'ไม่ได้ระบุสถานที่ทำสัญญา — ต้องระบุก่อน print สัญญา',
+            link: { to: '/contracts/$id', params: { id: c.id } },
+          })
+        } else if (!HAS_ADDR.test(madeAt)) {
+          issues.push({
+            entity: 'contract',
+            entityId: c.id,
+            entityLabel: c.data?.no ?? c.id,
+            severity: 'warning',
+            rule: 'incomplete-made-at',
+            detail: `สถานที่ทำสัญญา "${madeAt}" ไม่มีที่อยู่ — ต้องระบุทั้งชื่อและที่อยู่`,
+            link: { to: '/contracts/$id', params: { id: c.id } },
+          })
+        }
+      }
 
       return issues
     },

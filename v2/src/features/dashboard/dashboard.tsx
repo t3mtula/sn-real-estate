@@ -20,6 +20,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AlertStrips } from '@/features/alerts/alert-strips'
 import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import {
   getContractStatus,
@@ -322,6 +323,9 @@ export function Dashboard() {
           </div>
         ) : (
           <>
+            {/* Alert strips — สรุปงานค้างทุกประเภท */}
+            <AlertStrips />
+
             {/* งานวันนี้ — top priority queue · 3 columns */}
             <TodayPanel
               overdue={topOverdue}

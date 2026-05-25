@@ -2,7 +2,7 @@
 
 > **กฎจากปัญหาที่เคยเกิด · ห้ามทำซ้ำ**
 > Source: https://www.notion.so/5fb68ef12b7b4d16bf0b1220b597c5cb
-> Synced: 2026-05-23 · ถ้าเก่ากว่า 7 วัน บอก Claude "sync lessons"
+> Synced: 2026-05-24 · ถ้าเก่ากว่า 7 วัน บอก Claude "sync lessons"
 
 ## วิธีใช้
 
@@ -30,6 +30,16 @@ Lesson แต่ละข้อคือ rule ที่ต้อง apply ทั
 - Animation/transition smoothness
 - Mobile Safari/iOS-specific behavior
 - User-reported "ดูแปลก"
+
+---
+
+## 🖨️ v2 Print — ก่อนแก้ CSS/print ต้อง trace ก่อน + ตรวจ deploy
+
+**ก่อนแก้ print/CSS ใดๆ ใน v2: route → component → import → buildFn → แก้ไฟล์นั้น** ([Notion](https://www.notion.so/36afdba535ca81b5943bdad004147bb1))
+
+- **v2 print map (จำ):** `/templates/*` → `contract-html.ts` (HTML iframe) · `/contracts/*/print` → `contract-pdf.ts` (pdfmake) — คนละไฟล์คนละโลก
+- **npm run build ติด tsc error** (pre-existing) → `&&` หยุด vite build เงียบๆ → ใช้ `npx vite build` ตรงๆ แทน
+- **หลัง wrangler deploy** ตรวจบรรทัด `Uploaded N files` เสมอ — ถ้า 0 files = dist ไม่เปลี่ยน = deploy ของเก่า ต้องหยุด debug build ก่อน
 
 ---
 
