@@ -6,6 +6,10 @@ import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 
+export type InlineEditSpec =
+  | { type: 'tenant-taxid'; currentValue: string }
+  | { type: 'contract-made-at'; currentValue: string }
+
 export type ValidationIssue = {
   entity: 'contract' | 'invoice' | 'tenant' | 'landlord' | 'property' | 'bank_account'
   entityId: string
@@ -14,6 +18,8 @@ export type ValidationIssue = {
   rule: string
   detail: string
   link?: { to: string; params: Record<string, string> }
+  /** ถ้ามี → แสดงปุ่ม "แก้ตรงนี้" แทน/เพิ่มจาก "ดู →" */
+  inlineEdit?: InlineEditSpec
 }
 
 /** Run all validation rules client-side and return list of issues. */
@@ -100,6 +106,7 @@ export function useValidationScan() {
             rule: 'invalid-taxid-length',
             detail: `เลขผู้เสียภาษี ${tax} ไม่ใช่ 13 หลัก`,
             link: { to: '/tenants/$id', params: { id: t.id } },
+            inlineEdit: { type: 'tenant-taxid', currentValue: t.data?.taxId ?? '' },
           })
         }
       }
@@ -156,6 +163,7 @@ export function useValidationScan() {
             rule: 'missing-made-at',
             detail: 'ไม่ได้ระบุสถานที่ทำสัญญา — ต้องระบุก่อน print สัญญา',
             link: { to: '/contracts/$id', params: { id: c.id } },
+            inlineEdit: { type: 'contract-made-at', currentValue: '' },
           })
         } else if (!HAS_ADDR.test(madeAt)) {
           issues.push({
@@ -166,6 +174,7 @@ export function useValidationScan() {
             rule: 'incomplete-made-at',
             detail: `สถานที่ทำสัญญา "${madeAt}" ไม่มีที่อยู่ — ต้องระบุทั้งชื่อและที่อยู่`,
             link: { to: '/contracts/$id', params: { id: c.id } },
+            inlineEdit: { type: 'contract-made-at', currentValue: madeAt },
           })
         }
       }
