@@ -599,15 +599,13 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 13px; color: #1e293b; line-height: 1.55; margin-top: 3px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 11px; letter-spacing: .3px; }
 
-/* Body bumped so 12 clauses + closing + sigs fill 2 A4 pages instead
- * of leaving the bottom half of page 2 empty. */
-.c-body { font-size: 13.5px; line-height: 1.4; color: #1e293b; text-align: left; margin-bottom: 8px; }
-.c-intro { margin: 0 0 8px 0; text-indent: 28px; }
-.clause { margin: 7px 0; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 14px; margin-right: 5px; }
-.sub-clause { margin: 4px 0 4px 32px; font-size: 12.5px; color: #1e293b; line-height: 1.4; text-align: left; }
-.sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 5px; }
-.c-closing { margin: 12px 0 0 0; text-indent: 28px; }
+.c-body { font-size: 15.5px; line-height: 1.8; color: #1e293b; text-align: justify; margin-bottom: 0; }
+.c-intro { margin: 0; text-indent: 28px; }
+.clause { margin: 0; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 15.5px; margin-right: 4px; }
+.sub-clause { margin: 0 0 0 28px; font-size: 15.5px; color: #1e293b; line-height: 1.8; }
+.sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 4px; }
+.c-closing { margin: 0; text-indent: 28px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
@@ -639,19 +637,19 @@ body { background: #fff; color: #1a202c; }
 .ap-table tr { border-bottom: 1px solid #f1f5f9; }
 .ap-table tr:last-child { border-bottom: none; }
 .ap-table tr:nth-child(even) { background: #fafbfc; }
-.ap-table td { padding: 8px 14px; font-size: 12.5px; color: #1e293b; line-height: 1.6; vertical-align: top; }
-.ap-table td.k { width: 38%; color: #475569; font-weight: 600; font-size: 11.5px; letter-spacing: .2px; }
+.ap-table td { padding: 8px 14px; font-size: 13.5px; color: #1e293b; line-height: 1.6; vertical-align: top; }
+.ap-table td.k { width: 38%; color: #475569; font-weight: 600; font-size: 13.5px; letter-spacing: .2px; }
 .ap-table td.v strong { color: #1e3a5f; font-weight: 700; }
 
 .ap-parties { width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
 .ap-parties td { padding: 12px 14px; vertical-align: top; width: 50%; border-right: 1px solid #e2e8f0; }
 .ap-parties td:last-child { border-right: none; }
 .ap-party-label { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
-.ap-party-name { font-size: 14px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.35; }
-.ap-party-detail { font-size: 12px; color: #1e293b; line-height: 1.6; margin-top: 3px; }
-.ap-party-detail .k { color: #64748b; font-weight: 600; font-size: 10px; letter-spacing: .3px; }
+.ap-party-name { font-size: 13.5px; font-weight: 700; color: #1e3a5f; margin-bottom: 5px; line-height: 1.5; }
+.ap-party-detail { font-size: 13.5px; color: #1e293b; line-height: 1.6; margin-top: 3px; }
+.ap-party-detail .k { color: #64748b; font-weight: 600; font-size: 13.5px; letter-spacing: .3px; }
 
-.ap-notes-text { padding: 12px 14px; font-size: 12.5px; color: #1e293b; line-height: 1.7; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
+.ap-notes-text { padding: 12px 14px; font-size: 13.5px; color: #1e293b; line-height: 1.6; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
 
 @media print {
   @page { size: A4; margin: 16mm 20mm 16mm; }

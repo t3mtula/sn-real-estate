@@ -2,6 +2,7 @@ import {
   Activity,
   AlertCircle,
   BarChart3,
+  Banknote,
   Building2,
   CalendarClock,
   CreditCard,
@@ -66,6 +67,11 @@ export const sidebarData: SidebarData = {
           title: 'ใบแจ้งหนี้',
           url: '/invoices',
           icon: Receipt,
+        },
+        {
+          title: 'รับเงิน',
+          url: '/payments',
+          icon: Banknote,
         },
         {
           title: 'ลูกหนี้ค้างชำระ',
