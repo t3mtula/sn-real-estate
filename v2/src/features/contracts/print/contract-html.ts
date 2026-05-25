@@ -580,24 +580,24 @@ body { background: #fff; color: #1a202c; }
 
 .c-header { border-top: 3px solid #1e3a5f; border-bottom: 1px solid #cbd5e1; padding: 12px 0 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .c-header-center { flex: 1; }
-.c-title { font-size: 20px; font-weight: 800; color: #1e3a5f; letter-spacing: .3px; line-height: 1.15; }
-.c-subtitle { font-size: 9px; color: #94a3b8; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
-.c-meta-badge { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 6px 12px; text-align: left; white-space: nowrap; min-width: 120px; }
-.c-meta-badge .label { color: #94a3b8; font-size: 8px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-.c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 12px; display: block; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.c-title { font-size: 22px; font-weight: 800; color: #1e3a5f; letter-spacing: .3px; line-height: 1.15; }
+.c-subtitle { font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
+.c-meta-badge { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 3px solid #1e3a5f; border-radius: 4px; padding: 7px 14px; text-align: left; white-space: nowrap; min-width: 130px; }
+.c-meta-badge .label { color: #94a3b8; font-size: 9px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+.c-meta-badge .value { color: #1e3a5f; font-weight: 700; font-size: 13.5px; display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 8px 14px; font-size: 12px; color: #334155; margin-bottom: 16px; line-height: 1.55; }
+.c-date-strip { background: #f8fafc; border-left: 3px solid #94a3b8; padding: 9px 16px; font-size: 13.5px; color: #334155; margin-bottom: 18px; line-height: 1.55; }
 .c-date-strip b { color: #1e3a5f; font-weight: 700; }
 
-.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 20px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
-.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 6px 14px; font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+.parties-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 22px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; }
+.parties-table .sect-hdr td { background: #f1f5f9; color: #1e3a5f; padding: 7px 14px; font-size: 10.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
 .parties-table .party-row td { padding: 0; vertical-align: top; }
-.party-cell { padding: 11px 14px; border-right: 1px solid #e2e8f0; }
+.party-cell { padding: 12px 14px; border-right: 1px solid #e2e8f0; }
 .party-cell:last-child { border-right: none; }
-.party-label { font-size: 8px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
-.party-name { font-size: 13px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
-.party-detail { font-size: 11px; color: #1e293b; line-height: 1.55; margin-top: 2px; }
-.party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
+.party-label { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }
+.party-name { font-size: 15px; font-weight: 700; color: #1e3a5f; margin-bottom: 4px; line-height: 1.35; }
+.party-detail { font-size: 13px; color: #1e293b; line-height: 1.55; margin-top: 3px; }
+.party-detail-label { color: #64748b; font-weight: 600; font-size: 11px; letter-spacing: .3px; }
 
 .c-body { font-size: 15.5px; line-height: 1.8; color: #1e293b; text-align: justify; margin-bottom: 0; }
 .c-intro { margin: 0; text-indent: 28px; }
