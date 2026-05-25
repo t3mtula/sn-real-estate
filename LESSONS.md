@@ -55,6 +55,7 @@ wrangler pages deploy dist --project-name=sn-real-estate-v2 --branch=main --comm
 
 - **v2 print map (จำ):** `/templates/*` → `contract-html.ts` (HTML iframe) · `/contracts/*/print` → `contract-pdf.ts` (pdfmake) — คนละไฟล์คนละโลก
 - **npm run build ติด tsc error** (pre-existing) → `&&` หยุด vite build เงียบๆ → ใช้ `npx vite build` ตรงๆ แทน
+- **`npx vite build` ไม่รัน tsc** — CI รัน `tsc --noEmit` เสมอ → ต้องรัน `npx tsc --noEmit` เองก่อน commit ทุกครั้ง ไม่งั้น TypeScript errors โผล่ใน CI เท่านั้น
 - **หลัง wrangler deploy** ตรวจบรรทัด `Uploaded N files` เสมอ — ถ้า 0 files = dist ไม่เปลี่ยน = deploy ของเก่า ต้องหยุด debug build ก่อน
 
 ---
