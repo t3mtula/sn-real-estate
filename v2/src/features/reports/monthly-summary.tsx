@@ -105,7 +105,7 @@ export function MonthlySummary() {
         </div>
       </Header>
 
-      <Main className='flex flex-1 flex-col gap-5'>
+      <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex flex-wrap items-end gap-3'>
           <div>
             <h1 className='text-2xl font-bold tracking-tight'>สรุปรายเดือน</h1>

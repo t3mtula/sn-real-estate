@@ -485,7 +485,7 @@ export function Contracts() {
         )}
 
         {!isLoading && kpi.count > 0 && (
-          <div className='grid grid-cols-2 gap-2 sm:grid-cols-6'>
+          <div className='grid grid-cols-2 gap-3 sm:grid-cols-6'>
             <KpiCard
               label='ทั้งหมด'
               value={kpi.count.toLocaleString('th-TH')}

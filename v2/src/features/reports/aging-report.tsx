@@ -174,7 +174,7 @@ export function AgingReport() {
                 return (
                   <div
                     key={b.key}
-                    className={`rounded-md border p-4 ${tone.bg}`}
+                    className={`rounded-md border p-3 ${tone.bg}`}
                   >
                     <p className={`text-xs font-semibold ${tone.text}`}>
                       {b.label}

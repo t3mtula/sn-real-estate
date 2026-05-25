@@ -1,5 +1,6 @@
 import { useNavigate  } from '@tanstack/react-router'
 import {
+  Banknote,
   CreditCard,
   Landmark,
   Pencil,
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
 import { BankAccountForm } from '@/features/bank-accounts/components/bank-account-form'
 import { useBankAccount } from '@/features/bank-accounts/queries'
+import { usePaymentsByBankAccount } from '@/features/payments/queries'
 import {
   useDeleteBankAccount,
   useUpdateBankAccount,
@@ -30,6 +32,7 @@ import {
   type BankAccountFormValues,
 } from '@/features/bank-accounts/schema'
 import { BackButton } from '@/components/yonghua/back-button'
+import { amt } from '@/lib/thai'
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—'
@@ -136,6 +139,7 @@ export function BankAccountDetail({ id }: { id: string }) {
           <BankAccountEditing ba={ba} onDone={() => setIsEditing(false)} />
         ) : (
           <Content
+            id={id}
             data={ba.data}
             createdAt={ba.created_at}
             updatedAt={ba.updated_at}
@@ -194,6 +198,7 @@ function BankAccountEditing({
 }
 
 function Content({
+  id,
   data,
   createdAt,
   updatedAt,
@@ -201,6 +206,7 @@ function Content({
   deleting,
   onEdit,
 }: {
+  id: string
   data: NonNullable<ReturnType<typeof useBankAccount>['data']>['data']
   createdAt: string | null
   updatedAt: string | null
@@ -209,6 +215,7 @@ function Content({
   onEdit: () => void
 }) {
   const active = data.active !== false
+  const { data: payments } = usePaymentsByBankAccount(id)
 
   return (
     <>
@@ -319,6 +326,29 @@ function Content({
           </Card>
         )}
       </div>
+
+      {(payments?.length ?? 0) > 0 && (
+        <section className='space-y-2'>
+          <h2 className='text-sm font-semibold uppercase tracking-wide text-muted-foreground'>
+            <Banknote className='mr-1.5 inline size-4' />
+            เงินเข้า ({payments!.length} รายการ)
+          </h2>
+          <div className='rounded-md border divide-y'>
+            {payments!.map((p) => (
+              <div key={p.id} className='flex items-center justify-between px-4 py-2.5 text-sm'>
+                <div>
+                  <span className='font-medium'>{p.data?.receiptNo ?? p.id}</span>
+                  <span className='ml-2 text-muted-foreground'>{p.data?.date}</span>
+                  {p.data?.payerName && (
+                    <span className='ml-2 text-muted-foreground'>· {p.data.payerName}</span>
+                  )}
+                </div>
+                <span className='font-semibold'>{amt(Number(p.data?.amount ?? 0), { decimal: 0 })} บาท</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   )
 }
