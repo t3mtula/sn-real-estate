@@ -11,12 +11,12 @@ export const paymentFormSchema = z.object({
   amount: z.number().positive('ยอดรับต้องมากกว่า 0'),
   bank_account_id: z.string().trim().max(100),
   contract_id: z.string().trim().max(100),
-  payMethod: z.enum(['transfer', 'cash', 'check', 'promptpay']).default('transfer'),
+  payMethod: z.enum(['transfer', 'cash', 'check', 'promptpay']),
   payerName: z.string().trim().max(200),
   receiptNo: z.string().trim().max(100),
   notes: z.string().trim().max(500),
   /** invoice IDs to allocate this payment to (full amount split evenly if multiple) */
-  invoice_ids: z.array(z.string()).default([]),
+  invoice_ids: z.array(z.string()),
 })
 
 export type PaymentFormValues = z.infer<typeof paymentFormSchema>

@@ -118,7 +118,7 @@ export function useCreatePayment() {
         await logActivity({
           action: 'create',
           entity: 'payment',
-          entityId: payment.id,
+          entity_id: payment.id,
           detail: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'}`,
         })
 
@@ -151,7 +151,7 @@ export function useCreatePayment() {
       await logActivity({
         action: 'create',
         entity: 'payment',
-        entityId: (data as Payment).id,
+        entity_id: (data as Payment).id,
         detail: `รับเงิน ${amt(values.amount, { decimal: 0 })} บาท (${receiptNo}) จาก ${values.payerName || 'ไม่ระบุ'} — ยังไม่จับคู่`,
       })
 
@@ -227,7 +227,7 @@ export function useDeletePayment() {
       await logActivity({
         action: 'delete',
         entity: 'payment',
-        entityId: payment.id,
+        entity_id: payment.id,
         detail: `ลบรายการรับเงิน ${payment.data.receiptNo ?? payment.id}`,
       })
     },

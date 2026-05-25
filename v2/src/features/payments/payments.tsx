@@ -14,7 +14,6 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -122,7 +121,7 @@ export function Payments() {
     },
     {
       id: 'amount',
-      header: ({ column }) => <SortableHeader column={column} className='text-right'>ยอดรับ</SortableHeader>,
+      header: ({ column }) => <div className='text-right'><SortableHeader column={column}>ยอดรับ</SortableHeader></div>,
       accessorFn: (r) => Number(r.data?.amount ?? 0),
       cell: ({ row }) => (
         <div className='text-right font-semibold text-sm'>

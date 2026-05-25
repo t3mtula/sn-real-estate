@@ -26,7 +26,7 @@ import {
   paymentFormSchema,
   type PaymentFormValues,
 } from './schema'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 
 interface PaymentFormProps {
   defaultValues?: Partial<PaymentFormValues>
@@ -51,7 +51,7 @@ export function PaymentForm({ defaultValues, submitting, onSubmit, onCancel }: P
   const { data: invoices } = useInvoices()
 
   const contractId = form.watch('contract_id')
-  const bankAccountId = form.watch('bank_account_id')
+  // bank_account_id watched via Select onValueChange — no separate watch needed
   const selectedInvoiceIds = form.watch('invoice_ids')
 
   // Landlord of selected contract → filter bank accounts
@@ -77,8 +77,7 @@ export function PaymentForm({ defaultValues, submitting, onSubmit, onCancel }: P
     })
   }, [invoices, contractId])
 
-  const [showAll, setShowAll] = useState(false)
-  const visibleInvoices = showAll ? contractInvoices : contractInvoices.filter((iv) => daysOverdue(iv) >= 0 || (iv.data?.remaining_amount ?? iv.data?.total) > 0)
+  const visibleInvoices = contractInvoices.filter((iv) => daysOverdue(iv) >= 0 || Number(iv.data?.remaining_amount ?? iv.data?.total ?? 0) > 0)
 
   function toggleInvoice(id: string) {
     const cur = form.getValues('invoice_ids')

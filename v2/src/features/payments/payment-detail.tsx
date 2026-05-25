@@ -5,9 +5,7 @@ import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
@@ -77,7 +75,7 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
       destructive: true,
     })
     if (!ok) return
-    await del.mutateAsync(payment)
+    await del.mutateAsync(payment!)
     navigate({ to: '/payments' })
   }
 
@@ -140,7 +138,7 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
             <Field label='สัญญา'>
               {contract ? (
                 <Link to='/contracts/$id' params={{ id: contract.id }} className='text-primary hover:underline'>
-                  {contract.data?.no} · {contract.data?.tenant ?? contract.data?.tenantName ?? ''}
+                  {String(contract.data?.no ?? '')} · {String(contract.data?.tenant ?? contract.data?.tenantName ?? '')}
                 </Link>
               ) : d.contract_id ? d.contract_id : '—'}
             </Field>
@@ -173,7 +171,7 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
                           <span className='font-mono text-xs text-muted-foreground'>{alloc.invoice_id}</span>
                         )}
                         {iv?.data?.description && (
-                          <span className='ml-2 text-muted-foreground'>{iv.data.description}</span>
+                          <span className='ml-2 text-muted-foreground'>{String(iv.data.description)}</span>
                         )}
                       </div>
                       <span className='font-semibold'>{amt(alloc.amount, { decimal: 0 })} บาท</span>
