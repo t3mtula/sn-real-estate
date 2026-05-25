@@ -33,6 +33,22 @@ Lesson แต่ละข้อคือ rule ที่ต้อง apply ทั
 
 ---
 
+## 🚀 Cloudflare Pages deploy — ใช้ `--branch=main` เสมอ
+
+**deploy ด้วย `--branch=main` เท่านั้น** — ห้ามใช้ `--branch=production` หรือชื่ออื่น
+
+- `--branch` ใน wrangler คือ **label** ของ deployment ไม่ใช่ environment จริง
+- Cloudflare Pages กำหนด production branch ใน project settings = `main`
+- ถ้าใส่ `--branch=production` → สร้าง **preview alias** `production.xxx.pages.dev` แทน → URL หลักไม่อัปเดต
+- **commit message ต้องเป็น ASCII เสมอ** (ไทย → Cloudflare reject) → ใช้ `--commit-message="feat: ..."`
+
+**คำสั่งที่ถูก:**
+```
+wrangler pages deploy dist --project-name=sn-real-estate-v2 --branch=main --commit-dirty=true --commit-message="feat: ..."
+```
+
+---
+
 ## 🖨️ v2 Print — ก่อนแก้ CSS/print ต้อง trace ก่อน + ตรวจ deploy
 
 **ก่อนแก้ print/CSS ใดๆ ใน v2: route → component → import → buildFn → แก้ไฟล์นั้น** ([Notion](https://www.notion.so/36afdba535ca81b5943bdad004147bb1))
