@@ -46,7 +46,7 @@ export function usePaymentsByContract(contractId: string | undefined) {
       const { data, error } = await supabase
         .from(TABLE)
         .select('id, data, created_at, updated_at')
-        .eq("data->>'contract_id'", contractId)
+        .eq('data->>contract_id', contractId)
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as Payment[]
@@ -64,7 +64,7 @@ export function usePaymentsByBankAccount(bankAccountId: string | undefined) {
       const { data, error } = await supabase
         .from(TABLE)
         .select('id, data, created_at, updated_at')
-        .eq("data->>'bank_account_id'", bankAccountId)
+        .eq('data->>bank_account_id', bankAccountId)
         .order('created_at', { ascending: false })
       if (error) throw error
       return (data ?? []) as Payment[]
@@ -82,8 +82,8 @@ export function useTotalPaidForContract(contractId: string | undefined) {
       const { data, error } = await supabase
         .from(TABLE)
         .select('data')
-        .eq("data->>'contract_id'", contractId)
-        .in("data->>'status'", ['matched', 'partial'])
+        .eq('data->>contract_id', contractId)
+        .in('data->>status', ['matched', 'partial'])
       if (error) throw error
       return (data ?? []).reduce((sum, row) => sum + (Number((row.data as Record<string, unknown>)?.amount) || 0), 0)
     },

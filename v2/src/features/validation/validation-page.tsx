@@ -230,7 +230,6 @@ function InlineEditPanel({
       }
       setSaving(true)
       try {
-        // Fetch current tenant data then patch
         const { data: row, error: fetchErr } = await supabase
           .from('tenants')
           .select('id, data')
@@ -242,7 +241,8 @@ function InlineEditPanel({
           .update({ data: { ...(row.data as object), taxId: clean }, updated_at: new Date().toISOString() })
           .eq('id', issue.entityId)
         if (error) throw error
-        qc.invalidateQueries({ queryKey: ['tenants'] })
+        // await refetch so validation scan sees fresh data before onSaved collapses the row
+        await qc.refetchQueries({ queryKey: ['tenants'] })
         toast.success(`บันทึก taxId ของ ${issue.entityLabel} แล้ว`)
         onSaved()
       } catch (e) {
@@ -271,7 +271,8 @@ function InlineEditPanel({
           .update({ data: { ...(row.data as object), madeAt: v }, updated_at: new Date().toISOString() })
           .eq('id', issue.entityId)
         if (error) throw error
-        qc.invalidateQueries({ queryKey: ['contracts'] })
+        // await refetch so validation scan sees fresh data before onSaved collapses the row
+        await qc.refetchQueries({ queryKey: ['contracts'] })
         toast.success(`บันทึกสถานที่ทำสัญญา ${issue.entityLabel} แล้ว`)
         onSaved()
       } catch (e) {
