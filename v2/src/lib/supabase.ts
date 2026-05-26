@@ -27,6 +27,7 @@ const cookieStorage = {
  */
 
 // biome-ignore lint/suspicious/noExplicitAny: replace ด้วย import จาก database.types หลัง gen
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Database = any
 
 const url = import.meta.env.VITE_SUPABASE_URL
