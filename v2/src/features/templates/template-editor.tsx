@@ -1,7 +1,22 @@
 import { useNavigate  } from '@tanstack/react-router'
 import {
-  ChevronDown,
-  ChevronUp,
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   GripVertical,
   Loader2,
   Plus,
@@ -23,6 +38,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import {
   DEFAULT_CLAUSES,
   DEFAULT_CLOSING,
@@ -40,6 +56,107 @@ import {
 import { BackButton } from '@/components/yonghua/back-button'
 
 type Mode = 'new' | 'edit'
+
+/* ── Sortable clause card ── */
+
+type ClauseCardProps = {
+  id: string
+  clause: ContractClause
+  index: number
+  onUpdate: (patch: Partial<ContractClause>) => void
+  onRemove: () => void
+  onAddSub: () => void
+  onUpdateSub: (subIdx: number, value: string) => void
+  onRemoveSub: (subIdx: number) => void
+}
+
+function ClauseCard({
+  id, clause, index,
+  onUpdate, onRemove, onAddSub, onUpdateSub, onRemoveSub,
+}: ClauseCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'rounded-md border bg-card p-4 space-y-3',
+        isDragging && 'opacity-50 ring-2 ring-primary',
+      )}
+    >
+      <div className='flex items-start gap-2'>
+        <button
+          type='button'
+          className='mt-1 cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing'
+          aria-label='ลากเพื่อเรียงลำดับ'
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className='size-4' />
+        </button>
+
+        <div className='flex-1 space-y-2'>
+          <div className='flex items-center gap-2'>
+            <Badge variant='outline' className='font-semibold'>
+              ข้อ {index + 1}
+            </Badge>
+            <Button
+              size='sm'
+              variant='ghost'
+              className='ms-auto text-destructive hover:bg-destructive/10 hover:text-destructive'
+              onClick={onRemove}
+            >
+              <Trash2 className='size-3' />
+              ลบข้อ
+            </Button>
+          </div>
+          <Textarea
+            value={clause.text}
+            onChange={(e) => onUpdate({ text: e.target.value })}
+            rows={3}
+            placeholder='เนื้อข้อสัญญา...'
+          />
+          {(clause.sub ?? []).map((sub, j) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: order is identity
+            <div key={`s-${index}-${j}`} className='flex gap-2'>
+              <Badge variant='outline' className='mt-1 h-6 font-normal'>
+                {index + 1}.{j + 1}
+              </Badge>
+              <Textarea
+                value={sub}
+                onChange={(e) => onUpdateSub(j, e.target.value)}
+                rows={2}
+                placeholder='ข้อย่อย...'
+                className='flex-1'
+              />
+              <Button
+                size='icon'
+                variant='ghost'
+                className='mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive'
+                onClick={() => onRemoveSub(j)}
+                aria-label='ลบข้อย่อย'
+              >
+                <Trash2 className='size-3' />
+              </Button>
+            </div>
+          ))}
+          <Button
+            size='sm'
+            variant='ghost'
+            onClick={onAddSub}
+            className='ml-7 text-muted-foreground'
+          >
+            <Plus className='size-3' />
+            เพิ่มข้อย่อย
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ContractTemplateEditor({ id }: { id?: string }) {
   const mode: Mode = !id || id === 'new' ? 'new' : 'edit'
@@ -97,6 +214,21 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
 
   const submitting = create.isPending || update.isPending
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleClauseDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const from = parseInt(String(active.id).replace('c-', ''))
+    const to = parseInt(String(over.id).replace('c-', ''))
+    if (isNaN(from) || isNaN(to)) return
+    setDirty(true)
+    setDraft((d) => ({ ...d, clauses: arrayMove(d.clauses, from, to) }))
+  }
+
   function updateClause(i: number, patch: Partial<ContractClause>) {
     setDirty(true)
     setDraft((d) => ({
@@ -113,21 +245,6 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
   function removeClause(i: number) {
     setDirty(true)
     setDraft((d) => ({ ...d, clauses: d.clauses.filter((_, idx) => idx !== i) }))
-  }
-
-  function moveClause(i: number, dir: -1 | 1) {
-    const target = i + dir
-    if (target < 0 || target >= draft.clauses.length) return
-    setDirty(true)
-    setDraft((d) => {
-      const next = [...d.clauses]
-      const a = next[i]
-      const b = next[target]
-      if (!a || !b) return d
-      next[i] = b
-      next[target] = a
-      return { ...d, clauses: next }
-    })
   }
 
   function addSub(clauseIdx: number) {
@@ -348,108 +465,38 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
                 </Button>
               </div>
 
-              <div className='space-y-3'>
-                {draft.clauses.map((c, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
-                  <div
-                    key={`c-${i}`}
-                    className='rounded-md border bg-card p-4 space-y-3'
-                  >
-                    <div className='flex items-start gap-2'>
-                      <div className='flex flex-col gap-1 pt-1'>
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='size-6'
-                          onClick={() => moveClause(i, -1)}
-                          disabled={i === 0}
-                          aria-label='ขึ้น'
-                        >
-                          <ChevronUp className='size-3' />
-                        </Button>
-                        <span
-                          className='inline-flex items-center justify-center'
-                          title='ลำดับ'
-                        >
-                          <GripVertical className='size-3 text-muted-foreground' />
-                        </span>
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='size-6'
-                          onClick={() => moveClause(i, 1)}
-                          disabled={i === draft.clauses.length - 1}
-                          aria-label='ลง'
-                        >
-                          <ChevronDown className='size-3' />
-                        </Button>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleClauseDragEnd}
+              >
+                <SortableContext
+                  items={draft.clauses.map((_, i) => `c-${i}`)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className='space-y-3'>
+                    {draft.clauses.map((c, i) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
+                      <ClauseCard
+                        key={`c-${i}`}
+                        id={`c-${i}`}
+                        clause={c}
+                        index={i}
+                        onUpdate={(patch) => updateClause(i, patch)}
+                        onRemove={() => removeClause(i)}
+                        onAddSub={() => addSub(i)}
+                        onUpdateSub={(j, v) => updateSub(i, j, v)}
+                        onRemoveSub={(j) => removeSub(i, j)}
+                      />
+                    ))}
+                    {draft.clauses.length === 0 && (
+                      <div className='rounded-md border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground'>
+                        ยังไม่มีข้อ · กด "เพิ่มข้อ" เพื่อเริ่ม
                       </div>
-                      <div className='flex-1 space-y-2'>
-                        <div className='flex items-center gap-2'>
-                          <Badge variant='outline' className='font-semibold'>
-                            ข้อ {i + 1}
-                          </Badge>
-                          <Button
-                            size='sm'
-                            variant='ghost'
-                            className='ms-auto text-destructive hover:bg-destructive/10 hover:text-destructive'
-                            onClick={() => removeClause(i)}
-                          >
-                            <Trash2 className='size-3' />
-                            ลบข้อ
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={c.text}
-                          onChange={(e) =>
-                            updateClause(i, { text: e.target.value })
-                          }
-                          rows={3}
-                          placeholder='เนื้อข้อสัญญา...'
-                        />
-                        {(c.sub ?? []).map((sub, j) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: order is identity
-                          <div key={`s-${i}-${j}`} className='flex gap-2'>
-                            <Badge variant='outline' className='mt-1 h-6 font-normal'>
-                              {i + 1}.{j + 1}
-                            </Badge>
-                            <Textarea
-                              value={sub}
-                              onChange={(e) => updateSub(i, j, e.target.value)}
-                              rows={2}
-                              placeholder='ข้อย่อย...'
-                              className='flex-1'
-                            />
-                            <Button
-                              size='icon'
-                              variant='ghost'
-                              className='mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive'
-                              onClick={() => removeSub(i, j)}
-                              aria-label='ลบข้อย่อย'
-                            >
-                              <Trash2 className='size-3' />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          size='sm'
-                          variant='ghost'
-                          onClick={() => addSub(i)}
-                          className='ml-7 text-muted-foreground'
-                        >
-                          <Plus className='size-3' />
-                          เพิ่มข้อย่อย
-                        </Button>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                ))}
-                {draft.clauses.length === 0 && (
-                  <div className='rounded-md border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground'>
-                    ยังไม่มีข้อ · กด "เพิ่มข้อ" เพื่อเริ่ม
-                  </div>
-                )}
-              </div>
+                </SortableContext>
+              </DndContext>
             </section>
 
             {/* Closing */}

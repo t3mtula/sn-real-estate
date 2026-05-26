@@ -512,6 +512,7 @@ export function buildContractHtml(
   const leaseRows =
     row('วันเริ่มต้น', c.start ? dateToThai(c.start) : '') +
     row('วันสิ้นสุด', c.end ? dateToThai(c.end) : '') +
+    ((() => { const bs = (c as { billingStart?: string }).billingStart?.trim(); return bs && bs !== c.start?.trim() ? row('วันเริ่มเก็บค่าเช่า', dateToThai(bs)) : '' })()) +
     row('ระยะเวลา', durStr) +
     row('อัตราค่าเช่า', typeof c.rate === 'string' && c.rate.trim() ? c.rate.trim() : fmtAmt(c.rate)) +
     row('วิธีชำระ', c.payment) +

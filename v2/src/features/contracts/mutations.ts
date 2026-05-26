@@ -59,6 +59,7 @@ function valuesToManagedFields(
     landlord_id: values.landlord_id || undefined,
     bankAccountId: values.bankAccountId || undefined,
     parent_contract_id: values.parent_contract_id || undefined,
+    templateId: values.templateId || undefined,
     start: values.start.trim(),
     end: values.end.trim(),
     rate: values.rate.trim() || undefined,
@@ -240,8 +241,8 @@ export function useUpdateContract(id: string) {
         entity: 'contracts',
         entity_id: id,
         description: `แก้สัญญา ${merged.no ?? '#' + id} · ${merged.tenant ?? '—'}`,
-        before: { no: existingData.no, rate: existingData.rate, start: existingData.start, end: existingData.end },
-        after: { no: merged.no, rate: merged.rate, start: merged.start, end: merged.end },
+        before: existingData,
+        after: merged,
       })
     },
     onSuccess: () => {

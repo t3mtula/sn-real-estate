@@ -10,6 +10,7 @@ import {
   Gauge,
   LayoutDashboard,
   Landmark,
+  Layers,
   Receipt,
   Settings,
   TrendingUp,

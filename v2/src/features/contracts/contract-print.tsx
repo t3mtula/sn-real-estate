@@ -7,7 +7,7 @@ import { buildContractPdf } from '@/features/contracts/print/contract-pdf'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
-import { useActiveContractTemplate } from '@/features/templates/queries'
+import { useActiveContractTemplate, useContractTemplate } from '@/features/templates/queries'
 import { useTenant } from '@/features/tenants/queries'
 import { getPdfBlob } from '@/lib/pdf'
 
@@ -27,12 +27,15 @@ export function ContractPrint({ id }: { id: string }) {
   const propertyPid = contract?.data?.pid_property
   const propertyKey = propertyPid != null ? String(propertyPid) : undefined
   const parentId = contract?.data?.parent_contract_id as string | undefined
+  const contractTemplateId = contract?.data?.templateId as string | undefined
   const { data: tenant } = useTenant(tenantId)
   const { data: landlord } = useLandlord(landlordId)
   const { data: bank } = useBankAccount(bankAccountId)
   const { data: property } = useProperty(propertyKey)
   const { data: parent } = useContract(parentId)
-  const { data: template } = useActiveContractTemplate()
+  const { data: activeTemplate } = useActiveContractTemplate()
+  const { data: specificTemplate } = useContractTemplate(contractTemplateId)
+  const template = contractTemplateId ? specificTemplate : activeTemplate
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [pdfErr, setPdfErr] = useState<string | null>(null)
@@ -68,7 +71,7 @@ export function ContractPrint({ id }: { id: string }) {
     return () => {
       cancelled = true
     }
-  }, [contract, tenant, landlord, bank, property, parent, template])
+  }, [contract, tenant, landlord, bank, property, parent, template, contractTemplateId])
 
   // Cleanup blob URL on unmount/change
   useEffect(() => {

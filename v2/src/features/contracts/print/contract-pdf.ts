@@ -734,6 +734,9 @@ function appendixLease(refs: Refs): Content {
   const rows: unknown[][] = []
   if (c.start?.trim()) rows.push(kvRow('วันเริ่มต้น', dateThaiLong(c.start)))
   if (c.end?.trim()) rows.push(kvRow('วันสิ้นสุด', dateThaiLong(c.end)))
+  const billingStart = (c as { billingStart?: string }).billingStart?.trim()
+  if (billingStart && billingStart !== c.start?.trim())
+    rows.push(kvRow('วันเริ่มเก็บค่าเช่า', dateThaiLong(billingStart)))
   const durStr = String(c.dur ?? '').trim()
   if (durStr) {
     const hasUnit = /(ปี|เดือน|วัน)/.test(durStr)

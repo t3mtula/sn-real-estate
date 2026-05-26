@@ -31,6 +31,7 @@ import {
   contractFormSchema,
 } from '@/features/contracts/schema'
 import { useContracts } from '@/features/contracts/queries'
+import { useContractTemplates } from '@/features/templates/queries'
 import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
 import { ThaiAddressInput } from '@/features/properties/components/thai-address-input'
@@ -85,6 +86,7 @@ export function ContractForm({
   const { data: landlords } = useLandlords()
   const { data: bankAccounts } = useBankAccounts()
   const { data: allContracts } = useContracts()
+  const { data: templates } = useContractTemplates()
 
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
@@ -351,6 +353,35 @@ export function ContractForm({
           </Select>
           <p className='mt-1 text-xs text-muted-foreground'>
             กรณี ข เช่าจาก ก แล้ว ข ปล่อยเช่าให้ ค บนทรัพย์เดียวกัน · ระบุสัญญาของ ก ที่นี่
+          </p>
+        </div>
+
+        <div className='sm:col-span-2'>
+          <Label htmlFor='templateId'>ฟอร์มสัญญา (master)</Label>
+          <Select
+            value={form.watch('templateId') || 'active'}
+            onValueChange={(v) =>
+              form.setValue('templateId', v === 'active' ? '' : v, {
+                shouldDirty: true,
+              })
+            }
+          >
+            <SelectTrigger id='templateId'>
+              <SelectValue placeholder='— ใช้ฟอร์มที่ active อยู่ —' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='active'>— ใช้ฟอร์มที่ active อยู่ —</SelectItem>
+              {(templates ?? []).map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.data?.name || '(ไม่ระบุชื่อ)'}
+                  {t.data?.version ? ` · ${t.data.version}` : ''}
+                  {t.is_active ? ' ✓' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className='mt-1 text-xs text-muted-foreground'>
+            เลือกฟอร์มที่ต้องการใช้กับสัญญานี้ · ถ้าไม่เลือกจะใช้ฟอร์มที่ active อยู่ในขณะพิมพ์
           </p>
         </div>
       </section>

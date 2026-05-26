@@ -82,6 +82,21 @@ const STATUS_ACCENT_STRIP: Record<string, string> = {
   unknown: 'border-l-2 border-l-transparent',
 }
 
+function relativeThaiTime(isoStr: string | null | undefined): string {
+  if (!isoStr) return '—'
+  const d = dayjs(isoStr)
+  if (!d.isValid()) return '—'
+  const days = dayjs().diff(d, 'day')
+  if (days === 0) return 'วันนี้'
+  if (days === 1) return 'เมื่อวาน'
+  if (days < 7) return `${days} วันที่แล้ว`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks} สัปดาห์ที่แล้ว`
+  const months = dayjs().diff(d, 'month')
+  if (months < 12) return `${months} เดือนที่แล้ว`
+  return `${dayjs().diff(d, 'year')} ปีที่แล้ว`
+}
+
 function StatusBadge({ status }: { status: ContractStatus }) {
   const meta = getStatusMeta(status)
   return (
@@ -274,6 +289,24 @@ export function Contracts() {
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
           return row.original._status === value
+        },
+      },
+      {
+        id: 'updated_at',
+        accessorFn: (row) => row.updated_at ?? '',
+        sortDescFirst: true,
+        header: ({ column }) => (
+          <SortableHeader column={column}>แก้ล่าสุด</SortableHeader>
+        ),
+        cell: ({ row }) => {
+          const ts = row.original.updated_at
+          if (!ts) return <span className='text-sm text-muted-foreground'>—</span>
+          return (
+            <div className='min-w-[90px]'>
+              <div className='text-sm tabular-nums'>{fmtThaiShort(ts)}</div>
+              <div className='text-[11px] text-muted-foreground'>{relativeThaiTime(ts)}</div>
+            </div>
+          )
         },
       },
       {
@@ -526,7 +559,7 @@ export function Contracts() {
         )}
 
         <div className='overflow-x-auto rounded-md border bg-card'>
-          <Table className='min-w-[960px]'>
+          <Table className='min-w-[1060px]'>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className='hover:bg-transparent'>

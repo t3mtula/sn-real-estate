@@ -47,6 +47,9 @@ export const contractFormSchema = z
     /** Sublease — สัญญาแม่ (optional) */
     parent_contract_id: z.string().trim().max(50),
 
+    /** ฟอร์มสัญญา (template) ที่ใช้กับสัญญานี้ (optional · fallback = active template) */
+    templateId: z.string().trim().max(50),
+
     /** Dates (BE) */
     start: beDateStr().refine((s) => s.length > 0, { message: 'กรอกวันเริ่มต้น' }),
     end: beDateStr().refine((s) => s.length > 0, { message: 'กรอกวันสิ้นสุด' }),
@@ -117,6 +120,7 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   madeDate: '',
   wit1: '',
   wit2: '',
+  templateId: '',
 }
 
 /** Common payment frequency presets · v1 datalist */

@@ -91,6 +91,9 @@ export type ContractData = {
   /** Bank account — v2 (เลือกอิสระตอนทำสัญญา) */
   bankAccountId?: string
 
+  /** ฟอร์มสัญญา (template) ที่ผูกกับสัญญานี้ · ถ้าไม่ระบุ = ใช้ active template */
+  templateId?: string
+
   /** Sublease chain — v2 new */
   parent_contract_id?: string
 

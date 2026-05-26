@@ -44,6 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useConfirm } from '@/hooks/use-confirm'
 import { EntityAuditPanel } from '@/features/activity-log/entity-audit-panel'
+import { diffContractData } from '@/features/contracts/contract-diff'
 import { useBankAccount, useBankAccounts } from '@/features/bank-accounts/queries'
 import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
 import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
@@ -53,7 +54,7 @@ import { DepositReturnPanel } from '@/features/contracts/components/deposit-retu
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
-import { useActiveContractTemplate } from '@/features/templates/queries'
+import { useActiveContractTemplate, useContractTemplate } from '@/features/templates/queries'
 import {
   DuplicateContractNoError,
   useCancelContract,
@@ -349,6 +350,7 @@ function ContractEditing({
     madeDate: c.madeDate ?? '',
     wit1: c.wit1 ?? '',
     wit2: c.wit2 ?? '',
+    templateId: c.templateId ?? '',
   }
 
   return (
@@ -433,7 +435,9 @@ function Content({
   const propertyId = (c.pid_property ?? c.pid)?.toString() ?? ''
   const property = useProperty(propertyId)
   const parent = useContract(c.parent_contract_id)
-  const template = useActiveContractTemplate()
+  const activeTemplate = useActiveContractTemplate()
+  const specificTemplate = useContractTemplate(c.templateId)
+  const template = c.templateId ? specificTemplate : activeTemplate
 
   function handlePrint() {
     const html = buildContractHtml(
@@ -859,7 +863,7 @@ function Content({
         )
       })()}
 
-      <EntityAuditPanel entity='contracts' entityId={contract.id} />
+      <EntityAuditPanel entity='contracts' entityId={contract.id} diffFn={diffContractData} />
 
       {/* PrintOverlay removed — contract now opens in new browser tab */}
     </>
