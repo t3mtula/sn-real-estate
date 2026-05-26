@@ -663,8 +663,8 @@ body { background: #fff; color: #1a202c; }
   @page { size: A4; margin: 16mm 20mm 16mm; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; orphans: 3; widows: 3; }
   .no-print { display: none !important; }
-  .page { padding: 0 !important; min-height: 0 !important; height: auto !important; margin: 0; box-shadow: none; display: block; page-break-after: always; break-after: page; }
-  .page:last-child { page-break-after: auto; break-after: auto; }
+  /* ไม่ใช้ page-break-after บน .page — content flow ตามธรรมชาติ ป้องกัน blank pages */
+  .page { padding: 0 !important; min-height: 0 !important; height: auto !important; margin: 0; box-shadow: none; display: block; }
   .page-body { display: block; }
   .sig-section { padding-top: 12px; }
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
