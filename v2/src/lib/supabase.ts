@@ -3,15 +3,23 @@ import { getCookie, setCookie, removeCookie } from "@/lib/cookies"
 
 /**
  * Cookie-backed storage for Supabase auth session.
- * Replaces default localStorage — cookies survive iOS WKWebView cross-origin
- * navigation (OAuth redirect) that would otherwise clear localStorage and
- * break session restore on iOS Chrome / Safari.
+ * Used ONLY on iOS (WKWebView) — iOS Chrome/Safari clear localStorage during
+ * cross-origin OAuth redirect (Google), breaking PKCE code_verifier lookup.
+ * Desktop browsers use default localStorage which is more reliable.
  */
 const cookieStorage = {
   getItem: (key: string): string | null => getCookie(key) ?? null,
   setItem: (key: string, value: string): void => { setCookie(key, value, 365 * 24 * 60 * 60) },
   removeItem: (key: string): void => { removeCookie(key) },
 }
+
+/**
+ * Detect iOS (iPhone, iPad, iPod) — includes iOS Chrome which uses WKWebView.
+ * navigator.userAgent check runs at module init time (client-side only).
+ */
+const isIOS =
+  typeof navigator !== "undefined" &&
+  /iPad|iPhone|iPod/.test(navigator.userAgent)
 
 /**
  * Supabase typed client · ใช้ใน app ที่ clone จาก starter
@@ -45,7 +53,9 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(url, an
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: "pkce",
-    storage: cookieStorage,
+    // iOS WKWebView clears localStorage during cross-origin redirect → use cookies
+    // Desktop: localStorage (default) is more reliable — no override needed
+    storage: isIOS ? cookieStorage : undefined,
   },
 })
 
