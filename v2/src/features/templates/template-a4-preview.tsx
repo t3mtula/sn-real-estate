@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { ExternalLink, Loader2, Printer } from 'lucide-react'
+import { ExternalLink, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
 import type { BankAccount } from '@/features/bank-accounts/types'
@@ -158,19 +158,12 @@ export function TemplateA4Preview({ draft }: Props) {
     return () => clearTimeout(timer)
   }, [draft])
 
-  /** Trigger browser print dialog on the preview iframe content */
-  function handlePrint() {
-    iframeRef.current?.contentWindow?.print()
-  }
-
-  /** Open preview in a new window (full screen, real print URL) */
-  function handleOpenFullscreen() {
+  /** Open full contract HTML in a new tab (blob URL · toolbar included) */
+  function handleOpenInTab() {
     if (!html) return
-    const w = window.open('', '_blank')
-    if (!w) return
-    w.document.open()
-    w.document.write(html)
-    w.document.close()
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
   }
 
   return (
@@ -183,21 +176,12 @@ export function TemplateA4Preview({ draft }: Props) {
           <Button
             size='sm'
             variant='outline'
-            onClick={handleOpenFullscreen}
+            onClick={handleOpenInTab}
             disabled={!html}
-            title='เปิดดูแบบเต็มจอ (tab ใหม่)'
+            title='เปิดตัวอย่างใน tab ใหม่ · มีปุ่มพิมพ์ในหน้านั้น'
           >
             <ExternalLink className='size-3.5' />
-            ดูเต็มจอ
-          </Button>
-          <Button
-            size='sm'
-            onClick={handlePrint}
-            disabled={!html}
-            title='พิมพ์ตัวอย่าง / บันทึก PDF'
-          >
-            <Printer className='size-3.5' />
-            พิมพ์ตัวอย่าง
+            เปิดตัวอย่าง / พิมพ์
           </Button>
         </div>
       </div>
