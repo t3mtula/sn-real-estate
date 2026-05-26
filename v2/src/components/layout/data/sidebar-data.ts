@@ -104,6 +104,11 @@ export const sidebarData: SidebarData = {
           url: '/contracts/renewals',
           icon: CalendarClock,
         },
+        {
+          title: 'ฟอร์มสัญญา',
+          url: '/templates',
+          icon: Layers,
+        },
       ],
     },
     {
