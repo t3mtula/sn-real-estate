@@ -94,6 +94,9 @@ function valuesToManagedFields(
           }),
         }
       : {}),
+    spot: values.spot.trim() || undefined,
+    dueDay: values.dueDay || 5,
+    rateAdj: values.rateAdj.trim() || undefined,
     madeDate: values.madeDate.trim(),
     wit1: values.wit1.trim(),
     wit2: values.wit2.trim(),
@@ -132,8 +135,9 @@ export function useCreateContract() {
     mutationFn: async (input: {
       values: ContractFormValues
       inline?: { tenantName?: string; landlordName?: string; taxId?: string }
+      meta?: { renewedFrom?: string; copiedFrom?: string }
     }) => {
-      const { values, inline } = input
+      const { values, inline, meta } = input
 
       // Duplicate check
       const dup = await checkDuplicateContractNo(values.no)
@@ -142,6 +146,8 @@ export function useCreateContract() {
       const pid = Date.now()
       const id = String(pid)
       const managed = valuesToManagedFields(values, pid, inline)
+      if (meta?.renewedFrom) managed.renewedFrom = meta.renewedFrom
+      if (meta?.copiedFrom) managed.copiedFrom = meta.copiedFrom
       const { error } = await supabase
         .from(TABLE)
         .insert({ id, data: managed })
@@ -462,6 +468,70 @@ export function useUpdateContractClausesFull(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
       qc.invalidateQueries({ queryKey: ['contracts', id] })
+    },
+  })
+}
+
+/**
+ * Update renewalStatus on a contract
+ */
+export function useSetRenewalStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string
+      status: ContractData['renewalStatus']
+    }) => {
+      await mergeUpdateContract(id, { renewalStatus: status })
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `อัปเดตสถานะต่อสัญญา → ${status ?? 'pending'}`,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+    },
+  })
+}
+
+/**
+ * Suggest next contract number in SN.NNN-YYYY format
+ * Finds max sequential number across all contracts for current BE year
+ * If renewedFromNo provided, suggests ORIGINAL_NO-R1 (or R2, R3 etc.)
+ */
+export function useSuggestContractNo() {
+  return useMutation({
+    mutationFn: async (opts?: { renewedFromNo?: string }): Promise<string> => {
+      const beYear = new Date().getFullYear() + 543
+      const { data, error } = await supabase.from('contracts').select('id, data')
+      if (error) throw error
+
+      const nos: string[] = ((data ?? []) as Array<{ data: ContractData }>)
+        .map((r) => r.data?.no ?? '')
+        .filter(Boolean)
+
+      // If renewing, suggest ORIGINAL_NO-R1 (or R2, R3 etc.)
+      if (opts?.renewedFromNo) {
+        const base = opts.renewedFromNo.replace(/-R\d+$/, '') // strip existing -Rx
+        let n = 1
+        while (nos.includes(`${base}-R${n}`)) n++
+        return `${base}-R${n}`
+      }
+
+      // Find max SN.NNN-YYYY number for current year
+      let maxNum = 0
+      const pattern = new RegExp(`^SN\\.(\\d+)-${beYear}$`)
+      nos.forEach((no) => {
+        const m = no.match(pattern)
+        if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10))
+      })
+      const next = String(maxNum + 1).padStart(3, '0')
+      return `SN.${next}-${beYear}`
     },
   })
 }

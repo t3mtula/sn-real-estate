@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -8,6 +9,8 @@ import {
 } from '@/features/activity-log/queries'
 import { cn } from '@/lib/utils'
 import type { DiffItem } from '@/features/contracts/contract-diff'
+
+const COLLAPSE_AT = 3
 
 function formatTime(iso: string): string {
   const d = new Date(iso)
@@ -20,12 +23,49 @@ function formatTime(iso: string): string {
   return `${day}/${mo}/${yearBE} ${hh}:${mm}`
 }
 
+function DiffList({ diffs }: { diffs: DiffItem[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const visible = expanded ? diffs : diffs.slice(0, COLLAPSE_AT)
+  const hidden = diffs.length - COLLAPSE_AT
+
+  return (
+    <div className='mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs space-y-1'>
+      {visible.map((d, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static diff list
+        <div key={i} className='flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 leading-snug'>
+          <span className='text-muted-foreground shrink-0'>{d.label}:</span>
+          <span className='text-destructive/80 line-through break-all'>{d.from}</span>
+          <span className='text-muted-foreground shrink-0'>→</span>
+          <span className='text-foreground break-all'>{d.to}</span>
+        </div>
+      ))}
+      {!expanded && hidden > 0 && (
+        <button
+          type='button'
+          onClick={() => setExpanded(true)}
+          className='text-muted-foreground hover:text-foreground underline-offset-2 hover:underline'
+        >
+          ▼ ดูอีก {hidden} รายการ
+        </button>
+      )}
+      {expanded && hidden > 0 && (
+        <button
+          type='button'
+          onClick={() => setExpanded(false)}
+          className='text-muted-foreground hover:text-foreground underline-offset-2 hover:underline'
+        >
+          ▲ ย่อ
+        </button>
+      )}
+    </div>
+  )
+}
+
 /**
  * Compact audit log timeline for a specific entity row.
  * Drop into the right-rail of a detail page.
  *
- * Pass `diffFn` to enable field-level change display.
- * diffFn receives (before, after) from the audit record and returns DiffItem[].
+ * Pass `diffFn` to enable field-level change display (collapsed after 3 items).
  */
 export function EntityAuditPanel({
   entity,
@@ -82,29 +122,7 @@ export function EntityAuditPanel({
                     <p className='mt-0.5 text-xs text-muted-foreground'>
                       {r.user_email || '—'} · {formatTime(r.created_at)}
                     </p>
-                    {diffs.length > 0 && (
-                      <div className='mt-2 rounded-md bg-muted/50 px-3 py-2'>
-                        <table className='w-full text-xs'>
-                          <tbody>
-                            {diffs.map((d, i) => (
-                              // biome-ignore lint/suspicious/noArrayIndexKey: static diff list
-                              <tr key={i} className='align-top'>
-                                <td className='py-0.5 pr-3 text-muted-foreground whitespace-nowrap'>
-                                  {d.label}
-                                </td>
-                                <td className='py-0.5 pr-2 text-destructive/80 line-through whitespace-pre-wrap break-all'>
-                                  {d.from}
-                                </td>
-                                <td className='py-0.5 pr-2 text-muted-foreground'>→</td>
-                                <td className='py-0.5 text-foreground whitespace-pre-wrap break-all'>
-                                  {d.to}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    {diffs.length > 0 && <DiffList diffs={diffs} />}
                   </div>
                 </div>
               </li>

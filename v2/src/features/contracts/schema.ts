@@ -71,6 +71,13 @@ export const contractFormSchema = z
     /** วัตถุประสงค์ (e.g. "พักอาศัย", "ค้าขาย") */
     purpose: z.string().trim().max(200),
 
+    /** จุด/ล็อกบนทรัพย์สิน (optional) */
+    spot: z.string().trim().max(100),
+    /** วันครบกำหนดใบแจ้งหนี้ (1-31) */
+    dueDay: z.number().int().min(1).max(31),
+    /** ข้อความปรับค่าเช่า (optional) */
+    rateAdj: z.string().trim().max(500),
+
     /** การลงนาม · สถานที่ทำสัญญา = ที่อยู่ 5 ช่อง (เหมือนทุก form อื่น) */
     madeAtLine: z.string().trim().max(200),
     madeAtSubdistrict: z.string().trim().max(100),
@@ -112,6 +119,9 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   dur: 0,
   payment: '',
   purpose: 'พักอาศัย',
+  spot: '',
+  dueDay: 5,
+  rateAdj: '',
   madeAtLine: '',
   madeAtSubdistrict: '',
   madeAtDistrict: '',

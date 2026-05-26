@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
   TooltipContent,
@@ -30,6 +31,7 @@ import {
   type ContractFormValues,
   contractFormSchema,
 } from '@/features/contracts/schema'
+import { useSuggestContractNo } from '@/features/contracts/mutations'
 import { useContracts } from '@/features/contracts/queries'
 import { useContractTemplates } from '@/features/templates/queries'
 import { useLandlords } from '@/features/landlords/queries'
@@ -50,6 +52,8 @@ type ContractFormProps = {
   onSubmit: (values: ContractFormValues, inline: InlineStrings) => Promise<void> | void
   submitting?: boolean
   onCancel: () => void
+  /** เลขสัญญาต้นทาง (กรณีต่อสัญญา) · ใช้ auto-suggest เลข -R1 / -R2 */
+  renewedFromNo?: string
 }
 
 export type InlineStrings = {

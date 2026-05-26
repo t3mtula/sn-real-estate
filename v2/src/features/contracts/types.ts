@@ -172,6 +172,19 @@ export type ContractData = {
   /** Deposit return record */
   depositReturn?: DepositReturn
 
+  /** สถานะการต่อสัญญา · ใช้บน renewals page */
+  renewalStatus?: 'pending' | 'negotiating' | 'will_renew' | 'no_renewal'
+  /** จุด/ล็อกบนทรัพย์สิน เช่น "ล็อก A", "ห้อง 3" */
+  spot?: string
+  /** วันครบกำหนดใบแจ้งหนี้ (1-31) */
+  dueDay?: number
+  /** ข้อความปรับค่าเช่า เช่น "ปรับขึ้น 5% เมื่อต่อสัญญา" */
+  rateAdj?: string
+  /** ID ของสัญญาที่ต่อมา (ต้นทาง) */
+  renewedFrom?: string
+  /** ID ของสัญญาที่คัดลอกมา */
+  copiedFrom?: string
+
   /** v1 legacy other fields stored intact */
   [key: string]: unknown
 }

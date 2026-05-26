@@ -266,11 +266,16 @@ export async function buildInvoiceHtml(refs: InvoiceHtmlRefs): Promise<string> {
   const tenantTaxId = refs.tenant?.data?.taxId ?? c?.taxId ?? ''
   const bank = resolveBank(refs)
 
+  const isDeposit = (refs.invoice.category ?? inv.category ?? 'rent') === 'deposit'
   const vat = calcVat(refs.invoice, refs.landlord)
-  const isVat = vat.isVat
-  const grossTotal = vat.total || Number(inv.total) || 0
-  const docTitle = isVat ? 'ใบแจ้งหนี้ / ใบกำกับภาษี' : 'ใบแจ้งหนี้'
-  const docTitleEn = isVat ? 'INVOICE / TAX INVOICE' : 'INVOICE'
+  const isVat = isDeposit ? false : vat.isVat
+  const grossTotal = isDeposit ? Number(inv.total) || 0 : vat.total || Number(inv.total) || 0
+  const docTitle = isDeposit
+    ? 'ใบแจ้งหนี้ · เงินประกัน'
+    : isVat ? 'ใบแจ้งหนี้ / ใบกำกับภาษี' : 'ใบแจ้งหนี้'
+  const docTitleEn = isDeposit
+    ? 'SECURITY DEPOSIT INVOICE'
+    : isVat ? 'INVOICE / TAX INVOICE' : 'INVOICE'
 
   const freq = inv.freqType ?? 'monthly'
   const freqLbl = inv.freqLabel ?? FREQ_LABELS[freq] ?? 'รายเดือน'

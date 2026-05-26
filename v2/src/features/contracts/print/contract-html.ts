@@ -324,8 +324,13 @@ export function buildContractHtml(
        </div><div style="height:56px" class="no-print"></div>`
 
   // ─── Page 1: Main contract ───
+  const landlordLogo = refs.landlord?.data?.logo
+  const logoHtml = landlordLogo
+    ? `<div class="c-logo"><img src="${landlordLogo}" alt="logo" style="max-height:56px;max-width:120px;object-fit:contain" /></div>`
+    : ''
   const page1Header =
     '<div class="c-header">' +
+    logoHtml +
     '<div class="c-header-center">' +
     '<div class="c-title">สัญญาเช่า</div>' +
     '<div class="c-subtitle">Tenancy Agreement</div>' +
