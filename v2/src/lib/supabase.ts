@@ -1,17 +1,4 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import { getCookie, setCookie, removeCookie } from "@/lib/cookies"
-
-/**
- * Cookie-backed storage for Supabase auth session.
- * Replaces default localStorage — cookies survive iOS WKWebView cross-origin
- * navigation (OAuth redirect) that would otherwise clear localStorage and
- * break session restore on iOS Chrome / Safari.
- */
-const cookieStorage = {
-  getItem: (key: string): string | null => getCookie(key) ?? null,
-  setItem: (key: string, value: string): void => { setCookie(key, value, 365) },
-  removeItem: (key: string): void => { removeCookie(key) },
-}
 
 /**
  * Supabase typed client · ใช้ใน app ที่ clone จาก starter
@@ -27,6 +14,7 @@ const cookieStorage = {
  */
 
 // biome-ignore lint/suspicious/noExplicitAny: replace ด้วย import จาก database.types หลัง gen
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Database = any
 
 const url = import.meta.env.VITE_SUPABASE_URL
@@ -44,7 +32,6 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(url, an
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: "pkce",
-    storage: cookieStorage,
   },
 })
 
