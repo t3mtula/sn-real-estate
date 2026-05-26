@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
   ArrowRight,
+  Banknote,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -20,6 +21,7 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AlertStrips } from '@/features/alerts/alert-strips'
 import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import {
   getContractStatus,
@@ -33,6 +35,7 @@ import {
   isContractDueForMonth,
   useInvoices,
 } from '@/features/invoices/queries'
+import { usePayments } from '@/features/payments/queries'
 import type { Contract } from '@/features/contracts/types'
 import type { Invoice } from '@/features/invoices/types'
 import { amt, parseBE } from '@/lib/thai'
@@ -147,7 +150,7 @@ function KpiCard({
         <Link
           to={to}
           className={cn(
-            'group block rounded-md border p-4 transition hover:shadow-sm',
+            'group block rounded-md border p-3 transition hover:shadow-sm',
             t.bg,
           )}
         >
@@ -155,7 +158,7 @@ function KpiCard({
         </Link>
       )
     : ({ children }: { children: React.ReactNode }) => (
-        <div className={cn('rounded-md border p-4', t.bg)}>{children}</div>
+        <div className={cn('rounded-md border p-3', t.bg)}>{children}</div>
       )
   return (
     <Wrapper>
@@ -163,7 +166,7 @@ function KpiCard({
         <p className={cn('text-xs font-semibold', t.text)}>{label}</p>
         <Icon className={cn('size-4', t.icon)} />
       </div>
-      <p className={cn('mt-2 text-3xl font-bold tabular-nums', t.text)}>
+      <p className={cn('mt-2 text-2xl font-bold tabular-nums', t.text)}>
         {typeof value === 'number' ? value.toLocaleString('th-TH') : value}
       </p>
       {sub && (
@@ -186,6 +189,7 @@ export function Dashboard() {
   const { data: contracts, isLoading: lcContracts } = useContracts()
   const { data: invoices, isLoading: lcInvoices } = useInvoices()
   const { data: properties, isLoading: lcProps } = useProperties()
+  const { data: payments } = usePayments()
   const isLoading = lcContracts || lcInvoices || lcProps
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
 
@@ -296,6 +300,23 @@ export function Dashboard() {
     [stats.notInvoicedThisMonth],
   )
 
+  // Payment stats — รับเงินเดือนนี้
+  const paymentStats = useMemo(() => {
+    const now = new Date()
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const monthPayments = (payments ?? []).filter((p) => {
+      // date เก็บเป็น BE string DD/MM/YYYY — เอาแค่ปี+เดือน CE
+      const d = p.data?.date ?? ''
+      const parts = d.split('/')
+      if (parts.length !== 3) return false
+      const mm = parts[1]
+      const yyyy = String(Number(parts[2]) - 543) // BE→CE
+      return `${yyyy}-${mm}` === thisMonth
+    })
+    const received = monthPayments.reduce((s, p) => s + Number(p.data?.amount ?? 0), 0)
+    return { received }
+  }, [payments])
+
   return (
     <>
       <Header fixed>
@@ -322,6 +343,9 @@ export function Dashboard() {
           </div>
         ) : (
           <>
+            {/* Alert strips — สรุปงานค้างทุกประเภท */}
+            <AlertStrips />
+
             {/* งานวันนี้ — top priority queue · 3 columns */}
             <TodayPanel
               overdue={topOverdue}
@@ -362,6 +386,26 @@ export function Dashboard() {
                 icon={Building2}
                 tone='info'
                 to='/properties'
+              />
+            </section>
+
+            {/* Payment summary — ต้องได้รับ vs ได้รับจริง */}
+            <section className='grid gap-3 sm:grid-cols-2'>
+              <KpiCard
+                label='รับเงินเดือนนี้'
+                value={amt(paymentStats.received, { decimal: 0 })}
+                sub='ยอดที่บันทึกแล้วในระบบ'
+                icon={Banknote}
+                tone='success'
+                to='/payments'
+              />
+              <KpiCard
+                label='ค้างรับ (ยังไม่ได้บันทึก)'
+                value={amt(Math.max(0, stats.outstandingAmount - paymentStats.received), { decimal: 0 })}
+                sub={`จากค้างชำระรวม ${amt(stats.outstandingAmount, { decimal: 0 })} บาท`}
+                icon={Banknote}
+                tone={stats.outstandingAmount > paymentStats.received ? 'warning' : 'success'}
+                to='/invoices'
               />
             </section>
 

@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useInvoices, daysOverdue } from '@/features/invoices/queries'
 import { useContracts, getContractStatus } from '@/features/contracts/queries'
+import { useValidationScan } from '@/features/validation/queries'
 import { useAuthStore } from '@/stores/auth-store'
 import { sidebarData } from './data/sidebar-data'
 import { NavGroup } from './nav-group'
@@ -20,6 +21,7 @@ import type { SidebarData } from './types'
 function useNavBadges() {
   const { data: invoices } = useInvoices()
   const { data: contracts } = useContracts()
+  const { data: issues } = useValidationScan()
   return useMemo(() => {
     const overdueCount = (invoices ?? []).filter((iv) => {
       const st = (iv.status ?? iv.data?.status ?? '').toLowerCase()
@@ -30,13 +32,14 @@ function useNavBadges() {
       if (c.data?.cancelled) return false
       return getContractStatus(c.data) === 'expiring'
     }).length
-    return { overdueCount, expiringCount }
-  }, [invoices, contracts])
+    const validationCount = (issues ?? []).filter((i) => i.severity === 'error').length
+    return { overdueCount, expiringCount, validationCount }
+  }, [invoices, contracts, issues])
 }
 
 /** Build a sidebarData clone with live badge counts injected */
 function useSidebarWithBadges(): SidebarData {
-  const { overdueCount, expiringCount } = useNavBadges()
+  const { overdueCount, expiringCount, validationCount } = useNavBadges()
   return useMemo(() => {
     return {
       ...sidebarData,
@@ -49,11 +52,14 @@ function useSidebarWithBadges(): SidebarData {
           if ('url' in it && it.url === '/contracts/renewals' && expiringCount > 0) {
             return { ...it, badge: String(expiringCount) }
           }
+          if ('url' in it && it.url === '/validation' && validationCount > 0) {
+            return { ...it, badge: String(validationCount) }
+          }
           return it
         }),
       })),
     }
-  }, [overdueCount, expiringCount])
+  }, [overdueCount, expiringCount, validationCount])
 }
 
 export function AppSidebar() {

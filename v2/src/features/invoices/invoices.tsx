@@ -694,7 +694,7 @@ export function Invoices() {
 
             {/* v1-style running totals · responds to filter + search */}
             {!isLoading && kpi.count > 0 && (
-              <div className='grid grid-cols-2 gap-2 sm:grid-cols-4'>
+              <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
                 <KpiCard
                   label='ทั้งหมด'
                   value={amt(kpi.total, { symbol: false, decimal: 0 })}

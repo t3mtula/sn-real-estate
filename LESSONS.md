@@ -2,7 +2,7 @@
 
 > **กฎจากปัญหาที่เคยเกิด · ห้ามทำซ้ำ**
 > Source: https://www.notion.so/5fb68ef12b7b4d16bf0b1220b597c5cb
-> Synced: 2026-05-23 · ถ้าเก่ากว่า 7 วัน บอก Claude "sync lessons"
+> Synced: 2026-05-24 · ถ้าเก่ากว่า 7 วัน บอก Claude "sync lessons"
 
 ## วิธีใช้
 
@@ -30,6 +30,33 @@ Lesson แต่ละข้อคือ rule ที่ต้อง apply ทั
 - Animation/transition smoothness
 - Mobile Safari/iOS-specific behavior
 - User-reported "ดูแปลก"
+
+---
+
+## 🚀 Cloudflare Pages deploy — ใช้ `--branch=main` เสมอ
+
+**deploy ด้วย `--branch=main` เท่านั้น** — ห้ามใช้ `--branch=production` หรือชื่ออื่น
+
+- `--branch` ใน wrangler คือ **label** ของ deployment ไม่ใช่ environment จริง
+- Cloudflare Pages กำหนด production branch ใน project settings = `main`
+- ถ้าใส่ `--branch=production` → สร้าง **preview alias** `production.xxx.pages.dev` แทน → URL หลักไม่อัปเดต
+- **commit message ต้องเป็น ASCII เสมอ** (ไทย → Cloudflare reject) → ใช้ `--commit-message="feat: ..."`
+
+**คำสั่งที่ถูก:**
+```
+wrangler pages deploy dist --project-name=sn-real-estate-v2 --branch=main --commit-dirty=true --commit-message="feat: ..."
+```
+
+---
+
+## 🖨️ v2 Print — ก่อนแก้ CSS/print ต้อง trace ก่อน + ตรวจ deploy
+
+**ก่อนแก้ print/CSS ใดๆ ใน v2: route → component → import → buildFn → แก้ไฟล์นั้น** ([Notion](https://www.notion.so/36afdba535ca81b5943bdad004147bb1))
+
+- **v2 print map (จำ):** `/templates/*` → `contract-html.ts` (HTML iframe) · `/contracts/*/print` → `contract-pdf.ts` (pdfmake) — คนละไฟล์คนละโลก
+- **ใช้ `npm run build` เสมอ** (ไม่ใช่ `npx vite build`) — CI รัน `npm run build` = `tsc -b && vite build` · local ต้องเหมือนกัน
+- **ถ้า `npm run build` fail ด้วย "Cannot find module"** → รัน `npm install` ก่อน — อาจมี package ใน lock file ที่ยังไม่ได้ install local
+- **หลัง wrangler deploy** ตรวจบรรทัด `Uploaded N files` เสมอ — ถ้า 0 files = dist ไม่เปลี่ยน = deploy ของเก่า ต้องหยุด debug build ก่อน
 
 ---
 

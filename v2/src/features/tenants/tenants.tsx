@@ -458,7 +458,7 @@ export function Tenants() {
         )}
 
         {!isLoading && kpi.count > 0 && (
-          <div className='grid grid-cols-2 gap-2 sm:grid-cols-5'>
+          <div className='grid grid-cols-2 gap-3 sm:grid-cols-5'>
             <KpiCard
               label='ทั้งหมด'
               value={kpi.count.toLocaleString('th-TH')}

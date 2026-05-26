@@ -50,14 +50,14 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 11px; color: #1e293b; line-height: 1.5; margin-top: 1px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 9.5px; letter-spacing: .3px; }
 
-/* ── Contract body · บีบเข้า 2 หน้า: font 12 · line-height 1.6 · margin clauses 10/sub 6 ── */
-.c-body { font-size: 12px; line-height: 1.6; color: #1e293b; text-align: justify; margin-bottom: 14px; }
-.c-intro { margin: 0 0 10px 0; text-indent: 24px; }
-.clause { margin: 10px 0; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 12px; }
-.sub-clause { margin: 6px 0 6px 24px; font-size: 11.5px; color: #1e293b; line-height: 1.6; }
+/* ── Contract body · เต็ม 2 หน้า: font 13.5 · line-height 1.75 · margin clauses 13/sub 8 ── */
+.c-body { font-size: 13.5px; line-height: 1.75; color: #1e293b; text-align: justify; margin-bottom: 16px; }
+.c-intro { margin: 0 0 12px 0; text-indent: 28px; }
+.clause { margin: 13px 0; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 13.5px; }
+.sub-clause { margin: 8px 0 8px 28px; font-size: 12.5px; color: #1e293b; line-height: 1.75; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; }
-.c-closing { margin: 14px 0 0 0; text-indent: 24px; }
+.c-closing { margin: 18px 0 0 0; text-indent: 28px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }

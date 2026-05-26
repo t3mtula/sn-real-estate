@@ -183,7 +183,7 @@ export function FollowUpDashboard() {
         </div>
       </Header>
 
-      <Main className='flex flex-1 flex-col gap-5'>
+      <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex flex-wrap items-center justify-between gap-3'>
           <div>
             <div className='flex items-center gap-2'>
