@@ -1,4 +1,4 @@
-import { useNavigate  } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import {
   closestCenter,
   DndContext,
@@ -36,6 +36,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -45,7 +52,7 @@ import {
   DEFAULT_INTRO,
 } from '@/features/contracts/print/default-template'
 import { TemplateA4Preview } from './template-a4-preview'
-import { useContractTemplate } from './queries'
+import { useContractTemplate, useContractTemplates } from './queries'
 import { useCreateTemplate, useUpdateTemplate } from './mutations'
 import {
   DEFAULT_ATTACHMENTS,
@@ -166,6 +173,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
   )
   const create = useCreateTemplate()
   const update = useUpdateTemplate(id ?? '')
+  const { data: allTemplates } = useContractTemplates()
 
   const [draft, setDraft] = useState<TemplateData>(() => ({
     name: '',
@@ -427,16 +435,35 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
                 />
               </div>
               <div className='space-y-2'>
-                <Label htmlFor='version'>เวอร์ชั่น (ไม่บังคับ)</Label>
-                <Input
-                  id='version'
-                  value={draft.version ?? ''}
-                  onChange={(e) => {
-                    setDirty(true)
-                    setDraft((d) => ({ ...d, version: e.target.value }))
+                <Label>เปลี่ยนแบบ / สร้างใหม่</Label>
+                <Select
+                  value={mode === 'edit' && id ? id : '__new__'}
+                  onValueChange={(v) => {
+                    if (v === '__new__') {
+                      navigate({ to: '/templates/new' })
+                    } else if (v !== id) {
+                      navigate({ to: '/templates/$id', params: { id: v } })
+                    }
                   }}
-                  placeholder='เช่น v2.1 · 2569-ก.พ.'
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__new__'>
+                      <span className='flex items-center gap-1.5 text-primary'>
+                        <Plus className='size-3' />
+                        สร้างแบบใหม่
+                      </span>
+                    </SelectItem>
+                    {(allTemplates ?? []).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.data?.name || '(ไม่ระบุชื่อ)'}
+                        {t.is_active ? ' ✓' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
