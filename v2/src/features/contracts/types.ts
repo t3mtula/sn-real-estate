@@ -145,8 +145,18 @@ export type ContractData = {
   /** Closed (legacy v1) */
   closed?: boolean
 
-  /** Per-contract clause overrides */
+  /**
+   * Per-contract clause overrides (legacy index-based · deprecated)
+   * @deprecated ใช้ contractClauses แทน
+   */
   clauseOverrides?: Record<string, string>
+
+  /**
+   * Per-contract clause snapshot — full clause set for this contract.
+   * Set on first save of the clause editor; print prefers this over template.
+   * Structure mirrors ContractClause[] from template.
+   */
+  contractClauses?: Array<{ text: string; sub?: string[] }>
 
   /** Move-out inspection record */
   inspection?: MoveOutInspection

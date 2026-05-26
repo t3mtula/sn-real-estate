@@ -453,12 +453,26 @@ export function useRecordDepositReturn(id: string) {
   })
 }
 
-/** Save per-contract clause overrides */
+/** Save per-contract clause overrides (legacy · deprecated) */
 export function useUpdateContractClauses(id: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (overrides: Record<string, string>) => {
       await mergeUpdateContract(id, { clauseOverrides: overrides })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['contracts', id] })
+    },
+  })
+}
+
+/** Save full per-contract clause snapshot (replaces legacy clauseOverrides) */
+export function useUpdateContractClausesFull(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (contractClauses: Array<{ text: string; sub?: string[] }>) => {
+      await mergeUpdateContract(id, { contractClauses })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })

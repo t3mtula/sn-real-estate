@@ -286,16 +286,21 @@ export function buildContractHtml(
   })()
   const madeDateStr = dateToThai(c.madeDate)
 
-  // ── Template + clauses + overrides ──
-  const tpl = refs.template?.data
-    ? {
-        intro: refs.template.data.intro ?? DEFAULT_TEMPLATE.intro,
-        clauses: refs.template.data.clauses ?? DEFAULT_TEMPLATE.clauses,
-        closing: refs.template.data.closing ?? DEFAULT_TEMPLATE.closing,
-      }
-    : DEFAULT_TEMPLATE
+  // ── Template + clauses ──
+  // Priority: contractClauses (per-contract snapshot) > template > DEFAULT
+  const tplData = refs.template?.data
+  const tpl = {
+    intro: tplData?.intro ?? DEFAULT_TEMPLATE.intro,
+    clauses: tplData?.clauses ?? DEFAULT_TEMPLATE.clauses,
+    closing: tplData?.closing ?? DEFAULT_TEMPLATE.closing,
+  }
   const ctx = { landlord: landlordName, tenant: tenantName }
-  const overrides = (c.clauseOverrides ?? {}) as Record<string, string>
+
+  // Per-contract clause snapshot — if set, use it instead of template clauses
+  const contractClauses = c.contractClauses as Array<{ text: string; sub?: string[] }> | undefined
+  const activeClauses = contractClauses ?? tpl.clauses
+  // legacy override map (deprecated) — only used if no contractClauses snapshot
+  const legacyOverrides = contractClauses ? {} : (c.clauseOverrides ?? {}) as Record<string, string>
 
   // ── Property + bank (appendix) ──
   const p = refs.property?.data
@@ -364,13 +369,15 @@ export function buildContractHtml(
     '</div></td></tr>' +
     '</table>'
 
-  // ── Body: intro + clauses + closing (with override marks) ──
-  const clausesHtml = tpl.clauses
+  // ── Body: intro + clauses + closing ──
+  // If contractClauses snapshot exists → render directly (no override marks needed)
+  // If legacy overrides exist → apply to template clauses with override marks
+  const clausesHtml = activeClauses
     .map((cl, i) => {
       const overrideKey = String(i)
-      const isMainOverridden = overrideKey in overrides
+      const isMainOverridden = !contractClauses && overrideKey in legacyOverrides
       const mainText = isMainOverridden
-        ? renderTemplateText(overrides[overrideKey] ?? '', ctx)
+        ? renderTemplateText(legacyOverrides[overrideKey] ?? '', ctx)
         : renderTemplateText(cl.text ?? '', ctx)
       const mainCls = isMainOverridden ? 'clause override-mark' : 'clause'
       const note = isMainOverridden
@@ -378,13 +385,14 @@ export function buildContractHtml(
         : ''
       let html =
         `<div class="${mainCls}"><span class="clause-num">ข้อ ${i + 1}.</span> ${mainText}${note}</div>`
-      if (cl.sub?.length) {
-        html += cl.sub
+      const subList = cl.sub ?? []
+      if (subList.length) {
+        html += subList
           .map((s, j) => {
             const subKey = `${i}.${j}`
-            const isSubOverridden = subKey in overrides
+            const isSubOverridden = !contractClauses && subKey in legacyOverrides
             const subText = isSubOverridden
-              ? renderTemplateText(overrides[subKey] ?? '', ctx)
+              ? renderTemplateText(legacyOverrides[subKey] ?? '', ctx)
               : renderTemplateText(s, ctx)
             const subCls = isSubOverridden ? 'sub-clause override-mark' : 'sub-clause'
             const subNote = isSubOverridden ? '<span class="override-note">(แก้ไข)</span>' : ''
@@ -599,13 +607,13 @@ body { background: #fff; color: #1a202c; }
 .party-detail { font-size: 13px; color: #1e293b; line-height: 1.55; margin-top: 3px; }
 .party-detail-label { color: #64748b; font-weight: 600; font-size: 11px; letter-spacing: .3px; }
 
-.c-body { font-size: 15.5px; line-height: 1.8; color: #1e293b; text-align: justify; margin-bottom: 0; }
-.c-intro { margin: 0; text-indent: 28px; }
-.clause { margin: 0; padding-left: 0; }
-.clause-num { font-weight: 700; color: #1e3a5f; font-size: 15.5px; margin-right: 4px; }
-.sub-clause { margin: 0 0 0 28px; font-size: 15.5px; color: #1e293b; line-height: 1.8; }
+.c-body { font-size: 17px; line-height: 2.0; color: #1e293b; text-align: justify; margin-bottom: 0; }
+.c-intro { margin: 0 0 6px; text-indent: 28px; }
+.clause { margin: 4px 0; padding-left: 0; }
+.clause-num { font-weight: 700; color: #1e3a5f; font-size: 17px; margin-right: 4px; }
+.sub-clause { margin: 0 0 0 28px; font-size: 17px; color: #1e293b; line-height: 2.0; }
 .sub-clause-num { font-weight: 600; color: #1e3a5f; margin-right: 4px; }
-.c-closing { margin: 0; text-indent: 28px; }
+.c-closing { margin: 6px 0 0; text-indent: 28px; }
 .override-mark { color: #dc2626; }
 .override-note { font-size: 9px; color: #dc2626; font-style: italic; margin-left: 6px; }
 @media print { .override-mark { color: inherit !important; } .override-note { display: none !important; } }
