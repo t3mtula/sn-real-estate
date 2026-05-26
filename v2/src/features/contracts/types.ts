@@ -100,14 +100,19 @@ export type ContractData = {
   /** Saved before cancel for restoring */
   originalEnd?: string
 
-  /** Money — display string ("เดือนละ 25,000 บาท") หรือ legacy number */
+  /** ค่าเช่า — ข้อความในสัญญา (free text) หรือ legacy number */
   rate?: number | string
   deposit?: number | string
-  /** Structured rate fields (บันทึกพร้อมกับ rate string) */
-  rateFreq?: 'monthly' | 'quarterly' | 'annual'
+  /** ค่าเช่าสำหรับคำนวณ */
   rateAmount?: number
+  /** รอบเรียกเก็บ = ทุก N เดือน (1=รายเดือน · 3=ไตรมาส · 12=รายปี) */
+  rateIntervalMonths?: number
+  /** วันเริ่มเก็บค่าเช่า (อาจต่างจาก start) */
+  billingStart?: string
+  /** Legacy fields — ไว้ backward compat */
+  rateFreq?: string
   monthlyBaht?: number
-  /** Payment description e.g. "รายเดือน ชำระภายในวันที่ 5" */
+  /** Payment description e.g. "ชำระล่วงหน้า ภายในวันที่ 5" */
   payment?: string
   /** Duration — display string ("3 ปี", "2 ปี 6 เดือน") หรือ legacy number */
   dur?: number | string

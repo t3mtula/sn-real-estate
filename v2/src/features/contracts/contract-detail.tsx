@@ -294,16 +294,36 @@ function ContractEditing({
     parent_contract_id: c.parent_contract_id ?? '',
     start: c.start ?? '',
     end: c.end ?? '',
-    rate: coerceNumber(c.rate),
-    rateFreq: (() => {
+    // rate = ข้อความในสัญญา · ถ้าเป็น legacy number → reconstruct จาก rateFreq
+    rate: (() => {
+      const r = c.rate
+      if (typeof r === 'string' && r.trim()) return r
+      const amount = coerceNumber(r)
+      if (!amount) return ''
       const rf = (c as any).rateFreq
-      if (rf === 'monthly' || rf === 'quarterly' || rf === 'annual') return rf
-      // Infer from rate Thai string for legacy contracts ("ปีละ X บาท", "ไตรมาสละ X")
+      if (rf === 'annual') return `ปีละ ${amount.toLocaleString('th-TH')} บาท`
+      if (rf === 'quarterly') return `ไตรมาสละ ${amount.toLocaleString('th-TH')} บาท`
+      return `เดือนละ ${amount.toLocaleString('th-TH')} บาท`
+    })(),
+    rateAmount: (() => {
+      const ra = (c as any).rateAmount
+      if (typeof ra === 'number' && ra > 0) return ra
+      return coerceNumber(c.rate)
+    })(),
+    rateIntervalMonths: (() => {
+      const ri = (c as any).rateIntervalMonths
+      if (typeof ri === 'number' && ri >= 1) return ri
+      // Infer from legacy rateFreq
+      const rf = (c as any).rateFreq
+      if (rf === 'quarterly') return 3
+      if (rf === 'annual') return 12
+      // Infer from rate Thai string
       const rStr = String(c.rate ?? '')
-      if (rStr.includes('ไตรมาส')) return 'quarterly'
-      if (rStr.includes('ปี')) return 'annual'
-      return 'monthly'
-    })() as 'monthly' | 'quarterly' | 'annual',
+      if (rStr.includes('ไตรมาส')) return 3
+      if (rStr.includes('ปี')) return 12
+      return 1
+    })(),
+    billingStart: (c as any).billingStart ?? '',
     deposit: coerceNumber(c.deposit),
     dur: coerceNumber((c as any).durMonths) || coerceDurMonths(c.dur),
     // Hydrate payment from existing data — DO NOT default to 'รายเดือน' which

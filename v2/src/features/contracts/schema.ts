@@ -51,14 +51,18 @@ export const contractFormSchema = z
     start: beDateStr().refine((s) => s.length > 0, { message: 'กรอกวันเริ่มต้น' }),
     end: beDateStr().refine((s) => s.length > 0, { message: 'กรอกวันสิ้นสุด' }),
 
-    /** Money */
-    rate: z.number().positive('ค่าเช่าต้องมากกว่า 0'),
-    /** อัตราค่าเช่าคิดต่อ: รายเดือน / รายไตรมาส / รายปี */
-    rateFreq: z.enum(['monthly', 'quarterly', 'annual']),
+    /** ค่าเช่า — ข้อความในสัญญา (free text · ปรากฏใน print) */
+    rate: z.string().trim().max(500),
+    /** ค่าเช่า — จำนวนเงินสำหรับคำนวณ (ไม่ปรากฏในสัญญา) */
+    rateAmount: z.number().min(0),
+    /** รอบเรียกเก็บ = ทุก N เดือน (1=รายเดือน · 3=ไตรมาส · 12=รายปี) */
+    rateIntervalMonths: z.number().int().min(1).max(120),
+    /** วันเริ่มเก็บค่าเช่า — อาจต่างจากวันเริ่มสัญญา (rent-free period) */
+    billingStart: beDateStr(),
     deposit: z.number().min(0, 'มัดจำต้องไม่ติดลบ'),
     /** ระยะสัญญา (เดือน) · optional auto-calc */
     dur: z.number().min(0, 'ระยะต้องไม่ติดลบ').max(600),
-    /** Payment frequency description (e.g. "รายเดือน", "ทุก 3 เดือน") */
+    /** รายละเอียดการชำระเงิน (e.g. "ชำระล่วงหน้า ภายในวันที่ 5") */
     payment: z.string().trim().max(200),
 
     /** วัตถุประสงค์ (e.g. "พักอาศัย", "ค้าขาย") */
@@ -87,7 +91,6 @@ export const contractFormSchema = z
   })
 
 export type ContractFormValues = z.infer<typeof contractFormSchema>
-export type RateFreq = 'monthly' | 'quarterly' | 'annual'
 
 export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   no: '',
@@ -98,11 +101,13 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   parent_contract_id: '',
   start: '',
   end: '',
-  rate: 0,
-  rateFreq: 'monthly',
+  rate: '',
+  rateAmount: 0,
+  rateIntervalMonths: 1,
+  billingStart: '',
   deposit: 0,
   dur: 0,
-  payment: 'รายเดือน',
+  payment: '',
   purpose: 'พักอาศัย',
   madeAtLine: '',
   madeAtSubdistrict: '',

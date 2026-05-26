@@ -31,13 +31,6 @@ export class DuplicateContractNoError extends Error {
  * - Dual-write: คงเก็บ inline strings (tenant, landlord) สำหรับ v1 backward
  *   compat · resolved จาก linked entities ใน caller (ไม่ใช่ใน mutation)
  */
-/** Thai label สำหรับ rateFreq */
-const RATE_FREQ_LABEL: Record<string, string> = {
-  monthly: 'เดือน',
-  quarterly: 'ไตรมาส',
-  annual: 'ปี',
-}
-
 function valuesToManagedFields(
   values: ContractFormValues,
   pid: number,
@@ -47,15 +40,6 @@ function valuesToManagedFields(
     taxId?: string
   } = {},
 ): Partial<ContractData> {
-  // Compute structured rate fields
-  const freqLabel = RATE_FREQ_LABEL[values.rateFreq] ?? 'เดือน'
-  const rateAmount = values.rate
-  const rateStr = `${freqLabel}ละ ${rateAmount.toLocaleString('th-TH', { maximumFractionDigits: 2 })} บาท`
-  const monthlyBaht =
-    values.rateFreq === 'quarterly' ? Math.round(rateAmount / 3)
-    : values.rateFreq === 'annual' ? Math.round(rateAmount / 12)
-    : rateAmount
-
   // Compute structured dur fields
   const durTotalMonths = values.dur
   const durYears = Math.floor(durTotalMonths / 12)
@@ -77,10 +61,10 @@ function valuesToManagedFields(
     parent_contract_id: values.parent_contract_id || undefined,
     start: values.start.trim(),
     end: values.end.trim(),
-    rate: rateStr,
-    rateFreq: values.rateFreq,
-    rateAmount,
-    monthlyBaht,
+    rate: values.rate.trim() || undefined,
+    rateAmount: values.rateAmount || undefined,
+    rateIntervalMonths: values.rateIntervalMonths,
+    billingStart: values.billingStart.trim() || undefined,
     deposit: values.deposit,
     dur: durStr,
     durMonths: durTotalMonths,

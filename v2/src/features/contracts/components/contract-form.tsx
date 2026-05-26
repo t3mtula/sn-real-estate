@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { useBankAccountsForLandlord } from '@/features/landlord-banks/queries'
@@ -83,7 +89,6 @@ export function ContractForm({
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
   const durMonths = form.watch('dur')
-  const rateFreq = form.watch('rateFreq')
   const madeAtLine = form.watch('madeAtLine')
   const madeAtSubdistrict = form.watch('madeAtSubdistrict')
   const madeAtDistrict = form.watch('madeAtDistrict')
@@ -180,6 +185,7 @@ export function ContractForm({
   const errors = form.formState.errors
 
   return (
+    <TooltipProvider delayDuration={300}>
     <form
       onSubmit={form.handleSubmit(handleSubmit)}
       className='flex flex-col gap-6'
@@ -436,39 +442,53 @@ export function ContractForm({
           </Select>
         </div>
 
-        <div>
-          <Label htmlFor='rate'>
-            ค่าเช่า (บาท) <span className='text-destructive'>*</span>
+        <div className='sm:col-span-2'>
+          <Label htmlFor='rate' className='flex items-center gap-1.5'>
+            ค่าเช่า (ข้อความในสัญญา)
+            <FieldInfo tip='ข้อความนี้ปรากฏในสัญญาเช่าฉบับจริง เช่น "ปีละ 201,000 บาท" หรือ "เดือนละ 25,000 บาท (สองหมื่นห้าพันบาทถ้วน)"' />
           </Label>
-          <div className='flex gap-2'>
-            <Input
-              id='rate'
-              type='number'
-              inputMode='decimal'
-              step='0.01'
-              {...form.register('rate', { valueAsNumber: true })}
-              placeholder='5000'
-              className={cn(errors.rate && 'border-destructive', 'flex-1')}
-            />
-            <Select
-              value={rateFreq}
-              onValueChange={(v) =>
-                form.setValue('rateFreq', v as 'monthly' | 'quarterly' | 'annual', {
-                  shouldDirty: true,
-                })
-              }
-            >
-              <SelectTrigger className='w-28'>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='monthly'>/เดือน</SelectItem>
-                <SelectItem value='quarterly'>/ไตรมาส</SelectItem>
-                <SelectItem value='annual'>/ปี</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Input
+            id='rate'
+            {...form.register('rate')}
+            placeholder='เช่น เดือนละ 25,000 บาท หรือ ปีละ 201,000 บาท'
+            className={cn(errors.rate && 'border-destructive')}
+          />
           {errors.rate && <FieldError>{errors.rate.message}</FieldError>}
+        </div>
+
+        <div>
+          <Label htmlFor='rateAmount' className='flex items-center gap-1.5'>
+            จำนวนเงิน (คำนวณ)
+            <FieldInfo tip='ตัวเลขสำหรับคำนวณ invoice และรายงาน — ไม่ปรากฏในสัญญา' />
+          </Label>
+          <Input
+            id='rateAmount'
+            type='number'
+            inputMode='decimal'
+            step='0.01'
+            {...form.register('rateAmount', { valueAsNumber: true })}
+            placeholder='25000'
+            className={cn(errors.rateAmount && 'border-destructive')}
+          />
+          {errors.rateAmount && <FieldError>{errors.rateAmount.message}</FieldError>}
+        </div>
+
+        <div>
+          <Label htmlFor='rateIntervalMonths' className='flex items-center gap-1.5'>
+            รอบเรียกเก็บ (เดือน)
+            <FieldInfo tip='เรียกเก็บทุกกี่เดือน — 1=รายเดือน · 3=รายไตรมาส · 12=รายปี — ใช้คำนวณ invoice ไม่ปรากฏในสัญญา' />
+          </Label>
+          <Input
+            id='rateIntervalMonths'
+            type='number'
+            inputMode='numeric'
+            min={1}
+            max={120}
+            {...form.register('rateIntervalMonths', { valueAsNumber: true })}
+            placeholder='1'
+            className={cn(errors.rateIntervalMonths && 'border-destructive')}
+          />
+          {errors.rateIntervalMonths && <FieldError>{errors.rateIntervalMonths.message}</FieldError>}
         </div>
 
         <div>
@@ -483,6 +503,20 @@ export function ContractForm({
             className={cn(errors.deposit && 'border-destructive')}
           />
           {errors.deposit && <FieldError>{errors.deposit.message}</FieldError>}
+        </div>
+
+        <div>
+          <Label htmlFor='billingStart' className='flex items-center gap-1.5'>
+            วันเริ่มเก็บค่าเช่า
+            <FieldInfo tip='กรณีให้ rent-free ช่วงแรก — วันที่เริ่มออก invoice จริง ถ้าตรงกับวันเริ่มสัญญาไม่ต้องกรอก' />
+          </Label>
+          <DateInputBE
+            id='billingStart'
+            value={form.watch('billingStart')}
+            onChange={(v) => form.setValue('billingStart', v, { shouldDirty: true })}
+            hasError={!!errors.billingStart}
+          />
+          {errors.billingStart && <FieldError>{errors.billingStart.message}</FieldError>}
         </div>
 
         <div className='sm:col-span-2'>
@@ -578,9 +612,23 @@ export function ContractForm({
         </Button>
       </div>
     </form>
+    </TooltipProvider>
   )
 }
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return <p className='mt-1.5 text-xs text-destructive'>{children}</p>
+}
+
+function FieldInfo({ tip }: { tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Info className='size-3.5 cursor-help text-muted-foreground' />
+      </TooltipTrigger>
+      <TooltipContent side='top' className='max-w-72'>
+        <p className='text-xs'>{tip}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
