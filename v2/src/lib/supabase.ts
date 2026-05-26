@@ -9,7 +9,7 @@ import { getCookie, setCookie, removeCookie } from "@/lib/cookies"
  */
 const cookieStorage = {
   getItem: (key: string): string | null => getCookie(key) ?? null,
-  setItem: (key: string, value: string): void => { setCookie(key, value, 365) },
+  setItem: (key: string, value: string): void => { setCookie(key, value, 365 * 24 * 60 * 60) },
   removeItem: (key: string): void => { removeCookie(key) },
 }
 

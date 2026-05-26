@@ -54,8 +54,8 @@ wrangler pages deploy dist --project-name=sn-real-estate-v2 --branch=main --comm
 **ก่อนแก้ print/CSS ใดๆ ใน v2: route → component → import → buildFn → แก้ไฟล์นั้น** ([Notion](https://www.notion.so/36afdba535ca81b5943bdad004147bb1))
 
 - **v2 print map (จำ):** `/templates/*` → `contract-html.ts` (HTML iframe) · `/contracts/*/print` → `contract-pdf.ts` (pdfmake) — คนละไฟล์คนละโลก
-- **npm run build ติด tsc error** (pre-existing) → `&&` หยุด vite build เงียบๆ → ใช้ `npx vite build` ตรงๆ แทน
-- **`npx vite build` ไม่รัน tsc** — CI รัน `tsc --noEmit` เสมอ → ต้องรัน `npx tsc --noEmit` เองก่อน commit ทุกครั้ง ไม่งั้น TypeScript errors โผล่ใน CI เท่านั้น
+- **ใช้ `npm run build` เสมอ** (ไม่ใช่ `npx vite build`) — CI รัน `npm run build` = `tsc -b && vite build` · local ต้องเหมือนกัน
+- **ถ้า `npm run build` fail ด้วย "Cannot find module"** → รัน `npm install` ก่อน — อาจมี package ใน lock file ที่ยังไม่ได้ install local
 - **หลัง wrangler deploy** ตรวจบรรทัด `Uploaded N files` เสมอ — ถ้า 0 files = dist ไม่เปลี่ยน = deploy ของเก่า ต้องหยุด debug build ก่อน
 
 ---
