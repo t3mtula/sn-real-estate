@@ -13,8 +13,10 @@ import {
   getContractStatus,
   useContracts,
 } from '@/features/contracts/queries'
+import { useSetRenewalStatus } from '@/features/contracts/mutations'
 import type { Contract } from '@/features/contracts/types'
 import { amt, parseBE } from '@/lib/thai'
+import { cn } from '@/lib/utils'
 
 type Row = Contract & { daysLeft: number }
 
@@ -56,6 +58,29 @@ const BUCKETS = {
   },
 }
 
+const RENEWAL_STATUS_OPTIONS = [
+  {
+    value: 'pending' as const,
+    label: 'ยังไม่กำหนด',
+    className: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
+  },
+  {
+    value: 'negotiating' as const,
+    label: 'กำลังเจรจา',
+    className: 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800',
+  },
+  {
+    value: 'will_renew' as const,
+    label: 'จะต่อสัญญา',
+    className: 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300 dark:hover:bg-green-800',
+  },
+  {
+    value: 'no_renewal' as const,
+    label: 'ไม่ต่อสัญญา',
+    className: 'bg-gray-200 text-gray-500 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600',
+  },
+] as const
+
 function bucketKey(daysLeft: number): keyof typeof BUCKETS | null {
   if (daysLeft < 0) return 'expired'
   if (daysLeft <= 30) return 'd30'
@@ -66,12 +91,14 @@ function bucketKey(daysLeft: number): keyof typeof BUCKETS | null {
 
 export function Renewals() {
   const { data: contracts, isLoading } = useContracts()
+  const setStatus = useSetRenewalStatus()
 
   const rows = useMemo<Row[]>(() => {
     if (!contracts) return []
     const now = new Date()
     return contracts
       .filter((c) => !c.data?.cancelled)
+      .filter((c) => c.data?.renewalStatus !== 'no_renewal')
       .map((c) => {
         const e = parseBE(c.data?.end ?? '')
         if (!e) return null
@@ -84,6 +111,13 @@ export function Renewals() {
       // window: anything ending within -30 to +180 days
       .filter((r) => r.daysLeft >= -30 && r.daysLeft <= 180)
       .sort((a, b) => a.daysLeft - b.daysLeft)
+  }, [contracts])
+
+  const noRenewalCount = useMemo(() => {
+    if (!contracts) return 0
+    return contracts.filter(
+      (c) => c.data?.renewalStatus === 'no_renewal' && !c.data?.cancelled,
+    ).length
   }, [contracts])
 
   const counts = useMemo(() => {
@@ -168,6 +202,7 @@ export function Renewals() {
                       ? Math.min(100, Math.max(0, Math.round((elapsed / totalDays) * 100)))
                       : 0
                   const status = getContractStatus(r.data)
+                  const currentStatus = r.data?.renewalStatus ?? 'pending'
                   return (
                     <Link
                       key={r.id}
@@ -221,6 +256,41 @@ export function Renewals() {
                               />
                             </div>
                           </div>
+
+                          {/* renewal status pills + ต่อสัญญา button */}
+                          <div className='mt-2 flex flex-wrap items-center gap-2'>
+                            {RENEWAL_STATUS_OPTIONS.map((opt) => (
+                              <button
+                                key={opt.value}
+                                type='button'
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setStatus.mutate({
+                                    id: r.id,
+                                    status:
+                                      opt.value === 'pending' ? undefined : opt.value,
+                                  })
+                                }}
+                                className={cn(
+                                  'rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors',
+                                  currentStatus === opt.value
+                                    ? cn(opt.className, 'ring-1 ring-inset ring-current')
+                                    : 'bg-muted/50 text-muted-foreground hover:bg-muted',
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                            <Link
+                              to='/contracts/new'
+                              search={{ renewFrom: r.id }}
+                              onClick={(e) => e.stopPropagation()}
+                              className='ml-auto rounded-md bg-indigo-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-indigo-700'
+                            >
+                              ต่อสัญญา →
+                            </Link>
+                          </div>
                         </div>
                         <div className='shrink-0 text-right'>
                           <div className={`text-2xl font-bold tabular-nums ${meta.text}`}>
@@ -243,6 +313,13 @@ export function Renewals() {
                   )
                 })}
               </div>
+            )}
+
+            {/* Note about hidden no_renewal contracts */}
+            {noRenewalCount > 0 && (
+              <p className='text-center text-xs text-muted-foreground'>
+                ซ่อน {noRenewalCount} สัญญาที่ทำเครื่องหมาย "ไม่ต่อสัญญา"
+              </p>
             )}
           </>
         )}

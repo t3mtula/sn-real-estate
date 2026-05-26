@@ -5,6 +5,7 @@ import {
   Calendar,
   ChevronDown,
   ChevronUp,
+  Copy,
   CreditCard,
   DoorOpen,
   FileText,
@@ -13,6 +14,7 @@ import {
   Pencil,
   Printer,
   Receipt,
+  RefreshCw,
   RotateCcw,
   ScrollText,
   UserRound,
@@ -341,6 +343,9 @@ function ContractEditing({
       return ''
     })(),
     purpose: (c.purpose as string) ?? 'พักอาศัย',
+    spot: c.spot ?? '',
+    dueDay: c.dueDay ?? 5,
+    rateAdj: c.rateAdj ?? '',
     // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line
     madeAtLine: c.madeAtLine ?? c.madeAt ?? '',
     madeAtSubdistrict: c.madeAtSubdistrict ?? '',
@@ -499,6 +504,22 @@ function Content({
                 ออกใบแจ้งเดือนนี้
               </Link>
             </Button>
+          )}
+          {!c.cancelled && (
+            <>
+              <Button variant='outline' asChild>
+                <Link to='/contracts/new' search={{ renewFrom: contract.id }}>
+                  <RefreshCw className='size-4' />
+                  ต่อสัญญา
+                </Link>
+              </Button>
+              <Button variant='outline' asChild>
+                <Link to='/contracts/new' search={{ copyFrom: contract.id }}>
+                  <Copy className='size-4' />
+                  คัดลอก
+                </Link>
+              </Button>
+            </>
           )}
           {c.cancelled ? (
             <Button
@@ -726,6 +747,21 @@ function Content({
             <InfoRow icon={Landmark} label='เงินมัดจำ'>
               <span className='tabular-nums'>{fmtMoney(c.deposit)}</span>
             </InfoRow>
+            {c.spot && (
+              <InfoRow icon={Building2} label='จุด/ล็อก'>
+                <span>{c.spot}</span>
+              </InfoRow>
+            )}
+            {c.dueDay && (
+              <InfoRow icon={Calendar} label='วันครบกำหนดใบแจ้งหนี้'>
+                <span>วันที่ {c.dueDay} ของทุกเดือน</span>
+              </InfoRow>
+            )}
+            {c.rateAdj && (
+              <InfoRow icon={ScrollText} label='การปรับค่าเช่า'>
+                <span>{c.rateAdj}</span>
+              </InfoRow>
+            )}
           </CardContent>
         </Card>
 

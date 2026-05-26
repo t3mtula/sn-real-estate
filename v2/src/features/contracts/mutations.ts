@@ -463,7 +463,18 @@ export function useUpdateContractClausesFull(id: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (contractClauses: Array<{ text: string; sub?: string[] }>) => {
+      const { data: existing } = await supabase
+        .from(TABLE).select('data').eq('id', id).single()
+      const prev = (existing?.data as ContractData | undefined)?.contractClauses ?? []
       await mergeUpdateContract(id, { contractClauses })
+      void logActivity({
+        action: 'update',
+        entity: 'contracts',
+        entity_id: id,
+        description: `แก้ข้อสัญญา (${contractClauses.length} ข้อ)`,
+        before: { contractClauses: prev },
+        after: { contractClauses },
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })

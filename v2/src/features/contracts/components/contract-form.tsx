@@ -69,7 +69,9 @@ export function ContractForm({
   onSubmit,
   submitting = false,
   onCancel,
+  renewedFromNo,
 }: ContractFormProps) {
+  const suggestNo = useSuggestContractNo()
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(contractFormSchema),
     defaultValues: defaultValues ?? CONTRACT_FORM_DEFAULTS,
@@ -207,13 +209,29 @@ export function ContractForm({
           <Label htmlFor='no'>
             เลขสัญญา <span className='text-destructive'>*</span>
           </Label>
-          <Input
-            id='no'
-            {...form.register('no')}
-            placeholder='เช่น SN.005-2569'
-            aria-invalid={!!errors.no}
-            className={cn(errors.no && 'border-destructive')}
-          />
+          <div className='flex gap-2'>
+            <Input
+              id='no'
+              {...form.register('no')}
+              placeholder='เช่น SN.005-2569'
+              aria-invalid={!!errors.no}
+              className={cn(errors.no && 'border-destructive', 'flex-1')}
+            />
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              disabled={suggestNo.isPending}
+              onClick={async () => {
+                const suggested = await suggestNo.mutateAsync(
+                  renewedFromNo ? { renewedFromNo } : undefined,
+                )
+                form.setValue('no', suggested, { shouldDirty: true })
+              }}
+            >
+              สร้างเลข
+            </Button>
+          </div>
           {errors.no && <FieldError>{errors.no.message}</FieldError>}
         </div>
 
@@ -567,6 +585,54 @@ export function ContractForm({
               <option key={p} value={p} />
             ))}
           </datalist>
+        </div>
+
+        <div>
+          <Label htmlFor='spot'>
+            จุด/ล็อก{' '}
+            <span className='text-muted-foreground font-normal text-xs'>
+              (ถ้าทรัพย์มีหลายล็อต)
+            </span>
+          </Label>
+          <Input
+            id='spot'
+            {...form.register('spot')}
+            placeholder='เช่น ล็อก A, ห้อง 3, ชั้น 2'
+          />
+        </div>
+
+        <div>
+          <Label htmlFor='dueDay'>
+            วันครบกำหนดใบแจ้งหนี้{' '}
+            <span className='text-muted-foreground font-normal text-xs'>
+              (วันที่ 1-31 ของทุกเดือน)
+            </span>
+          </Label>
+          <Input
+            id='dueDay'
+            type='number'
+            min={1}
+            max={31}
+            {...form.register('dueDay', { valueAsNumber: true })}
+            placeholder='5'
+            className='max-w-[100px]'
+          />
+          {errors.dueDay && <FieldError>{errors.dueDay.message}</FieldError>}
+        </div>
+
+        <div className='sm:col-span-2'>
+          <Label htmlFor='rateAdj'>
+            การปรับค่าเช่า{' '}
+            <span className='text-muted-foreground font-normal text-xs'>
+              (ข้อความปรากฏในสัญญา)
+            </span>
+          </Label>
+          <Textarea
+            id='rateAdj'
+            {...form.register('rateAdj')}
+            placeholder='เช่น ปรับขึ้น 5% เมื่อต่อสัญญา หรือเว้นว่างถ้าไม่ปรับ'
+            rows={2}
+          />
         </div>
       </section>
 
