@@ -127,6 +127,7 @@ export function ContractNew() {
                   meta: {
                     renewedFrom: renewFromId,
                     copiedFrom: copyFromId,
+                    contractClauses: sourceContract?.data?.contractClauses,
                   },
                 })
                 navigate({ to: '/contracts/$id', params: { id } })

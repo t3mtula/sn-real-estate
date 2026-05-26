@@ -135,7 +135,12 @@ export function useCreateContract() {
     mutationFn: async (input: {
       values: ContractFormValues
       inline?: { tenantName?: string; landlordName?: string; taxId?: string }
-      meta?: { renewedFrom?: string; copiedFrom?: string }
+      meta?: {
+        renewedFrom?: string
+        copiedFrom?: string
+        /** ข้อสัญญาที่แก้เฉพาะสัญญาต้นทาง — ติดมาตอนต่อ/คัดลอก */
+        contractClauses?: Array<{ text: string; sub?: string[] }>
+      }
     }) => {
       const { values, inline, meta } = input
 
@@ -148,6 +153,7 @@ export function useCreateContract() {
       const managed = valuesToManagedFields(values, pid, inline)
       if (meta?.renewedFrom) managed.renewedFrom = meta.renewedFrom
       if (meta?.copiedFrom) managed.copiedFrom = meta.copiedFrom
+      if (meta?.contractClauses?.length) managed.contractClauses = meta.contractClauses
       const { error } = await supabase
         .from(TABLE)
         .insert({ id, data: managed })
@@ -465,13 +471,31 @@ export function useUpdateContractClausesFull(id: string) {
     mutationFn: async (contractClauses: Array<{ text: string; sub?: string[] }>) => {
       const { data: existing } = await supabase
         .from(TABLE).select('data').eq('id', id).single()
-      const prev = (existing?.data as ContractData | undefined)?.contractClauses ?? []
+      const prev = ((existing?.data as ContractData | undefined)?.contractClauses ?? []) as Array<{ text: string; sub?: string[] }>
       await mergeUpdateContract(id, { contractClauses })
+
+      // Compute which clause numbers actually changed (1-indexed)
+      const maxLen = Math.max(prev.length, contractClauses.length)
+      const changedNos: number[] = []
+      for (let i = 0; i < maxLen; i++) {
+        const p = prev[i]
+        const a = contractClauses[i]
+        if (!p || !a) { changedNos.push(i + 1); continue }
+        const ps = p.sub ?? []
+        const as_ = a.sub ?? []
+        const textChanged = p.text !== a.text
+        const subChanged = ps.length !== as_.length || ps.some((s, j) => s !== as_[j])
+        if (textChanged || subChanged) changedNos.push(i + 1)
+      }
+      const nos = changedNos.slice(0, 4)
+      const suffix = changedNos.length > 4 ? ` (+${changedNos.length - 4})` : ''
+      const clauseStr = nos.length > 0 ? `ข้อ ${nos.join(', ')}${suffix}` : `(${contractClauses.length} ข้อ ไม่มีการเปลี่ยนแปลง)`
+
       void logActivity({
         action: 'update',
         entity: 'contracts',
         entity_id: id,
-        description: `แก้ข้อสัญญา (${contractClauses.length} ข้อ)`,
+        description: `แก้ข้อสัญญา ${clauseStr}`,
         before: { contractClauses: prev },
         after: { contractClauses },
       })
