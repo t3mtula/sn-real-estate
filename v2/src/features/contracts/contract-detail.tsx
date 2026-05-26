@@ -296,6 +296,15 @@ function ContractEditing({
     start: c.start ?? '',
     end: c.end ?? '',
     rate: coerceNumber(c.rate),
+    rateFreq: (() => {
+      const rf = (c as any).rateFreq
+      if (rf === 'monthly' || rf === 'quarterly' || rf === 'annual') return rf
+      // Infer from rate Thai string for legacy contracts ("ปีละ X บาท", "ไตรมาสละ X")
+      const rStr = String(c.rate ?? '')
+      if (rStr.includes('ไตรมาส')) return 'quarterly'
+      if (rStr.includes('ปี')) return 'annual'
+      return 'monthly'
+    })() as 'monthly' | 'quarterly' | 'annual',
     deposit: coerceNumber(c.deposit),
     dur: coerceNumber((c as any).durMonths) || coerceDurMonths(c.dur),
     // Hydrate payment from existing data — DO NOT default to 'รายเดือน' which

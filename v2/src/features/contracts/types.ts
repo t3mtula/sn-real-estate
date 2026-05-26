@@ -100,13 +100,20 @@ export type ContractData = {
   /** Saved before cancel for restoring */
   originalEnd?: string
 
-  /** Money */
-  rate?: number
-  deposit?: number
-  /** Payment frequency e.g. "เดือนละ", "รายเดือน" */
+  /** Money — display string ("เดือนละ 25,000 บาท") หรือ legacy number */
+  rate?: number | string
+  deposit?: number | string
+  /** Structured rate fields (บันทึกพร้อมกับ rate string) */
+  rateFreq?: 'monthly' | 'quarterly' | 'annual'
+  rateAmount?: number
+  monthlyBaht?: number
+  /** Payment description e.g. "รายเดือน ชำระภายในวันที่ 5" */
   payment?: string
-  /** Duration months */
-  dur?: number
+  /** Duration — display string ("3 ปี", "2 ปี 6 เดือน") หรือ legacy number */
+  dur?: number | string
+  /** Duration months (computed) */
+  durMonths?: number
+  durRaw?: string
 
   /** Cancel info */
   cancelled?: boolean

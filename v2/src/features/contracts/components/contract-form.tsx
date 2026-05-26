@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { DateInputBE } from '@/components/date-input-be'
@@ -66,6 +66,14 @@ export function ContractForm({
   })
   const confirm = useConfirm()
 
+  // Local UI state: ระยะสัญญาแสดงเป็น ปี หรือ เดือน
+  // form.dur เก็บเป็นเดือนเสมอ — durUnit กำหนดแค่การแสดงผล + การแปลง input
+  const initDurUnit = (() => {
+    const d = (defaultValues ?? CONTRACT_FORM_DEFAULTS).dur
+    return d > 0 && d % 12 === 0 ? 'years' : 'months'
+  })()
+  const [durUnit, setDurUnit] = useState<'months' | 'years'>(initDurUnit)
+
   const { data: properties } = useProperties()
   const { data: tenants } = useTenants()
   const { data: landlords } = useLandlords()
@@ -74,6 +82,8 @@ export function ContractForm({
 
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
+  const durMonths = form.watch('dur')
+  const rateFreq = form.watch('rateFreq')
   const madeAtLine = form.watch('madeAtLine')
   const madeAtSubdistrict = form.watch('madeAtSubdistrict')
   const madeAtDistrict = form.watch('madeAtDistrict')
@@ -368,15 +378,40 @@ export function ContractForm({
         </div>
 
         <div>
-          <Label htmlFor='dur'>ระยะสัญญา (เดือน)</Label>
-          <Input
-            id='dur'
-            type='number'
-            inputMode='numeric'
-            {...form.register('dur', { valueAsNumber: true })}
-            placeholder='12'
-            className={cn(errors.dur && 'border-destructive')}
-          />
+          <Label htmlFor='dur'>ระยะสัญญา</Label>
+          <div className='flex gap-2'>
+            <Input
+              id='dur'
+              type='number'
+              inputMode='numeric'
+              min={0}
+              step={durUnit === 'years' ? 0.5 : 1}
+              value={
+                durUnit === 'years'
+                  ? durMonths > 0 ? String(durMonths / 12) : ''
+                  : durMonths > 0 ? String(durMonths) : ''
+              }
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value) || 0
+                form.setValue(
+                  'dur',
+                  durUnit === 'years' ? Math.round(raw * 12) : Math.round(raw),
+                  { shouldDirty: true, shouldValidate: true },
+                )
+              }}
+              placeholder={durUnit === 'years' ? '3' : '36'}
+              className={cn(errors.dur && 'border-destructive', 'flex-1')}
+            />
+            <Select value={durUnit} onValueChange={(v) => setDurUnit(v as 'months' | 'years')}>
+              <SelectTrigger className='w-24'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='months'>เดือน</SelectItem>
+                <SelectItem value='years'>ปี</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {errors.dur && <FieldError>{errors.dur.message}</FieldError>}
         </div>
 
@@ -405,15 +440,34 @@ export function ContractForm({
           <Label htmlFor='rate'>
             ค่าเช่า (บาท) <span className='text-destructive'>*</span>
           </Label>
-          <Input
-            id='rate'
-            type='number'
-            inputMode='decimal'
-            step='0.01'
-            {...form.register('rate', { valueAsNumber: true })}
-            placeholder='5000'
-            className={cn(errors.rate && 'border-destructive')}
-          />
+          <div className='flex gap-2'>
+            <Input
+              id='rate'
+              type='number'
+              inputMode='decimal'
+              step='0.01'
+              {...form.register('rate', { valueAsNumber: true })}
+              placeholder='5000'
+              className={cn(errors.rate && 'border-destructive', 'flex-1')}
+            />
+            <Select
+              value={rateFreq}
+              onValueChange={(v) =>
+                form.setValue('rateFreq', v as 'monthly' | 'quarterly' | 'annual', {
+                  shouldDirty: true,
+                })
+              }
+            >
+              <SelectTrigger className='w-28'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='monthly'>/เดือน</SelectItem>
+                <SelectItem value='quarterly'>/ไตรมาส</SelectItem>
+                <SelectItem value='annual'>/ปี</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {errors.rate && <FieldError>{errors.rate.message}</FieldError>}
         </div>
 

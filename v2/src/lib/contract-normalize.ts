@@ -18,15 +18,21 @@ export function coerceNumber(v: unknown): number {
   return 0
 }
 
-/** Coerce contract dur field — "3 ปี" → 36 months · "36" → 36 · 36 → 36. */
+/**
+ * Coerce contract dur field to months.
+ * Handles: "3 ปี" → 36 · "2 ปี 6 เดือน" → 30 · "36" → 36 · 36 → 36.
+ */
 export function coerceDurMonths(v: unknown): number {
   if (typeof v === 'number') return v
   if (typeof v === 'string') {
-    const match = v.match(/(\d+)/)
-    if (!match) return 0
-    const n = parseInt(match[1], 10)
-    if (/ปี/.test(v)) return n * 12
-    return n
+    const yearMatch = v.match(/(\d+(?:\.\d+)?)\s*ปี/)
+    const monthMatch = v.match(/(\d+)\s*เดือน/)
+    if (yearMatch || monthMatch) {
+      return Math.round((yearMatch ? parseFloat(yearMatch[1]) * 12 : 0) +
+        (monthMatch ? parseInt(monthMatch[1], 10) : 0))
+    }
+    const fallback = v.match(/(\d+(?:\.\d+)?)/)
+    if (fallback) return parseFloat(fallback[1])
   }
   return 0
 }

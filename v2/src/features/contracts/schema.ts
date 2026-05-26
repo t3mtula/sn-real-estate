@@ -53,6 +53,8 @@ export const contractFormSchema = z
 
     /** Money */
     rate: z.number().positive('ค่าเช่าต้องมากกว่า 0'),
+    /** อัตราค่าเช่าคิดต่อ: รายเดือน / รายไตรมาส / รายปี */
+    rateFreq: z.enum(['monthly', 'quarterly', 'annual']),
     deposit: z.number().min(0, 'มัดจำต้องไม่ติดลบ'),
     /** ระยะสัญญา (เดือน) · optional auto-calc */
     dur: z.number().min(0, 'ระยะต้องไม่ติดลบ').max(600),
@@ -85,6 +87,7 @@ export const contractFormSchema = z
   })
 
 export type ContractFormValues = z.infer<typeof contractFormSchema>
+export type RateFreq = 'monthly' | 'quarterly' | 'annual'
 
 export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   no: '',
@@ -96,6 +99,7 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   start: '',
   end: '',
   rate: 0,
+  rateFreq: 'monthly',
   deposit: 0,
   dur: 0,
   payment: 'รายเดือน',
