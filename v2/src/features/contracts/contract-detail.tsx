@@ -50,7 +50,6 @@ import { SubleaseChain } from '@/features/contracts/components/sublease-chain'
 import { ClauseOverridePanel } from '@/features/contracts/components/clause-override-panel'
 import { InspectionPanel } from '@/features/contracts/components/inspection-panel'
 import { DepositReturnPanel } from '@/features/contracts/components/deposit-return-panel'
-import { PrintOverlay } from '@/components/print-overlay'
 import { ContractForm } from '@/features/contracts/components/contract-form'
 import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
@@ -386,7 +385,7 @@ function Content({
   const [cancelOpen, setCancelOpen] = useState(false)
   const [moveOutOpen, setMoveOutOpen] = useState(false)
   const [moveOutExpanded, setMoveOutExpanded] = useState(false)
-  const [printHtml, setPrintHtml] = useState<string | null>(null)
+  // printHtml state removed — now opens in new tab directly
   const restore = useRestoreContract(contract.id)
   const confirm = useConfirm()
 
@@ -417,16 +416,22 @@ function Content({
   const template = useActiveContractTemplate()
 
   function handlePrint() {
-    const html = buildContractHtml({
-      contract,
-      tenant: tenant.data,
-      landlord: landlord.data,
-      bank: bank.data,
-      property: property.data,
-      parent: parent.data,
-      template: template.data,
-    })
-    setPrintHtml(html)
+    const html = buildContractHtml(
+      {
+        contract,
+        tenant: tenant.data,
+        landlord: landlord.data,
+        bank: bank.data,
+        property: property.data,
+        parent: parent.data,
+        template: template.data,
+      },
+      { embed: false }, // show toolbar (พิมพ์ / บันทึก PDF button) in new tab
+    )
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    // blob URL จะถูก browser ล้างเองเมื่อ tab ปิด
   }
 
   return (
@@ -836,12 +841,7 @@ function Content({
 
       <EntityAuditPanel entity='contracts' entityId={contract.id} />
 
-      <PrintOverlay
-        open={!!printHtml}
-        html={printHtml}
-        title={`สัญญาเช่า ${display}`}
-        onClose={() => setPrintHtml(null)}
-      />
+      {/* PrintOverlay removed — contract now opens in new browser tab */}
     </>
   )
 }
