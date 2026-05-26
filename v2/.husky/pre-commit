@@ -1,4 +1,8 @@
 # Use full path because PATH ของ git commit hook อาจไม่มี node/npx
 # ถ้า node อยู่ที่อื่น · ปรับ path ตามเครื่อง
 export PATH="$HOME/.local/node/bin:$PATH"
+
+# Type check ก่อน — vite build ข้าม tsc แต่ CI รัน · จับ error ตรงนี้ดีกว่า
+npx tsc --noEmit
+
 npx lint-staged
