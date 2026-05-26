@@ -20,6 +20,12 @@ const allowedDomains: string[] = allowedDomainsRaw
   ? allowedDomainsRaw.split(',').map((d) => d.trim().toLowerCase()).filter(Boolean)
   : []
 
+// รองรับ specific emails คั่นด้วย comma เช่น "owner@gmail.com,admin@gmail.com"
+const allowedEmailsRaw = import.meta.env.VITE_AUTH_ALLOWED_EMAILS as string | undefined
+const allowedEmails: string[] = allowedEmailsRaw
+  ? allowedEmailsRaw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  : []
+
 export async function signInWithGoogle(redirectTo?: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -37,13 +43,16 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Domain check (run หลัง login · enforce restriction)
- * รองรับหลาย domain คั่นด้วย comma ใน VITE_AUTH_ALLOWED_DOMAIN
+ * Domain + specific email check (run หลัง login · enforce restriction)
+ * - ถ้าไม่ตั้ง VITE_AUTH_ALLOWED_DOMAIN เลย → ทุกคนเข้าได้
+ * - ถ้าตั้ง VITE_AUTH_ALLOWED_DOMAIN → เฉพาะ domain นั้น
+ * - VITE_AUTH_ALLOWED_EMAILS → เพิ่ม specific email นอก domain (เช่น เจ้าของ gmail)
  */
 export function isAllowedUser(user: User | null): boolean {
   if (!user) return false
-  if (allowedDomains.length === 0) return true
   const email = user.email?.toLowerCase() ?? ""
+  if (allowedEmails.includes(email)) return true
+  if (allowedDomains.length === 0) return true
   return allowedDomains.some((domain) => email.endsWith(`@${domain}`))
 }
 
