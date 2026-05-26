@@ -513,7 +513,7 @@ export function buildContractHtml(
     row('วันเริ่มต้น', c.start ? dateToThai(c.start) : '') +
     row('วันสิ้นสุด', c.end ? dateToThai(c.end) : '') +
     row('ระยะเวลา', durStr) +
-    row('อัตราค่าเช่า', fmtAmt(c.rate)) +
+    row('อัตราค่าเช่า', typeof c.rate === 'string' && c.rate.trim() ? c.rate.trim() : fmtAmt(c.rate)) +
     row('วิธีชำระ', c.payment) +
     row('การปรับค่าเช่า', (c as { rateAdj?: string }).rateAdj) +
     row('เงินประกัน', fmtDeposit(c.deposit))
