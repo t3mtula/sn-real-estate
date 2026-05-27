@@ -438,6 +438,7 @@ export type BatchGeneratePreview = {
     amount: number
     rateNote: string
     freqType: string
+    hasFreqConflict: boolean
   }>
   willSkip: Array<{
     contractId: string
@@ -514,15 +515,16 @@ export function useBatchGeneratePreview(month: string | undefined) {
         const freq = getPaymentFreq(d)
         const rateRaw = d.rate || d.rateAmount
         let rateNote = ''
+        let rateUnitMonths = 1
         if (typeof rateRaw === 'string' && rateRaw.trim()) {
+          const t = rateRaw.toLowerCase()
+          rateUnitMonths =
+            t.includes('ปีละ') || t.includes('รายปี') || t.includes('ต่อปี') || t.includes('ทุกปี') ? 12 :
+            t.includes('ครึ่งปีละ') || t.includes('ทุก 6 เดือน') ? 6 :
+            t.includes('ไตรมาสละ') || t.includes('รายไตรมาส') || t.includes('ทุก 3 เดือน') ? 3 : 1
           const r = parseAmtLoose(rateRaw)
           if (Number.isFinite(r) && r > 0) {
-            const t = rateRaw.toLowerCase()
-            const unitLabel =
-              t.includes('ปีละ') || t.includes('รายปี') || t.includes('ต่อปี') || t.includes('ทุกปี') ? 'ปีละ' :
-              t.includes('ครึ่งปีละ') || t.includes('ทุก 6 เดือน') ? 'ครึ่งปีละ' :
-              t.includes('ไตรมาสละ') || t.includes('รายไตรมาส') || t.includes('ทุก 3 เดือน') ? 'ไตรมาสละ' :
-              'เดือนละ'
+            const unitLabel = rateUnitMonths === 12 ? 'ปีละ' : rateUnitMonths === 6 ? 'ครึ่งปีละ' : rateUnitMonths === 3 ? 'ไตรมาสละ' : 'เดือนละ'
             rateNote = `${unitLabel} ฿${r.toLocaleString('th-TH', { maximumFractionDigits: 0 })}`
           }
         } else if (typeof rateRaw === 'number' && rateRaw > 0) {
@@ -536,6 +538,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           amount,
           rateNote,
           freqType: freq.type ?? 'monthly',
+          hasFreqConflict: rateUnitMonths > freq.months,
         })
       }
       return { month, willCreate, willSkip }

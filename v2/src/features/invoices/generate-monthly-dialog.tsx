@@ -1,4 +1,4 @@
-import { Loader2, Sparkles } from 'lucide-react'
+import { AlertTriangle, Loader2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -210,16 +210,22 @@ export function GenerateMonthlyDialog({
                     {prev.willCreate.slice(0, 50).map((row) => (
                       <div
                         key={row.contractId}
-                        className='flex items-center justify-between gap-3 border-b px-4 py-2 text-sm last:border-b-0'
+                        className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-sm last:border-b-0 ${row.hasFreqConflict ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''}`}
                       >
                         <div className='min-w-0'>
-                          <p className='truncate font-medium'>{row.contractNo}</p>
+                          <p className='truncate font-medium flex items-center gap-1'>
+                            {row.hasFreqConflict && (
+                              <AlertTriangle className='size-3 shrink-0 text-amber-500' />
+                            )}
+                            {row.contractNo}
+                          </p>
                           <p className='truncate text-xs text-muted-foreground'>
                             {row.tenant} · {row.property}
                           </p>
                           {(row.rateNote || row.freqType) && (
-                            <p className='truncate text-xs text-muted-foreground/60'>
+                            <p className={`truncate text-xs ${row.hasFreqConflict ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/60'}`}>
                               {[row.rateNote, FREQ_SHORT[row.freqType]].filter(Boolean).join(' · ')}
+                              {row.hasFreqConflict && ' ⚠️ ตรวจสอบรอบชำระ'}
                             </p>
                           )}
                         </div>

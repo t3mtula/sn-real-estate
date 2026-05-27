@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Info, Loader2 } from 'lucide-react'
+import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -97,6 +97,20 @@ export function ContractForm({
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
   const durMonths = form.watch('dur')
+  const rateStr = form.watch('rate') ?? ''
+  const rateInterval = form.watch('rateIntervalMonths')
+
+  const rateUnitConflict = useMemo(() => {
+    if (!rateStr || !rateInterval) return null
+    const t = rateStr.toLowerCase()
+    const unit =
+      t.includes('ปีละ') || t.includes('รายปี') || t.includes('ต่อปี') || t.includes('ทุกปี') ? 12 :
+      t.includes('ครึ่งปีละ') || t.includes('ทุก 6 เดือน') ? 6 :
+      t.includes('ไตรมาสละ') || t.includes('รายไตรมาส') || t.includes('ทุก 3 เดือน') ? 3 :
+      t.includes('เดือนละ') || t.includes('รายเดือน') || t.includes('ทุกเดือน') ? 1 : 0
+    if (unit === 0 || unit === Number(rateInterval)) return null
+    return { detected: unit, current: Number(rateInterval) }
+  }, [rateStr, rateInterval])
   const madeAtLine = form.watch('madeAtLine')
   const madeAtSubdistrict = form.watch('madeAtSubdistrict')
   const madeAtDistrict = form.watch('madeAtDistrict')
@@ -507,6 +521,15 @@ export function ContractForm({
             className={cn(errors.rate && 'border-destructive')}
           />
           {errors.rate && <FieldError>{errors.rate.message}</FieldError>}
+          {rateUnitConflict && (
+            <p className='mt-1 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400'>
+              <AlertTriangle className='size-3 shrink-0' />
+              rate บอก
+              {rateUnitConflict.detected === 12 ? ' ปีละ' : rateUnitConflict.detected === 6 ? ' ครึ่งปีละ' : rateUnitConflict.detected === 3 ? ' ไตรมาสละ' : ' เดือนละ'}
+              {' — รอบเรียกเก็บควรเป็น '}
+              {rateUnitConflict.detected} เดือน (ตอนนี้ {rateUnitConflict.current})
+            </p>
+          )}
         </div>
 
         <div>
