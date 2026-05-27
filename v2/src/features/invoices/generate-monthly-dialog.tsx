@@ -130,7 +130,7 @@ export function GenerateMonthlyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='sm:max-w-2xl'>
+      <DialogContent className='w-[min(95vw,42rem)]'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Sparkles className='size-5 text-amber-500' />
@@ -193,7 +193,7 @@ export function GenerateMonthlyDialog({
                 </div>
               </div>
               {prev.willCreate.length > 0 ? (
-                <div className='rounded-md border bg-card'>
+                <div className='rounded-md border bg-card overflow-hidden'>
                   <div className='flex items-center justify-between border-b bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
                     <span>{prev.willCreate.length} ใบที่จะสร้าง</span>
                     <span className='tabular-nums'>{amt(sumAmount)}</span>
@@ -228,7 +228,7 @@ export function GenerateMonthlyDialog({
                 </div>
               )}
               {prev.willSkip.length > 0 && (
-                <details className='rounded-md border bg-muted/20'>
+                <details className='rounded-md border bg-muted/20 overflow-hidden'>
                   <summary className='cursor-pointer px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
                     ดูที่ข้าม ({prev.willSkip.length})
                   </summary>
