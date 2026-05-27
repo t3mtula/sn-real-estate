@@ -130,7 +130,7 @@ export function GenerateMonthlyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='w-[min(95vw,42rem)]'>
+      <DialogContent className='w-[min(95vw,42rem)] max-h-[calc(100dvh-4rem)] grid-rows-[auto_1fr_auto] overflow-hidden'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Sparkles className='size-5 text-amber-500' />
@@ -141,7 +141,7 @@ export function GenerateMonthlyDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4'>
+        <div className='space-y-4 overflow-y-auto min-h-0'>
           <div className='flex items-end gap-3'>
             <div className='flex-1 space-y-2'>
               <Label htmlFor='gen-month'>เดือน</Label>
