@@ -42,6 +42,14 @@ function buildMonthOptions(): string[] {
   return out
 }
 
+const FREQ_SHORT: Record<string, string> = {
+  monthly: 'รายเดือน',
+  quarterly: 'รายไตรมาส',
+  semi: 'ครึ่งปีละ',
+  yearly: 'รายปี',
+  lump: 'ครั้งเดียว',
+}
+
 const SKIP_REASON_LABEL: Record<
   BatchGeneratePreview['willSkip'][number]['reason'],
   string
@@ -209,6 +217,11 @@ export function GenerateMonthlyDialog({
                           <p className='truncate text-xs text-muted-foreground'>
                             {row.tenant} · {row.property}
                           </p>
+                          {(row.rateNote || row.freqType) && (
+                            <p className='truncate text-xs text-muted-foreground/60'>
+                              {[row.rateNote, FREQ_SHORT[row.freqType]].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
                         </div>
                         <span className='shrink-0 text-sm tabular-nums'>
                           {amt(row.amount, { decimal: 0 })}

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
-import { fmtBE, parseBE } from '@/lib/thai'
+import { fmtBE, parseBE, parseAmtLoose } from '@/lib/thai'
 import type { Contract, ContractData } from '@/features/contracts/types'
 import type { Landlord, LandlordData } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
@@ -158,7 +158,7 @@ export function useGenerateInvoiceFromContract() {
           ? Number(contract.data?.deposit) || 0
           : (values.amount ??
             getInvoiceAmount(
-              contract.data?.rate as number | undefined,
+              contract.data?.rate || contract.data?.rateAmount,
               contract.data,
             ))
 
@@ -436,6 +436,8 @@ export type BatchGeneratePreview = {
     tenant: string
     property: string
     amount: number
+    rateNote: string
+    freqType: string
   }>
   willSkip: Array<{
     contractId: string
@@ -502,12 +504,29 @@ export function useBatchGeneratePreview(month: string | undefined) {
           continue
         }
         const amount = getInvoiceAmount(
-          d.rate as number | undefined,
+          d.rate || d.rateAmount,
           d,
         )
         if (!amount || amount <= 0) {
           willSkip.push({ contractId: c.id, contractNo, reason: 'no_rate' })
           continue
+        }
+        const freq = getPaymentFreq(d)
+        const rateRaw = d.rate || d.rateAmount
+        let rateNote = ''
+        if (typeof rateRaw === 'string' && rateRaw.trim()) {
+          const r = parseAmtLoose(rateRaw)
+          if (Number.isFinite(r) && r > 0) {
+            const t = rateRaw.toLowerCase()
+            const unitLabel =
+              t.includes('ปีละ') || t.includes('รายปี') || t.includes('ต่อปี') || t.includes('ทุกปี') ? 'ปีละ' :
+              t.includes('ครึ่งปีละ') || t.includes('ทุก 6 เดือน') ? 'ครึ่งปีละ' :
+              t.includes('ไตรมาสละ') || t.includes('รายไตรมาส') || t.includes('ทุก 3 เดือน') ? 'ไตรมาสละ' :
+              'เดือนละ'
+            rateNote = `${unitLabel} ฿${r.toLocaleString('th-TH', { maximumFractionDigits: 0 })}`
+          }
+        } else if (typeof rateRaw === 'number' && rateRaw > 0) {
+          rateNote = `฿${rateRaw.toLocaleString('th-TH', { maximumFractionDigits: 0 })}`
         }
         willCreate.push({
           contractId: c.id,
@@ -515,6 +534,8 @@ export function useBatchGeneratePreview(month: string | undefined) {
           tenant,
           property,
           amount,
+          rateNote,
+          freqType: freq.type ?? 'monthly',
         })
       }
       return { month, willCreate, willSkip }
@@ -608,7 +629,7 @@ export function useGenerateMonthlyInvoices() {
           continue
         }
         const baseAmount = getInvoiceAmount(
-          d.rate as number | undefined,
+          d.rate || d.rateAmount,
           d,
         )
         if (!baseAmount || baseAmount <= 0) {
@@ -783,8 +804,16 @@ export function useDeleteInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: before } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle()
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      void logActivity({
+        action: 'delete',
+        entity: 'invoices',
+        entity_id: id,
+        description: `ลบถาวร ใบแจ้งหนี้ #${id}`,
+        before: before as Record<string, unknown> | null,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
