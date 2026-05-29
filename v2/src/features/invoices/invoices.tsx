@@ -47,7 +47,7 @@ import { Label } from '@/components/ui/label'
 import { BatchPaymentDialog } from '@/features/invoices/batch-payment-dialog'
 import { BatchReceiptPrintButton } from '@/features/invoices/batch-receipt-print'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
-import { useAutoVoidExpiredDrafts, useBatchMarkSent, useBatchVoid, useSendAllDraftsGlobal } from '@/features/invoices/mutations'
+import { useAutoVoidExpiredDrafts, useBatchDeleteInvoices, useBatchMarkSent, useBatchVoid, useSendAllDraftsGlobal } from '@/features/invoices/mutations'
 import { useInvoiceSettings } from '@/features/settings/queries'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -909,6 +909,20 @@ export function Invoices() {
               <Ban className='size-4' />
               ยกเลิก
               {voidableSelectedIds.length > 0 && ` (${voidableSelectedIds.length})`}
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+              disabled={selectedCount === 0 || batchDelete.isPending}
+              onClick={() => setDeleteOpen(true)}
+            >
+              {batchDelete.isPending ? (
+                <Loader2 className='size-4 animate-spin' />
+              ) : (
+                <Trash2 className='size-4' />
+              )}
+              ลบ ({selectedCount})
             </Button>
             <BatchReceiptPrintButton invoices={selectedRows} />
             <span className='h-4 w-px bg-border' />
