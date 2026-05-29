@@ -298,7 +298,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
               <input
                 ref={fileRef}
                 type='file'
-                accept='.pdf,application/pdf,.csv,text/csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                accept='.pdf,.csv,.xls,.xlsx'
                 className='hidden'
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null
