@@ -13,9 +13,13 @@
 5. **B มิเตอร์ช่วยจับยอด** — reuse น้ำ/ไฟค้างบิล → expected = ค่าเช่า+น้ำ+ไฟ → จับห้องรวมน้ำไฟแม่นขึ้น
 
 **+ สเต็ป 1 redesign หน้าจับคู่ (เสร็จ):** ป็อปอัพเต็มจอ · แถบสรุป 🟢🟡⬜+ยอดรวม · เรียง ⬜→🟡→🟢 · พับกลุ่มเขียว · กรอง "เฉพาะที่ต้องจับ" · dropdown โชว์ห้อง+ค่าเช่า+ค้าง N ใบ · ⚙️ ตั้งค่าคอลัมน์ (จดจำ localStorage) · ปุ่มล่าง sticky
-> ⚠️ local verify ไม่ได้ (ติด Google login) — layout ต้องให้ Tem ดูบน preview
 
-**ถัดไป:** Tem เทส preview ด้วย statement จริง → merge main + deploy:prod · สเต็ป 2 ปุ่ม "แบ่งจ่าย" (1 ก้อน→หลายห้อง) · สเต็ป 3 เครดิตจ่ายเกิน + หน้าจับคู่เงินค้าง · per-landlord/per-bank summary · ⚠️ wysiwyg-spike.tsx ยังกั้น deploy:prod (ของอีก session)
+**+ สเต็ป 2 แบ่งจ่าย (เสร็จ):** ปุ่มแบ่งต่อแถว → 1 โอนแยกเป็นหลายห้อง (ห้องละ payment) · ยอดรวมต้องตรงถึงเซฟ · ติด fingerprint โอนต้นทางกันซ้ำแม้แบ่ง
+
+**+ สเต็ป 3 จับคู่เงินค้าง + เครดิต (เสร็จ):** หน้า payment-detail เลือกใบแจ้งหนี้ค้างของสัญญา → จับคู่ greedy (ใบเก่าก่อน) · จ่ายเกิน = เหลือเป็นเครดิตยกไป · `allocatePaymentToInvoices` ใน core
+> ⚠️ local verify ไม่ได้ (ติด Google login) — layout/flow ต้องให้ Tem ดูบน preview ทีเดียว
+
+**ถัดไป:** Tem เทส preview ด้วย statement จริง (A–E + redesign + แบ่งจ่าย + จับคู่ค้าง) → merge main + deploy:prod · per-landlord/per-bank summary + dashboard ต้องได้รับ vs ได้รับจริง · ⚠️ wysiwyg-spike.tsx ยังกั้น deploy:prod (ของอีก session)
 
 ## 🔄 Session 2026-05-29 — [v2] เคลียร์ระบบเก็บเงิน (branch feat/unify-payments)
 
