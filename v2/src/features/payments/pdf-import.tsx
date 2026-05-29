@@ -4,7 +4,7 @@
  */
 import * as pdfjsLib from 'pdfjs-dist'
 import * as XLSX from 'xlsx'
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
+import { useContracts } from '@/features/contracts/queries'
+import { candidatesForAccount, matchTransaction, type MatchResult } from './matching'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -167,7 +169,20 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: bankAccounts } = useBankAccounts()
+  const { data: contracts } = useContracts()
   const batchSave = useBatchSavePayments()
+
+  // จับคู่เงินเข้า → สัญญา/ผู้เช่า (กรองด้วยบัญชี แล้วเทียบยอด+ชื่อ)
+  const effectiveBankId = manualBankId ?? detectedBankAccId
+  const candidates = useMemo(
+    () => (effectiveBankId && contracts ? candidatesForAccount(contracts, effectiveBankId) : []),
+    [contracts, effectiveBankId],
+  )
+  const matches = useMemo(() => {
+    const m = new Map<string, MatchResult>()
+    for (const r of rows) m.set(r._id, matchTransaction({ amount: r.amount, payerName: r.payerName }, candidates))
+    return m
+  }, [rows, candidates])
 
   // ── reset ──────────────────────────────────────────────────────────────────
   function reset() {
@@ -244,11 +259,11 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     if (selected.length === 0) return
 
     setStep('saving')
-    const effectiveBankId = manualBankId ?? detectedBankAccId
     const batch: BatchPaymentRow[] = selected.map((r) => ({
       date: r.date,
       amount: r.amount,
       bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
+      contract_id: matches.get(r._id)?.contractId,
       payerName: r.payerName,
       payMethod: 'transfer' as const,
       notes: r.description,
@@ -431,7 +446,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                         <th className='p-2 text-left'>วันที่</th>
                         <th className='p-2 text-right'>ยอด (บาท)</th>
                         <th className='p-2 text-left'>ผู้โอน</th>
-                        <th className='p-2 text-left'>จาก</th>
+                        <th className='p-2 text-left'>ผู้เช่า (เดา)</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y'>
@@ -455,11 +470,23 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                           <td className='p-2 text-right font-semibold tabular-nums whitespace-nowrap'>
                             {amt(r.amount, { decimal: 0, symbol: false })}
                           </td>
-                          <td className='p-2 max-w-[160px] truncate' title={r.payerName}>
+                          <td className='p-2 max-w-[120px] truncate' title={r.payerName}>
                             {r.payerName || '—'}
                           </td>
-                          <td className='p-2 text-muted-foreground whitespace-nowrap'>
-                            {r.sourceBankCode ? `${r.sourceBankCode} x${r.sourceAcctSuffix}` : r.channel}
+                          <td className='p-2 max-w-[180px]'>
+                            {(() => {
+                              const mt = matches.get(r._id)
+                              if (!mt || mt.confidence === 'none') {
+                                return <span className='text-muted-foreground'>— ไม่พบ</span>
+                              }
+                              const dot = mt.confidence === 'high' ? 'bg-green-500' : 'bg-amber-500'
+                              return (
+                                <div className='flex items-center gap-1.5' title={`${mt.contractNo ?? ''} · ${mt.reason}`}>
+                                  <span className={cn('size-2 rounded-full shrink-0', dot)} />
+                                  <span className='truncate'>{mt.tenantName || mt.contractNo}</span>
+                                </div>
+                              )
+                            })()}
                           </td>
                         </tr>
                       ))}

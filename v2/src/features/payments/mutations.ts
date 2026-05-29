@@ -45,6 +45,7 @@ export interface BatchPaymentRow {
   date: string
   amount: number
   bank_account_id?: string
+  contract_id?: string
   payerName?: string
   payMethod?: 'transfer' | 'cash' | 'check' | 'promptpay'
   notes?: string
@@ -62,6 +63,7 @@ export function useBatchSavePayments() {
           date: r.date,
           amount: r.amount,
           bank_account_id: r.bank_account_id ?? undefined,
+          contract_id: r.contract_id ?? undefined,
           payerName: r.payerName ?? undefined,
           payMethod: r.payMethod ?? 'transfer',
           notes: r.notes ?? undefined,
