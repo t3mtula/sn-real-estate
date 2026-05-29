@@ -24,7 +24,7 @@ import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import {
   parseStatementText,
-  stripDashes,
+  acctNoMatches,
   type ParsedTransaction,
   type StatementInfo,
 } from './bank-pdf-parser'
@@ -53,22 +53,49 @@ async function extractPdfText(file: File, password?: string): Promise<string> {
     password: password || undefined,
   }).promise
 
-  const pages: string[] = []
+  // เรียงข้อความตามตำแหน่งบรรทัดจริง (พิกัด Y) แล้วเรียงซ้าย→ขวา (พิกัด X)
+  // → 1 รายการ = 1 บรรทัด · ถ้า join ทั้งหน้าเป็นบรรทัดเดียวจะจับได้แค่รายการแรก
+  //
+  // cluster Y แบบมี tolerance: บาง statement (เช่น SCB) วางคำอธิบายเหลื่อม baseline
+  // ~1px จากแถวยอดเงิน — ถ้า round เป๊ะจะแยกเป็น 2 บรรทัด ทำให้ชื่อผู้โอนหลุด
+  const Y_TOL = 3
+  const lines: string[] = []
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
     const content = await page.getTextContent()
-    // items เป็น mix ของ TextItem + TextMarkedContent
-    const lineText = content.items
-      .map((item) => ('str' in item ? item.str : ''))
-      .join(' ')
-    pages.push(lineText)
+    const items: { y: number; x: number; s: string }[] = []
+    for (const item of content.items) {
+      if (!('str' in item) || !('transform' in item)) continue
+      const ti = item as { str: string; transform: number[] }
+      if (ti.str.trim() === '') continue
+      items.push({ y: ti.transform[5], x: ti.transform[4], s: ti.str })
+    }
+    items.sort((a, b) => b.y - a.y || a.x - b.x) // บนลงล่าง · ซ้ายไปขวา
+
+    let anchorY: number | null = null
+    let row: { x: number; s: string }[] = []
+    const flush = () => {
+      if (!row.length) return
+      const text = row.sort((a, b) => a.x - b.x).map((o) => o.s).join(' ').replace(/\s+/g, ' ').trim()
+      if (text) lines.push(text)
+      row = []
+    }
+    for (const it of items) {
+      if (anchorY === null || Math.abs(it.y - anchorY) > Y_TOL) {
+        flush()
+        anchorY = it.y
+      }
+      row.push({ x: it.x, s: it.s })
+    }
+    flush()
   }
-  return pages.join('\n')
+  return lines.join('\n')
 }
 
 const BANK_LABEL: Record<string, string> = {
   SCB: 'ไทยพาณิชย์',
   KBANK: 'กสิกรไทย',
+  BBL: 'กรุงเทพ',
   UNKNOWN: 'ไม่รู้จัก',
 }
 
@@ -117,14 +144,14 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       const { info: stmtInfo, transactions } = parseStatementText(text)
 
       if (stmtInfo.bank === 'UNKNOWN') {
-        setError('ไม่รู้จักรูปแบบ statement นี้ — รองรับเฉพาะ SCB และ KBank')
+        setError('ไม่รู้จักรูปแบบ statement นี้ — รองรับ ไทยพาณิชย์ · กสิกร · กรุงเทพ (ถ้าเป็นธนาคารอื่นแจ้งทีมพัฒนา)')
         setStep('upload')
         return
       }
 
-      // จับคู่ account number กับ bank_accounts ในระบบ
-      const matched = (bankAccounts ?? []).find(
-        (b) => stripDashes(b.data?.acctNo ?? '') === stmtInfo.acctNoRaw,
+      // จับคู่ account number กับ bank_accounts ในระบบ (BBL ปิดบังเลขกลาง → เทียบหน้า-หลัง)
+      const matched = (bankAccounts ?? []).find((b) =>
+        acctNoMatches(stmtInfo.acctNoRaw, b.data?.acctNo ?? ''),
       )
       setDetectedBankAccId(matched?.id)
 
@@ -197,7 +224,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>นำเข้า Statement จากธนาคาร</DialogTitle>
           <DialogDescription>
-            อัปโหลด PDF statement จาก SCB หรือ KBank · ระบบจะดึงรายการรับเงินให้อัตโนมัติ
+            อัปโหลด PDF statement จาก ไทยพาณิชย์ · กสิกร · กรุงเทพ · ระบบจะดึงรายการเงินเข้าให้อัตโนมัติ
           </DialogDescription>
         </DialogHeader>
 
