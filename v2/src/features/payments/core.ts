@@ -148,6 +148,7 @@ export interface RecordPaymentInput {
 export async function recordPaymentCore(input: RecordPaymentInput): Promise<Payment> {
   const allocations: PaymentAllocation[] = []
   let derivedContractId: string | undefined
+  let derivedBankId: string | undefined
 
   if (input.invoice_ids.length > 0) {
     const { data: ivRows, error: ivErr } = await supabase
@@ -172,8 +173,9 @@ export async function recordPaymentCore(input: RecordPaymentInput): Promise<Paym
       if (alloc <= 0) continue
       allocations.push({ invoice_id: ivId, amount: alloc })
       remaining -= alloc
-      // ผูก contract จากใบแรกที่จับคู่ (ช่วย trace slip→สัญญา)
+      // ผูก contract + บัญชีรับเงิน จากใบแรกที่จับคู่ (ช่วย trace slip→สัญญา→บัญชี)
       if (!derivedContractId) derivedContractId = row.contract_id ?? (dd.cid != null ? String(dd.cid) : undefined)
+      if (!derivedBankId && dd.bankAccountId) derivedBankId = String(dd.bankAccountId)
     }
   }
 
@@ -184,7 +186,7 @@ export async function recordPaymentCore(input: RecordPaymentInput): Promise<Paym
   const paymentData = {
     date: input.date,
     amount: input.amount,
-    bank_account_id: input.bank_account_id || undefined,
+    bank_account_id: input.bank_account_id || derivedBankId || undefined,
     contract_id: input.contract_id || derivedContractId || undefined,
     payMethod: input.payMethod,
     payerName: input.payerName || undefined,
