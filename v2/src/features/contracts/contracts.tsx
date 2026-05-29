@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Search, StickyNote, Tag as TagIcon, UserRound, X } from 'lucide-react'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, Search, StickyNote, Tag as TagIcon, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMemo, useRef, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
@@ -59,6 +59,7 @@ import {
 } from '@/features/contracts/queries'
 import { useBulkUpdateTags } from '@/features/contracts/mutations'
 import { TagInput } from '@/components/yonghua/tag-input'
+import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
 import { amt, dayjs, fmtThaiShort } from '@/lib/thai'
 import {
   CONTRACT_STATUSES,
@@ -134,6 +135,8 @@ export function Contracts() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
   const [bulkRemoveDraft, setBulkRemoveDraft] = useState<string[]>([])
   const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
+  const [genOpen, setGenOpen] = useState(false)
+  const [genIds, setGenIds] = useState<string[]>([])
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
@@ -534,6 +537,26 @@ export function Contracts() {
     exportContractsXlsx(selectedRows)
   }
 
+  function handleBulkInvoice() {
+    if (selectedIds.length === 0) return
+    setGenIds(selectedIds)
+    setGenOpen(true)
+  }
+
+  function handleBulkPrint() {
+    if (selectedIds.length === 0) return
+    if (selectedIds.length > 20) {
+      toast.warning('เลือกมากเกินไป', {
+        description: 'พิมพ์รวมทีละไม่เกิน 20 สัญญา',
+      })
+      return
+    }
+    navigate({
+      to: '/contracts/print-batch',
+      search: { ids: selectedIds.join(',') },
+    })
+  }
+
   const totalRows = contracts?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
 
@@ -905,6 +928,21 @@ export function Contracts() {
               </PopoverContent>
             </Popover>
 
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={handleBulkInvoice}
+              className='border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-400 dark:hover:bg-emerald-950/30'
+            >
+              <Receipt className='size-4' />
+              ออกใบแจ้งหนี้
+            </Button>
+
+            <Button size='sm' variant='outline' onClick={handleBulkPrint}>
+              <Printer className='size-4' />
+              พิมพ์สัญญา
+            </Button>
+
             <Button size='sm' variant='outline' onClick={handleExportSelected}>
               <Download className='size-4' />
               Export ที่เลือก
@@ -922,6 +960,13 @@ export function Contracts() {
           </div>
         </div>
       )}
+
+      <GenerateMonthlyDialog
+        open={genOpen}
+        onOpenChange={setGenOpen}
+        contractIds={genIds}
+        onGenerated={() => setRowSelection({})}
+      />
 
       <ContractRowPreview id={previewId} onClose={() => setPreviewId(null)} />
 

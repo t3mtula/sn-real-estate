@@ -54,6 +54,7 @@ import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authent
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated/invoices/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedContractsRenewalsRouteImport } from './routes/_authenticated/contracts/renewals'
+import { Route as AuthenticatedContractsPrintBatchRouteImport } from './routes/_authenticated/contracts/print-batch'
 import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
 import { Route as AuthenticatedBankAccountsNewRouteImport } from './routes/_authenticated/bank-accounts/new'
 import { Route as AuthenticatedTenantsIdIndexRouteImport } from './routes/_authenticated/tenants/$id/index'
@@ -321,6 +322,12 @@ const AuthenticatedContractsRenewalsRoute =
     path: '/contracts/renewals',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedContractsPrintBatchRoute =
+  AuthenticatedContractsPrintBatchRouteImport.update({
+    id: '/contracts/print-batch',
+    path: '/contracts/print-batch',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedContractsNewRoute =
   AuthenticatedContractsNewRouteImport.update({
     id: '/contracts/new',
@@ -425,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/validation': typeof AuthenticatedValidationRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/contracts/print-batch': typeof AuthenticatedContractsPrintBatchRoute
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -484,6 +492,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/contracts/print-batch': typeof AuthenticatedContractsPrintBatchRoute
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -546,6 +555,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/bank-accounts/new': typeof AuthenticatedBankAccountsNewRoute
   '/_authenticated/contracts/new': typeof AuthenticatedContractsNewRoute
+  '/_authenticated/contracts/print-batch': typeof AuthenticatedContractsPrintBatchRoute
   '/_authenticated/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
@@ -608,6 +618,7 @@ export interface FileRouteTypes {
     | '/validation'
     | '/bank-accounts/new'
     | '/contracts/new'
+    | '/contracts/print-batch'
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bank-accounts/new'
     | '/contracts/new'
+    | '/contracts/print-batch'
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
@@ -728,6 +740,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/bank-accounts/new'
     | '/_authenticated/contracts/new'
+    | '/_authenticated/contracts/print-batch'
     | '/_authenticated/contracts/renewals'
     | '/_authenticated/errors/$error'
     | '/_authenticated/invoices/new'
@@ -1102,6 +1115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContractsRenewalsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/contracts/print-batch': {
+      id: '/_authenticated/contracts/print-batch'
+      path: '/contracts/print-batch'
+      fullPath: '/contracts/print-batch'
+      preLoaderRoute: typeof AuthenticatedContractsPrintBatchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/contracts/new': {
       id: '/_authenticated/contracts/new'
       path: '/contracts/new'
@@ -1234,6 +1254,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedBankAccountsNewRoute: typeof AuthenticatedBankAccountsNewRoute
   AuthenticatedContractsNewRoute: typeof AuthenticatedContractsNewRoute
+  AuthenticatedContractsPrintBatchRoute: typeof AuthenticatedContractsPrintBatchRoute
   AuthenticatedContractsRenewalsRoute: typeof AuthenticatedContractsRenewalsRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
@@ -1279,6 +1300,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedBankAccountsNewRoute: AuthenticatedBankAccountsNewRoute,
   AuthenticatedContractsNewRoute: AuthenticatedContractsNewRoute,
+  AuthenticatedContractsPrintBatchRoute: AuthenticatedContractsPrintBatchRoute,
   AuthenticatedContractsRenewalsRoute: AuthenticatedContractsRenewalsRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,

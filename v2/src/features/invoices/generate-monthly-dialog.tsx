@@ -66,10 +66,16 @@ const SKIP_REASON_LABEL: Record<
 export function GenerateMonthlyDialog({
   open,
   onOpenChange,
+  contractIds,
+  onGenerated,
 }: {
   open: boolean
   onOpenChange: (next: boolean) => void
+  /** ถ้าระบุ = สร้างเฉพาะสัญญาเหล่านี้ (จากการเลือกในหน้ารายการ) · ซ่อน tag filter */
+  contractIds?: string[]
+  onGenerated?: () => void
 }) {
+  const scoped = !!contractIds && contractIds.length > 0
   const [month, setMonth] = useState<string>(currentMonth())
   const [filterTags, setFilterTags] = useState<string[]>([])
   const monthOptions = buildMonthOptions()
@@ -104,7 +110,10 @@ export function GenerateMonthlyDialog({
 
   async function handleReview() {
     try {
-      await preview.mutateAsync({ tags: filterTags })
+      await preview.mutateAsync({
+        tags: scoped ? [] : filterTags,
+        contractIds: scoped ? contractIds : undefined,
+      })
       setStage('review')
     } catch (err) {
       toast.error('ตรวจสอบไม่สำเร็จ', {
@@ -115,13 +124,18 @@ export function GenerateMonthlyDialog({
 
   async function handleConfirm() {
     try {
-      const res = await generate.mutateAsync({ month, tags: filterTags })
+      const res = await generate.mutateAsync({
+        month,
+        tags: scoped ? [] : filterTags,
+        contractIds: scoped ? contractIds : undefined,
+      })
       setResult({
         created: res.created,
         skipped: res.skipped,
         errors: res.errors.length,
       })
       setStage('done')
+      onGenerated?.()
       if (res.errors.length === 0) {
         toast.success(`สร้างใบแจ้งหนี้แล้ว ${res.created} ใบ`, {
           description: res.skipped > 0 ? `ข้าม ${res.skipped} ที่ไม่ตรงเงื่อนไข` : undefined,
@@ -178,20 +192,26 @@ export function GenerateMonthlyDialog({
             )}
           </div>
 
-          <div className='space-y-2'>
-            <Label>เฉพาะกลุ่ม (tag)</Label>
-            <TagInput
-              value={filterTags}
-              onChange={setFilterTags}
-              suggestions={tagSuggestions ?? []}
-              placeholder='ทั้งระบบ — เลือก tag เพื่อสร้างเฉพาะกลุ่ม'
-            />
-            <p className='text-xs text-muted-foreground'>
-              {filterTags.length === 0
-                ? 'ไม่เลือก = สร้างให้ทุกสัญญาที่ถึงรอบ'
-                : `สร้างเฉพาะสัญญาที่มี tag: ${filterTags.join(', ')}`}
-            </p>
-          </div>
+          {scoped ? (
+            <div className='rounded-md border bg-sky-500/10 px-3 py-2 text-sm text-sky-700 dark:text-sky-300'>
+              สร้างเฉพาะ {contractIds!.length} สัญญาที่เลือกไว้
+            </div>
+          ) : (
+            <div className='space-y-2'>
+              <Label>เฉพาะกลุ่ม (tag)</Label>
+              <TagInput
+                value={filterTags}
+                onChange={setFilterTags}
+                suggestions={tagSuggestions ?? []}
+                placeholder='ทั้งระบบ — เลือก tag เพื่อสร้างเฉพาะกลุ่ม'
+              />
+              <p className='text-xs text-muted-foreground'>
+                {filterTags.length === 0
+                  ? 'ไม่เลือก = สร้างให้ทุกสัญญาที่ถึงรอบ'
+                  : `สร้างเฉพาะสัญญาที่มี tag: ${filterTags.join(', ')}`}
+              </p>
+            </div>
+          )}
 
           {stage === 'review' && prev && (
             <div className='space-y-3'>

@@ -28,7 +28,7 @@ import {
   renderTemplateText,
 } from './default-template'
 
-type Refs = {
+export type Refs = {
   contract: Contract
   tenant?: Tenant | null
   landlord?: Landlord | null
@@ -992,6 +992,45 @@ export function buildContractPdf(refs: Refs): TDocumentDefinitions {
     ],
 
     defaultStyle: {
+      font: 'THSarabunNew',
+      fontSize: 14,
+      lineHeight: 1.6,
+      color: C.ink,
+    },
+  }
+}
+
+/**
+ * รวมหลายสัญญาเป็น PDF เดียว (พิมพ์เป็นกลุ่ม)
+ * แต่ละสัญญาขึ้นหน้าใหม่ · header/footer เป็นเลขหน้ารวม
+ */
+export function buildContractsBatchPdf(list: Refs[]): TDocumentDefinitions {
+  const docs = list.map((refs) => buildContractPdf(refs))
+  const content: Content[] = []
+  docs.forEach((d, i) => {
+    const body = Array.isArray(d.content) ? d.content : [d.content as Content]
+    if (i > 0) {
+      content.push({ text: '', pageBreak: 'before' } as Content)
+    }
+    content.push(...(body as Content[]))
+  })
+  const first = docs[0]
+  return {
+    info: {
+      title: `สัญญาเช่า (พิมพ์รวม ${list.length} ฉบับ)`,
+      author: 'SN Rental Studio',
+    },
+    pageSize: 'A4',
+    pageMargins: [40, 42, 40, 36] as [number, number, number, number],
+    footer: (currentPage: number, pageCount: number) => ({
+      text: `หน้า ${currentPage} จาก ${pageCount}`,
+      alignment: 'center',
+      fontSize: 8,
+      color: C.inkFaint,
+      margin: [0, 8, 0, 0] as [number, number, number, number],
+    }),
+    content,
+    defaultStyle: first?.defaultStyle ?? {
       font: 'THSarabunNew',
       fontSize: 14,
       lineHeight: 1.6,
