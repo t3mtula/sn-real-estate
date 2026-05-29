@@ -54,15 +54,17 @@
       content="ระบบบริหารสัญญาเช่าอสังหาริมทรัพย์ของ SN"
     />
 
-    <!-- font family · Sarabun is the only font actually used (see @theme in
-         src/styles/index.css). Loaded here via <link> instead of CSS @import
-         so it fetches in parallel with the JS bundle and does not block FCP.
-         `display=swap` ensures fallback text renders immediately. -->
+    <!-- Screen UI font = IBM Plex Sans Thai (Thai) + IBM Plex Sans (Latin/numbers),
+         see --font-sans in src/styles/index.css. Sarabun is kept loaded because
+         print/PDF (contract-html, invoice-html, batch-receipt) and the doc-editor
+         preview render with Sarabun for formal documents. Loaded here via <link>
+         instead of CSS @import so it fetches in parallel with the JS bundle and
+         does not block FCP. `display=swap` ensures fallback text renders immediately. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap"
     />
 
     <meta name="theme-color" content="#0F4C5C" />

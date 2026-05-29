@@ -1,14 +1,18 @@
-/* Sarabun font moved to <link> in index.html so it loads in parallel with the
- * main JS bundle and does not block CSS parsing / FCP. `display=swap` in the
- * Google CSS lets fallback text paint immediately. */
+/* Screen fonts loaded via <link> in index.html so they fetch in parallel with the
+ * main JS bundle and do not block CSS parsing / FCP. `display=swap` in the Google
+ * CSS lets fallback text paint immediately. Print/PDF stay on Sarabun (hardcoded
+ * in their own files) — only the screen UI font is set here. */
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './theme.css';
 @import './print.css';
 
 @theme inline {
+  /* Screen UI: IBM Plex Sans Thai (Thai) → IBM Plex Sans (Latin/tabular numbers)
+   * → Sarabun fallback. Same family as v1 for cross-version consistency. */
   --font-sans:
-    'Sarabun', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    'IBM Plex Sans Thai', 'IBM Plex Sans', 'Sarabun', system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
   --color-brand:
     var(--brand);
   --color-highlight:
