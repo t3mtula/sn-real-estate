@@ -2,9 +2,9 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
-## 🔄 Session 2026-05-30 — [v2] จับคู่เงิน A–E (branch feat/reconciliation-ae · deploy preview แล้ว)
+## ✅ Session 2026-05-30 — [v2] จับคู่เงิน A–E + redesign + แบ่งจ่าย + จับคู่ค้าง (merge main + ขึ้น prod แล้ว)
 
-แตกจาก main · เพิ่ม 5 อย่างในหน้านำเข้า statement · **ยังไม่ merge main** · งาน invoice wizard (per-row select + reconciliation เดือนก่อน) commit ไว้บน branch feat/invoice-wizard-controls
+**merge เข้า main + deploy:prod แล้ว** (main = 0208d9b · live ที่ sn-real-estate-v2.pages.dev) · Tem ยืนยันขึ้น prod · งาน invoice wizard (per-row select + reconciliation เดือนก่อน) ยังค้างแยกบน branch feat/invoice-wizard-controls (ยังไม่ merge)
 
 1. **D กัน import ซ้ำ** — เก็บเลขบัญชีต้นทาง+เวลาลงทุกรายการ · รายการที่ (วันที่+ยอด+เวลา+เลขต้นทาง) ตรงกับที่เคยเข้าบัญชีนี้ = กันลงซ้ำ + ป้ายเตือน
 2. **C เช็คยอดรวม** — โชว์ยอดรวมเงินเข้าที่ดึงได้ + จำนวนรายการเสมอ (เทียบตาเปล่าได้ทุกแบงก์) · ถ้าดึงยอดที่ statement พิมพ์ได้ → เตือนถ้าไม่ตรง (best-effort)
