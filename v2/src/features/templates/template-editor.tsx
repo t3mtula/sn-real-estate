@@ -333,7 +333,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
         const r = await create.mutateAsync({ data: draft, active: makeActive })
         toast.success('สร้างแบบสัญญาแล้ว')
         navigate({
-          to: '/templates/$id',
+          to: '/templates/doc/$id',
           params: { id: r.id },
           replace: true,
         })

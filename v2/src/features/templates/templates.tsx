@@ -82,7 +82,7 @@ export function ContractTemplates() {
       const r = await duplicate.mutateAsync(id)
       toast.success('คัดลอกฟอร์มแล้ว')
       navigate({
-        to: '/templates/$id',
+        to: '/templates/doc/$id',
         params: { id: r.id },
       })
     } catch (err) {
@@ -190,14 +190,15 @@ export function ContractTemplates() {
                   ข้อย่อย
                 </div>
                 <div className='flex flex-wrap gap-2'>
-                  <Button asChild size='sm' variant='outline'>
-                    <Link
-                      to='/templates/$id'
-                      params={{ id: t.id }}
-                    >
-                      <Edit3 className='size-4' />
-                      แก้ไข
-                    </Link>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() =>
+                      navigate({ to: '/templates/doc/$id', params: { id: t.id } })
+                    }
+                  >
+                    <Edit3 className='size-4' />
+                    แก้ไข
                   </Button>
                   {!t.is_active && (
                     <Button
