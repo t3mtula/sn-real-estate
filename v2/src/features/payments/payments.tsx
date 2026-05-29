@@ -8,7 +8,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Banknote, CircleCheck, CircleDot, CircleHelp, FileUp, Plus, Search } from 'lucide-react'
+import { Ban, Banknote, CircleCheck, CircleDot, CircleHelp, FileUp, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { ImportPdfDialog } from './pdf-import'
 import { Header } from '@/components/layout/header'
@@ -39,6 +39,7 @@ const STATUS_CONFIG = {
   matched:     { label: 'จับคู่แล้ว',     icon: CircleCheck, cls: 'text-green-600 dark:text-green-400' },
   partial:     { label: 'บางส่วน',        icon: CircleDot,   cls: 'text-amber-600 dark:text-amber-400' },
   unallocated: { label: 'ยังไม่จับคู่',   icon: CircleHelp,  cls: 'text-muted-foreground' },
+  other:       { label: 'ไม่ใช่ค่าเช่า',   icon: Ban,         cls: 'text-slate-500 dark:text-slate-400' },
 }
 
 export function Payments() {

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Banknote, CircleCheck, CircleDot, CircleHelp, Trash2 } from 'lucide-react'
+import { ArrowLeft, Ban, Banknote, CircleCheck, CircleDot, CircleHelp, Trash2 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -22,6 +22,7 @@ const STATUS_CONFIG: Record<PaymentStatus, { label: string; icon: React.ElementT
   matched:     { label: 'จับคู่แล้ว',   icon: CircleCheck, cls: 'text-green-600 dark:text-green-400' },
   partial:     { label: 'บางส่วน',      icon: CircleDot,   cls: 'text-amber-600 dark:text-amber-400' },
   unallocated: { label: 'ยังไม่จับคู่', icon: CircleHelp,  cls: 'text-muted-foreground' },
+  other:       { label: 'ไม่ใช่ค่าเช่า', icon: Ban,         cls: 'text-slate-500 dark:text-slate-400' },
 }
 
 interface PaymentDetailProps {

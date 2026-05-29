@@ -1,4 +1,4 @@
-export type PaymentStatus = 'matched' | 'partial' | 'unallocated'
+export type PaymentStatus = 'matched' | 'partial' | 'unallocated' | 'other'
 export type PayMethod = 'transfer' | 'cash' | 'check' | 'promptpay'
 
 export interface PaymentAllocation {

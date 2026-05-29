@@ -5,7 +5,7 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import * as XLSX from 'xlsx'
 import { useState, useRef, useMemo } from 'react'
-import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Ban } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -173,6 +173,14 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const [detectedBankAccId, setDetectedBankAccId] = useState<string | undefined>()
   const [manualBankId, setManualBankId] = useState<string | undefined>()
   const [picked, setPicked] = useState<Record<string, string>>({}) // rowId → contractId (override การเดา)
+  const [notRent, setNotRent] = useState<Set<string>>(new Set()) // E — รายการที่ mark ว่า "ไม่ใช่ค่าเช่า"
+  const toggleNotRent = (id: string) =>
+    setNotRent((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: bankAccounts } = useBankAccounts()
@@ -221,6 +229,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     setDetectedBankAccId(undefined)
     setManualBankId(undefined)
     setPicked({})
+    setNotRent(new Set())
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -286,20 +295,24 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     if (selected.length === 0) return
 
     setStep('saving')
-    const batch: BatchPaymentRow[] = selected.map((r) => ({
-      date: r.date,
-      time: r.time || undefined,
-      amount: r.amount,
-      bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
-      contract_id: picked[r._id] ?? matches.get(r._id)?.contractId,
-      payerName: r.payerName,
-      sourceBankCode: r.sourceBankCode || undefined,
-      sourceAcctSuffix: r.sourceAcctSuffix || undefined,
-      pickedManually: picked[r._id] != null,
-      payMethod: 'transfer' as const,
-      notes: r.description,
-      status: 'unallocated' as const,
-    }))
+    const batch: BatchPaymentRow[] = selected.map((r) => {
+      const isOther = notRent.has(r._id)
+      return {
+        date: r.date,
+        time: r.time || undefined,
+        amount: r.amount,
+        bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
+        // "ไม่ใช่ค่าเช่า" → ไม่ผูกสัญญา · บันทึกเป็นเงินเข้าสถานะ other (ยอดบัญชีกระทบครบ)
+        contract_id: isOther ? undefined : (picked[r._id] ?? matches.get(r._id)?.contractId),
+        payerName: r.payerName,
+        sourceBankCode: r.sourceBankCode || undefined,
+        sourceAcctSuffix: r.sourceAcctSuffix || undefined,
+        pickedManually: isOther ? false : picked[r._id] != null,
+        payMethod: 'transfer' as const,
+        notes: r.description,
+        status: isOther ? ('other' as const) : ('unallocated' as const),
+      }
+    })
 
     try {
       await batchSave.mutateAsync(batch)
@@ -561,7 +574,20 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                             {r.payerName || '—'}
                           </td>
                           <td className='p-2 max-w-[230px]' onClick={(e) => e.stopPropagation()}>
-                            {(() => {
+                            {notRent.has(r._id) ? (
+                              <div className='flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
+                                <span className='flex items-center gap-1'>
+                                  <Ban className='size-3 shrink-0' /> ไม่ใช่ค่าเช่า
+                                </span>
+                                <button
+                                  type='button'
+                                  className='shrink-0 underline-offset-2 hover:underline'
+                                  onClick={() => toggleNotRent(r._id)}
+                                >
+                                  คืนค่า
+                                </button>
+                              </div>
+                            ) : (() => {
                               const mt = matches.get(r._id)
                               const chosen = picked[r._id] ?? mt?.contractId ?? ''
                               const pct = mt?.score ?? 0
@@ -596,6 +622,14 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                                       )}
                                     </SelectContent>
                                   </Select>
+                                  <button
+                                    type='button'
+                                    title='ไม่ใช่ค่าเช่า (โอนผิด/เงินอื่น)'
+                                    className='shrink-0 text-muted-foreground hover:text-foreground'
+                                    onClick={() => toggleNotRent(r._id)}
+                                  >
+                                    <Ban className='size-3.5' />
+                                  </button>
                                 </div>
                               )
                             })()}
