@@ -1,20 +1,7 @@
-import { Check, Plus, Tag as TagIcon, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import * as React from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 export type TagInputProps = {
@@ -35,10 +22,10 @@ function norm(s: string): string {
 }
 
 /**
- * Free-form multi-tag input.
- * - พิมพ์แล้วกด Enter หรือเลือกจาก dropdown เพื่อเพิ่ม
- * - tag ใหม่ที่ยังไม่เคยมี → แสดง "+ สร้าง" ให้กดเพิ่มได้
- * - กด × บน badge หรือ Backspace (ตอน input ว่าง) เพื่อลบ
+ * Free-form multi-tag input (inline · ไม่ใช้ popover/cmdk เพื่อความชัวร์)
+ * - พิมพ์แล้วกด Enter หรือ comma เพื่อเพิ่ม
+ * - กดชิป suggestion ด้านล่างเพื่อเพิ่ม
+ * - กด × บน badge เพื่อลบ · Backspace ตอน input ว่าง = ลบตัวล่าสุด
  */
 export function TagInput({
   value,
@@ -49,31 +36,29 @@ export function TagInput({
   id,
   className,
 }: TagInputProps) {
-  const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
-
   const selected = React.useMemo(() => new Set(value), [value])
   const q = norm(query)
+  const atMax = value.length >= max
 
-  // suggestion ที่ยังไม่ถูกเลือก + match query
-  const available = React.useMemo(() => {
+  // suggestion ที่ยังไม่ถูกเลือก + match query (จำกัด 10)
+  const matches = React.useMemo(() => {
     const uniq = Array.from(new Set(suggestions.map(norm).filter(Boolean)))
     return uniq
       .filter((t) => !selected.has(t))
       .filter((t) => (q ? t.toLowerCase().includes(q.toLowerCase()) : true))
       .sort((a, b) => a.localeCompare(b, 'th'))
+      .slice(0, 10)
   }, [suggestions, selected, q])
 
   const canCreate =
     q.length > 0 &&
     !selected.has(q) &&
-    !available.some((t) => t.toLowerCase() === q.toLowerCase())
-
-  const atMax = value.length >= max
+    !matches.some((t) => t.toLowerCase() === q.toLowerCase())
 
   function addTag(tag: string) {
     const t = norm(tag)
-    if (!t || selected.has(t) || atMax) return
+    if (!t || selected.has(t) || value.length >= max) return
     onChange([...value, t])
     setQuery('')
   }
@@ -106,65 +91,49 @@ export function TagInput({
         </div>
       )}
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            id={id}
-            type='button'
-            variant='outline'
-            size='sm'
-            className='h-8 border-dashed text-muted-foreground'
-            disabled={atMax}
-          >
-            <TagIcon className='size-3.5' />
-            {atMax ? `ครบ ${max} tag แล้ว` : placeholder}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className='w-64 p-0' align='start'>
-          <Command
-            filter={() => 1 /* เราคุม filter เองผ่าน available */}
-          >
-            <CommandInput
-              placeholder='พิมพ์เพื่อค้นหา/สร้าง tag'
-              value={query}
-              onValueChange={setQuery}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && canCreate) {
-                  e.preventDefault()
-                  addTag(q)
-                }
-              }}
-            />
-            <CommandList>
-              {!canCreate && available.length === 0 && (
-                <CommandEmpty>ไม่มี tag · พิมพ์เพื่อสร้างใหม่</CommandEmpty>
-              )}
-              {available.length > 0 && (
-                <CommandGroup heading='เลือก tag ที่เคยใช้'>
-                  {available.map((tag) => (
-                    <CommandItem
-                      key={tag}
-                      value={tag}
-                      onSelect={() => addTag(tag)}
-                    >
-                      <Check className='size-4 opacity-0' />
-                      {tag}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-              {canCreate && (
-                <CommandGroup heading='สร้างใหม่'>
-                  <CommandItem value={`__create__${q}`} onSelect={() => addTag(q)}>
-                    <Plus className='size-4' />
-                    สร้าง "{q}"
-                  </CommandItem>
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      {!atMax && (
+        <Input
+          id={id}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              if (canCreate) addTag(q)
+              else if (matches.length > 0) addTag(matches[0])
+            } else if (e.key === 'Backspace' && !query && value.length > 0) {
+              removeTag(value[value.length - 1])
+            }
+          }}
+          placeholder={placeholder}
+          className='h-8'
+        />
+      )}
+
+      {(matches.length > 0 || canCreate) && (
+        <div className='flex flex-wrap gap-1.5'>
+          {canCreate && (
+            <button
+              type='button'
+              onClick={() => addTag(q)}
+              className='inline-flex items-center gap-1 rounded-full border border-dashed border-primary/50 px-2 py-0.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10'
+            >
+              <Plus className='size-3' />
+              สร้าง "{q}"
+            </button>
+          )}
+          {matches.map((tag) => (
+            <button
+              key={tag}
+              type='button'
+              onClick={() => addTag(tag)}
+              className='inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted'
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

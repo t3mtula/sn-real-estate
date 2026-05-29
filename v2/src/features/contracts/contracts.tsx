@@ -132,6 +132,8 @@ export function Contracts() {
   const bulkTag = useBulkUpdateTags()
   const [bulkTagDraft, setBulkTagDraft] = useState<string[]>([])
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
+  const [bulkRemoveDraft, setBulkRemoveDraft] = useState<string[]>([])
+  const [bulkRemoveOpen, setBulkRemoveOpen] = useState(false)
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
@@ -474,6 +476,17 @@ export function Contracts() {
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k])
   const selectedCount = selectedIds.length
 
+  // tag ที่มีอยู่บนสัญญาที่เลือก (ใช้เป็นตัวเลือกตอน "เอา tag ออก")
+  const tagsOnSelected = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of contracts ?? []) {
+      if (!rowSelection[c.id]) continue
+      const tags = Array.isArray(c.data?.tags) ? (c.data.tags as string[]) : []
+      tags.forEach((t) => set.add(t))
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'th'))
+  }, [contracts, rowSelection])
+
   async function handleBulkApplyTags() {
     if (selectedIds.length === 0 || bulkTagDraft.length === 0) return
     try {
@@ -493,6 +506,32 @@ export function Contracts() {
         description: err instanceof Error ? err.message : String(err),
       })
     }
+  }
+
+  async function handleBulkRemoveTags() {
+    if (selectedIds.length === 0 || bulkRemoveDraft.length === 0) return
+    try {
+      const res = await bulkTag.mutateAsync({
+        ids: selectedIds,
+        removeTags: bulkRemoveDraft,
+      })
+      toast.success(`เอา tag ออกจาก ${res.done} สัญญาแล้ว`)
+      setBulkRemoveDraft([])
+      setBulkRemoveOpen(false)
+      setRowSelection({})
+    } catch (err) {
+      toast.error('เอา tag ออกไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  function handleExportSelected() {
+    const selectedRows = table
+      .getRowModel()
+      .rows.filter((r) => rowSelection[r.original.id])
+      .map((r) => r.original)
+    exportContractsXlsx(selectedRows)
   }
 
   const totalRows = contracts?.length ?? 0
@@ -534,8 +573,11 @@ export function Contracts() {
   const exportXlsx = useExportXlsx()
 
   function handleExport() {
-    const visible = table.getRowModel().rows.map((r) => {
-      const c = r.original
+    exportContractsXlsx(table.getRowModel().rows.map((r) => r.original))
+  }
+
+  function exportContractsXlsx(list: Row[]) {
+    const visible = list.map((c) => {
       const d = c.data
       const meta = getStatusMeta(getContractStatus(d))
       return {
@@ -822,6 +864,52 @@ export function Contracts() {
                 </Button>
               </PopoverContent>
             </Popover>
+
+            <Popover
+              open={bulkRemoveOpen}
+              onOpenChange={(o) => {
+                setBulkRemoveOpen(o)
+                if (!o) setBulkRemoveDraft([])
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  disabled={tagsOnSelected.length === 0}
+                >
+                  <TagIcon className='size-4' />
+                  เอา tag ออก
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className='w-72 space-y-3' align='center' side='top'>
+                <p className='text-sm font-medium'>
+                  เอา tag ออกจาก {selectedCount} สัญญา
+                </p>
+                <TagInput
+                  value={bulkRemoveDraft}
+                  onChange={setBulkRemoveDraft}
+                  suggestions={tagsOnSelected}
+                  placeholder='เลือก tag ที่จะเอาออก'
+                />
+                <Button
+                  size='sm'
+                  variant='destructive'
+                  className='w-full'
+                  disabled={bulkRemoveDraft.length === 0 || bulkTag.isPending}
+                  onClick={handleBulkRemoveTags}
+                >
+                  {bulkTag.isPending && <Loader2 className='size-4 animate-spin' />}
+                  เอา tag ออก
+                </Button>
+              </PopoverContent>
+            </Popover>
+
+            <Button size='sm' variant='outline' onClick={handleExportSelected}>
+              <Download className='size-4' />
+              Export ที่เลือก
+            </Button>
+
             <span className='h-4 w-px bg-border' />
             <Button
               size='sm'
