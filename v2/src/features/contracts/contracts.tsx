@@ -194,14 +194,12 @@ export function Contracts() {
           />
         ),
         cell: ({ row }) => (
+          // คลิกถูกจัดการที่ TableCell (รองรับ Shift+คลิกเลือกช่วง) — checkbox แค่โชว์สถานะ
           <Checkbox
             checked={row.getIsSelected()}
-            onCheckedChange={(v) => {
-              row.toggleSelected(!!v)
-              lastSelectedId.current = row.id // anchor for shift-range
-            }}
             aria-label='เลือก'
-            onClick={(e) => e.stopPropagation()}
+            tabIndex={-1}
+            className='pointer-events-none'
           />
         ),
       },
