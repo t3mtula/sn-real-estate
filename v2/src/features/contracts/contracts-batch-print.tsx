@@ -1,12 +1,12 @@
 import { useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Download, Printer } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, Printer } from 'lucide-react'
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import {
-  buildContractsBatchPdf,
-  type Refs,
-} from '@/features/contracts/print/contract-pdf'
+  buildContractsBatchHtml,
+  type ContractHtmlRefs,
+} from '@/features/contracts/print/contract-html'
 import { useContracts } from '@/features/contracts/queries'
 import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
@@ -15,7 +15,6 @@ import {
   useContractTemplates,
 } from '@/features/templates/queries'
 import { useTenants } from '@/features/tenants/queries'
-import { getPdfBlob } from '@/lib/pdf'
 
 /**
  * พิมพ์หลายสัญญาเป็นไฟล์เดียว — full-page iframe (ตรง pattern ContractPrint)
@@ -34,7 +33,7 @@ export function ContractsBatchPrint({ ids }: { ids: string[] }) {
   const ready =
     !!contracts && !!tenants && !!landlords && !!properties && !!banks && !!templates
 
-  const refsList = useMemo<Refs[]>(() => {
+  const refsList = useMemo<ContractHtmlRefs[]>(() => {
     if (!ready) return []
     const byId = <T extends { id: string }>(arr: T[]) =>
       new Map(arr.map((x) => [x.id, x]))
@@ -71,38 +70,17 @@ export function ContractsBatchPrint({ ids }: { ids: string[] }) {
       })
   }, [ready, ids, contracts, tenants, landlords, properties, banks, templates, activeTemplate])
 
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const [pdfErr, setPdfErr] = useState<string | null>(null)
-  const [building, setBuilding] = useState(false)
-
-  useEffect(() => {
-    if (!ready || refsList.length === 0) return
-    let cancelled = false
-    setBuilding(true)
-    setPdfErr(null)
-    ;(async () => {
-      try {
-        const doc = buildContractsBatchPdf(refsList)
-        const blob = await getPdfBlob(doc)
-        if (cancelled) return
-        setPdfUrl(URL.createObjectURL(blob))
-      } catch (err) {
-        if (cancelled) return
-        setPdfErr(err instanceof Error ? err.message : String(err))
-      } finally {
-        if (!cancelled) setBuilding(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+  const html = useMemo(() => {
+    if (!ready || refsList.length === 0) return null
+    return buildContractsBatchHtml(refsList, { embed: true })
   }, [ready, refsList])
 
-  useEffect(() => {
-    return () => {
-      if (pdfUrl) URL.revokeObjectURL(pdfUrl)
-    }
-  }, [pdfUrl])
+  function handlePrint() {
+    const iframe = document.getElementById(
+      'contracts-batch-print-frame',
+    ) as HTMLIFrameElement | null
+    iframe?.contentWindow?.print()
+  }
 
   return (
     <div className='flex h-svh flex-col bg-muted/30'>
@@ -123,32 +101,18 @@ export function ContractsBatchPrint({ ids }: { ids: string[] }) {
             </p>
           </div>
         </div>
-        {pdfUrl && (
+        {html && (
           <div className='flex items-center gap-2'>
-            <Button asChild variant='outline' size='sm'>
-              <a href={pdfUrl} download={`สัญญาเช่า-รวม-${refsList.length}ฉบับ.pdf`}>
-                <Download className='size-4' />
-                ดาวน์โหลด PDF
-              </a>
-            </Button>
-            <Button
-              size='sm'
-              onClick={() => {
-                const iframe = document.getElementById(
-                  'contracts-batch-pdf-frame',
-                ) as HTMLIFrameElement | null
-                iframe?.contentWindow?.print()
-              }}
-            >
+            <Button size='sm' onClick={handlePrint}>
               <Printer className='size-4' />
-              สั่งพิมพ์
+              พิมพ์ / บันทึก PDF
             </Button>
           </div>
         )}
       </header>
 
       <div className='flex-1 overflow-hidden'>
-        {!ready || building ? (
+        {!ready ? (
           <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
             กำลังสร้างเอกสาร {refsList.length || ids.length} ฉบับ...
           </div>
@@ -156,16 +120,11 @@ export function ContractsBatchPrint({ ids }: { ids: string[] }) {
           <div className='flex h-full items-center justify-center text-sm text-muted-foreground'>
             ไม่พบสัญญาที่เลือก
           </div>
-        ) : pdfErr ? (
-          <div className='m-4 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
-            <p className='font-medium'>สร้างไฟล์ PDF ไม่สำเร็จ</p>
-            <p className='mt-1 text-xs'>{pdfErr}</p>
-          </div>
-        ) : pdfUrl ? (
+        ) : html ? (
           <iframe
-            id='contracts-batch-pdf-frame'
+            id='contracts-batch-print-frame'
             title='พิมพ์สัญญาเป็นกลุ่ม'
-            src={pdfUrl}
+            srcDoc={html}
             className='h-full w-full border-0'
           />
         ) : null}

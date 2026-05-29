@@ -241,13 +241,14 @@ function sigBoxParty(opts: {
   })
 }
 
-export function buildContractHtml(
+/**
+ * Render the inner document (page1 + page2) for ONE contract.
+ * Shared by single-contract and batch print so layout never diverges.
+ */
+function renderContractDoc(
   refs: ContractHtmlRefs,
-  opts: BuildContractHtmlOptions = {},
-): string {
-  const { embed = true, hideToolbar = embed } = opts
+): { html: string; docTitle: string } {
   const c = refs.contract.data
-  const today = new Date()
 
   // ── Names + addresses (prefer FK entity over inline string) ──
   const landlordName = (refs.landlord?.data?.name ?? c.landlord ?? '').trim()
@@ -305,23 +306,6 @@ export function buildContractHtml(
   // ── Property + bank (appendix) ──
   const p = refs.property?.data
   const b = refs.bank?.data
-
-  // ════════ HTML build ════════
-  const head =
-    '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">' +
-    `<title>${escape(docTitle)}</title>` +
-    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">' +
-    `<style>${CONTRACT_CSS}</style></head>`
-
-  const bodyOpen = embed ? '<body class="embed">' : '<body>'
-
-  const toolbar = hideToolbar
-    ? ''
-    : `<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">
-       <button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button>
-       <button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button>
-       <span style="color:#94a3b8;font-size:12px;margin-left:auto">สัญญาเช่า — ${today.toLocaleDateString('th-TH')}</span>
-       </div><div style="height:56px" class="no-print"></div>`
 
   // ─── Page 1: Main contract ───
   const landlordLogo = refs.landlord?.data?.logo
@@ -581,7 +565,61 @@ export function buildContractHtml(
     sigsAppendix +
     '</div></div>'
 
-  return head + bodyOpen + toolbar + page1 + page2 + '</body></html>'
+  return { html: page1 + page2, docTitle }
+}
+
+// ─── Shared document chrome (head + toolbar) ───
+function buildHead(docTitle: string): string {
+  return (
+    '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">' +
+    `<title>${escape(docTitle)}</title>` +
+    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">' +
+    `<style>${CONTRACT_CSS}</style></head>`
+  )
+}
+
+function buildToolbar(): string {
+  const today = new Date()
+  return (
+    `<div class="no-print" style="position:fixed;top:0;left:0;right:0;z-index:100;background:#1e3a5f;padding:10px 24px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,0.25)">` +
+    `<button onclick="window.print()" style="background:#3b82f6;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Sarabun">🖨️ พิมพ์ / บันทึก PDF</button>` +
+    `<button onclick="window.close()" style="background:transparent;color:#94a3b8;border:1px solid #475569;padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-family:Sarabun">ปิด</button>` +
+    `<span style="color:#94a3b8;font-size:12px;margin-left:auto">สัญญาเช่า — ${today.toLocaleDateString('th-TH')}</span>` +
+    `</div><div style="height:56px" class="no-print"></div>`
+  )
+}
+
+/** Build a complete print HTML document for ONE contract. */
+export function buildContractHtml(
+  refs: ContractHtmlRefs,
+  opts: BuildContractHtmlOptions = {},
+): string {
+  const { embed = true, hideToolbar = embed } = opts
+  const { html, docTitle } = renderContractDoc(refs)
+  const bodyOpen = embed ? '<body class="embed">' : '<body>'
+  const toolbar = hideToolbar ? '' : buildToolbar()
+  return buildHead(docTitle) + bodyOpen + toolbar + html + '</body></html>'
+}
+
+/**
+ * Build ONE print HTML document containing MANY contracts.
+ * Each contract is forced onto a fresh page via .contract-break.
+ */
+export function buildContractsBatchHtml(
+  list: ContractHtmlRefs[],
+  opts: BuildContractHtmlOptions = {},
+): string {
+  const { embed = true, hideToolbar = embed } = opts
+  const inner = list
+    .map((refs, i) => {
+      const brk = i > 0 ? '<div class="contract-break"></div>' : ''
+      return brk + renderContractDoc(refs).html
+    })
+    .join('')
+  const docTitle = `สัญญาเช่า-รวม ${list.length} ฉบับ`
+  const bodyOpen = embed ? '<body class="embed">' : '<body>'
+  const toolbar = hideToolbar ? '' : buildToolbar()
+  return buildHead(docTitle) + bodyOpen + toolbar + inner + '</body></html>'
 }
 
 /* ─────────── CSS (verbatim port from v1 modules/17-contract-print.js) ─────────── */
@@ -676,6 +714,8 @@ body { background: #fff; color: #1a202c; }
   .clause, .sub-clause { page-break-inside: avoid; break-inside: avoid; orphans: 2; widows: 2; }
   .parties-table, .sig-grid, .sig-block, .ap-card, .sig-section { page-break-inside: avoid; break-inside: avoid; }
   .appendix-page { page-break-before: always; break-before: page; }
+  /* Batch: force each subsequent contract onto a fresh page */
+  .contract-break { page-break-before: always; break-before: page; height: 0; }
 }
 @media screen {
   body { background: #e2e8f0; padding: 20px; }
