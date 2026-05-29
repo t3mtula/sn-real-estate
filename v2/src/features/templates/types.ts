@@ -11,6 +11,7 @@
  *   { text: string, sub: string[] }  (sub-clauses are plain strings)
  */
 
+import type { Value } from 'platejs'
 import type { ContractClause } from '@/features/contracts/print/default-template'
 
 export type { ContractClause }
@@ -46,6 +47,13 @@ export type TemplateData = {
   attachments?: TemplateAttachment[]
   /** Property map placeholder box on/off · default false */
   showMap?: boolean
+  /**
+   * Word-like document body (Plate/Slate value) edited via <DocEditor>.
+   * Additive: when present the new document editor uses it; the structured
+   * intro/clauses/closing above stay untouched (reversible). Seeded from the
+   * structured fields on first open (structuredToPlate).
+   */
+  doc?: Value
 }
 
 export type ContractTemplate = {

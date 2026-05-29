@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import {
   closestCenter,
   DndContext,
@@ -17,6 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  FileText,
   GripVertical,
   Loader2,
   Plus,
@@ -395,6 +396,14 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
             </p>
           </div>
           <div className='flex gap-2'>
+            {mode === 'edit' && id && (
+              <Button asChild variant='outline'>
+                <Link to='/templates/$id/doc' params={{ id }}>
+                  <FileText className='size-4' />
+                  โหมดเอกสาร
+                </Link>
+              </Button>
+            )}
             {mode === 'new' && (
               <Button
                 variant='outline'
