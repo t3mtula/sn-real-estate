@@ -23,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { useContracts } from '@/features/contracts/queries'
 import { usePaymentsByBankAccount } from './queries'
-import { candidatesForAccount, matchTransaction, type MatchResult } from './matching'
+import { candidatesForAccount, matchTransaction, sourceKeyOf, type MatchResult } from './matching'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -193,14 +193,53 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     () => (effectiveBankId && contracts ? candidatesForAccount(contracts, effectiveBankId) : []),
     [contracts, effectiveBankId],
   )
+  // ประวัติเงินเข้าบัญชีนี้ — ใช้ทั้งกันซ้ำ (D) และ "จำบัญชีต้นทาง→ผู้เช่า" (A)
+  const existingPays = usePaymentsByBankAccount(effectiveBankId)
+
+  // A — เรียนรู้: เลขบัญชีต้นทาง (เช่น KBANK|9812) → สัญญาที่เคยจับ
+  // ถ่วงน้ำหนัก "พนักงานเลือกเอง" (3) > "ระบบเดา" (1) · ต้องชัดพอ (รวม ≥2) จึงจำ
+  const learnedBySource = useMemo(() => {
+    const tally = new Map<string, Map<string, number>>()
+    for (const p of existingPays.data ?? []) {
+      const key = sourceKeyOf(p.data.sourceBankCode, p.data.sourceAcctSuffix)
+      const cid = p.data.contract_id
+      if (!key || !cid || p.data.status === 'other') continue
+      const w = p.data.pickedManually ? 3 : 1
+      const byC = tally.get(key) ?? new Map<string, number>()
+      byC.set(cid, (byC.get(cid) ?? 0) + w)
+      tally.set(key, byC)
+    }
+    const out = new Map<string, string>()
+    for (const [key, byC] of tally) {
+      let bestCid = ''
+      let bestW = 0
+      let total = 0
+      for (const [cid, w] of byC) {
+        total += w
+        if (w > bestW) { bestW = w; bestCid = cid }
+      }
+      // จำเฉพาะที่ชัด: น้ำหนักรวม ≥2 และตัวที่ชนะกินสัดส่วน >ครึ่ง (กันบัญชีที่เคยจับหลายสัญญาสลับกัน)
+      if (bestCid && total >= 2 && bestW * 2 > total) out.set(key, bestCid)
+    }
+    return out
+  }, [existingPays.data])
+
   const matches = useMemo(() => {
     const m = new Map<string, MatchResult>()
-    for (const r of rows) m.set(r._id, matchTransaction({ amount: r.amount, payerName: r.payerName }, candidates))
+    for (const r of rows) {
+      m.set(
+        r._id,
+        matchTransaction(
+          { amount: r.amount, payerName: r.payerName, sourceKey: sourceKeyOf(r.sourceBankCode, r.sourceAcctSuffix) },
+          candidates,
+          learnedBySource,
+        ),
+      )
+    }
     return m
-  }, [rows, candidates])
+  }, [rows, candidates, learnedBySource])
 
   // D — กัน import ซ้ำ: รายการที่ลายนิ้วมือ (วันที่+ยอด+เวลา+เลขต้นทาง) ตรงกับเงินที่เคยเข้าบัญชีนี้แล้ว
-  const existingPays = usePaymentsByBankAccount(effectiveBankId)
   const existingFingerprints = useMemo(() => {
     const s = new Set<string>()
     for (const p of existingPays.data ?? []) {

@@ -56,6 +56,13 @@ interface Candidate {
   expected: number
 }
 
+/** คีย์บัญชีต้นทาง (ธนาคาร+เลขท้าย) สำหรับ "จำผู้เช่า" (A) — normalize ตัวพิมพ์/ช่องว่าง */
+export function sourceKeyOf(bankCode?: string, suffix?: string): string {
+  const b = String(bankCode ?? '').toUpperCase().trim()
+  const s = String(suffix ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '').trim()
+  return s ? `${b}|${s}` : ''
+}
+
 /** สร้างรายชื่อสัญญาผู้สมัครของบัญชีนี้ (กรองยกเลิกออก) พร้อมยอดต่อรอบ */
 export function candidatesForAccount(contracts: Contract[], bankAccountId: string): Candidate[] {
   return contracts
@@ -77,7 +84,8 @@ export function candidatesForAccount(contracts: Contract[], bankAccountId: strin
 function scoreCandidate(
   tx: { amount: number; payerName?: string },
   c: Candidate,
-): { score: number; amountHit: 'exact' | 'months' | 'no'; nameHit: boolean } {
+  learnedContractId?: string,
+): { score: number; amountHit: 'exact' | 'months' | 'no'; nameHit: boolean; learnedHit: boolean } {
   let amountHit: 'exact' | 'months' | 'no' = 'no'
   let score = 0
   if (c.expected > 0) {
@@ -90,18 +98,26 @@ function scoreCandidate(
   }
   const nameHit = !!(tx.payerName && nameLooksSame(tx.payerName, c.tenant))
   if (nameHit) score += 35
-  return { score, amountHit, nameHit }
+  // A — เคยจับบัญชีต้นทางนี้กับสัญญานี้มาก่อน = สัญญาณแรงสุด (เลขบัญชีมักเดิมทุกเดือน)
+  const learnedHit = !!learnedContractId && c.id === learnedContractId
+  if (learnedHit) score += 80
+  return { score, amountHit, nameHit, learnedHit }
 }
 
 export function matchTransaction(
-  tx: { amount: number; payerName?: string },
+  tx: { amount: number; payerName?: string; sourceKey?: string },
   candidates: Candidate[],
+  /** map เลขบัญชีต้นทาง → สัญญา ที่ระบบจำจากประวัติ (A) */
+  learned?: Map<string, string>,
 ): MatchResult {
   if (candidates.length === 0) {
     return { score: 0, confidence: 'none', reason: 'ไม่มีสัญญาผูกกับบัญชีนี้' }
   }
 
-  const scored = candidates.map((c) => ({ c, ...scoreCandidate(tx, c) }))
+  const learnedContractId =
+    tx.sourceKey && learned ? learned.get(tx.sourceKey) : undefined
+
+  const scored = candidates.map((c) => ({ c, ...scoreCandidate(tx, c, learnedContractId) }))
   scored.sort((a, b) => b.score - a.score)
   const best = scored[0]
 
@@ -111,9 +127,15 @@ export function matchTransaction(
 
   // ถ้าหลายสัญญาคะแนนเท่ากันสูงสุด (เช่น 14 ห้องค่าเช่า 1,300 เท่ากัน) = ระบุไม่ได้แน่ → ลดความมั่นใจ
   const tied = scored.filter((s) => s.score === best.score).length
-  let score = best.score
+  let score = Math.min(100, best.score)
   let reason: string
-  if (tied > 1 && !best.nameHit) {
+  if (best.learnedHit && best.nameHit) {
+    reason = 'จำได้ + ชื่อตรง'
+  } else if (best.learnedHit && best.amountHit === 'exact') {
+    reason = 'จำได้ + ยอดตรง'
+  } else if (best.learnedHit) {
+    reason = 'เคยรับจากบัญชีต้นทางนี้'
+  } else if (tied > 1 && !best.nameHit) {
     score = Math.min(score, 45)
     reason = `ยอดตรง ${tied} ห้อง · เลือกยืนยัน`
   } else if (best.amountHit === 'exact' && best.nameHit) {
