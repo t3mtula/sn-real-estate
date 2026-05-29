@@ -43,10 +43,14 @@ export function useCreatePayment() {
 
 export interface BatchPaymentRow {
   date: string
+  time?: string
   amount: number
   bank_account_id?: string
   contract_id?: string
   payerName?: string
+  sourceBankCode?: string
+  sourceAcctSuffix?: string
+  pickedManually?: boolean
   payMethod?: 'transfer' | 'cash' | 'check' | 'promptpay'
   notes?: string
   status: PaymentStatus
@@ -61,10 +65,14 @@ export function useBatchSavePayments() {
       const records = rows.map((r) => ({
         data: {
           date: r.date,
+          time: r.time || undefined,
           amount: r.amount,
           bank_account_id: r.bank_account_id ?? undefined,
           contract_id: r.contract_id ?? undefined,
           payerName: r.payerName ?? undefined,
+          sourceBankCode: r.sourceBankCode || undefined,
+          sourceAcctSuffix: r.sourceAcctSuffix || undefined,
+          pickedManually: r.pickedManually || undefined,
           payMethod: r.payMethod ?? 'transfer',
           notes: r.notes ?? undefined,
           status: r.status,

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { useContracts } from '@/features/contracts/queries'
+import { usePaymentsByBankAccount } from './queries'
 import { candidatesForAccount, matchTransaction, type MatchResult } from './matching'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
@@ -141,6 +142,11 @@ async function parseStatementFile(file: File, password?: string): Promise<Parsed
   return parseStatementRows(rows)
 }
 
+/** ลายนิ้วมือ 1 รายการ — วันที่+ยอด+เวลา+เลขบัญชีต้นทาง · ใช้จับว่านำเข้าซ้ำ (D) */
+function txFingerprint(date: string, amount: number, time?: string, suffix?: string): string {
+  return `${date}|${(Number(amount) || 0).toFixed(2)}|${time ?? ''}|${suffix ?? ''}`
+}
+
 const BANK_LABEL: Record<string, string> = {
   SCB: 'ไทยพาณิชย์',
   KBANK: 'กสิกรไทย',
@@ -184,6 +190,24 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     for (const r of rows) m.set(r._id, matchTransaction({ amount: r.amount, payerName: r.payerName }, candidates))
     return m
   }, [rows, candidates])
+
+  // D — กัน import ซ้ำ: รายการที่ลายนิ้วมือ (วันที่+ยอด+เวลา+เลขต้นทาง) ตรงกับเงินที่เคยเข้าบัญชีนี้แล้ว
+  const existingPays = usePaymentsByBankAccount(effectiveBankId)
+  const existingFingerprints = useMemo(() => {
+    const s = new Set<string>()
+    for (const p of existingPays.data ?? []) {
+      s.add(txFingerprint(p.data.date, Number(p.data.amount) || 0, p.data.time, p.data.sourceAcctSuffix))
+    }
+    return s
+  }, [existingPays.data])
+  const dupIds = useMemo(() => {
+    const s = new Set<string>()
+    if (existingFingerprints.size === 0) return s
+    for (const r of rows) {
+      if (existingFingerprints.has(txFingerprint(r.date, r.amount, r.time, r.sourceAcctSuffix))) s.add(r._id)
+    }
+    return s
+  }, [rows, existingFingerprints])
 
   // ── reset ──────────────────────────────────────────────────────────────────
   function reset() {
@@ -246,27 +270,32 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
 
   // ── toggle select ──────────────────────────────────────────────────────────
   function toggleRow(id: string) {
+    if (dupIds.has(id)) return // รายการซ้ำ — กันไม่ให้เลือก
     setRows((prev) =>
       prev.map((r) => (r._id === id ? { ...r, selected: !r.selected } : r)),
     )
   }
 
   function selectAll(val: boolean) {
-    setRows((prev) => prev.map((r) => ({ ...r, selected: val })))
+    setRows((prev) => prev.map((r) => (dupIds.has(r._id) ? r : { ...r, selected: val })))
   }
 
   // ── save ───────────────────────────────────────────────────────────────────
   async function handleSave() {
-    const selected = rows.filter((r) => r.selected)
+    const selected = rows.filter((r) => r.selected && !dupIds.has(r._id))
     if (selected.length === 0) return
 
     setStep('saving')
     const batch: BatchPaymentRow[] = selected.map((r) => ({
       date: r.date,
+      time: r.time || undefined,
       amount: r.amount,
       bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
       contract_id: picked[r._id] ?? matches.get(r._id)?.contractId,
       payerName: r.payerName,
+      sourceBankCode: r.sourceBankCode || undefined,
+      sourceAcctSuffix: r.sourceAcctSuffix || undefined,
+      pickedManually: picked[r._id] != null,
       payMethod: 'transfer' as const,
       notes: r.description,
       status: 'unallocated' as const,
@@ -281,8 +310,9 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     }
   }
 
-  const selectedCount = rows.filter((r) => r.selected).length
-  const allSelected = rows.length > 0 && selectedCount === rows.length
+  const selectedCount = rows.filter((r) => r.selected && !dupIds.has(r._id)).length
+  const selectableCount = rows.length - dupIds.size
+  const allSelected = selectableCount > 0 && selectedCount === selectableCount
 
   // ── render ─────────────────────────────────────────────────────────────────
   return (
@@ -427,6 +457,14 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
               </p>
             ) : (
               <>
+                {/* D — เตือนรายการซ้ำ */}
+                {dupIds.size > 0 && (
+                  <div className='flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-300'>
+                    <AlertCircle className='size-4 shrink-0' />
+                    พบ {dupIds.size} รายการที่เคยนำเข้าบัญชีนี้แล้ว — ระบบกันไว้ไม่ให้ลงซ้ำ
+                  </div>
+                )}
+
                 {/* select all */}
                 <div className='flex items-center gap-2 text-sm'>
                   <Checkbox
@@ -435,7 +473,10 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                     onCheckedChange={(v) => selectAll(!!v)}
                   />
                   <label htmlFor='select-all' className='cursor-pointer'>
-                    เลือกทั้งหมด ({rows.length} รายการ)
+                    เลือกทั้งหมด ({selectableCount} รายการ)
+                    {dupIds.size > 0 && (
+                      <span className='ml-1 text-muted-foreground'>· ซ้ำ {dupIds.size}</span>
+                    )}
                   </label>
                 </div>
 
@@ -452,23 +493,35 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                       </tr>
                     </thead>
                     <tbody className='divide-y'>
-                      {rows.map((r) => (
+                      {rows.map((r) => {
+                        const isDup = dupIds.has(r._id)
+                        return (
                         <tr
                           key={r._id}
                           className={cn(
-                            'cursor-pointer hover:bg-muted/40 transition-colors',
-                            !r.selected && 'opacity-40',
+                            'transition-colors',
+                            isDup
+                              ? 'opacity-50'
+                              : cn('cursor-pointer hover:bg-muted/40', !r.selected && 'opacity-40'),
                           )}
                           onClick={() => toggleRow(r._id)}
                         >
                           <td className='p-2 text-center'>
                             <Checkbox
-                              checked={r.selected}
+                              checked={r.selected && !isDup}
+                              disabled={isDup}
                               onCheckedChange={() => toggleRow(r._id)}
                               onClick={(e) => e.stopPropagation()}
                             />
                           </td>
-                          <td className='p-2 font-mono whitespace-nowrap'>{r.date}</td>
+                          <td className='p-2 font-mono whitespace-nowrap'>
+                            {r.date}
+                            {isDup && (
+                              <span className='ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'>
+                                ซ้ำ
+                              </span>
+                            )}
+                          </td>
                           <td className='p-2 text-right font-semibold tabular-nums whitespace-nowrap'>
                             {amt(r.amount, { decimal: 0, symbol: false })}
                           </td>
@@ -516,7 +569,8 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                             })()}
                           </td>
                         </tr>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

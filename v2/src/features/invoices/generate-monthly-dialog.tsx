@@ -168,6 +168,21 @@ export function GenerateMonthlyDialog({
   const allSelected = createRows.length > 0 && selectedCount === createRows.length
   const setAll = (on: boolean) =>
     setExcluded(on ? new Set() : new Set(createRows.map((r) => r.contractId)))
+
+  // สรุปยอดตามบัญชีรับเงิน (เฉพาะใบที่เลือก) — เงินเข้าบัญชีไหนกี่ใบ กี่บาท
+  const byAccount = (() => {
+    const m = new Map<string, { count: number; total: number }>()
+    for (const r of selectedRows) {
+      const key = r.bankLabel && r.bankLabel !== '—' ? r.bankLabel : '— ไม่ระบุบัญชี'
+      const cur = m.get(key) ?? { count: 0, total: 0 }
+      cur.count += 1
+      cur.total += r.amount
+      m.set(key, cur)
+    }
+    return Array.from(m.entries())
+      .map(([label, v]) => ({ label, ...v }))
+      .sort((a, b) => b.total - a.total)
+  })()
   const needReview = createRows.filter(
     (r) =>
       r.compareStatus === 'diff' ||
@@ -309,6 +324,39 @@ export function GenerateMonthlyDialog({
                       <span className='tabular-nums'>{amt(prev.prevRun.total)}</span>
                     </div>
                   </div>
+
+                  {/* สรุปยอดตามบัญชีรับเงิน — เงินเข้าบัญชีไหนกี่ใบ กี่บาท (ตามที่เลือก) */}
+                  {byAccount.length > 0 && (
+                    <details open className='overflow-hidden rounded-md border bg-card'>
+                      <summary className='cursor-pointer bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+                        สรุปตามบัญชีรับเงิน ({byAccount.length} บัญชี) — เงินเข้าแต่ละบัญชีรอบนี้
+                      </summary>
+                      <div className='max-h-56 overflow-y-auto border-t'>
+                        {byAccount.map((a) => {
+                          const noAcct = a.label.startsWith('—')
+                          return (
+                            <div
+                              key={a.label}
+                              className='flex items-center justify-between gap-3 border-b px-4 py-1.5 text-sm last:border-b-0'
+                            >
+                              <span
+                                className={`truncate ${noAcct ? 'font-medium text-red-600 dark:text-red-400' : ''}`}
+                                title={a.label}
+                              >
+                                {a.label}
+                              </span>
+                              <span className='shrink-0 text-muted-foreground'>
+                                {a.count.toLocaleString('th-TH')} ใบ ·{' '}
+                                <span className='font-semibold tabular-nums text-foreground'>
+                                  {amt(a.total, { decimal: 0 })}
+                                </span>
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </details>
+                  )}
 
                   {/* สัญญาที่เดือนก่อนออก แต่เดือนนี้หายไป */}
                   {prev.missing.length > 0 && (
