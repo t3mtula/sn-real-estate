@@ -19,9 +19,6 @@ import type { Value } from 'platejs'
 import { Plate, usePlateEditor } from 'platejs/react'
 import { Previewer } from 'pagedjs'
 import { Loader2 } from 'lucide-react'
-
-/** paged.js polyfill served from /public — loaded inside the preview iframe. */
-const PAGED_POLYFILL_URL = '/paged.polyfill.min.js'
 import { cn } from '@/lib/utils'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -40,58 +37,18 @@ const PREVIEW_CSS = `
   .doc-body [data-slate-align='right'] { text-align: right; }
 `
 
-/** Wrap paged.js content + css into a self-paginating iframe document
- * (isolated — the contract CSS can't leak into the app). */
-function buildPagedIframe(content: string, css: string): string {
-  // After paged.js paginates, zoom the pages so a full A4 sheet fits the iframe
-  // width (no horizontal overflow) and the page breaks are clearly visible.
-  const fitScript =
-    '(function(){' +
-    'function styleAll(){' +
-    'var pages=document.querySelectorAll(".pagedjs_page");' +
-    'if(!pages.length){return;}' +
-    'document.documentElement.style.setProperty("background","#e9edf2","important");' +
-    'if(document.body){document.body.style.setProperty("background","#e9edf2","important");document.body.style.margin="0";}' +
-    'var avail=document.documentElement.clientWidth-16;' +
-    'var z=Math.min(1,avail/pages[0].offsetWidth);' +
-    'document.documentElement.style.zoom=String(z);' +
-    'for(var i=0;i<pages.length;i++){var p=pages[i];' +
-    'p.style.setProperty("margin","0 auto 20px","important");' +
-    'p.style.setProperty("background","#fff","important");' +
-    'p.style.setProperty("box-shadow","0 3px 16px rgba(0,0,0,.25)","important");}' +
-    '}' +
-    'var deb;var obs=new MutationObserver(function(){clearTimeout(deb);deb=setTimeout(styleAll,120);});' +
-    'function start(){if(!document.body){return setTimeout(start,50);}' +
-    'obs.observe(document.body,{childList:true,subtree:true});styleAll();}' +
-    'start();window.addEventListener("resize",styleAll);' +
-    '})();'
-  return (
-    '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +
-    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">' +
-    `<style>${css}
-      @media screen {
-        html { background: #e9edf2 !important; }
-        body { background: #e9edf2 !important; margin: 0 !important; }
-        .pagedjs_pages { padding: 16px 0 !important; }
-        .pagedjs_page { margin: 0 auto 18px !important; background: #fff !important; box-shadow: 0 3px 16px rgba(0,0,0,.22) !important; }
-      }</style>` +
-    `<script>${fitScript}<\/script>` +
-    `<script src="${window.location.origin}${PAGED_POLYFILL_URL}"><\/script>` +
-    `</head><body>${content}</body></html>`
-  )
-}
-
 export type DocEditorProps = {
   value: Value
   onChange?: (value: Value) => void
   /** When set, render the A4 preview with chips filled from this map. */
   previewData?: Record<string, string>
   /**
-   * Wrap the filled body HTML into paged.js inputs (e.g. the professional
-   * contract frame + its CSS). Returns the content + stylesheet that paged.js
-   * paginates into real A4 pages. When omitted, the bare body is paginated.
+   * Wrap the filled body HTML into a COMPLETE contract HTML document
+   * (buildContractHtml, body.embed) shown in an iframe. The contract CSS
+   * already renders each A4 .page as a discrete card. When omitted, the bare
+   * body is paginated with paged.js.
    */
-  renderPreviewDoc?: (filledBodyHtml: string) => { content: string; css: string }
+  renderPreviewDoc?: (filledBodyHtml: string) => string
   className?: string
 }
 
