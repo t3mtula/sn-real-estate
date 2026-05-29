@@ -2,6 +2,7 @@ import { AlertTriangle, Check, Loader2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -80,6 +81,15 @@ export function GenerateMonthlyDialog({
     skipped: number
     errors: number
   } | null>(null)
+  // ใบที่ "ติ๊กออก" (default = เลือกหมด · เก็บเฉพาะที่ไม่เลือก)
+  const [excluded, setExcluded] = useState<Set<string>>(new Set())
+  const toggleExcluded = (id: string) =>
+    setExcluded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   // Reset stage on open/month change
   useEffect(() => {
@@ -95,6 +105,7 @@ export function GenerateMonthlyDialog({
   useEffect(() => {
     setStage('preview')
     setResult(null)
+    setExcluded(new Set())
     preview.reset()
     generate.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,10 +127,14 @@ export function GenerateMonthlyDialog({
 
   async function handleConfirm() {
     try {
+      // สร้างเฉพาะใบที่ติ๊กเลือกไว้ (ส่ง id ชัดเจน · tag ไม่ต้องกรองซ้ำ)
+      const selectedIds = (preview.data?.willCreate ?? [])
+        .filter((r) => !excluded.has(r.contractId))
+        .map((r) => r.contractId)
       const res = await generate.mutateAsync({
         month,
-        tags: scoped ? [] : filterTags,
-        contractIds: scoped ? contractIds : undefined,
+        tags: [],
+        contractIds: selectedIds,
       })
       setResult({
         created: res.created,
@@ -143,20 +158,36 @@ export function GenerateMonthlyDialog({
   }
 
   const prev = preview.data
-  const sumAmount = (prev?.willCreate ?? []).reduce((s, x) => s + x.amount, 0)
 
   // จัดกลุ่มใบที่จะสร้าง ตามผลการเทียบใบรอบก่อน
   const createRows = prev?.willCreate ?? []
+  const isSel = (id: string) => !excluded.has(id)
+  const selectedRows = createRows.filter((r) => isSel(r.contractId))
+  const selectedCount = selectedRows.length
+  const sumAmount = selectedRows.reduce((s, x) => s + x.amount, 0)
+  const allSelected = createRows.length > 0 && selectedCount === createRows.length
+  const setAll = (on: boolean) =>
+    setExcluded(on ? new Set() : new Set(createRows.map((r) => r.contractId)))
   const needReview = createRows.filter(
-    (r) => r.compareStatus === 'diff' || r.hasFreqConflict || r.maybeMissingUtility,
+    (r) =>
+      r.compareStatus === 'diff' ||
+      r.hasFreqConflict ||
+      r.maybeMissingUtility ||
+      r.rateAmbiguous,
   )
   const newRows = createRows.filter(
     (r) =>
-      r.compareStatus === 'new' && !r.hasFreqConflict && !r.maybeMissingUtility,
+      r.compareStatus === 'new' &&
+      !r.hasFreqConflict &&
+      !r.maybeMissingUtility &&
+      !r.rateAmbiguous,
   )
   const matchedRows = createRows.filter(
     (r) =>
-      r.compareStatus === 'match' && !r.hasFreqConflict && !r.maybeMissingUtility,
+      r.compareStatus === 'match' &&
+      !r.hasFreqConflict &&
+      !r.maybeMissingUtility &&
+      !r.rateAmbiguous,
   )
 
   // แยกกล่อง "ข้าม" — ข้อมูลมีปัญหา (ต้องแก้) vs ข้ามปกติ
@@ -261,10 +292,46 @@ export function GenerateMonthlyDialog({
                 </div>
               ) : (
                 <>
-                  <div className='flex items-center justify-between rounded-md border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
-                    <span>{createRows.length} ใบที่จะสร้าง</span>
-                    <span className='tabular-nums'>{amt(sumAmount)}</span>
+                  {/* กระทบยอดทั้งรอบ vs เดือนก่อน */}
+                  <div className='rounded-md border bg-muted/30 px-4 py-2.5'>
+                    <div className='flex items-center justify-between text-sm font-semibold'>
+                      <span>
+                        เลือกสร้าง {selectedCount.toLocaleString('th-TH')} /{' '}
+                        {createRows.length.toLocaleString('th-TH')} ใบ
+                      </span>
+                      <span className='tabular-nums'>{amt(sumAmount)}</span>
+                    </div>
+                    <div className='mt-1 flex items-center justify-between text-xs text-muted-foreground'>
+                      <span>
+                        เดือนก่อน ({formatMonth(prev.prevRun.month)}) ออก{' '}
+                        {prev.prevRun.count.toLocaleString('th-TH')} ใบ
+                      </span>
+                      <span className='tabular-nums'>{amt(prev.prevRun.total)}</span>
+                    </div>
                   </div>
+
+                  {/* สัญญาที่เดือนก่อนออก แต่เดือนนี้หายไป */}
+                  {prev.missing.length > 0 && (
+                    <details className='overflow-hidden rounded-md border border-amber-400/60 bg-amber-500/5'>
+                      <summary className='cursor-pointer bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300'>
+                        ⚠️ เดือนก่อนออก แต่เดือนนี้ยังไม่มีใบ ({prev.missing.length}) —
+                        เช็คว่าหมดสัญญา/ยกเลิก หรือตกหล่น
+                      </summary>
+                      <div className='max-h-44 overflow-y-auto border-t'>
+                        {prev.missing.slice(0, 100).map((m) => (
+                          <div
+                            key={m.contractId}
+                            className='flex items-center justify-between gap-3 border-b px-4 py-1.5 text-xs last:border-b-0'
+                          >
+                            <span className='truncate font-medium'>{m.contractNo}</span>
+                            <span className='shrink-0 text-muted-foreground tabular-nums'>
+                              เดือนก่อน {amt(m.lastAmount, { decimal: 0 })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
 
                   {/* ⚠️ ต้องตรวจ — ยอดต่างจากรอบก่อน หรือรอบชำระไม่ตรง */}
                   {needReview.length > 0 && (
@@ -272,10 +339,15 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-amber-400/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300'>
                         ⚠️ ต้องตรวจก่อนสร้าง ({needReview.length})
                       </div>
-                      <CreateRowHeader />
+                      <CreateRowHeader allSelected={allSelected} onToggleAll={setAll} />
                       <div>
                         {needReview.slice(0, 200).map((row) => (
-                          <CreateRow key={row.contractId} row={row} />
+                          <CreateRow
+                            key={row.contractId}
+                            row={row}
+                            selected={isSel(row.contractId)}
+                            onToggle={toggleExcluded}
+                          />
                         ))}
                       </div>
                     </div>
@@ -287,10 +359,15 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300'>
                         🆕 ใหม่ ไม่มีใบรอบก่อน ({newRows.length}) — ดูยอดสักนิด
                       </div>
-                      <CreateRowHeader />
+                      <CreateRowHeader allSelected={allSelected} onToggleAll={setAll} />
                       <div>
                         {newRows.slice(0, 200).map((row) => (
-                          <CreateRow key={row.contractId} row={row} />
+                          <CreateRow
+                            key={row.contractId}
+                            row={row}
+                            selected={isSel(row.contractId)}
+                            onToggle={toggleExcluded}
+                          />
                         ))}
                       </div>
                     </div>
@@ -302,10 +379,15 @@ export function GenerateMonthlyDialog({
                       <summary className='cursor-pointer bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300'>
                         ✅ ตรงกับใบรอบก่อน ({matchedRows.length}) — เชื่อได้ · กดดูรายละเอียด
                       </summary>
-                      <CreateRowHeader />
+                      <CreateRowHeader allSelected={allSelected} onToggleAll={setAll} />
                       <div className='max-h-[28rem] overflow-y-auto border-t'>
                         {matchedRows.slice(0, 200).map((row) => (
-                          <CreateRow key={row.contractId} row={row} />
+                          <CreateRow
+                            key={row.contractId}
+                            row={row}
+                            selected={isSel(row.contractId)}
+                            onToggle={toggleExcluded}
+                          />
                         ))}
                       </div>
                     </details>
@@ -389,9 +471,12 @@ export function GenerateMonthlyDialog({
             </Button>
           </DialogClose>
           {stage === 'review' && prev && prev.willCreate.length > 0 && (
-            <Button onClick={handleConfirm} disabled={generate.isPending}>
+            <Button
+              onClick={handleConfirm}
+              disabled={generate.isPending || selectedCount === 0}
+            >
               {generate.isPending && <Loader2 className='size-4 animate-spin' />}
-              สร้าง {prev.willCreate.length} ใบ
+              สร้าง {selectedCount.toLocaleString('th-TH')} ใบ
             </Button>
           )}
         </DialogFooter>
@@ -402,30 +487,85 @@ export function GenerateMonthlyDialog({
 
 type CreateRowData = BatchGeneratePreview['willCreate'][number]
 
-/** column template ใช้ร่วมกัน header + row (ตารางจัดคอลัมน์ตรงกันทุกแถว) */
+/** chip รอบบิล — รายเดือนเงียบ · ไม่ใช่รายเดือนสีเด่น (ให้สะดุดตาในมุม ops) */
+const FREQ_CHIP: Record<string, { label: string; cls: string }> = {
+  monthly: { label: 'รายเดือน', cls: 'bg-muted text-muted-foreground' },
+  quarterly: {
+    label: 'ไตรมาส',
+    cls: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300',
+  },
+  semi: {
+    label: 'ครึ่งปี',
+    cls: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+  },
+  yearly: {
+    label: 'รายปี',
+    cls: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+  },
+  lump: {
+    label: 'ครั้งเดียว',
+    cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300',
+  },
+}
+
+function FreqChip({ type, months }: { type: string; months: number }) {
+  const c = FREQ_CHIP[type] ?? FREQ_CHIP.monthly
+  return (
+    <span
+      className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium ${c.cls}`}
+    >
+      {c.label}
+      {months > 1 ? ` ·${months}ด.` : ''}
+    </span>
+  )
+}
+
+/** column template ใช้ร่วมกัน header + row · โซนขวา (รอบ·สถานะ·ยอด) = จุดตัดสินใจ */
 const ROW_GRID =
-  'grid grid-cols-[7rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(9rem,12rem)_minmax(8rem,11rem)_6.5rem] gap-x-3'
+  'grid grid-cols-[1.5rem_6.5rem_minmax(0,1.4fr)_minmax(0,1.2fr)_6.5rem_minmax(7rem,10rem)_6.5rem] items-center gap-x-3'
 
 /** หัวตารางในแต่ละกลุ่ม */
-function CreateRowHeader() {
+function CreateRowHeader({
+  allSelected,
+  onToggleAll,
+}: {
+  allSelected: boolean
+  onToggleAll: (on: boolean) => void
+}) {
   return (
     <div
       className={`${ROW_GRID} border-b bg-muted/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}
     >
+      <Checkbox
+        checked={allSelected}
+        onCheckedChange={(v) => onToggleAll(!!v)}
+        aria-label='เลือกทั้งหมด'
+      />
       <span>เลขที่</span>
       <span>ผู้เช่า / ทรัพย์สิน</span>
       <span>ผู้ให้เช่า / บัญชี</span>
-      <span>ค่าเช่า · รอบ</span>
-      <span>เทียบรอบก่อน</span>
+      <span>รอบ</span>
+      <span>สถานะ</span>
       <span className='text-right'>ยอด</span>
     </div>
   )
 }
 
 /** แถวใบที่จะสร้าง — ตารางแนวนอน · กางกล่อง breakdown ใต้แถวเมื่อมี VAT/ค่าน้ำไฟ */
-function CreateRow({ row }: { row: CreateRowData }) {
+function CreateRow({
+  row,
+  selected,
+  onToggle,
+}: {
+  row: CreateRowData
+  selected: boolean
+  onToggle: (id: string) => void
+}) {
   const flagged =
-    row.hasFreqConflict || row.compareStatus === 'diff' || row.maybeMissingUtility
+    row.hasFreqConflict ||
+    row.compareStatus === 'diff' ||
+    row.maybeMissingUtility ||
+    row.rateAmbiguous
   const hasBreakdown = row.vatAmount > 0 || row.utilityLines.length > 0
   const rateNote =
     [
@@ -437,9 +577,15 @@ function CreateRow({ row }: { row: CreateRowData }) {
       .join(' · ') || '—'
   return (
     <div
-      className={`border-b px-4 py-2 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
+      className={`border-b px-4 py-2 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''} ${selected ? '' : 'opacity-45'}`}
     >
       <div className={`${ROW_GRID} items-start`}>
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggle(row.contractId)}
+          aria-label={`เลือก ${row.contractNo}`}
+          className='mt-0.5'
+        />
         <span className='truncate font-medium' title={row.contractNo}>
           {row.contractNo}
         </span>
@@ -465,18 +611,18 @@ function CreateRow({ row }: { row: CreateRowData }) {
             {row.bankLabel}
           </span>
         </div>
-        <span className='text-xs text-muted-foreground'>
-          {rateNote}
+        <FreqChip type={row.freqType} months={row.rentMonths} />
+        <CompareNote row={row} />
+        <div className='text-right'>
+          <span className='block font-semibold tabular-nums'>
+            {amt(row.amount, { decimal: 0 })}
+          </span>
           {row.utilityLines.length > 0 && (
-            <span className='block text-sky-600 dark:text-sky-400'>
-              + ค่าน้ำ/ไฟ {row.utilityLines.length} รายการ
+            <span className='block text-xs text-sky-600 dark:text-sky-400'>
+              + น้ำ/ไฟ {row.utilityLines.length}
             </span>
           )}
-        </span>
-        <CompareNote row={row} />
-        <span className='text-right font-semibold tabular-nums'>
-          {amt(row.amount, { decimal: 0 })}
-        </span>
+        </div>
       </div>
       {hasBreakdown && (
         <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/40 px-3 py-1.5 text-xs'>
@@ -522,6 +668,14 @@ function CreateRow({ row }: { row: CreateRowData }) {
 
 /** คอลัมน์เทียบกับใบรอบก่อน — หัวใจของ "ระบบเช็คให้" (กระชับ พอดีคอลัมน์) */
 function CompareNote({ row }: { row: CreateRowData }) {
+  if (row.rateAmbiguous) {
+    return (
+      <span className='flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+        <AlertTriangle className='mt-0.5 size-3 shrink-0' />
+        ค่าเช่าในสัญญาไม่ตรงกัน — ตรวจ
+      </span>
+    )
+  }
   if (row.hasFreqConflict) {
     return (
       <span className='flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
@@ -562,7 +716,7 @@ function CompareNote({ row }: { row: CreateRowData }) {
   return (
     <span className='flex items-center gap-1 text-xs text-sky-600 dark:text-sky-400'>
       <Sparkles className='size-3 shrink-0' />
-      ใบแรก
+      ตามค่าเช่าในสัญญา
     </span>
   )
 }

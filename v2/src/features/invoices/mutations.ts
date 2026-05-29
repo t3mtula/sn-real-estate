@@ -564,6 +564,8 @@ export type BatchGeneratePreview = {
     compareStatus: 'new' | 'match' | 'diff'
     /** ใบรอบก่อนมีค่าน้ำ/ไฟ แต่เดือนนี้ไม่มี → อาจยังไม่จดมิเตอร์ */
     maybeMissingUtility: boolean
+    /** ค่าเช่าในสัญญากำกวม (string ↔ rateAmount ไม่ตรง) → ควรตรวจ */
+    rateAmbiguous: boolean
   }>
   willSkip: Array<{
     contractId: string
@@ -571,6 +573,10 @@ export type BatchGeneratePreview = {
     reason: 'existing' | 'cancelled' | 'not_due' | 'no_dates' | 'no_rate'
     existingNo?: string
   }>
+  /** รอบบิลเดือนก่อน (สำหรับกระทบยอด) */
+  prevRun: { month: string; count: number; total: number }
+  /** สัญญาที่เดือนก่อนออกใบ แต่เดือนนี้ไม่มีใบเลย (จับ "หายไป") */
+  missing: Array<{ contractId: string; contractNo: string; lastAmount: number }>
 }
 
 /** Inspect what would happen if we run batch-gen for the given month */
@@ -583,17 +589,46 @@ export function useBatchGeneratePreview(month: string | undefined) {
       }
       const filterTags = (input?.tags ?? []).filter(Boolean)
       const idSet = input?.contractIds?.length ? new Set(input.contractIds) : null
-      const [contractsRes, invsRes, landlordsRes, banksRes] = await Promise.all([
-        supabase.from('contracts').select('id, data'),
-        supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
-        supabase.from('landlords').select('id, data'),
-        supabase.from('bank_accounts').select('id, data'),
-      ])
+      // เดือนก่อนหน้า (สำหรับกระทบยอดทั้งรอบ)
+      const [pyStr, pmStr] = month.split('-')
+      const pyNum = Number.parseInt(pyStr, 10)
+      const pmNum = Number.parseInt(pmStr, 10)
+      const prevMonthStr =
+        pmNum === 1
+          ? `${pyNum - 1}-12`
+          : `${pyStr}-${String(pmNum - 1).padStart(2, '0')}`
+      const [contractsRes, invsRes, landlordsRes, banksRes, prevInvsRes] =
+        await Promise.all([
+          supabase.from('contracts').select('id, data'),
+          supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
+          supabase.from('landlords').select('id, data'),
+          supabase.from('bank_accounts').select('id, data'),
+          supabase.from(TABLE).select('contract_id, status, category, data').eq('data->>month', prevMonthStr),
+        ])
       if (contractsRes.error) throw contractsRes.error
       if (invsRes.error) throw invsRes.error
       if (landlordsRes.error) throw landlordsRes.error
       if (banksRes.error) throw banksRes.error
+      if (prevInvsRes.error) throw prevInvsRes.error
       const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
+      const contractNoById = new Map<string, string>()
+      for (const c of contracts) {
+        contractNoById.set(c.id, (c.data?.no ?? '').trim() || `#${c.id}`)
+      }
+      // รอบบิลเดือนก่อน — count/total + สัญญาที่ออกใบ (ไว้จับ "หายไป")
+      let prevCount = 0
+      let prevTotal = 0
+      const prevContractAmount = new Map<string, number>()
+      for (const inv of (prevInvsRes.data ?? []) as Invoice[]) {
+        if ((inv.status ?? '').toLowerCase() === 'voided') continue
+        const cat = (inv.category ?? inv.data?.category ?? 'rent').toLowerCase()
+        if (cat !== 'rent') continue
+        prevCount++
+        prevTotal += Number(inv.data?.total) || 0
+        if (inv.contract_id) {
+          prevContractAmount.set(inv.contract_id, Number(inv.data?.total) || 0)
+        }
+      }
       const landlordById = new Map<string, LandlordData>()
       for (const l of (landlordsRes.data ?? []) as Array<{ id: string; data: LandlordData }>) {
         landlordById.set(l.id, l.data)
@@ -695,6 +730,15 @@ export function useBatchGeneratePreview(month: string | undefined) {
             ? Number((amount * (vatRate / 100)).toFixed(2))
             : 0
         const total = Number((amount + vatAmount).toFixed(2))
+        // data-quality: ค่าเช่า (string) ↔ rateAmount (number) ไม่ตรงกัน → ควรตรวจ
+        const parsedRate =
+          typeof rateRaw === 'string' ? parseAmtLoose(rateRaw) : Number(rateRaw) || 0
+        const rateAmtField = Number(d.rateAmount) || 0
+        const rateAmbiguous =
+          rateAmtField > 0 &&
+          Number.isFinite(parsedRate) &&
+          parsedRate > 0 &&
+          Math.abs(parsedRate - rateAmtField) > 1
         willCreate.push({
           contractId: c.id,
           contractNo,
@@ -717,6 +761,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           prevMonth: null,
           compareStatus: 'new',
           maybeMissingUtility: false,
+          rateAmbiguous,
         })
       }
 
@@ -778,7 +823,29 @@ export function useBatchGeneratePreview(month: string | undefined) {
             prev.hadUtility && row.utilityLines.length === 0
         }
       }
-      return { month, willCreate, willSkip }
+
+      // กระทบยอดทั้งรอบ: หาสัญญาที่เดือนก่อนออกใบ แต่เดือนนี้ไม่มีใบเลย
+      const coveredThisMonth = new Set<string>([
+        ...willCreate.map((r) => r.contractId),
+        ...existingByContract.keys(),
+      ])
+      const missing: BatchGeneratePreview['missing'] = []
+      for (const [cid, lastAmount] of prevContractAmount) {
+        if (coveredThisMonth.has(cid)) continue
+        missing.push({
+          contractId: cid,
+          contractNo: contractNoById.get(cid) ?? `#${cid}`,
+          lastAmount,
+        })
+      }
+
+      return {
+        month,
+        willCreate,
+        willSkip,
+        prevRun: { month: prevMonthStr, count: prevCount, total: prevTotal },
+        missing,
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
