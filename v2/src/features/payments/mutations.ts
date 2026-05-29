@@ -171,6 +171,58 @@ export function useCreatePayment() {
   })
 }
 
+// ─── batch import (from PDF statement) ──────────────────────────────────────
+
+export interface BatchPaymentRow {
+  date: string
+  amount: number
+  bank_account_id?: string
+  payerName?: string
+  payMethod?: 'transfer' | 'cash' | 'check' | 'promptpay'
+  notes?: string
+  status: PaymentStatus
+}
+
+/** Insert multiple unallocated payments in one go (used by PDF import) */
+export function useBatchSavePayments() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (rows: BatchPaymentRow[]): Promise<void> => {
+      if (rows.length === 0) return
+      const prefix = `IMP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`
+      const records = rows.map((r, i) => ({
+        data: {
+          date: r.date,
+          amount: r.amount,
+          bank_account_id: r.bank_account_id ?? undefined,
+          payerName: r.payerName ?? undefined,
+          payMethod: r.payMethod ?? 'transfer',
+          notes: r.notes ?? undefined,
+          receiptNo: `${prefix}-${String(i + 1).padStart(3, '0')}`,
+          status: r.status,
+          allocations: [],
+        },
+      }))
+      const { error } = await supabase.from(TABLE).insert(records)
+      if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'payment',
+        description: `นำเข้า batch ${rows.length} รายการ (prefix ${prefix})`,
+      })
+    },
+    onSuccess: (_, rows) => {
+      qc.invalidateQueries({ queryKey: [TABLE] })
+      toast.success(`นำเข้าแล้ว ${rows.length} รายการ`)
+    },
+    onError: (err) => {
+      toast.error('นำเข้าไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    },
+  })
+}
+
 /** Delete a payment (and reverse invoice paid_amount).
  *  Order: delete payment record FIRST, then reverse allocations.
  *  Reason: if reversal fails mid-way, the payment is already gone so

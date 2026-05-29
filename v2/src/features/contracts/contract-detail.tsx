@@ -343,6 +343,7 @@ function ContractEditing({
       return ''
     })(),
     purpose: (c.purpose as string) ?? 'พักอาศัย',
+    tags: Array.isArray(c.tags) ? (c.tags as string[]) : [],
     spot: c.spot ?? '',
     dueDay: c.dueDay ?? 5,
     rateAdj: c.rateAdj ?? '',

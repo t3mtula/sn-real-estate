@@ -32,7 +32,8 @@ import {
   contractFormSchema,
 } from '@/features/contracts/schema'
 import { useSuggestContractNo } from '@/features/contracts/mutations'
-import { useContracts } from '@/features/contracts/queries'
+import { useContracts, useContractTags } from '@/features/contracts/queries'
+import { TagInput } from '@/components/yonghua/tag-input'
 import { useContractTemplates } from '@/features/templates/queries'
 import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
@@ -93,6 +94,7 @@ export function ContractForm({
   const { data: bankAccounts } = useBankAccounts()
   const { data: allContracts } = useContracts()
   const { data: templates } = useContractTemplates()
+  const { data: tagSuggestions } = useContractTags()
 
   const pidProperty = form.watch('pid_property')
   const landlordId = form.watch('landlord_id')
@@ -507,6 +509,21 @@ export function ContractForm({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className='sm:col-span-2'>
+          <Label htmlFor='tags' className='flex items-center gap-1.5'>
+            หมวด / Tag
+            <FieldInfo tip='ติดป้ายกลุ่มให้สัญญา เช่น "โซนเหนือ" "เก็บต้นเดือน" — ใช้กรองตอนสร้างใบแจ้งหนี้เป็นกลุ่ม · ติดได้หลายป้าย' />
+          </Label>
+          <TagInput
+            id='tags'
+            value={form.watch('tags') ?? []}
+            onChange={(next) =>
+              form.setValue('tags', next, { shouldDirty: true })
+            }
+            suggestions={tagSuggestions ?? []}
+          />
         </div>
 
         <div className='sm:col-span-2'>

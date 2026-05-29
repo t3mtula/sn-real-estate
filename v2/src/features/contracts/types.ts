@@ -176,6 +176,8 @@ export type ContractData = {
   renewalStatus?: 'pending' | 'negotiating' | 'will_renew' | 'no_renewal'
   /** จุด/ล็อกบนทรัพย์สิน เช่น "ล็อก A", "ห้อง 3" */
   spot?: string
+  /** Tags — free-form labels พนักงานติดเอง · ใช้ group/filter (เช่น "โซนเหนือ", "เก็บต้นเดือน") */
+  tags?: string[]
   /** วันครบกำหนดใบแจ้งหนี้ (1-31) */
   dueDay?: number
   /** ข้อความปรับค่าเช่า เช่น "ปรับขึ้น 5% เมื่อต่อสัญญา" */

@@ -71,6 +71,9 @@ export const contractFormSchema = z
     /** วัตถุประสงค์ (e.g. "พักอาศัย", "ค้าขาย") */
     purpose: z.string().trim().max(200),
 
+    /** Tags — free-form พนักงานติดเอง · ใช้ group/filter */
+    tags: z.array(z.string().trim().min(1).max(50)).max(20),
+
     /** จุด/ล็อกบนทรัพย์สิน (optional) */
     spot: z.string().trim().max(100),
     /** วันครบกำหนดใบแจ้งหนี้ (1-31) */
@@ -119,6 +122,7 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   dur: 0,
   payment: '',
   purpose: 'พักอาศัย',
+  tags: [],
   spot: '',
   dueDay: 5,
   rateAdj: '',

@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Activity, RefreshCcw, Search, User } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -17,6 +17,12 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  ClauseDiffView,
+  DiffList,
+  diffGeneric,
+  isClauseEdit,
+} from '@/features/activity-log/audit-diff'
+import {
   distinctEntities,
   getActionLabel,
   getActionTone,
@@ -24,7 +30,10 @@ import {
   type AuditAction,
   useAuditLog,
 } from '@/features/activity-log/queries'
+import { diffContractData } from '@/features/contracts/contract-diff'
 import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 50
 
 const ACTION_FILTER_OPTIONS: Array<{
   value: 'all' | AuditAction
@@ -71,6 +80,32 @@ function buildEntityLink(
   }
 }
 
+/** Inline diff — always visible, no toggle button */
+function RowDiff({
+  entity,
+  before,
+  after,
+}: {
+  entity: string
+  before: unknown
+  after: unknown
+}) {
+  if (!before && !after) return null
+
+  const clauseEdit = isClauseEdit(before)
+  const fieldDiffs = !clauseEdit
+    ? entity === 'contracts'
+      ? diffContractData(before, after)
+      : diffGeneric(before, after)
+    : []
+
+  if (!clauseEdit && fieldDiffs.length === 0) return null
+
+  return clauseEdit
+    ? <ClauseDiffView before={before} after={after} />
+    : <DiffList diffs={fieldDiffs} />
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -87,6 +122,12 @@ export function ActivityLog() {
   const [search, setSearch] = useState('')
   const [actionFilter, setActionFilter] = useState<'all' | AuditAction>('all')
   const [entityFilter, setEntityFilter] = useState<string>('all')
+  const [displayLimit, setDisplayLimit] = useState(PAGE_SIZE)
+
+  // Reset display window when filters change
+  useEffect(() => {
+    setDisplayLimit(PAGE_SIZE)
+  }, [search, actionFilter, entityFilter])
 
   const entities = useMemo(() => distinctEntities(data ?? []), [data])
 
@@ -110,6 +151,9 @@ export function ActivityLog() {
       return hay.includes(q)
     })
   }, [data, search, actionFilter, entityFilter])
+
+  const visibleRows = rows.slice(0, displayLimit)
+  const hiddenCount = rows.length - displayLimit
 
   return (
     <>
@@ -192,67 +236,83 @@ export function ActivityLog() {
             ยังไม่มีบันทึกที่ตรงเงื่อนไข
           </div>
         ) : (
-          <div className='overflow-hidden rounded-md border bg-card'>
-            {rows.map((r, i) => {
-              const link = r.entity_id
-                ? buildEntityLink(r.entity, r.entity_id)
-                : null
-              const content = (
-                <div className='flex items-start justify-between gap-3 px-4 py-3 text-sm'>
-                  <div className='flex min-w-0 items-start gap-3'>
-                    <Badge
-                      variant='outline'
-                      className={cn('mt-0.5 shrink-0 font-normal', getActionTone(r.action))}
-                    >
-                      {getActionLabel(r.action)}
-                    </Badge>
-                    <div className='min-w-0'>
-                      <p className='text-sm'>
-                        <span className='text-muted-foreground'>{getEntityLabel(r.entity)}</span>
-                        {' · '}
-                        <span className='font-medium'>
-                          {r.description?.trim() || '(ไม่มีคำอธิบาย)'}
-                        </span>
-                      </p>
-                      <p className='mt-0.5 flex items-center gap-2 text-xs text-muted-foreground'>
-                        <span className='inline-flex items-center gap-1'>
-                          <User className='size-3' />
-                          {r.user_email || '—'}
-                        </span>
-                        <span>·</span>
-                        <span className='tabular-nums'>{formatTime(r.created_at)}</span>
-                        {r.entity_id && (
-                          <>
-                            <span>·</span>
-                            <code className='rounded bg-muted/60 px-1 py-0.5 text-[10px] tabular-nums'>
-                              {r.entity_id}
-                            </code>
-                          </>
+          <>
+            <div className='overflow-hidden rounded-md border bg-card'>
+              {visibleRows.map((r, i) => {
+                const link = r.entity_id
+                  ? buildEntityLink(r.entity, r.entity_id)
+                  : null
+                const content = (
+                  <div className='flex items-start justify-between gap-3 px-4 py-3 text-sm'>
+                    <div className='flex min-w-0 items-start gap-3'>
+                      <Badge
+                        variant='outline'
+                        className={cn('mt-0.5 shrink-0 font-normal', getActionTone(r.action))}
+                      >
+                        {getActionLabel(r.action)}
+                      </Badge>
+                      <div className='min-w-0'>
+                        <p className='text-sm'>
+                          <span className='text-muted-foreground'>{getEntityLabel(r.entity)}</span>
+                          {' · '}
+                          <span className='font-medium'>
+                            {r.description?.trim() || '(ไม่มีคำอธิบาย)'}
+                          </span>
+                        </p>
+                        <p className='mt-0.5 flex items-center gap-2 text-xs text-muted-foreground'>
+                          <span className='inline-flex items-center gap-1'>
+                            <User className='size-3' />
+                            {r.user_email || '—'}
+                          </span>
+                          <span>·</span>
+                          <span className='tabular-nums'>{formatTime(r.created_at)}</span>
+                          {r.entity_id && (
+                            <>
+                              <span>·</span>
+                              <code className='rounded bg-muted/60 px-1 py-0.5 text-[10px] tabular-nums'>
+                                {r.entity_id}
+                              </code>
+                            </>
+                          )}
+                        </p>
+                        {r.action === 'update' && (
+                          <RowDiff entity={r.entity} before={r.before} after={r.after} />
                         )}
-                      </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-              return (
-                <div
-                  key={r.id}
-                  className={cn(
-                    'transition hover:bg-muted/30',
-                    i > 0 && 'border-t',
-                  )}
-                >
-                  {link ? (
-                    <Link to={link.to} params={link.params} className='block'>
-                      {content}
-                    </Link>
-                  ) : (
-                    content
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                )
+                return (
+                  <div
+                    key={r.id}
+                    className={cn(
+                      'transition hover:bg-muted/30',
+                      i > 0 && 'border-t',
+                    )}
+                  >
+                    {link ? (
+                      <Link to={link.to} params={link.params} className='block'>
+                        {content}
+                      </Link>
+                    ) : (
+                      content
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {hiddenCount > 0 && (
+              <button
+                type='button'
+                onClick={() => setDisplayLimit((v) => v + PAGE_SIZE)}
+                className='w-full rounded-md border bg-card py-2.5 text-sm text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+              >
+                ดูเพิ่ม {Math.min(hiddenCount, PAGE_SIZE)} รายการ
+                <span className='ms-1 text-xs opacity-60'>(เหลืออีก {hiddenCount})</span>
+              </button>
+            )}
+          </>
         )}
       </Main>
     </>

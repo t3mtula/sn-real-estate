@@ -2,6 +2,20 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
+## ✅ Session 2026-05-26 — Activity log track-changes + แก้ล่าสุด column
+
+งานทั้งหมด deploy ขึ้น Cloudflare Pages แล้ว · CI ผ่าน ✅ (commit 85dc12e)
+
+1. **Column "แก้ล่าสุด"** ใน contracts list — แสดง updated_at เป็น Thai short date + relative time ("3 วันที่แล้ว") + sort ได้
+2. **Field-level diff** — "แก้สัญญา" entries แสดง field ที่เปลี่ยนด้วย label ไทย (26 fields tracked)
+3. **Clause track-changes** — character-level LCS diff สีแดงขีดทับ=ลบ · สีเขียว=เพิ่ม · รองรับ sub-clause
+4. **Clause log ระบุข้อ** — "แก้ข้อสัญญา ข้อ 1, 3" แทนที่ "แก้ข้อสัญญา (12 ข้อ)"
+5. **Collapse UI** — 5 entries แรก + expand · diff collapse 3 รายการ + expand
+6. **Bug fix** — isClauseEdit detection ผิด (ทำให้ "แก้สัญญา" ไม่แสดง diff) → fix ด้วย single-key shape check
+7. **CI fix** — push commit ที่ค้างอยู่ พร้อมกับงานวันนี้ → CI ผ่าน
+
+**ถัดไป:** ทดสอบ clause diff กับสัญญาจริง · Payment Reconciliation (Phase 1B-3d) · Print audit ค้าง
+
 ## ✅ Overnight 2026-05-22 → 2026-05-23 (sleep run · "ทำที่ค้างให้จบ")
 
 ลุยตามที่ค้าง · all live · all commits on main · CI auto-deploy

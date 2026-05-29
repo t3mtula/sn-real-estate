@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { useConfirm } from '@/hooks/use-confirm'
 import { supabase } from '@/lib/supabase'
 
 const APP_VERSION = 'v2.1.0'
@@ -97,6 +98,30 @@ export function SystemSettings() {
     }
   }
 
+  const confirm = useConfirm()
+  const [deletingInvoices, setDeletingInvoices] = useState(false)
+
+  async function handleDeleteAllInvoices() {
+    const ok = await confirm({
+      title: 'ลบใบแจ้งหนี้ทั้งหมด?',
+      description:
+        'ข้อมูลใบแจ้งหนี้ทุกใบในระบบจะถูกลบถาวร · ไม่สามารถเรียกคืนได้ · ใช้เพื่อล้างข้อมูลทดสอบก่อนเริ่มใช้งานจริง',
+      confirmLabel: 'ลบทั้งหมด',
+      destructive: true,
+    })
+    if (!ok) return
+    setDeletingInvoices(true)
+    try {
+      const { error } = await supabase.from('invoices').delete().neq('id', '')
+      if (error) throw error
+      toast.success('ลบใบแจ้งหนี้ทั้งหมดแล้ว')
+    } catch (e) {
+      toast.error('ลบไม่สำเร็จ', { description: String(e) })
+    } finally {
+      setDeletingInvoices(false)
+    }
+  }
+
   const allOk = checkResults?.every((r) => r.count === 0)
 
   return (
@@ -180,6 +205,29 @@ export function SystemSettings() {
             )}
           </div>
         )}
+      </section>
+
+      <Separator />
+
+      {/* จัดการข้อมูล */}
+      <section className='space-y-3'>
+        <h4 className='font-medium text-destructive'>โซนอันตราย</h4>
+        <div className='rounded-md border border-destructive/30 bg-destructive/5 p-4 space-y-3'>
+          <div>
+            <p className='text-sm font-medium'>ลบใบแจ้งหนี้ทั้งหมด</p>
+            <p className='text-xs text-muted-foreground mt-0.5'>
+              ใช้เพื่อล้างข้อมูลทดสอบก่อนเริ่มใช้งานจริง · ลบแล้วเรียกคืนไม่ได้
+            </p>
+          </div>
+          <Button
+            variant='destructive'
+            size='sm'
+            onClick={handleDeleteAllInvoices}
+            disabled={deletingInvoices}
+          >
+            {deletingInvoices ? 'กำลังลบ…' : 'ลบใบแจ้งหนี้ทั้งหมด'}
+          </Button>
+        </div>
       </section>
     </div>
   )

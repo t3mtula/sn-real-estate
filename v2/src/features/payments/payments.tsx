@@ -8,8 +8,9 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Banknote, CircleCheck, CircleDot, CircleHelp, Plus, Search } from 'lucide-react'
+import { Banknote, CircleCheck, CircleDot, CircleHelp, FileUp, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
+import { ImportPdfDialog } from './pdf-import'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
@@ -46,6 +47,7 @@ export function Payments() {
   const { data: bankAccounts } = useBankAccounts()
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'date', desc: true }])
+  const [importOpen, setImportOpen] = useState(false)
   const navigate = useNavigate()
 
   const contractMap = new Map((contracts ?? []).map((c) => [c.id, c]))
@@ -177,12 +179,18 @@ export function Payments() {
               {isLoading ? '…' : `${payments?.length ?? 0} รายการ · รวม ${amt(total, { decimal: 0 })} บาท`}
             </p>
           </div>
-          <Button asChild size='sm'>
-            <Link to='/payments/new'>
-              <Plus className='size-4' />
-              บันทึกรับเงิน
-            </Link>
-          </Button>
+          <div className='flex gap-2'>
+            <Button variant='outline' size='sm' onClick={() => setImportOpen(true)}>
+              <FileUp className='size-4' />
+              นำเข้า Statement
+            </Button>
+            <Button asChild size='sm'>
+              <Link to='/payments/new'>
+                <Plus className='size-4' />
+                บันทึกรับเงิน
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className='flex items-center gap-2'>
@@ -249,6 +257,7 @@ export function Payments() {
           </div>
         )}
       </Main>
+      <ImportPdfDialog open={importOpen} onOpenChange={setImportOpen} />
     </>
   )
 }

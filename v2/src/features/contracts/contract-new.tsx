@@ -51,6 +51,7 @@ export function ContractNew() {
       deposit: typeof d.deposit === 'number' ? d.deposit : 0,
       payment: d.payment ?? '',
       purpose: (d.purpose as string) ?? 'พักอาศัย',
+      tags: Array.isArray(d.tags) ? (d.tags as string[]) : [],
       spot: d.spot ?? '',
       dueDay: d.dueDay ?? 5,
       rateAdj: d.rateAdj ?? '',

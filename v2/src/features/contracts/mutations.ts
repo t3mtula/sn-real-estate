@@ -72,6 +72,9 @@ function valuesToManagedFields(
     durRaw: durStr,
     payment: values.payment.trim(),
     purpose: values.purpose.trim(),
+    tags: Array.isArray(values.tags)
+      ? Array.from(new Set(values.tags.map((t) => t.trim()).filter(Boolean)))
+      : [],
     // madeAt = ที่อยู่ 5 ช่อง + assembled string (backward compat กับ v1 + PDF).
     // Legacy contracts only had `madeAt` (combined string). When editing, we
     // populate madeAtLine from it but the 4 sub-fields stay empty. If we

@@ -70,20 +70,32 @@ export function useUpdateTemplate(id: string) {
         .eq('id', id)
         .single()
       if (readErr) throw readErr
-      const merged: TemplateData = {
-        ...((existing?.data ?? {}) as TemplateData),
-        ...input.data,
-      }
+      const existingData = (existing?.data ?? {}) as TemplateData
+      const merged: TemplateData = { ...existingData, ...input.data }
       const { error } = await supabase
         .from(TABLE)
         .update({ data: merged, updated_at: new Date().toISOString() })
         .eq('id', id)
       if (error) throw error
+
+      // Build description: note non-clause field changes explicitly
+      const metaChanges: string[] = []
+      if (existingData.name !== merged.name)
+        metaChanges.push(`ชื่อ: ${existingData.name} → ${merged.name}`)
+      if (existingData.version !== merged.version)
+        metaChanges.push(`เวอร์ชั่น: ${existingData.version} → ${merged.version}`)
+      const desc = metaChanges.length > 0
+        ? `แก้ฟอร์มสัญญา ${merged.name} · ${metaChanges.join(' · ')}`
+        : `แก้ฟอร์มสัญญา ${merged.name}`
+
       void logActivity({
         action: 'update',
         entity: 'contract_templates',
         entity_id: id,
-        description: `แก้ฟอร์มสัญญา ${merged.name}`,
+        description: desc,
+        // Wrap clauses under contractClauses so existing ClauseDiffView renders correctly
+        before: { contractClauses: existingData.clauses ?? [] },
+        after:  { contractClauses: merged.clauses ?? [] },
       })
     },
     onSuccess: () => {
