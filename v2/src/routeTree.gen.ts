@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SpikeRouteImport } from './routes/spike'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
@@ -51,6 +52,7 @@ import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authen
 import { Route as AuthenticatedPaymentsNewRouteImport } from './routes/_authenticated/payments/new'
 import { Route as AuthenticatedMetersNewRouteImport } from './routes/_authenticated/meters/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
+import { Route as AuthenticatedLabWysiwygRouteImport } from './routes/_authenticated/lab/wysiwyg'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated/invoices/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedContractsRenewalsRouteImport } from './routes/_authenticated/contracts/renewals'
@@ -70,6 +72,11 @@ import { Route as AuthenticatedInvoicesIdPrintRouteImport } from './routes/_auth
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
 import { Route as AuthenticatedContractsIdDepositReturnRouteImport } from './routes/_authenticated/contracts/$id/deposit-return'
 
+const SpikeRoute = SpikeRouteImport.update({
+  id: '/spike',
+  path: '/spike',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -304,6 +311,11 @@ const AuthenticatedLandlordsNewRoute =
     path: '/landlords/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedLabWysiwygRoute = AuthenticatedLabWysiwygRouteImport.update({
+  id: '/lab/wysiwyg',
+  path: '/lab/wysiwyg',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedInvoicesNewRoute =
   AuthenticatedInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -415,6 +427,7 @@ const AuthenticatedContractsIdDepositReturnRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/spike': typeof SpikeRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/auth-callback': typeof authAuthCallbackRoute
   '/forgot-password': typeof authForgotPasswordRoute
@@ -436,6 +449,7 @@ export interface FileRoutesByFullPath {
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/meters/new': typeof AuthenticatedMetersNewRoute
   '/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -475,6 +489,7 @@ export interface FileRoutesByFullPath {
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesByTo {
+  '/spike': typeof SpikeRoute
   '/auth-callback': typeof authAuthCallbackRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
@@ -496,6 +511,7 @@ export interface FileRoutesByTo {
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/meters/new': typeof AuthenticatedMetersNewRoute
   '/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -537,6 +553,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/spike': typeof SpikeRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/(auth)/auth-callback': typeof authAuthCallbackRoute
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
@@ -559,6 +576,7 @@ export interface FileRoutesById {
   '/_authenticated/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/_authenticated/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/_authenticated/meters/new': typeof AuthenticatedMetersNewRoute
   '/_authenticated/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -601,6 +619,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/spike'
     | '/settings'
     | '/auth-callback'
     | '/forgot-password'
@@ -622,6 +641,7 @@ export interface FileRouteTypes {
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
+    | '/lab/wysiwyg'
     | '/landlords/new'
     | '/meters/new'
     | '/payments/new'
@@ -661,6 +681,7 @@ export interface FileRouteTypes {
     | '/tenants/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/spike'
     | '/auth-callback'
     | '/forgot-password'
     | '/otp'
@@ -682,6 +703,7 @@ export interface FileRouteTypes {
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
+    | '/lab/wysiwyg'
     | '/landlords/new'
     | '/meters/new'
     | '/payments/new'
@@ -722,6 +744,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/spike'
     | '/_authenticated/settings'
     | '/(auth)/auth-callback'
     | '/(auth)/forgot-password'
@@ -744,6 +767,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contracts/renewals'
     | '/_authenticated/errors/$error'
     | '/_authenticated/invoices/new'
+    | '/_authenticated/lab/wysiwyg'
     | '/_authenticated/landlords/new'
     | '/_authenticated/meters/new'
     | '/_authenticated/payments/new'
@@ -785,6 +809,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  SpikeRoute: typeof SpikeRoute
   authAuthCallbackRoute: typeof authAuthCallbackRoute
   authForgotPasswordRoute: typeof authForgotPasswordRoute
   authOtpRoute: typeof authOtpRoute
@@ -800,6 +825,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/spike': {
+      id: '/spike'
+      path: '/spike'
+      fullPath: '/spike'
+      preLoaderRoute: typeof SpikeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -1094,6 +1126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLandlordsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/lab/wysiwyg': {
+      id: '/_authenticated/lab/wysiwyg'
+      path: '/lab/wysiwyg'
+      fullPath: '/lab/wysiwyg'
+      preLoaderRoute: typeof AuthenticatedLabWysiwygRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/invoices/new': {
       id: '/_authenticated/invoices/new'
       path: '/invoices/new'
@@ -1258,6 +1297,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContractsRenewalsRoute: typeof AuthenticatedContractsRenewalsRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
+  AuthenticatedLabWysiwygRoute: typeof AuthenticatedLabWysiwygRoute
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
   AuthenticatedMetersNewRoute: typeof AuthenticatedMetersNewRoute
   AuthenticatedPaymentsNewRoute: typeof AuthenticatedPaymentsNewRoute
@@ -1304,6 +1344,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContractsRenewalsRoute: AuthenticatedContractsRenewalsRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
+  AuthenticatedLabWysiwygRoute: AuthenticatedLabWysiwygRoute,
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
   AuthenticatedMetersNewRoute: AuthenticatedMetersNewRoute,
   AuthenticatedPaymentsNewRoute: AuthenticatedPaymentsNewRoute,
@@ -1344,6 +1385,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  SpikeRoute: SpikeRoute,
   authAuthCallbackRoute: authAuthCallbackRoute,
   authForgotPasswordRoute: authForgotPasswordRoute,
   authOtpRoute: authOtpRoute,
