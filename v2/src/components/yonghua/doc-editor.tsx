@@ -46,18 +46,27 @@ function buildPagedIframe(content: string, css: string): string {
   // After paged.js paginates, zoom the pages so a full A4 sheet fits the iframe
   // width (no horizontal overflow) and the page breaks are clearly visible.
   const fitScript =
-    'window.PagedConfig={auto:true,after:function(){' +
-    'var fit=function(){var p=document.querySelector(".pagedjs_page");' +
-    'if(!p){return;}var avail=document.documentElement.clientWidth-8;' +
-    'var s=Math.min(1,avail/p.offsetWidth);document.documentElement.style.zoom=String(s);};' +
-    'fit();window.addEventListener("resize",fit);}};'
+    '(function(){' +
+    'function fit(){' +
+    'var p=document.querySelector(".pagedjs_page");' +
+    'if(!p){return setTimeout(fit,150);}' +
+    'document.documentElement.style.zoom="";' +
+    'var avail=document.documentElement.clientWidth-16;' +
+    'var s=Math.min(1,avail/p.offsetWidth);' +
+    'document.documentElement.style.zoom=String(s);' +
+    '}' +
+    'fit();' +
+    'var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(fit,200);});' +
+    '})();'
   return (
     '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +
     '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">' +
     `<style>${css}
       @media screen {
-        html, body { background: #eef1f5; margin: 0; }
-        .pagedjs_page { margin: 0 auto 16px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.18); }
+        html { background: #e9edf2 !important; }
+        body { background: #e9edf2 !important; margin: 0 !important; }
+        .pagedjs_pages { padding: 16px 0 !important; }
+        .pagedjs_page { margin: 0 auto 18px !important; background: #fff !important; box-shadow: 0 3px 16px rgba(0,0,0,.22) !important; }
       }</style>` +
     `<script>${fitScript}<\/script>` +
     `<script src="${window.location.origin}${PAGED_POLYFILL_URL}"><\/script>` +
@@ -170,7 +179,7 @@ export function DocEditor({
 
           <div className={cn('grid gap-4', showPreview && 'lg:grid-cols-2')}>
             {/* A4 editing canvas */}
-            <div className='overflow-auto rounded-md border bg-muted/30 p-4'>
+            <div className='min-w-0 overflow-auto rounded-md border bg-muted/30 p-4'>
               <div className='doc-canvas mx-auto bg-white shadow-sm'>
                 <EditorContainer>
                   <Editor variant='none' placeholder='พิมพ์ที่นี่…' />
