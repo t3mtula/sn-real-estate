@@ -2,6 +2,18 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
+## 🔄 Session 2026-05-30 — [v2] จับคู่เงิน A–E (branch feat/reconciliation-ae · deploy preview แล้ว)
+
+แตกจาก main · เพิ่ม 5 อย่างในหน้านำเข้า statement · **ยังไม่ merge main** · งาน invoice wizard (per-row select + reconciliation เดือนก่อน) commit ไว้บน branch feat/invoice-wizard-controls
+
+1. **D กัน import ซ้ำ** — เก็บเลขบัญชีต้นทาง+เวลาลงทุกรายการ · รายการที่ (วันที่+ยอด+เวลา+เลขต้นทาง) ตรงกับที่เคยเข้าบัญชีนี้ = กันลงซ้ำ + ป้ายเตือน
+2. **C เช็คยอดรวม** — โชว์ยอดรวมเงินเข้าที่ดึงได้ + จำนวนรายการเสมอ (เทียบตาเปล่าได้ทุกแบงก์) · ถ้าดึงยอดที่ statement พิมพ์ได้ → เตือนถ้าไม่ตรง (best-effort)
+3. **E ปุ่มไม่ใช่ค่าเช่า** — mark → บันทึกเป็นสถานะ "อื่นๆ" (ยอดบัญชีกระทบครบ) ไม่ต้องจับคู่ผู้เช่า
+4. **A จำบัญชีต้นทาง→ผู้เช่า** ⭐ — เรียนจากประวัติ (ถ่วงน้ำหนัก "เลือกเอง" > "เดา") · เลขต้นทางที่เคยจับ → เดือนหน้าเดาให้ % สูง · ไม่เพิ่มตารางใน DB
+5. **B มิเตอร์ช่วยจับยอด** — reuse น้ำ/ไฟค้างบิล → expected = ค่าเช่า+น้ำ+ไฟ → จับห้องรวมน้ำไฟแม่นขึ้น
+
+**ถัดไป:** Tem เทส preview ด้วย statement จริง → merge main + deploy:prod · หน้าจับคู่แยก (reconciliation page) ยังไม่ทำ · per-landlord/per-bank summary · ⚠️ wysiwyg-spike.tsx ยังกั้น deploy:prod (ของอีก session)
+
 ## 🔄 Session 2026-05-29 — [v2] เคลียร์ระบบเก็บเงิน (branch feat/unify-payments)
 
 งานทั้งหมดอยู่บน branch feat/unify-payments · deploy ขึ้น preview แล้ว · **ยังไม่ merge main**
