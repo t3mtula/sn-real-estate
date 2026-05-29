@@ -829,14 +829,29 @@ export function Contracts() {
                     }}
                     onMouseLeave={onRowLeave}
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className='py-3'>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                      const isSelect = cell.column.id === 'select'
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={cn('py-3', isSelect && 'w-10')}
+                          // ทั้ง cell ของช่องติ๊ก = toggle เลือก · ไม่ navigate เข้าสัญญา
+                          onClick={
+                            isSelect
+                              ? (e) => {
+                                  e.stopPropagation()
+                                  row.toggleSelected(!row.getIsSelected())
+                                }
+                              : undefined
+                          }
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      )
+                    })}
                   </TableRow>
                 ))
               )}
