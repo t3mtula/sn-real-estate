@@ -1,16 +1,18 @@
 /**
- * Bank PDF Statement Parser
- * รองรับ: SCB (ไทยพาณิชย์), KBank (กสิกรไทย), BBL (กรุงเทพ)
+ * Bank Statement Parser
+ * รองรับ: SCB (ไทยพาณิชย์), KBank (กสิกรไทย), BBL (กรุงเทพ), BAY (กรุงศรี)
  *
- * Input:  ข้อความที่ดึงจาก PDF โดย "เรียงตามบรรทัดจริง" (ดู extractPdfText ใน pdf-import.tsx)
- *         — 1 บรรทัด = 1 รายการ · ห้ามยำทั้งหน้าเป็นบรรทัดเดียว ไม่งั้นจับได้แค่รายการแรก
+ * 2 ทางเข้า:
+ *   - PDF  → parseStatementText(text)  · text ดึงแบบ "เรียงตามบรรทัดจริง" (ดู extractPdfText)
+ *   - CSV/XLSX → parseStatementRows(rows) · ตาราง (แม่นกว่า PDF — มีชื่อผู้โอนครบ)
+ *
  * Output: ParsedTransaction[] — เฉพาะรายการเงินเข้า (credit)
  *
- * ⚠️ statement แต่ละธนาคาร (หรือแม้แต่ธนาคารเดียวกันคนละชนิดบัญชี) หน้าตาต่างกันได้
+ * ⚠️ statement แต่ละธนาคาร (หรือแม้แต่ธนาคารเดียวกันคนละชนิดบัญชี/ไฟล์) หน้าตาต่างกันได้
  *    → ถ้าเจอรูปแบบที่ไม่รู้จัก ให้คืน UNKNOWN/0 รายการ แล้วให้คนตรวจ ไม่เดาเงียบ ๆ
  */
 
-export type BankType = 'SCB' | 'KBANK' | 'BBL' | 'UNKNOWN'
+export type BankType = 'SCB' | 'KBANK' | 'BBL' | 'BAY' | 'UNKNOWN'
 
 export interface ParsedTransaction {
   /** วันที่ในรูปแบบ DD/MM/YYYY พ.ศ. */
@@ -215,12 +217,49 @@ function parseBBLStatement(text: string): ParsedTransaction[] {
     .filter((t): t is ParsedTransaction => t !== null)
 }
 
+// ─── BAY (กรุงศรี) PDF parser ─────────────────────────────────────────────────
+//   01/05/2026 2,500.00 1,837,149.38 TN รับโอนเงิน MOBILE 0700
+// รูปแบบ (เครดิต ช่อง "ถอน" ว่าง): วันที่ <ฝาก> <คงเหลือ> <รหัส> <คำอธิบาย> <ช่องทาง> <สาขา>
+// หมายเหตุ: PDF ของกรุงศรีตัดชื่อผู้โอนตกบรรทัด → ได้แค่ยอด/วันที่ (แนะนำ CSV/XLSX แทน)
+
+const BAY_LINE = /^(\d{2})\/(\d{2})\/(\d{4})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+(\S+)\s+(.+)$/
+
+function parseBAYLine(line: string): ParsedTransaction | null {
+  const m = line.match(BAY_LINE)
+  if (!m) return null
+  const [, day, month, year4, amtStr, , code, rest] = m
+  // เอาเฉพาะเงินเข้า: รหัส TN หรือคำอธิบายขึ้นต้น รับโอน/ฝาก
+  const isCredit = code === 'TN' || /^(รับโอน|ฝาก)/.test(rest.trim())
+  if (!isCredit) return null
+  const amount = parseAmt(amtStr)
+  if (amount <= 0) return null
+  const channel = /MOBILE|โมบาย|Internet/i.test(rest) ? 'โมบายแบงก์กิ้ง' : 'โอนเงิน'
+  return {
+    date: toBeDate4(day, month, year4),
+    time: '',
+    amount,
+    payerName: '', // กรุงศรี PDF ไม่ติดชื่อผู้โอนมาในบรรทัด
+    sourceBankCode: '',
+    sourceAcctSuffix: '',
+    description: rest.trim(),
+    channel,
+  }
+}
+
+function parseBAYStatement(text: string): ParsedTransaction[] {
+  return text
+    .split('\n')
+    .map((line) => parseBAYLine(line.trim()))
+    .filter((t): t is ParsedTransaction => t !== null)
+}
+
 // ─── detect bank ─────────────────────────────────────────────────────────────
 
 export function detectBank(text: string): BankType {
   if (text.includes('ไทยพาณิชย์') || text.includes('SIAM COMMERCIAL')) return 'SCB'
   if (text.includes('กสิกรไทย') || text.includes('KASIKORNBANK') || text.includes('KBPDF')) return 'KBANK'
   if (text.includes('ธนาคารกรุงเทพ') || text.includes('BANGKOK BANK')) return 'BBL'
+  if (text.includes('กรุงศรีอยุธยา') || text.includes('KRUNGSRI') || text.includes('AYUDHYA')) return 'BAY'
   return 'UNKNOWN'
 }
 
@@ -258,6 +297,93 @@ function extractBBLInfo(text: string): Omit<StatementInfo, 'bank'> {
   }
 }
 
+function extractBAYInfo(text: string): Omit<StatementInfo, 'bank'> {
+  const acctMatch = text.match(/(\d{3}-\d-\d{5}-\d)/)
+  const nameMatch = text.match(/ชื่อบัญชี\s*([^\n]+)/)
+  const periodMatch = text.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/)
+  return {
+    acctNoRaw: stripDashes(acctMatch?.[1] ?? ''),
+    accountName: nameMatch?.[1]?.trim() ?? '',
+    period: periodMatch ? `${periodMatch[1]} - ${periodMatch[2]}` : '',
+  }
+}
+
+// ─── tabular parser (CSV / XLSX) ──────────────────────────────────────────────
+// กรุงศรี export ตาราง 8 คอลัมน์:
+//   [วันที่/เวลา, ถอน, ฝาก, ยอดคงเหลือ, รหัส, คำอธิบาย, ช่องทาง, สาขา]
+// เงินเข้า = ช่อง "ฝาก" > 0 · คำอธิบาย "รับโอนเงิน <BANK> <ชื่อ>"
+
+/** หา index คอลัมน์จากแถว header (ถ้ามี) · ไม่มี = ใช้ลำดับมาตรฐานกรุงศรี */
+function bayColumns(rows: string[][]): { date: number; deposit: number; code: number; desc: number } | null {
+  for (const r of rows) {
+    const joined = r.map((c) => String(c ?? '').trim())
+    const depIdx = joined.findIndex((c) => c === 'ฝาก')
+    if (depIdx >= 0 && joined.some((c) => c === 'ถอน')) {
+      return {
+        date: joined.findIndex((c) => c.includes('วันที่')),
+        deposit: depIdx,
+        code: joined.findIndex((c) => c === 'รหัส'),
+        desc: joined.findIndex((c) => c.includes('คำอธิบาย')),
+      }
+    }
+  }
+  // CSV ไม่มี header → ลำดับมาตรฐาน
+  return { date: 0, deposit: 2, code: 4, desc: 5 }
+}
+
+function parsePayerFromBAYDesc(descRaw: string): { bank: string; name: string } {
+  const desc = descRaw.replace(/\s+/g, ' ').trim()
+  // "รับโอนเงิน SCB นาย สมนิ สุทธิ..." → bank=SCB, name="นาย สมนิ สุทธิ..."
+  const m = desc.match(/^(?:รับโอนเงิน|โอนเงิน|รับโอน)\s+([A-Z]{2,})\s+(.+?)(?:\s*บัญชีต้นทาง.*)?$/)
+  if (m) return { bank: m[1], name: m[2].trim() }
+  return { bank: '', name: desc.replace(/^(?:รับโอนเงิน|รับโอน)\s*/, '').trim() }
+}
+
+export function parseStatementRows(rows: string[][]): ParsedStatement {
+  const flat = rows.map((r) => r.map((c) => String(c ?? '')).join(' ')).join('\n')
+  // กรุงศรี: มีคอลัมน์ ถอน/ฝาก หรือ มีรหัส TN + คำอธิบาย "รับโอนเงิน"
+  const looksBAY =
+    flat.includes('ฝาก') ||
+    rows.some((r) => r.some((c) => /รับโอนเงิน/.test(String(c ?? ''))))
+  if (!looksBAY) {
+    return { info: { bank: 'UNKNOWN', acctNoRaw: '', accountName: '', period: '' }, transactions: [] }
+  }
+
+  const col = bayColumns(rows)!
+  const acctMatch = flat.match(/(\d{3}-\d-\d{5}-\d)/)
+  const nameMatch = flat.match(/ชื่อบัญชี[\s,]*([^\n,]+)/)
+
+  const transactions: ParsedTransaction[] = []
+  for (const r of rows) {
+    const dateCell = String(r[col.date] ?? '').trim()
+    const dm = dateCell.match(/(\d{2})\/(\d{2})\/(\d{4})/)
+    if (!dm) continue
+    const amount = parseAmt(String(r[col.deposit] ?? ''))
+    if (amount <= 0) continue // เอาเฉพาะ "ฝาก" (เงินเข้า)
+    const { bank, name } = parsePayerFromBAYDesc(String(r[col.desc] ?? ''))
+    transactions.push({
+      date: toBeDate4(dm[1], dm[2], dm[3]),
+      time: '',
+      amount,
+      payerName: name,
+      sourceBankCode: bank,
+      sourceAcctSuffix: '',
+      description: String(r[col.desc] ?? '').replace(/\s+/g, ' ').trim(),
+      channel: /MOBILE/i.test(String(r[col.code + 2] ?? '')) ? 'โมบายแบงก์กิ้ง' : 'โอนเงิน',
+    })
+  }
+
+  return {
+    info: {
+      bank: 'BAY',
+      acctNoRaw: stripDashes(acctMatch?.[1] ?? ''),
+      accountName: nameMatch?.[1]?.trim() ?? '',
+      period: '',
+    },
+    transactions,
+  }
+}
+
 // ─── main export ─────────────────────────────────────────────────────────────
 
 export function parseStatementText(text: string): ParsedStatement {
@@ -266,6 +392,7 @@ export function parseStatementText(text: string): ParsedStatement {
   if (bank === 'SCB') return { info: { bank, ...extractSCBInfo(text) }, transactions: parseSCBStatement(text) }
   if (bank === 'KBANK') return { info: { bank, ...extractKBankInfo(text) }, transactions: parseKBankStatement(text) }
   if (bank === 'BBL') return { info: { bank, ...extractBBLInfo(text) }, transactions: parseBBLStatement(text) }
+  if (bank === 'BAY') return { info: { bank, ...extractBAYInfo(text) }, transactions: parseBAYStatement(text) }
 
   return { info: { bank: 'UNKNOWN', acctNoRaw: '', accountName: '', period: '' }, transactions: [] }
 }

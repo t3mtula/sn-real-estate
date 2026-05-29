@@ -3,6 +3,7 @@
  * อัปโหลด PDF statement จาก SCB / KBank → preview → บันทึกเป็น payments
  */
 import * as pdfjsLib from 'pdfjs-dist'
+import * as XLSX from 'xlsx'
 import { useState, useRef } from 'react'
 import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,9 +23,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   parseStatementText,
+  parseStatementRows,
   acctNoMatches,
+  type ParsedStatement,
   type ParsedTransaction,
   type StatementInfo,
 } from './bank-pdf-parser'
@@ -92,10 +96,54 @@ async function extractPdfText(file: File, password?: string): Promise<string> {
   return lines.join('\n')
 }
 
+/** RFC4180 CSV → string[][] · เก็บ string เดิม (เลี่ยง SheetJS แปลงคอลัมน์วันที่เป็น date) */
+function parseCsvRows(text: string): string[][] {
+  const t = text.replace(/^\uFEFF/, '') // strip BOM
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (t[i + 1] === '"') { field += '"'; i++ } else inQuotes = false
+      } else field += ch
+    } else if (ch === '"') {
+      inQuotes = true
+    } else if (ch === ',') {
+      row.push(field); field = ''
+    } else if (ch === '\n') {
+      row.push(field); rows.push(row); row = []; field = ''
+    } else if (ch !== '\r') {
+      field += ch
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row) }
+  return rows
+}
+
+/** อ่านไฟล์ statement → ParsedStatement (รองรับ PDF / CSV / XLSX อัตโนมัติตามชนิดไฟล์) */
+async function parseStatementFile(file: File, password?: string): Promise<ParsedStatement> {
+  const name = file.name.toLowerCase()
+  if (name.endsWith('.pdf')) {
+    return parseStatementText(await extractPdfText(file, password))
+  }
+  if (name.endsWith('.csv')) {
+    return parseStatementRows(parseCsvRows(await file.text()))
+  }
+  // XLS / XLSX → SheetJS (เก็บ cell วันที่เป็น text อยู่แล้ว ไม่โดนแปลง)
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+  const sheet = wb.Sheets[wb.SheetNames[0]]
+  const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false, blankrows: false })
+  return parseStatementRows(rows)
+}
+
 const BANK_LABEL: Record<string, string> = {
   SCB: 'ไทยพาณิชย์',
   KBANK: 'กสิกรไทย',
   BBL: 'กรุงเทพ',
+  BAY: 'กรุงศรี',
   UNKNOWN: 'ไม่รู้จัก',
 }
 
@@ -115,6 +163,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const [info, setInfo] = useState<StatementInfo | null>(null)
   const [rows, setRows] = useState<ImportRow[]>([])
   const [detectedBankAccId, setDetectedBankAccId] = useState<string | undefined>()
+  const [manualBankId, setManualBankId] = useState<string | undefined>()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: bankAccounts } = useBankAccounts()
@@ -130,6 +179,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     setInfo(null)
     setRows([])
     setDetectedBankAccId(undefined)
+    setManualBankId(undefined)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -140,11 +190,10 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     setStep('parsing')
 
     try {
-      const text = await extractPdfText(file, password || undefined)
-      const { info: stmtInfo, transactions } = parseStatementText(text)
+      const { info: stmtInfo, transactions } = await parseStatementFile(file, password || undefined)
 
       if (stmtInfo.bank === 'UNKNOWN') {
-        setError('ไม่รู้จักรูปแบบ statement นี้ — รองรับ ไทยพาณิชย์ · กสิกร · กรุงเทพ (ถ้าเป็นธนาคารอื่นแจ้งทีมพัฒนา)')
+        setError('ไม่รู้จักรูปแบบ statement นี้ — รองรับ ไทยพาณิชย์ · กสิกร · กรุงเทพ · กรุงศรี (PDF/CSV/Excel) · ถ้าเป็นธนาคารอื่นแจ้งทีมพัฒนา')
         setStep('upload')
         return
       }
@@ -172,7 +221,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
         setError('PDF นี้มีรหัสผ่าน — กรุณาใส่รหัสแล้วลองใหม่')
         setStep('upload')
       } else {
-        setError(`อ่าน PDF ไม่สำเร็จ: ${msg}`)
+        setError(`อ่านไฟล์ไม่สำเร็จ: ${msg}`)
         setStep('upload')
       }
     }
@@ -195,10 +244,11 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     if (selected.length === 0) return
 
     setStep('saving')
+    const effectiveBankId = manualBankId ?? detectedBankAccId
     const batch: BatchPaymentRow[] = selected.map((r) => ({
       date: r.date,
       amount: r.amount,
-      bank_account_id: r.matchedBankAccountId,
+      bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
       payerName: r.payerName,
       payMethod: 'transfer' as const,
       notes: r.description,
@@ -224,7 +274,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>นำเข้า Statement จากธนาคาร</DialogTitle>
           <DialogDescription>
-            อัปโหลด PDF statement จาก ไทยพาณิชย์ · กสิกร · กรุงเทพ · ระบบจะดึงรายการเงินเข้าให้อัตโนมัติ
+            อัปโหลดไฟล์ statement (PDF / CSV / Excel) จาก ไทยพาณิชย์ · กสิกร · กรุงเทพ · กรุงศรี · ระบบจะดึงรายการเงินเข้าให้อัตโนมัติ
           </DialogDescription>
         </DialogHeader>
 
@@ -243,12 +293,12 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
               {file ? (
                 <p className='text-sm font-medium'>{file.name}</p>
               ) : (
-                <p className='text-sm text-muted-foreground'>คลิกเพื่อเลือกไฟล์ PDF</p>
+                <p className='text-sm text-muted-foreground'>คลิกเพื่อเลือกไฟล์ (PDF / CSV / Excel)</p>
               )}
               <input
                 ref={fileRef}
                 type='file'
-                accept='.pdf,application/pdf'
+                accept='.pdf,application/pdf,.csv,text/csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 className='hidden'
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null
@@ -323,15 +373,35 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
             <div className='flex flex-wrap gap-2 text-sm'>
               <Badge variant='outline'>{BANK_LABEL[info.bank] ?? info.bank}</Badge>
               {info.accountName && <span className='text-muted-foreground'>{info.accountName}</span>}
-              {detectedBankAccId ? (
+              {detectedBankAccId && !manualBankId ? (
                 <Badge variant='outline' className='text-green-600 border-green-300'>
                   <CheckCircle2 className='size-3 mr-1' /> จับคู่บัญชีในระบบแล้ว
                 </Badge>
-              ) : (
+              ) : !detectedBankAccId && !manualBankId ? (
                 <Badge variant='outline' className='text-amber-600 border-amber-300'>
-                  ไม่พบบัญชีนี้ในระบบ
+                  ไม่พบบัญชีนี้ในระบบ — เลือกบัญชีด้านล่าง
                 </Badge>
-              )}
+              ) : null}
+            </div>
+
+            {/* บัญชีรับเงิน — เลือกเองได้ (จำเป็นถ้าจับคู่อัตโนมัติไม่ได้ เช่น CSV ไม่มีเลขบัญชี) */}
+            <div className='space-y-1.5'>
+              <Label className='text-xs'>บัญชีรับเงิน (เงินทุกรายการเข้าบัญชีนี้)</Label>
+              <Select
+                value={manualBankId ?? detectedBankAccId ?? ''}
+                onValueChange={(v) => setManualBankId(v)}
+              >
+                <SelectTrigger className='h-9 text-sm'>
+                  <SelectValue placeholder='— เลือกบัญชีรับเงิน —' />
+                </SelectTrigger>
+                <SelectContent>
+                  {(bankAccounts ?? []).map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.data?.bank} {b.data?.acctNo} · {b.data?.accountName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {rows.length === 0 ? (
