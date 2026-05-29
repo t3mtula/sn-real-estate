@@ -33,15 +33,18 @@
     ]
   },
   "dependencies": {
+    "@ariakit/react": "^0.4.28",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
     "@platejs/basic-nodes": "^53.0.0",
     "@platejs/basic-styles": "^53.0.0",
+    "@platejs/combobox": "^53.0.0",
     "@platejs/dnd": "^53.0.0",
     "@platejs/indent": "^53.0.0",
     "@platejs/list": "^53.0.2",
+    "@platejs/mention": "^53.0.0",
     "@platejs/resizable": "^53.0.0",
     "@platejs/selection": "^53.0.0",
     "@platejs/table": "^53.0.0",

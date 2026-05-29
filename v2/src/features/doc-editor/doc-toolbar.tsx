@@ -3,8 +3,17 @@
  * buttons. Behaviour (lists, tables, indent, alignment, fonts) lives in the
  * plugins (see plate-kit.ts); these buttons just trigger the commands.
  */
+import { KEYS } from 'platejs'
 import { useEditorRef } from 'platejs/react'
-import { Baseline, Bold, Italic, PaintBucket, Strikethrough, Underline } from 'lucide-react'
+import {
+  Baseline,
+  Bold,
+  ChevronDown,
+  Italic,
+  PaintBucket,
+  Strikethrough,
+  Underline,
+} from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -12,7 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Toolbar, ToolbarSeparator } from '@/components/ui/toolbar'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Toolbar, ToolbarButton, ToolbarSeparator } from '@/components/ui/toolbar'
 import { MarkToolbarButton } from '@/components/ui/mark-toolbar-button'
 import {
   BulletedListToolbarButton,
@@ -26,9 +40,20 @@ import {
   OutdentToolbarButton,
 } from '@/components/ui/indent-toolbar-button'
 import { LineHeightToolbarButton } from '@/components/ui/line-height-toolbar-button'
+import { DOC_FIELDS } from './doc-fields'
 
 export function DocToolbar() {
   const editor = useEditorRef()
+
+  /** Insert an auto-fill chip (mention element) for the chosen field. */
+  const insertField = (label: string) => {
+    editor.tf.focus()
+    editor.tf.insertNodes({
+      type: KEYS.mention,
+      value: label,
+      children: [{ text: '' }],
+    })
+  }
 
   return (
     <Toolbar className='flex flex-wrap items-center gap-0.5 rounded-md border bg-card p-1'>
@@ -83,6 +108,34 @@ export function DocToolbar() {
 
       <BulletedListToolbarButton />
       <NumberedListToolbarButton />
+
+      <ToolbarSeparator />
+
+      {/* Insert auto-fill data chip */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <ToolbarButton tooltip='แทรกข้อมูลอัตโนมัติ' className='w-auto gap-1 px-2'>
+            แทรกข้อมูล
+            <ChevronDown className='size-3 opacity-60' />
+          </ToolbarButton>
+        </PopoverTrigger>
+        <PopoverContent
+          align='start'
+          className='w-48 p-1'
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          {DOC_FIELDS.map((f) => (
+            <button
+              key={f.key}
+              type='button'
+              className='flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-accent'
+              onClick={() => insertField(f.label)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
     </Toolbar>
   )
 }
