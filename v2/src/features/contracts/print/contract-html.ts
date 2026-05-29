@@ -14,6 +14,7 @@ import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
 import type { ContractTemplate } from '@/features/templates/types'
+import { resolveAttachments } from '@/features/templates/types'
 import { amt, parseAmt, spellAmt } from '@/lib/thai'
 import { parseBE } from '@/lib/thai/date'
 import { DEFAULT_TEMPLATE, renderTemplateText } from './default-template'
@@ -33,6 +34,13 @@ export type BuildContractHtmlOptions = {
   embed?: boolean
   /** Hide the floating print/close toolbar (default: hidden when embed=true) */
   hideToolbar?: boolean
+  /**
+   * Rich HTML for the contract body (from the Plate document editor). When set,
+   * it REPLACES the structured intro/clauses/closing — the professional frame
+   * (header, parties, signatures, appendix) stays the same. Additive: omit it
+   * and the engine behaves exactly as before.
+   */
+  bodyHtmlOverride?: string
 }
 
 const TH_MONTHS = [
@@ -247,6 +255,7 @@ function sigBoxParty(opts: {
  */
 function renderContractDoc(
   refs: ContractHtmlRefs,
+  bodyHtmlOverride?: string,
 ): { html: string; docTitle: string } {
   const c = refs.contract.data
 
@@ -393,12 +402,13 @@ function renderContractDoc(
     })
     .join('')
 
-  const body =
-    '<div class="c-body">' +
-    `<p class="c-intro">${renderTemplateText(tpl.intro, ctx)}</p>` +
-    clausesHtml +
-    (tpl.closing ? `<p class="c-closing">${renderTemplateText(tpl.closing, ctx)}</p>` : '') +
-    '</div>'
+  const body = bodyHtmlOverride
+    ? `<div class="c-body c-body-rich">${bodyHtmlOverride}</div>`
+    : '<div class="c-body">' +
+      `<p class="c-intro">${renderTemplateText(tpl.intro, ctx)}</p>` +
+      clausesHtml +
+      (tpl.closing ? `<p class="c-closing">${renderTemplateText(tpl.closing, ctx)}</p>` : '') +
+      '</div>'
 
   // ── Signatures ──
   const sigsMain =
@@ -534,6 +544,26 @@ function renderContractDoc(
     notesText ? `<div class="ap-notes-text">${escape(notesText)}</div>` : '',
   )
 
+  // Attachments checklist (เอกสารแนบท้าย) — from template, unless turned off
+  const attachInner =
+    refs.template?.data?.showAttachments === false
+      ? ''
+      : (() => {
+          const list = resolveAttachments(refs.template?.data)
+          if (!list.length) return ''
+          return (
+            '<div class="ap-attach">' +
+            list
+              .map(
+                (a) =>
+                  `<div class="ap-attach-item"><span class="ap-attach-box">${a.checked ? '☑' : '☐'}</span> ${escape(a.label)}</div>`,
+              )
+              .join('') +
+            '</div>'
+          )
+        })()
+  const attachSection = section('เอกสารแนบท้าย', 'ATTACHMENTS', attachInner)
+
   // Appendix signatures (no witnesses on appendix per v1)
   const sigsAppendix =
     '<div class="sig-section">' +
@@ -561,6 +591,7 @@ function renderContractDoc(
     propertySection +
     leaseSection +
     bankSection +
+    attachSection +
     notesSection +
     sigsAppendix +
     '</div></div>'
@@ -595,7 +626,7 @@ export function buildContractHtml(
   opts: BuildContractHtmlOptions = {},
 ): string {
   const { embed = true, hideToolbar = embed } = opts
-  const { html, docTitle } = renderContractDoc(refs)
+  const { html, docTitle } = renderContractDoc(refs, opts.bodyHtmlOverride)
   const bodyOpen = embed ? '<body class="embed">' : '<body>'
   const toolbar = hideToolbar ? '' : buildToolbar()
   return buildHead(docTitle) + bodyOpen + toolbar + html + '</body></html>'
@@ -664,6 +695,26 @@ body { background: #fff; color: #1a202c; }
 
 .c-divider { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
 
+/* Rich body (from the Plate document editor) — professional contract typography */
+.c-body-rich { font-size: 16px; line-height: 1.85; color: #1e293b; text-align: left; }
+.c-body-rich h1 { font-size: 18px; font-weight: 800; color: #1e3a5f; text-align: center; margin: 0 0 12px; line-height: 1.3; }
+.c-body-rich h2 { font-size: 16px; font-weight: 700; color: #1e3a5f; margin: 14px 0 4px; }
+.c-body-rich h3 { font-size: 15px; font-weight: 700; color: #1e3a5f; margin: 10px 0 4px; }
+.c-body-rich p { margin: 0 0 7px; }
+.c-body-rich strong, .c-body-rich b { font-weight: 700; color: #1e3a5f; }
+.c-body-rich em { font-style: italic; }
+.c-body-rich u { text-decoration: underline; }
+.c-body-rich s { text-decoration: line-through; }
+.c-body-rich ul { list-style: disc; margin: 4px 0 8px; padding-inline-start: 30px; }
+.c-body-rich ol { list-style: decimal; margin: 4px 0 8px; padding-inline-start: 30px; }
+.c-body-rich li { margin: 2px 0; }
+.c-body-rich mark { padding: 0 2px; border-radius: 2px; }
+.c-body-rich [data-slate-align="center"] { text-align: center; }
+.c-body-rich [data-slate-align="right"] { text-align: right; }
+.c-body-rich [data-slate-align="justify"] { text-align: left; }
+.c-body-rich hr { border: none; border-top: 1px solid #cbd5e1; margin: 12px 0; }
+.c-body-rich [data-slate-value] { color: #1e3a5f; font-weight: 600; }
+
 /* Sig ติดต่อจาก closing · ไม่ force หน้าแยก · ทั้งสัญญา (clauses + sig) อยู่ใน 2 หน้า */
 .sig-section { margin-top: 28px; padding-top: 12px; page-break-inside: avoid; break-inside: avoid; }
 .sig-section-title { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; text-align: center; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0; }
@@ -702,6 +753,10 @@ body { background: #fff; color: #1a202c; }
 .ap-party-detail .k { color: #64748b; font-weight: 600; font-size: 13.5px; letter-spacing: .3px; }
 
 .ap-notes-text { padding: 12px 14px; font-size: 13.5px; color: #1e293b; line-height: 1.6; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; }
+
+.ap-attach { padding: 10px 14px; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 4px 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+.ap-attach-item { font-size: 13px; color: #1e293b; line-height: 1.5; }
+.ap-attach-box { color: #1e3a5f; font-size: 14px; margin-right: 4px; }
 
 @media print {
   @page { size: A4; margin: 16mm 20mm 16mm; }

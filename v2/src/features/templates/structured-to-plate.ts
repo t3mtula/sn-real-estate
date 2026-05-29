@@ -24,13 +24,9 @@ function paragraphs(text: string): Value {
 }
 
 export function structuredToPlate(data: TemplateData): Value {
+  // Body only — the professional frame (title/parties/signatures/appendix) is
+  // rendered around this by the contract print engine, so no title here.
   const nodes: Value = []
-
-  nodes.push({
-    type: 'h1',
-    align: 'center',
-    children: [{ text: data.name?.trim() || 'สัญญาเช่า' }],
-  })
 
   nodes.push(...paragraphs(data.intro))
 

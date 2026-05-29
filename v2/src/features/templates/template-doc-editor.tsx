@@ -5,7 +5,7 @@
  * the document back to `data.doc` — additive, leaving the structured fields
  * intact so nothing in the existing print path breaks.
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Value } from 'platejs'
 import { Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,6 +15,15 @@ import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/yonghua/back-button'
 import { DocEditor } from '@/components/yonghua/doc-editor'
 import { SAMPLE_VALUES } from '@/features/doc-editor/doc-fields'
+import { buildContractHtml } from '@/features/contracts/print/contract-html'
+import {
+  SAMPLE_BANK,
+  SAMPLE_CONTRACT,
+  SAMPLE_LANDLORD,
+  SAMPLE_PROPERTY,
+  SAMPLE_TENANT,
+} from './template-a4-preview'
+import type { ContractTemplate } from './types'
 import { useContractTemplate } from './queries'
 import { useUpdateTemplate } from './mutations'
 import { structuredToPlate } from './structured-to-plate'
@@ -38,6 +47,25 @@ export function TemplateDocEditor({ id }: { id: string }) {
     setDirty(false)
     toast.success('บันทึกเอกสารแล้ว')
   }
+
+  // Wrap the edited body in the professional contract frame (sample data) so
+  // the preview looks like a real printed contract.
+  const renderPreviewDoc = useCallback(
+    (bodyHtml: string) =>
+      buildContractHtml(
+        {
+          contract: SAMPLE_CONTRACT,
+          tenant: SAMPLE_TENANT,
+          landlord: SAMPLE_LANDLORD,
+          property: SAMPLE_PROPERTY,
+          bank: SAMPLE_BANK,
+          parent: null,
+          template: template as ContractTemplate | null,
+        },
+        { bodyHtmlOverride: bodyHtml, embed: true },
+      ),
+    [template],
+  )
 
   if (!isLoading && !template) {
     return (
@@ -88,6 +116,7 @@ export function TemplateDocEditor({ id }: { id: string }) {
         <DocEditor
           value={value}
           previewData={SAMPLE_VALUES}
+          renderPreviewDoc={renderPreviewDoc}
           onChange={(v) => {
             setValue(v)
             setDirty(true)

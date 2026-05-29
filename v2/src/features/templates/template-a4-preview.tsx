@@ -31,7 +31,7 @@ interface Props {
 
 /* ─────────── sample data — recognizable Thai names ─────────── */
 
-const SAMPLE_CONTRACT: Contract = {
+export const SAMPLE_CONTRACT: Contract = {
   id: 'preview',
   data: {
     pid: 0,
@@ -56,7 +56,7 @@ const SAMPLE_CONTRACT: Contract = {
   updated_at: null,
 }
 
-const SAMPLE_TENANT: Tenant = {
+export const SAMPLE_TENANT: Tenant = {
   id: 'preview-tenant',
   data: {
     name: 'นายสมชาย ใจดี',
@@ -73,7 +73,7 @@ const SAMPLE_TENANT: Tenant = {
   updated_at: null,
 }
 
-const SAMPLE_LANDLORD: Landlord = {
+export const SAMPLE_LANDLORD: Landlord = {
   id: 'preview-landlord',
   data: {
     name: 'บริษัท สมบัตินภา จำกัด',
@@ -92,7 +92,7 @@ const SAMPLE_LANDLORD: Landlord = {
   updated_at: null,
 }
 
-const SAMPLE_PROPERTY: Property = {
+export const SAMPLE_PROPERTY: Property = {
   id: 'preview-property',
   data: {
     name: 'อาคารพาณิชย์ 3 ชั้น เลขที่ 12/3',
@@ -110,7 +110,7 @@ const SAMPLE_PROPERTY: Property = {
   updated_at: null,
 }
 
-const SAMPLE_BANK: BankAccount = {
+export const SAMPLE_BANK: BankAccount = {
   id: 'preview-bank',
   data: {
     bank: 'ธนาคารกรุงเทพ',
