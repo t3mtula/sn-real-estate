@@ -18,8 +18,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Value } from 'platejs'
 import { Plate, usePlateEditor } from 'platejs/react'
 import { Previewer } from 'pagedjs'
-import pagedPolyfillUrl from 'pagedjs/dist/paged.polyfill.min.js?url'
 import { Loader2 } from 'lucide-react'
+
+/** paged.js polyfill served from /public — loaded inside the preview iframe. */
+const PAGED_POLYFILL_URL = '/paged.polyfill.min.js'
 import { cn } from '@/lib/utils'
 import { Editor, EditorContainer } from '@/components/ui/editor'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -49,7 +51,7 @@ function buildPagedIframe(content: string, css: string): string {
         body { background: #eef1f5; margin: 0; }
         .pagedjs_page { margin: 0 auto 14px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
       }</style>` +
-    `<script src="${pagedPolyfillUrl}"><\/script>` +
+    `<script src="${window.location.origin}${PAGED_POLYFILL_URL}"><\/script>` +
     `</head><body>${content}</body></html>`
   )
 }
