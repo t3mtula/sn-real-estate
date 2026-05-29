@@ -18,7 +18,6 @@ import {
   BulletedListToolbarButton,
   NumberedListToolbarButton,
 } from '@/components/ui/list-toolbar-button'
-import { TableToolbarButton } from '@/components/ui/table-toolbar-button'
 import { AlignToolbarButton } from '@/components/ui/align-toolbar-button'
 import { FontSizeToolbarButton } from '@/components/ui/font-size-toolbar-button'
 import { FontColorToolbarButton } from '@/components/ui/font-color-toolbar-button'
@@ -84,7 +83,6 @@ export function DocToolbar() {
 
       <BulletedListToolbarButton />
       <NumberedListToolbarButton />
-      <TableToolbarButton />
     </Toolbar>
   )
 }

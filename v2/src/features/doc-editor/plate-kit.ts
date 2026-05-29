@@ -11,7 +11,6 @@ import { BasicNodesKit } from '@/components/editor/plugins/basic-nodes-kit'
 import { FontKit } from '@/components/editor/plugins/font-kit'
 import { LineHeightKit } from '@/components/editor/plugins/line-height-kit'
 import { ListKit } from '@/components/editor/plugins/list-kit'
-import { TableKit } from '@/components/editor/plugins/table-kit'
 
 export const DocPlateKit = [
   ...BasicNodesKit, // headings, blockquote, hr, bold/italic/underline/strike/code…
@@ -19,5 +18,4 @@ export const DocPlateKit = [
   ...AlignKit, // text alignment
   ...LineHeightKit, // line spacing
   ...ListKit, // bullet / numbered lists (+ IndentKit for เยื้องย่อหน้า)
-  ...TableKit, // tables with row/column controls
 ]
