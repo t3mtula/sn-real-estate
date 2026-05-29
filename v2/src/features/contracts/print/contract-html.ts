@@ -35,10 +35,13 @@ export type BuildContractHtmlOptions = {
   /** Hide the floating print/close toolbar (default: hidden when embed=true) */
   hideToolbar?: boolean
   /**
-   * Rich HTML for the contract body (from the Plate document editor). When set,
-   * it REPLACES the structured intro/clauses/closing — the professional frame
-   * (header, parties, signatures, appendix) stays the same. Additive: omit it
-   * and the engine behaves exactly as before.
+   * Rich HTML for the contract body (from the Plate document editor), already
+   * filled with values. Used by the live editor preview. Additive.
+   *
+   * For REAL contract printing you don't pass this: when the contract's
+   * template has a saved `docHtml`, the engine auto-fills it with this
+   * contract's data and uses it as the body (falls back to the structured
+   * engine when the template has no doc).
    */
   bodyHtmlOverride?: string
 }
@@ -402,8 +405,15 @@ function renderContractDoc(
     })
     .join('')
 
-  const body = bodyHtmlOverride
-    ? `<div class="c-body c-body-rich">${bodyHtmlOverride}</div>`
+  // Body source priority:
+  //   1. bodyHtmlOverride — pre-filled rich body (live editor preview)
+  //   2. template.docHtml — saved document, auto-filled with THIS contract's data
+  //   3. structured intro/clauses/closing (legacy engine)
+  const savedDocHtml = refs.template?.data?.docHtml
+  const richBody =
+    bodyHtmlOverride ?? (savedDocHtml ? applyDocData(savedDocHtml, refs) : undefined)
+  const body = richBody
+    ? `<div class="c-body c-body-rich">${richBody}</div>`
     : '<div class="c-body">' +
       `<p class="c-intro">${renderTemplateText(tpl.intro, ctx)}</p>` +
       clausesHtml +
@@ -618,6 +628,41 @@ function buildToolbar(): string {
     `<span style="color:#94a3b8;font-size:12px;margin-left:auto">สัญญาเช่า — ${today.toLocaleDateString('th-TH')}</span>` +
     `</div><div style="height:56px" class="no-print"></div>`
   )
+}
+
+/** Map the document's data-chip labels → this contract's real values. */
+export function buildContractFillMap(refs: ContractHtmlRefs): Record<string, string> {
+  const c = refs.contract.data
+  const landlordName = (refs.landlord?.data?.name ?? c.landlord ?? '').trim()
+  const tenantName = (refs.tenant?.data?.name ?? c.tenant ?? '').trim()
+  const propName = (
+    refs.property?.data?.name ??
+    (c.property as string | undefined) ??
+    ''
+  ).trim()
+  const rate =
+    typeof c.rate === 'string' && c.rate.trim() ? c.rate.trim() : fmtAmt(c.rate)
+  return {
+    ชื่อผู้เช่า: tenantName,
+    ชื่อผู้ให้เช่า: landlordName,
+    ค่าเช่า: rate,
+    เงินประกัน: fmtDeposit(c.deposit),
+    วันเริ่มสัญญา: c.start ? dateToThai(c.start) : '',
+    วันสิ้นสุดสัญญา: c.end ? dateToThai(c.end) : '',
+    ทรัพย์สินที่เช่า: propName,
+    เลขที่สัญญา: c.no ?? '',
+  }
+}
+
+/** Replace the saved doc's data chips (data-slate-value) with real values. */
+function applyDocData(docBodyHtml: string, refs: ContractHtmlRefs): string {
+  const values = buildContractFillMap(refs)
+  const parsed = new DOMParser().parseFromString(docBodyHtml, 'text/html')
+  parsed.querySelectorAll('[data-slate-value]').forEach((el) => {
+    const key = el.getAttribute('data-slate-value') ?? ''
+    el.replaceWith(parsed.createTextNode(values[key] ?? `〔${key}〕`))
+  })
+  return parsed.body.innerHTML
 }
 
 /** Build a complete print HTML document for ONE contract. */

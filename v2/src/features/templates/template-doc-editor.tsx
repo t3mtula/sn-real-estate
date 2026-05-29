@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/yonghua/back-button'
 import { DocEditor } from '@/components/yonghua/doc-editor'
 import { SAMPLE_VALUES } from '@/features/doc-editor/doc-fields'
+import { serializeDocToHtml } from '@/features/doc-editor/serialize'
 import { buildContractHtml } from '@/features/contracts/print/contract-html'
 import {
   SAMPLE_BANK,
@@ -43,7 +44,10 @@ export function TemplateDocEditor({ id }: { id: string }) {
 
   async function handleSave() {
     if (!value) return
-    await update.mutateAsync({ data: { doc: value } })
+    // Save the doc + its serialized body HTML so real contracts can print from
+    // it (filled with each contract's data) without re-running the serializer.
+    const docHtml = await serializeDocToHtml(value)
+    await update.mutateAsync({ data: { doc: value, docHtml } })
     setDirty(false)
     toast.success('บันทึกเอกสารแล้ว')
   }

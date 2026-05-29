@@ -54,6 +54,12 @@ export type TemplateData = {
    * structured fields on first open (structuredToPlate).
    */
   doc?: Value
+  /**
+   * Serialized body HTML of `doc` (unfilled chips), saved alongside it so the
+   * contract print engine can fill + render it synchronously. Regenerated on
+   * every doc save.
+   */
+  docHtml?: string
 }
 
 export type ContractTemplate = {
