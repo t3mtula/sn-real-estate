@@ -51,7 +51,6 @@ import { Route as AuthenticatedPropertiesNewRouteImport } from './routes/_authen
 import { Route as AuthenticatedPaymentsNewRouteImport } from './routes/_authenticated/payments/new'
 import { Route as AuthenticatedMetersNewRouteImport } from './routes/_authenticated/meters/new'
 import { Route as AuthenticatedLandlordsNewRouteImport } from './routes/_authenticated/landlords/new'
-import { Route as AuthenticatedLabWysiwygRouteImport } from './routes/_authenticated/lab/wysiwyg'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated/invoices/new'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedContractsRenewalsRouteImport } from './routes/_authenticated/contracts/renewals'
@@ -306,11 +305,6 @@ const AuthenticatedLandlordsNewRoute =
     path: '/landlords/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedLabWysiwygRoute = AuthenticatedLabWysiwygRouteImport.update({
-  id: '/lab/wysiwyg',
-  path: '/lab/wysiwyg',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedInvoicesNewRoute =
   AuthenticatedInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -449,7 +443,6 @@ export interface FileRoutesByFullPath {
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/meters/new': typeof AuthenticatedMetersNewRoute
   '/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -511,7 +504,6 @@ export interface FileRoutesByTo {
   '/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/meters/new': typeof AuthenticatedMetersNewRoute
   '/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -576,7 +568,6 @@ export interface FileRoutesById {
   '/_authenticated/contracts/renewals': typeof AuthenticatedContractsRenewalsRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/_authenticated/lab/wysiwyg': typeof AuthenticatedLabWysiwygRoute
   '/_authenticated/landlords/new': typeof AuthenticatedLandlordsNewRoute
   '/_authenticated/meters/new': typeof AuthenticatedMetersNewRoute
   '/_authenticated/payments/new': typeof AuthenticatedPaymentsNewRoute
@@ -641,7 +632,6 @@ export interface FileRouteTypes {
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
-    | '/lab/wysiwyg'
     | '/landlords/new'
     | '/meters/new'
     | '/payments/new'
@@ -703,7 +693,6 @@ export interface FileRouteTypes {
     | '/contracts/renewals'
     | '/errors/$error'
     | '/invoices/new'
-    | '/lab/wysiwyg'
     | '/landlords/new'
     | '/meters/new'
     | '/payments/new'
@@ -767,7 +756,6 @@ export interface FileRouteTypes {
     | '/_authenticated/contracts/renewals'
     | '/_authenticated/errors/$error'
     | '/_authenticated/invoices/new'
-    | '/_authenticated/lab/wysiwyg'
     | '/_authenticated/landlords/new'
     | '/_authenticated/meters/new'
     | '/_authenticated/payments/new'
@@ -1119,13 +1107,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLandlordsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/lab/wysiwyg': {
-      id: '/_authenticated/lab/wysiwyg'
-      path: '/lab/wysiwyg'
-      fullPath: '/lab/wysiwyg'
-      preLoaderRoute: typeof AuthenticatedLabWysiwygRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/invoices/new': {
       id: '/_authenticated/invoices/new'
       path: '/invoices/new'
@@ -1297,7 +1278,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedContractsRenewalsRoute: typeof AuthenticatedContractsRenewalsRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
-  AuthenticatedLabWysiwygRoute: typeof AuthenticatedLabWysiwygRoute
   AuthenticatedLandlordsNewRoute: typeof AuthenticatedLandlordsNewRoute
   AuthenticatedMetersNewRoute: typeof AuthenticatedMetersNewRoute
   AuthenticatedPaymentsNewRoute: typeof AuthenticatedPaymentsNewRoute
@@ -1345,7 +1325,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedContractsRenewalsRoute: AuthenticatedContractsRenewalsRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
-  AuthenticatedLabWysiwygRoute: AuthenticatedLabWysiwygRoute,
   AuthenticatedLandlordsNewRoute: AuthenticatedLandlordsNewRoute,
   AuthenticatedMetersNewRoute: AuthenticatedMetersNewRoute,
   AuthenticatedPaymentsNewRoute: AuthenticatedPaymentsNewRoute,
