@@ -47,11 +47,11 @@ function buildPagedIframe(content: string, css: string): string {
   // width (no horizontal overflow) and the page breaks are clearly visible.
   const fitScript =
     '(function(){' +
-    'function style(){' +
+    'function styleAll(){' +
     'var pages=document.querySelectorAll(".pagedjs_page");' +
-    'if(!pages.length){return false;}' +
-    'document.documentElement.style.background="#e9edf2";' +
-    'document.body.style.background="#e9edf2";document.body.style.margin="0";' +
+    'if(!pages.length){return;}' +
+    'document.documentElement.style.setProperty("background","#e9edf2","important");' +
+    'if(document.body){document.body.style.setProperty("background","#e9edf2","important");document.body.style.margin="0";}' +
     'var avail=document.documentElement.clientWidth-16;' +
     'var z=Math.min(1,avail/pages[0].offsetWidth);' +
     'document.documentElement.style.zoom=String(z);' +
@@ -59,9 +59,11 @@ function buildPagedIframe(content: string, css: string): string {
     'p.style.setProperty("margin","0 auto 20px","important");' +
     'p.style.setProperty("background","#fff","important");' +
     'p.style.setProperty("box-shadow","0 3px 16px rgba(0,0,0,.25)","important");}' +
-    'return true;}' +
-    'var n=0,iv=setInterval(function(){style();if(++n>24){clearInterval(iv);}},250);' +
-    'window.addEventListener("resize",style);' +
+    '}' +
+    'var deb;var obs=new MutationObserver(function(){clearTimeout(deb);deb=setTimeout(styleAll,120);});' +
+    'function start(){if(!document.body){return setTimeout(start,50);}' +
+    'obs.observe(document.body,{childList:true,subtree:true});styleAll();}' +
+    'start();window.addEventListener("resize",styleAll);' +
     '})();'
   return (
     '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +

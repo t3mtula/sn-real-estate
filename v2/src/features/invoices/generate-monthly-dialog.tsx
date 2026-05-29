@@ -170,7 +170,7 @@ export function GenerateMonthlyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='w-[min(95vw,42rem)] max-h-[calc(100dvh-4rem)] grid-rows-[auto_1fr_auto] overflow-hidden'>
+      <DialogContent className='w-[min(96vw,60rem)] max-h-[calc(100dvh-3rem)] grid-rows-[auto_1fr_auto] overflow-hidden'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Sparkles className='size-5 text-amber-500' />
@@ -272,8 +272,8 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-amber-400/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300'>
                         ⚠️ ต้องตรวจก่อนสร้าง ({needReview.length})
                       </div>
-                      <div className='max-h-72 overflow-y-auto'>
-                        {needReview.slice(0, 50).map((row) => (
+                      <div>
+                        {needReview.slice(0, 200).map((row) => (
                           <CreateRow key={row.contractId} row={row} />
                         ))}
                       </div>
@@ -286,8 +286,8 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300'>
                         🆕 ใหม่ ไม่มีใบรอบก่อน ({newRows.length}) — ดูยอดสักนิด
                       </div>
-                      <div className='max-h-56 overflow-y-auto'>
-                        {newRows.slice(0, 50).map((row) => (
+                      <div>
+                        {newRows.slice(0, 200).map((row) => (
                           <CreateRow key={row.contractId} row={row} />
                         ))}
                       </div>
@@ -399,13 +399,21 @@ export function GenerateMonthlyDialog({
 
 type CreateRowData = BatchGeneratePreview['willCreate'][number]
 
-/** แถวใบที่จะสร้าง — โชว์ breakdown (รองรับหลายบรรทัด) + ผลเทียบใบรอบก่อน */
+/** แถวใบที่จะสร้าง — กระชับ ถ้าเป็นค่าเช่าล้วน · กางกล่อง breakdown เมื่อมี VAT/ค่าน้ำไฟ */
 function CreateRow({ row }: { row: CreateRowData }) {
   const flagged =
     row.hasFreqConflict || row.compareStatus === 'diff' || row.maybeMissingUtility
+  const hasBreakdown = row.vatAmount > 0 || row.utilityLines.length > 0
+  const rateNote = [
+    row.rateNote,
+    row.rentMonths > 1 ? `× ${row.rentMonths} เดือน` : '',
+    row.freqLabel,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div
-      className={`border-b px-4 py-2.5 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
+      className={`border-b px-4 py-2 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
     >
       <div className='flex items-start justify-between gap-3'>
         <div className='min-w-0'>
@@ -413,57 +421,55 @@ function CreateRow({ row }: { row: CreateRowData }) {
           <p className='truncate text-xs text-muted-foreground'>
             {row.tenant} · {row.property}
           </p>
+          {/* ค่าเช่าล้วน → โชว์รอบบรรทัดเดียว (ไม่กางกล่อง) */}
+          {!hasBreakdown && rateNote && (
+            <p className='truncate text-xs text-muted-foreground/70'>{rateNote}</p>
+          )}
         </div>
         <span className='shrink-0 font-semibold tabular-nums'>
           {amt(row.amount, { decimal: 0 })}
         </span>
       </div>
-      {/* breakdown — Phase 2 จะเติมค่าน้ำ/ไฟต่อจากบรรทัดค่าเช่า */}
-      <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/30 px-2.5 py-1.5 text-xs'>
-        <div className='flex justify-between gap-2'>
-          <span className='text-muted-foreground'>
-            ค่าเช่า
-            {row.rentMonths > 1
-              ? ` · ${row.rateNote || ''} × ${row.rentMonths} เดือน (${row.freqLabel})`
-              : row.rateNote
-                ? ` · ${row.rateNote}`
-                : ''}
-          </span>
-          <span className='tabular-nums'>
-            {amt(row.rentBase, { symbol: false, decimal: 0 })}
-          </span>
-        </div>
-        {row.vatAmount > 0 && (
+      {hasBreakdown && (
+        <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/30 px-2.5 py-1.5 text-xs'>
           <div className='flex justify-between gap-2'>
-            <span className='text-muted-foreground'>VAT {row.vatRate}%</span>
-            <span className='tabular-nums'>
-              {amt(row.vatAmount, { symbol: false, decimal: 0 })}
-            </span>
-          </div>
-        )}
-        {row.utilityLines.map((u, i) => (
-          <div key={i} className='flex justify-between gap-2'>
             <span className='text-muted-foreground'>
-              {u.label}
-              {u.units
-                ? ` · ${u.units.toLocaleString('th-TH')} หน่วย × ${u.ratePerUnit}${u.fixedFee ? ` + ${u.fixedFee}` : ''}`
-                : ''}
-              {u.readingDate ? ` · จด ${u.readingDate}` : ''}
+              ค่าเช่า{rateNote ? ` · ${rateNote}` : ''}
             </span>
             <span className='tabular-nums'>
-              {amt(u.amount, { symbol: false, decimal: 0 })}
+              {amt(row.rentBase, { symbol: false, decimal: 0 })}
             </span>
           </div>
-        ))}
-        {row.utilityLines.length > 0 && (
+          {row.vatAmount > 0 && (
+            <div className='flex justify-between gap-2'>
+              <span className='text-muted-foreground'>VAT {row.vatRate}%</span>
+              <span className='tabular-nums'>
+                {amt(row.vatAmount, { symbol: false, decimal: 0 })}
+              </span>
+            </div>
+          )}
+          {row.utilityLines.map((u, i) => (
+            <div key={i} className='flex justify-between gap-2'>
+              <span className='text-muted-foreground'>
+                {u.label}
+                {u.units
+                  ? ` · ${u.units.toLocaleString('th-TH')} หน่วย × ${u.ratePerUnit}${u.fixedFee ? ` + ${u.fixedFee}` : ''}`
+                  : ''}
+                {u.readingDate ? ` · จด ${u.readingDate}` : ''}
+              </span>
+              <span className='tabular-nums'>
+                {amt(u.amount, { symbol: false, decimal: 0 })}
+              </span>
+            </div>
+          ))}
           <div className='mt-0.5 flex justify-between gap-2 border-t pt-0.5 font-medium'>
             <span>รวมทั้งใบ</span>
             <span className='tabular-nums'>
               {amt(row.amount, { symbol: false, decimal: 0 })}
             </span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       <CompareNote row={row} />
     </div>
   )
