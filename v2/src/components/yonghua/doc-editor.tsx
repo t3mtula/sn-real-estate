@@ -127,10 +127,10 @@ export function DocEditor({
       try {
         const html = fillChips(await serializeDocToHtml(val), previewData ?? {})
         if (renderPreviewDoc) {
-          // Framed mode: paginate inside an iframe via the paged.js polyfill so
-          // the contract CSS stays isolated (won't leak into the app layout).
-          const built = renderPreviewDoc(html)
-          setFrameHtml(buildPagedIframe(built.content, built.css))
+          // Framed mode: full contract HTML in an iframe (isolated). The
+          // contract CSS shows each A4 .page as a card — same as the proven
+          // template preview.
+          setFrameHtml(renderPreviewDoc(html))
         } else {
           // Bare mode: paginate the body with paged.js into a container.
           const container = previewRef.current

@@ -170,7 +170,7 @@ export function GenerateMonthlyDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='w-[min(96vw,60rem)] max-h-[calc(100dvh-3rem)] grid-rows-[auto_1fr_auto] overflow-hidden'>
+      <DialogContent className='w-[min(98vw,80rem)] max-w-[min(98vw,80rem)] sm:max-w-[min(98vw,80rem)] max-h-[calc(100dvh-2rem)] grid-rows-[auto_1fr_auto] overflow-hidden'>
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <Sparkles className='size-5 text-amber-500' />
@@ -272,6 +272,7 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-amber-400/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300'>
                         ⚠️ ต้องตรวจก่อนสร้าง ({needReview.length})
                       </div>
+                      <CreateRowHeader />
                       <div>
                         {needReview.slice(0, 200).map((row) => (
                           <CreateRow key={row.contractId} row={row} />
@@ -286,6 +287,7 @@ export function GenerateMonthlyDialog({
                       <div className='border-b border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300'>
                         🆕 ใหม่ ไม่มีใบรอบก่อน ({newRows.length}) — ดูยอดสักนิด
                       </div>
+                      <CreateRowHeader />
                       <div>
                         {newRows.slice(0, 200).map((row) => (
                           <CreateRow key={row.contractId} row={row} />
@@ -300,8 +302,9 @@ export function GenerateMonthlyDialog({
                       <summary className='cursor-pointer bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300'>
                         ✅ ตรงกับใบรอบก่อน ({matchedRows.length}) — เชื่อได้ · กดดูรายละเอียด
                       </summary>
-                      <div className='max-h-72 overflow-y-auto border-t'>
-                        {matchedRows.slice(0, 80).map((row) => (
+                      <CreateRowHeader />
+                      <div className='max-h-[28rem] overflow-y-auto border-t'>
+                        {matchedRows.slice(0, 200).map((row) => (
                           <CreateRow key={row.contractId} row={row} />
                         ))}
                       </div>
@@ -399,43 +402,86 @@ export function GenerateMonthlyDialog({
 
 type CreateRowData = BatchGeneratePreview['willCreate'][number]
 
-/** แถวใบที่จะสร้าง — กระชับ ถ้าเป็นค่าเช่าล้วน · กางกล่อง breakdown เมื่อมี VAT/ค่าน้ำไฟ */
+/** column template ใช้ร่วมกัน header + row (ตารางจัดคอลัมน์ตรงกันทุกแถว) */
+const ROW_GRID =
+  'grid grid-cols-[7rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(9rem,12rem)_minmax(8rem,11rem)_6.5rem] gap-x-3'
+
+/** หัวตารางในแต่ละกลุ่ม */
+function CreateRowHeader() {
+  return (
+    <div
+      className={`${ROW_GRID} border-b bg-muted/20 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}
+    >
+      <span>เลขที่</span>
+      <span>ผู้เช่า / ทรัพย์สิน</span>
+      <span>ผู้ให้เช่า / บัญชี</span>
+      <span>ค่าเช่า · รอบ</span>
+      <span>เทียบรอบก่อน</span>
+      <span className='text-right'>ยอด</span>
+    </div>
+  )
+}
+
+/** แถวใบที่จะสร้าง — ตารางแนวนอน · กางกล่อง breakdown ใต้แถวเมื่อมี VAT/ค่าน้ำไฟ */
 function CreateRow({ row }: { row: CreateRowData }) {
   const flagged =
     row.hasFreqConflict || row.compareStatus === 'diff' || row.maybeMissingUtility
   const hasBreakdown = row.vatAmount > 0 || row.utilityLines.length > 0
-  const rateNote = [
-    row.rateNote,
-    row.rentMonths > 1 ? `× ${row.rentMonths} เดือน` : '',
-    row.freqLabel,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const rateNote =
+    [
+      row.rateNote,
+      row.rentMonths > 1 ? `× ${row.rentMonths} ด.` : '',
+      row.freqLabel,
+    ]
+      .filter(Boolean)
+      .join(' · ') || '—'
   return (
     <div
       className={`border-b px-4 py-2 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
     >
-      <div className='flex items-start justify-between gap-3'>
+      <div className={`${ROW_GRID} items-start`}>
+        <span className='truncate font-medium' title={row.contractNo}>
+          {row.contractNo}
+        </span>
         <div className='min-w-0'>
-          <p className='truncate font-medium'>{row.contractNo}</p>
-          <p className='truncate text-xs text-muted-foreground'>
-            {row.tenant} · {row.property}
-          </p>
-          {/* ค่าเช่าล้วน → โชว์รอบบรรทัดเดียว (ไม่กางกล่อง) */}
-          {!hasBreakdown && rateNote && (
-            <p className='truncate text-xs text-muted-foreground/70'>{rateNote}</p>
-          )}
+          <span className='block truncate' title={row.tenant}>
+            {row.tenant}
+          </span>
+          <span
+            className='block truncate text-xs text-muted-foreground'
+            title={row.property}
+          >
+            {row.property}
+          </span>
         </div>
-        <span className='shrink-0 font-semibold tabular-nums'>
+        <div className='min-w-0'>
+          <span className='block truncate' title={row.landlord}>
+            {row.landlord}
+          </span>
+          <span
+            className='block truncate text-xs text-muted-foreground'
+            title={row.bankLabel}
+          >
+            {row.bankLabel}
+          </span>
+        </div>
+        <span className='text-xs text-muted-foreground'>
+          {rateNote}
+          {row.utilityLines.length > 0 && (
+            <span className='block text-sky-600 dark:text-sky-400'>
+              + ค่าน้ำ/ไฟ {row.utilityLines.length} รายการ
+            </span>
+          )}
+        </span>
+        <CompareNote row={row} />
+        <span className='text-right font-semibold tabular-nums'>
           {amt(row.amount, { decimal: 0 })}
         </span>
       </div>
       {hasBreakdown && (
-        <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/30 px-2.5 py-1.5 text-xs'>
+        <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/40 px-3 py-1.5 text-xs'>
           <div className='flex justify-between gap-2'>
-            <span className='text-muted-foreground'>
-              ค่าเช่า{rateNote ? ` · ${rateNote}` : ''}
-            </span>
+            <span className='text-muted-foreground'>ค่าเช่า · {rateNote}</span>
             <span className='tabular-nums'>
               {amt(row.rentBase, { symbol: false, decimal: 0 })}
             </span>
@@ -470,55 +516,53 @@ function CreateRow({ row }: { row: CreateRowData }) {
           </div>
         </div>
       )}
-      <CompareNote row={row} />
     </div>
   )
 }
 
-/** บรรทัดเทียบกับใบรอบก่อน — หัวใจของ "ระบบเช็คให้" */
+/** คอลัมน์เทียบกับใบรอบก่อน — หัวใจของ "ระบบเช็คให้" (กระชับ พอดีคอลัมน์) */
 function CompareNote({ row }: { row: CreateRowData }) {
   if (row.hasFreqConflict) {
     return (
-      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+      <span className='flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
         <AlertTriangle className='mt-0.5 size-3 shrink-0' />
-        รอบชำระอาจไม่ตรง — ค่าเช่าระบุเป็นรอบที่ยาวกว่ารอบออกบิล ตรวจก่อนสร้าง
-      </p>
+        รอบชำระอาจไม่ตรง
+      </span>
     )
   }
   if (row.maybeMissingUtility) {
     return (
-      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+      <span className='flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
         <AlertTriangle className='mt-0.5 size-3 shrink-0' />
-        เดือนก่อนมีค่าน้ำ/ไฟ แต่เดือนนี้ไม่มี — อาจยังไม่จดมิเตอร์
-        {row.prevAmount != null
-          ? ` (ใบรอบก่อน ${amt(row.prevAmount, { decimal: 0 })})`
-          : ''}
-      </p>
+        เดือนก่อนมีค่าน้ำ/ไฟ — อาจยังไม่จดมิเตอร์
+      </span>
     )
   }
   if (row.compareStatus === 'diff' && row.prevAmount != null) {
     const diff = row.amount - row.prevAmount
     return (
-      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+      <span className='flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
         <AlertTriangle className='mt-0.5 size-3 shrink-0' />
-        ใบรอบก่อน {amt(row.prevAmount, { decimal: 0 })}
-        {row.prevMonth ? ` (${formatMonth(row.prevMonth)})` : ''} ·{' '}
-        {diff > 0 ? 'มากขึ้น' : 'น้อยลง'} {amt(Math.abs(diff), { decimal: 0 })}
-      </p>
+        <span>
+          ใบก่อน {amt(row.prevAmount, { symbol: false, decimal: 0 })}
+          {row.prevMonth ? ` (${formatMonth(row.prevMonth)})` : ''} ·{' '}
+          {diff > 0 ? 'มากขึ้น' : 'น้อยลง'} {amt(Math.abs(diff), { symbol: false, decimal: 0 })}
+        </span>
+      </span>
     )
   }
   if (row.compareStatus === 'match' && row.prevAmount != null) {
     return (
-      <p className='mt-1.5 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400'>
+      <span className='flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400'>
         <Check className='size-3 shrink-0' />
-        ตรงกับใบรอบก่อน
-      </p>
+        ตรงรอบก่อน
+      </span>
     )
   }
   return (
-    <p className='mt-1.5 flex items-center gap-1 text-xs text-sky-600 dark:text-sky-400'>
+    <span className='flex items-center gap-1 text-xs text-sky-600 dark:text-sky-400'>
       <Sparkles className='size-3 shrink-0' />
-      ใบแรกของสัญญานี้ — ไม่มีรอบก่อนให้เทียบ
-    </p>
+      ใบแรก
+    </span>
   )
 }

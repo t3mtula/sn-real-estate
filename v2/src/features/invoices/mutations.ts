@@ -20,6 +20,7 @@ import type {
   InvoiceItem,
 } from '@/features/invoices/types'
 import type { MeterReading, MeterReadingData } from '@/features/meters/types'
+import type { BankAccountData } from '@/features/bank-accounts/types'
 
 const TABLE = 'invoices'
 const METERS_TABLE = 'meter_readings'
@@ -529,6 +530,10 @@ export type BatchGeneratePreview = {
     contractNo: string
     tenant: string
     property: string
+    /** ผู้ให้เช่า (ชื่อ) */
+    landlord: string
+    /** บัญชีรับเงิน (ธนาคาร · เลขบัญชี) */
+    bankLabel: string
     /** ยอดรวมสุดท้าย (ค่าเช่า + VAT) — ตรงกับที่จะสร้างจริง */
     amount: number
     /** ค่าเช่าก่อน VAT (ต่อรอบบิล) */
@@ -578,18 +583,24 @@ export function useBatchGeneratePreview(month: string | undefined) {
       }
       const filterTags = (input?.tags ?? []).filter(Boolean)
       const idSet = input?.contractIds?.length ? new Set(input.contractIds) : null
-      const [contractsRes, invsRes, landlordsRes] = await Promise.all([
+      const [contractsRes, invsRes, landlordsRes, banksRes] = await Promise.all([
         supabase.from('contracts').select('id, data'),
         supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
         supabase.from('landlords').select('id, data'),
+        supabase.from('bank_accounts').select('id, data'),
       ])
       if (contractsRes.error) throw contractsRes.error
       if (invsRes.error) throw invsRes.error
       if (landlordsRes.error) throw landlordsRes.error
+      if (banksRes.error) throw banksRes.error
       const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
       const landlordById = new Map<string, LandlordData>()
       for (const l of (landlordsRes.data ?? []) as Array<{ id: string; data: LandlordData }>) {
         landlordById.set(l.id, l.data)
+      }
+      const bankById = new Map<string, BankAccountData>()
+      for (const b of (banksRes.data ?? []) as Array<{ id: string; data: BankAccountData }>) {
+        bankById.set(b.id, b.data)
       }
       const existingByContract = new Map<string, { invoiceNo: string }>()
       for (const inv of (invsRes.data ?? []) as Invoice[]) {
@@ -668,6 +679,15 @@ export function useBatchGeneratePreview(month: string | undefined) {
         // VAT snapshot (เหมือนตอน generate จริง) — ให้ยอด preview = ยอดที่จะสร้างจริง
         const landlordId = (d.landlord_id ?? '') as string
         const landlordData = landlordId ? landlordById.get(landlordId) : undefined
+        const landlordName =
+          landlordData?.name ?? (d.landlord as string | undefined) ?? '—'
+        const bankId = (d.bankAccountId as string | undefined) ?? ''
+        const bk = bankId ? bankById.get(bankId) : undefined
+        const bankLabel = bk
+          ? [bk.bank, bk.acctNo].filter(Boolean).join(' · ') ||
+            bk.accountName ||
+            '—'
+          : '—'
         const vatMode = (landlordData?.vatMode as InvoiceData['vatMode']) ?? 'none'
         const vatRate = Number(landlordData?.vatRate) || 0
         const vatAmount =
@@ -680,6 +700,8 @@ export function useBatchGeneratePreview(month: string | undefined) {
           contractNo,
           tenant,
           property,
+          landlord: landlordName,
+          bankLabel,
           amount: total,
           rentBase: amount,
           vatMode,
