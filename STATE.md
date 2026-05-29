@@ -12,7 +12,10 @@
 4. **A จำบัญชีต้นทาง→ผู้เช่า** ⭐ — เรียนจากประวัติ (ถ่วงน้ำหนัก "เลือกเอง" > "เดา") · เลขต้นทางที่เคยจับ → เดือนหน้าเดาให้ % สูง · ไม่เพิ่มตารางใน DB
 5. **B มิเตอร์ช่วยจับยอด** — reuse น้ำ/ไฟค้างบิล → expected = ค่าเช่า+น้ำ+ไฟ → จับห้องรวมน้ำไฟแม่นขึ้น
 
-**ถัดไป:** Tem เทส preview ด้วย statement จริง → merge main + deploy:prod · หน้าจับคู่แยก (reconciliation page) ยังไม่ทำ · per-landlord/per-bank summary · ⚠️ wysiwyg-spike.tsx ยังกั้น deploy:prod (ของอีก session)
+**+ สเต็ป 1 redesign หน้าจับคู่ (เสร็จ):** ป็อปอัพเต็มจอ · แถบสรุป 🟢🟡⬜+ยอดรวม · เรียง ⬜→🟡→🟢 · พับกลุ่มเขียว · กรอง "เฉพาะที่ต้องจับ" · dropdown โชว์ห้อง+ค่าเช่า+ค้าง N ใบ · ⚙️ ตั้งค่าคอลัมน์ (จดจำ localStorage) · ปุ่มล่าง sticky
+> ⚠️ local verify ไม่ได้ (ติด Google login) — layout ต้องให้ Tem ดูบน preview
+
+**ถัดไป:** Tem เทส preview ด้วย statement จริง → merge main + deploy:prod · สเต็ป 2 ปุ่ม "แบ่งจ่าย" (1 ก้อน→หลายห้อง) · สเต็ป 3 เครดิตจ่ายเกิน + หน้าจับคู่เงินค้าง · per-landlord/per-bank summary · ⚠️ wysiwyg-spike.tsx ยังกั้น deploy:prod (ของอีก session)
 
 ## 🔄 Session 2026-05-29 — [v2] เคลียร์ระบบเก็บเงิน (branch feat/unify-payments)
 
