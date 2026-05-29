@@ -20,8 +20,10 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useQuery } from '@tanstack/react-query'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { useContracts } from '@/features/contracts/queries'
+import { fetchUnbilledUtilitiesByContract } from '@/features/invoices/mutations'
 import { usePaymentsByBankAccount } from './queries'
 import { candidatesForAccount, matchTransaction, sourceKeyOf, type MatchResult } from './matching'
 import { amt } from '@/lib/thai'
@@ -187,11 +189,27 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const { data: contracts } = useContracts()
   const batchSave = useBatchSavePayments()
 
-  // จับคู่เงินเข้า → สัญญา/ผู้เช่า (กรองด้วยบัญชี แล้วเทียบยอด+ชื่อ)
+  // B — ค่าน้ำ/ไฟค้างบิลต่อสัญญา (reuse ตัวเดียวกับระบบออกใบแจ้งหนี้) → ช่วยจับยอดห้องรวมน้ำไฟ
+  const { data: utilLines } = useQuery({
+    queryKey: ['unbilled-utilities-by-contract', contracts],
+    queryFn: () => fetchUnbilledUtilitiesByContract(contracts ?? []),
+    enabled: open && !!contracts && contracts.length > 0,
+  })
+  const utilTotalByContract = useMemo(() => {
+    const m = new Map<string, number>()
+    if (!utilLines) return m
+    for (const [cid, lines] of utilLines) {
+      const sum = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+      if (sum > 0) m.set(cid, sum)
+    }
+    return m
+  }, [utilLines])
+
+  // จับคู่เงินเข้า → สัญญา/ผู้เช่า (กรองด้วยบัญชี แล้วเทียบยอด+ชื่อ+น้ำไฟ)
   const effectiveBankId = manualBankId ?? detectedBankAccId
   const candidates = useMemo(
-    () => (effectiveBankId && contracts ? candidatesForAccount(contracts, effectiveBankId) : []),
-    [contracts, effectiveBankId],
+    () => (effectiveBankId && contracts ? candidatesForAccount(contracts, effectiveBankId, utilTotalByContract) : []),
+    [contracts, effectiveBankId, utilTotalByContract],
   )
   // ประวัติเงินเข้าบัญชีนี้ — ใช้ทั้งกันซ้ำ (D) และ "จำบัญชีต้นทาง→ผู้เช่า" (A)
   const existingPays = usePaymentsByBankAccount(effectiveBankId)

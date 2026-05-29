@@ -54,6 +54,8 @@ interface Candidate {
   no: string
   tenant: string
   expected: number
+  /** ค่าเช่า + น้ำ/ไฟเดือนนั้น (ถ้ามีมิเตอร์ค้างบิล) — ช่วยจับห้องที่รวมน้ำไฟ (B) */
+  expectedWithUtil?: number
 }
 
 /** คีย์บัญชีต้นทาง (ธนาคาร+เลขท้าย) สำหรับ "จำผู้เช่า" (A) — normalize ตัวพิมพ์/ช่องว่าง */
@@ -63,16 +65,28 @@ export function sourceKeyOf(bankCode?: string, suffix?: string): string {
   return s ? `${b}|${s}` : ''
 }
 
-/** สร้างรายชื่อสัญญาผู้สมัครของบัญชีนี้ (กรองยกเลิกออก) พร้อมยอดต่อรอบ */
-export function candidatesForAccount(contracts: Contract[], bankAccountId: string): Candidate[] {
+/**
+ * สร้างรายชื่อสัญญาผู้สมัครของบัญชีนี้ (กรองยกเลิกออก) พร้อมยอดต่อรอบ
+ * @param utilByContract  ยอดน้ำ/ไฟค้างบิลต่อสัญญา (B) — ถ้ามี จะใส่ expectedWithUtil = ค่าเช่า + น้ำไฟ
+ */
+export function candidatesForAccount(
+  contracts: Contract[],
+  bankAccountId: string,
+  utilByContract?: Map<string, number>,
+): Candidate[] {
   return contracts
     .filter((c) => c.data?.bankAccountId === bankAccountId && c.data?.cancelled !== true)
-    .map((c) => ({
-      id: c.id,
-      no: String(c.data?.no ?? ''),
-      tenant: String(c.data?.tenant ?? c.data?.tenantName ?? ''),
-      expected: getInvoiceAmount(c.data?.rate as string | number | undefined, c.data),
-    }))
+    .map((c) => {
+      const expected = getInvoiceAmount(c.data?.rate as string | number | undefined, c.data)
+      const util = utilByContract?.get(c.id) ?? 0
+      return {
+        id: c.id,
+        no: String(c.data?.no ?? ''),
+        tenant: String(c.data?.tenant ?? c.data?.tenantName ?? ''),
+        expected,
+        expectedWithUtil: util > 0 ? Number((expected + util).toFixed(2)) : undefined,
+      }
+    })
 }
 
 /**
@@ -85,16 +99,17 @@ function scoreCandidate(
   tx: { amount: number; payerName?: string },
   c: Candidate,
   learnedContractId?: string,
-): { score: number; amountHit: 'exact' | 'months' | 'no'; nameHit: boolean; learnedHit: boolean } {
-  let amountHit: 'exact' | 'months' | 'no' = 'no'
+): { score: number; amountHit: 'exact' | 'util' | 'months' | 'no'; nameHit: boolean; learnedHit: boolean } {
+  let amountHit: 'exact' | 'util' | 'months' | 'no' = 'no'
   let score = 0
-  if (c.expected > 0) {
-    if (Math.abs(c.expected - tx.amount) <= AMOUNT_TOL) {
-      amountHit = 'exact'; score += 60
-    } else {
-      const n = tx.amount / c.expected
-      if (n >= 2 && n <= 12 && Math.abs(n - Math.round(n)) < 0.01) { amountHit = 'months'; score += 45 }
-    }
+  if (c.expected > 0 && Math.abs(c.expected - tx.amount) <= AMOUNT_TOL) {
+    amountHit = 'exact'; score += 60
+  } else if (c.expectedWithUtil && Math.abs(c.expectedWithUtil - tx.amount) <= AMOUNT_TOL) {
+    // B — ตรงกับ ค่าเช่า + น้ำ/ไฟเดือนนั้น (ห้องรวมน้ำไฟ ยอดไม่นิ่ง)
+    amountHit = 'util'; score += 60
+  } else if (c.expected > 0) {
+    const n = tx.amount / c.expected
+    if (n >= 2 && n <= 12 && Math.abs(n - Math.round(n)) < 0.01) { amountHit = 'months'; score += 45 }
   }
   const nameHit = !!(tx.payerName && nameLooksSame(tx.payerName, c.tenant))
   if (nameHit) score += 35
@@ -129,15 +144,18 @@ export function matchTransaction(
   const tied = scored.filter((s) => s.score === best.score).length
   let score = Math.min(100, best.score)
   let reason: string
+  const amountMatched = best.amountHit === 'exact' || best.amountHit === 'util'
   if (best.learnedHit && best.nameHit) {
     reason = 'จำได้ + ชื่อตรง'
-  } else if (best.learnedHit && best.amountHit === 'exact') {
+  } else if (best.learnedHit && amountMatched) {
     reason = 'จำได้ + ยอดตรง'
   } else if (best.learnedHit) {
     reason = 'เคยรับจากบัญชีต้นทางนี้'
   } else if (tied > 1 && !best.nameHit) {
     score = Math.min(score, 45)
     reason = `ยอดตรง ${tied} ห้อง · เลือกยืนยัน`
+  } else if (best.amountHit === 'util') {
+    reason = best.nameHit ? 'ยอด(ค่าเช่า+น้ำไฟ) + ชื่อตรง' : 'ยอด = ค่าเช่า + น้ำไฟ'
   } else if (best.amountHit === 'exact' && best.nameHit) {
     reason = 'ยอด + ชื่อตรง'
   } else if (best.amountHit === 'exact') {

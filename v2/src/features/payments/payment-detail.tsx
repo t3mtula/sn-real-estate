@@ -1,5 +1,4 @@
-import { Link } from '@tanstack/react-router'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Ban, Banknote, CircleCheck, CircleDot, CircleHelp, Trash2 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'

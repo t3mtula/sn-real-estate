@@ -81,7 +81,7 @@ export function stripDashes(s: string): string {
  */
 function extractControlTotal(text: string): number | undefined {
   const re =
-    /(?:ยอดรวม(?:เงิน)?(?:ฝาก|เข้า|เครดิต)|รวม(?:เงิน)?(?:ฝาก|เข้า)|จำนวนเงินฝากรวม|Total\s+(?:Credit|Deposit)(?:\s+Amount)?)\s*[:\-]?\s*([\d,]+\.\d{2})/i
+    /(?:ยอดรวม(?:เงิน)?(?:ฝาก|เข้า|เครดิต)|รวม(?:เงิน)?(?:ฝาก|เข้า)|จำนวนเงินฝากรวม|Total\s+(?:Credit|Deposit)(?:\s+Amount)?)\s*[-:]?\s*([\d,]+\.\d{2})/i
   const m = text.match(re)
   if (!m) return undefined
   const n = parseAmt(m[1])

@@ -26,7 +26,7 @@ const TABLE = 'invoices'
 const METERS_TABLE = 'meter_readings'
 
 /** บรรทัดค่าน้ำ/ไฟที่ยังไม่ออกบิล (ภายใน — มี raw ไว้ mark billed ตอนสร้าง) */
-type UtilityLine = {
+export type UtilityLine = {
   meterId: string
   label: string
   units: number
@@ -50,7 +50,7 @@ function meterLabel(type: MeterReadingData['type']): string {
  *   (meter.property_id = properties.id UUID → property.data.pid → contract.pid_property)
  * คืน Map<contractId, UtilityLine[]>
  */
-async function fetchUnbilledUtilitiesByContract(
+export async function fetchUnbilledUtilitiesByContract(
   contracts: Array<{ id: string; data: ContractData }>,
 ): Promise<Map<string, UtilityLine[]>> {
   const [metersRes, propsRes] = await Promise.all([
