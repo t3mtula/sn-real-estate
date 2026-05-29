@@ -1,39 +1,41 @@
 /**
- * WYSIWYG editor — Phase 0 technical spike.
+ * WYSIWYG editor — Phase 0 spike (now with the full Word-like toolbar).
  *
- * Goal: prove the chosen architecture before investing in the real editor —
- *   1. Rich-text editing live on an A4-width canvas (TipTap)        ← Word-like
- *   2. Inline "data chips" that stand in for auto-filled values     ← placeholders
- *   3. A side preview that shows REAL A4 page boundaries (paged.js) ← fixes the
- *      old "one long page" preview, must match the printed output
- *   4. Thai font (Sarabun) renders cleanly in both panes
+ * Proves the chosen architecture before extracting the reusable component:
+ *   1. Rich-text editing live on an A4-width canvas (TipTap)
+ *   2. Full formatting toolbar — headings, font size, bold/italic/underline/
+ *      strike, colour, highlight, align, indent, line spacing, lists, table,
+ *      divider, data chips, undo/redo
+ *   3. Inline "data chips" that auto-fill in the preview
+ *   4. A side preview showing REAL A4 page boundaries (paged.js)
+ *   5. Thai font (Sarabun) in both panes
  *
- * This file is throwaway scaffolding — Phase 1 extracts the reusable
- * "paper editor" component into @/components/yonghua. Do not build on it.
+ * Throwaway scaffolding — Phase 1 extracts the reusable "paper editor" into
+ * @/components/yonghua. Do not build on it.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Previewer } from 'pagedjs'
+import { FontSize, TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import { Highlight } from '@tiptap/extension-highlight'
+import { TextAlign } from '@tiptap/extension-text-align'
 import {
-  Bold,
-  Heading1,
-  Heading2,
-  List,
-  Loader2,
-  RefreshCw,
-} from 'lucide-react'
+  Table,
+  TableCell,
+  TableHeader,
+  TableRow,
+} from '@tiptap/extension-table'
+import { Previewer } from 'pagedjs'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
-import {
-  PLACEHOLDER_DEFS,
-  Placeholder,
-  type PlaceholderDef,
-} from './placeholder-extension'
+import { Placeholder } from './placeholder-extension'
+import { Indent, LineHeight } from './editor-extensions'
+import { EditorToolbar } from './editor-toolbar'
 
-/* Sample contract values used to "fill" the chips in the preview pane —
- * proves the data-binding concept end-to-end. Phase 1 reads real contract. */
+/* Sample contract values used to "fill" the chips in the preview pane. */
 const SAMPLE: Record<string, string> = {
   tenant: 'นายสมชาย ใจดี',
   landlord: 'บริษัท สมบัตินภา จำกัด',
@@ -47,7 +49,7 @@ const INITIAL_HTML = `
   <p>สัญญาฉบับนี้ทำขึ้นระหว่าง <span data-placeholder="landlord" data-label="ชื่อผู้ให้เช่า" class="doc-chip">{ชื่อผู้ให้เช่า}</span> ซึ่งต่อไปนี้เรียกว่า "ผู้ให้เช่า" ฝ่ายหนึ่ง กับ <span data-placeholder="tenant" data-label="ชื่อผู้เช่า" class="doc-chip">{ชื่อผู้เช่า}</span> ซึ่งต่อไปนี้เรียกว่า "ผู้เช่า" อีกฝ่ายหนึ่ง ทั้งสองฝ่ายตกลงทำสัญญากันโดยมีข้อความดังต่อไปนี้</p>
   <h2>ข้อ 1. ทรัพย์สินที่เช่า</h2>
   <p>ผู้ให้เช่าตกลงให้เช่า และผู้เช่าตกลงเช่าอาคารพาณิชย์ โดยคิดค่าเช่าเดือนละ <span data-placeholder="rate" data-label="ค่าเช่า" class="doc-chip">{ค่าเช่า}</span> มีกำหนดระยะเวลาเช่าตั้งแต่วันที่ <span data-placeholder="start" data-label="วันเริ่ม" class="doc-chip">{วันเริ่ม}</span> ถึงวันที่ <span data-placeholder="end" data-label="วันสิ้นสุด" class="doc-chip">{วันสิ้นสุด}</span></p>
-  <p>ลองพิมพ์/แก้ข้อความตรงนี้ได้เลย — ตัวหนา หัวข้อ บุลเล็ต และแทรกชิปข้อมูลได้จากแถบเครื่องมือด้านบน เพื่อทดสอบว่าการแบ่งหน้า A4 ในแผงขวาตรงกับที่พิมพ์จริง ลองพิมพ์ข้อความยาว ๆ หลายย่อหน้าเพื่อให้ดันขึ้นหน้าที่สองดู</p>
+  <p>ลองพิมพ์/แก้ข้อความตรงนี้ได้เลย — ใช้แถบเครื่องมือด้านบนจัดตัวหนา หัวข้อ สี ไฮไลต์ เยื้องย่อหน้า ตาราง ฯลฯ เพื่อทดสอบว่าการแบ่งหน้า A4 ในแผงขวาตรงกับที่พิมพ์จริง</p>
 `
 
 /** Swap each data chip for its sample value so the preview shows a "filled" doc. */
@@ -60,14 +62,20 @@ function fillPlaceholders(html: string): string {
   return doc.body.innerHTML
 }
 
-/** CSS handed to paged.js — defines the A4 page box + Thai typography. */
+/** CSS handed to paged.js — defines the A4 page box + Thai typography + tables. */
 const PREVIEW_CSS = `
   @page { size: A4; margin: 20mm; }
   .doc-body { font-family: 'Sarabun', sans-serif; font-size: 14px; line-height: 1.7; color: #111; }
   .doc-body h1 { font-size: 20px; font-weight: 700; text-align: center; margin: 0 0 16px; }
   .doc-body h2 { font-size: 16px; font-weight: 700; margin: 16px 0 6px; }
+  .doc-body h3 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; }
   .doc-body p { margin: 0 0 8px; text-align: left; }
-  .doc-body ul { margin: 0 0 8px; padding-inline-start: 24px; }
+  .doc-body ul, .doc-body ol { margin: 0 0 8px; padding-inline-start: 24px; }
+  .doc-body mark { padding: 0 2px; border-radius: 2px; }
+  .doc-body table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  .doc-body td, .doc-body th { border: 1px solid #999; padding: 4px 8px; }
+  .doc-body th { background: #f1f5f9; }
+  .doc-body hr { border: none; border-top: 1px solid #999; margin: 12px 0; }
 `
 
 export function WysiwygSpike() {
@@ -76,20 +84,43 @@ export function WysiwygSpike() {
   const [pageCount, setPageCount] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const runningRef = useRef(false)
+  const pendingRef = useRef<string | null>(null)
+  const [, forceRender] = useReducer((x) => x + 1, 0)
 
   const editor = useEditor({
-    extensions: [StarterKit, Placeholder],
+    extensions: [
+      StarterKit,
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      FontSize,
+      LineHeight,
+      Indent,
+      Placeholder,
+    ],
     content: INITIAL_HTML,
   })
 
-  /** Re-paginate the preview with paged.js. */
+  /** Re-paginate the preview with paged.js. Serialized: only one paged.js run
+   * at a time — a request arriving mid-run is stashed and run once the current
+   * one settles (clearing the DOM under a live previewer throws getBoundingClientRect). */
   const rebuild = useCallback(async (html: string) => {
+    if (runningRef.current) {
+      pendingRef.current = html
+      return
+    }
     const container = previewRef.current
     if (!container) return
+    runningRef.current = true
     setBuilding(true)
     setErr(null)
     try {
-      // paged.js injects a global <style> each run — clear prior ones + pages.
       document
         .querySelectorAll('style[data-pagedjs-inserted-styles]')
         .forEach((s) => s.remove())
@@ -106,20 +137,28 @@ export function WysiwygSpike() {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
       setBuilding(false)
+      runningRef.current = false
+      if (pendingRef.current !== null) {
+        const next = pendingRef.current
+        pendingRef.current = null
+        void rebuild(next)
+      }
     }
   }, [])
 
-  // Rebuild on edits (debounced) + once on mount.
+  // Rebuild preview on edits (debounced); re-render toolbar on every transaction.
   useEffect(() => {
     if (!editor) return
-    const trigger = () => {
+    const onUpdate = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(() => rebuild(editor.getHTML()), 600)
     }
-    editor.on('update', trigger)
+    editor.on('update', onUpdate)
+    editor.on('transaction', forceRender)
     rebuild(editor.getHTML())
     return () => {
-      editor.off('update', trigger)
+      editor.off('update', onUpdate)
+      editor.off('transaction', forceRender)
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [editor, rebuild])
@@ -131,61 +170,16 @@ export function WysiwygSpike() {
       </Header>
       <Main>
         <p className='mb-3 text-xs text-muted-foreground'>
-          ทดสอบเทคนิค: แก้ข้อความสดบนผืน A4 (ซ้าย) · ชิปข้อมูลอัตโนมัติ ·
+          แก้ข้อความสดบนผืน A4 (ซ้าย) · แถบเครื่องมือเต็มแบบ Word ·
           พรีวิวแบ่งหน้า A4 จริง (ขวา) · ฟอนต์ไทย Sarabun
         </p>
 
-        {/* Toolbar */}
         {editor && (
-          <div className='mb-3 flex flex-wrap items-center gap-1 rounded-md border bg-card p-1.5'>
-            <ToolbarButton
-              active={editor.isActive('bold')}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              title='ตัวหนา'
-            >
-              <Bold className='size-4' />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor.isActive('heading', { level: 1 })}
-              onClick={() =>
-                editor.chain().focus().toggleHeading({ level: 1 }).run()
-              }
-              title='หัวข้อใหญ่'
-            >
-              <Heading1 className='size-4' />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor.isActive('heading', { level: 2 })}
-              onClick={() =>
-                editor.chain().focus().toggleHeading({ level: 2 }).run()
-              }
-              title='หัวข้อย่อย'
-            >
-              <Heading2 className='size-4' />
-            </ToolbarButton>
-            <ToolbarButton
-              active={editor.isActive('bulletList')}
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              title='รายการ'
-            >
-              <List className='size-4' />
-            </ToolbarButton>
-
-            <div className='mx-1 h-5 w-px bg-border' />
-            <span className='px-1 text-xs text-muted-foreground'>แทรกข้อมูล:</span>
-            {PLACEHOLDER_DEFS.map((def: PlaceholderDef) => (
-              <Button
-                key={def.token}
-                size='sm'
-                variant='secondary'
-                className='h-7 px-2 text-xs'
-                onClick={() => editor.chain().focus().insertPlaceholder(def).run()}
-              >
-                {def.label}
-              </Button>
-            ))}
-
-            <div className='ml-auto flex items-center gap-2'>
+          <div className='mb-3 flex items-center gap-2'>
+            <div className='flex-1'>
+              <EditorToolbar editor={editor} />
+            </div>
+            <div className='flex shrink-0 items-center gap-2'>
               {pageCount != null && (
                 <span className='text-xs text-muted-foreground'>
                   {pageCount} หน้า
@@ -194,8 +188,8 @@ export function WysiwygSpike() {
               <Button
                 size='sm'
                 variant='outline'
-                className='h-7'
-                onClick={() => editor && rebuild(editor.getHTML())}
+                className='h-8'
+                onClick={() => rebuild(editor.getHTML())}
               >
                 <RefreshCw className='size-3.5' />
                 รีเฟรชพรีวิว
@@ -206,14 +200,12 @@ export function WysiwygSpike() {
 
         {/* Split: editor canvas | paged preview */}
         <div className='grid flex-1 gap-4 lg:grid-cols-2'>
-          {/* A4 editing canvas */}
           <div className='overflow-auto rounded-md border bg-muted/30 p-4'>
             <div className='doc-canvas mx-auto bg-white shadow-sm'>
               <EditorContent editor={editor} />
             </div>
           </div>
 
-          {/* Paged.js preview */}
           <div className='relative overflow-auto rounded-md border bg-muted/30 p-4'>
             {building && (
               <div className='absolute right-6 top-6 z-10 flex items-center gap-1.5 rounded bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow'>
@@ -232,7 +224,7 @@ export function WysiwygSpike() {
         </div>
       </Main>
 
-      {/* Spike-local styling for the editable canvas + chips + paged pages */}
+      {/* Spike-local styling for the editable canvas + chips + tables + paged pages */}
       <style>{`
         .doc-canvas {
           width: 210mm;
@@ -247,8 +239,14 @@ export function WysiwygSpike() {
         .doc-canvas .ProseMirror { outline: none; min-height: 100%; }
         .doc-canvas h1 { font-size: 20px; font-weight: 700; text-align: center; margin: 0 0 16px; }
         .doc-canvas h2 { font-size: 16px; font-weight: 700; margin: 16px 0 6px; }
+        .doc-canvas h3 { font-size: 14px; font-weight: 700; margin: 12px 0 6px; }
         .doc-canvas p { margin: 0 0 8px; }
-        .doc-canvas ul { margin: 0 0 8px; padding-inline-start: 24px; }
+        .doc-canvas ul, .doc-canvas ol { margin: 0 0 8px; padding-inline-start: 24px; }
+        .doc-canvas mark { padding: 0 2px; border-radius: 2px; }
+        .doc-canvas table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+        .doc-canvas td, .doc-canvas th { border: 1px solid #999; padding: 4px 8px; min-width: 2em; }
+        .doc-canvas th { background: #f1f5f9; }
+        .doc-canvas hr { border: none; border-top: 1px solid #999; margin: 12px 0; }
         .doc-chip {
           display: inline-block;
           padding: 0 6px;
@@ -259,7 +257,6 @@ export function WysiwygSpike() {
           font-weight: 500;
           white-space: nowrap;
         }
-        /* paged.js renders real-size A4 sheets — scale down to fit the pane */
         .paged-preview { transform: scale(0.62); transform-origin: top left; }
         .paged-preview .pagedjs_page {
           background: #fff;
@@ -268,30 +265,5 @@ export function WysiwygSpike() {
         }
       `}</style>
     </>
-  )
-}
-
-function ToolbarButton({
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  active?: boolean
-  onClick: () => void
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <Button
-      type='button'
-      size='sm'
-      variant={active ? 'default' : 'ghost'}
-      className='h-7 w-7 p-0'
-      title={title}
-      onClick={onClick}
-    >
-      {children}
-    </Button>
   )
 }
