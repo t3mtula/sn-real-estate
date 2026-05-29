@@ -342,17 +342,23 @@ git init
    ```
 8. `npm install && npm run dev` → http://localhost:5173
 
-## 🚀 Deploy
+## 🚀 Deploy + version control (3 ชั้นกันพลาด)
 
-`netlify.toml` มาจาก satnaing default · ถ้าใช้ Cloudflare Pages:
+> ⚠️ v2 อยู่ใต้ repo `github.com/t3mtula/sn-real-estate` (private · รวมแอป SN ตัวเก่าด้วย) · Pages project = `sn-real-estate-v2` (direct-upload)
+
+**Workflow ทุกครั้งที่แก้ feature (ห้ามแก้บน main ตรงๆ):**
 
 ```bash
-# build
-npm run build
-
-# deploy
-npx wrangler pages deploy dist --project-name=<your-app>
+git checkout -b <งาน>           # 1. แตก branch
+# 2. แก้ + commit
+npm run deploy:preview          # 3. ยิง preview → ตรวจที่ preview.sn-real-estate-v2.pages.dev
+git checkout main && git merge <งาน> && git push   # 4. ผ่านแล้ว merge
+npm run deploy:prod             # 5. ขึ้นตัวจริง
 ```
+
+- `npm run deploy` เปล่าๆ = บล็อก (กันเผลอ) · `deploy:preview`/`deploy:prod` ชัดเจน
+- พัง → `git revert` + `deploy:prod` ใหม่ หรือ Cloudflare dashboard rollback
+- `.env.local` มี secret → อยู่ใน `v2/.gitignore` (`*.local`) · ห้าม commit
 
 ## ❗ Common pitfalls
 
