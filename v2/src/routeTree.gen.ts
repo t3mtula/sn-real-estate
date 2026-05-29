@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SpikeRouteImport } from './routes/spike'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedValidationRouteImport } from './routes/_authenticated/validation'
@@ -73,11 +72,6 @@ import { Route as AuthenticatedInvoicesIdPrintRouteImport } from './routes/_auth
 import { Route as AuthenticatedContractsIdPrintRouteImport } from './routes/_authenticated/contracts/$id/print'
 import { Route as AuthenticatedContractsIdDepositReturnRouteImport } from './routes/_authenticated/contracts/$id/deposit-return'
 
-const SpikeRoute = SpikeRouteImport.update({
-  id: '/spike',
-  path: '/spike',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -434,7 +428,6 @@ const AuthenticatedContractsIdDepositReturnRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
-  '/spike': typeof SpikeRoute
   '/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/auth-callback': typeof authAuthCallbackRoute
   '/forgot-password': typeof authForgotPasswordRoute
@@ -497,7 +490,6 @@ export interface FileRoutesByFullPath {
   '/tenants/$id/': typeof AuthenticatedTenantsIdIndexRoute
 }
 export interface FileRoutesByTo {
-  '/spike': typeof SpikeRoute
   '/auth-callback': typeof authAuthCallbackRoute
   '/forgot-password': typeof authForgotPasswordRoute
   '/otp': typeof authOtpRoute
@@ -562,7 +554,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/spike': typeof SpikeRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteRouteWithChildren
   '/(auth)/auth-callback': typeof authAuthCallbackRoute
   '/(auth)/forgot-password': typeof authForgotPasswordRoute
@@ -629,7 +620,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/spike'
     | '/settings'
     | '/auth-callback'
     | '/forgot-password'
@@ -692,7 +682,6 @@ export interface FileRouteTypes {
     | '/tenants/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/spike'
     | '/auth-callback'
     | '/forgot-password'
     | '/otp'
@@ -756,7 +745,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
-    | '/spike'
     | '/_authenticated/settings'
     | '/(auth)/auth-callback'
     | '/(auth)/forgot-password'
@@ -822,7 +810,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  SpikeRoute: typeof SpikeRoute
   authAuthCallbackRoute: typeof authAuthCallbackRoute
   authForgotPasswordRoute: typeof authForgotPasswordRoute
   authOtpRoute: typeof authOtpRoute
@@ -838,13 +825,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/spike': {
-      id: '/spike'
-      path: '/spike'
-      fullPath: '/spike'
-      preLoaderRoute: typeof SpikeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -1407,7 +1387,6 @@ const AuthenticatedRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  SpikeRoute: SpikeRoute,
   authAuthCallbackRoute: authAuthCallbackRoute,
   authForgotPasswordRoute: authForgotPasswordRoute,
   authOtpRoute: authOtpRoute,

@@ -6,8 +6,9 @@
  * intact so nothing in the existing print path breaks.
  */
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import type { Value } from 'platejs'
-import { Loader2, Save } from 'lucide-react'
+import { Loader2, Save, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -30,6 +31,7 @@ import { useUpdateTemplate } from './mutations'
 import { structuredToPlate } from './structured-to-plate'
 
 export function TemplateDocEditor({ id }: { id: string }) {
+  const navigate = useNavigate()
   const { data: template, isLoading } = useContractTemplate(id)
   const update = useUpdateTemplate(id)
   const [value, setValue] = useState<Value | null>(null)
@@ -101,7 +103,7 @@ export function TemplateDocEditor({ id }: { id: string }) {
   return (
     <>
       <Header fixed>
-        <BackButton fallback={`/templates/${id}`} />
+        <BackButton fallback='/templates' />
         <h1 className='ml-2 truncate text-base font-semibold'>
           แก้เอกสาร · {template?.data.name || 'แบบสัญญา'}
         </h1>
