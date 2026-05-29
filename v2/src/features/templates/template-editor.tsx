@@ -400,7 +400,7 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
               <Button
                 variant='outline'
                 onClick={() =>
-                  navigate({ to: '/templates/$id/doc', params: { id } })
+                  navigate({ to: '/templates/doc/$id', params: { id } })
                 }
               >
                 <FileText className='size-4' />
