@@ -14,7 +14,6 @@ import type { Landlord } from '@/features/landlords/types'
 import type { Property } from '@/features/properties/types'
 import type { Tenant } from '@/features/tenants/types'
 import type { ContractTemplate } from '@/features/templates/types'
-import { resolveAttachments } from '@/features/templates/types'
 import { amt, parseAmt, spellAmt } from '@/lib/thai'
 import { parseBE } from '@/lib/thai/date'
 import { DEFAULT_TEMPLATE, renderTemplateText } from './default-template'
@@ -554,26 +553,6 @@ function renderContractDoc(
     notesText ? `<div class="ap-notes-text">${escape(notesText)}</div>` : '',
   )
 
-  // Attachments checklist (เอกสารแนบท้าย) — from template, unless turned off
-  const attachInner =
-    refs.template?.data?.showAttachments === false
-      ? ''
-      : (() => {
-          const list = resolveAttachments(refs.template?.data)
-          if (!list.length) return ''
-          return (
-            '<div class="ap-attach">' +
-            list
-              .map(
-                (a) =>
-                  `<div class="ap-attach-item"><span class="ap-attach-box">${a.checked ? '☑' : '☐'}</span> ${escape(a.label)}</div>`,
-              )
-              .join('') +
-            '</div>'
-          )
-        })()
-  const attachSection = section('เอกสารแนบท้าย', 'ATTACHMENTS', attachInner)
-
   // Appendix signatures (no witnesses on appendix per v1)
   const sigsAppendix =
     '<div class="sig-section">' +
@@ -600,7 +579,6 @@ function renderContractDoc(
     propertySection +
     leaseSection +
     bankSection +
-    attachSection +
     notesSection +
     sigsAppendix +
     '</div>'

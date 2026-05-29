@@ -1,20 +1,14 @@
 import { Outlet, useLocation } from '@tanstack/react-router'
-import { FileText, Palette, Receipt, Settings2, User, Users } from 'lucide-react'
+import { Palette, Receipt, Settings2, User, Users } from 'lucide-react'
 import { useMemo } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { useContractTemplates } from '@/features/templates/queries'
 import { SidebarNav, type SidebarNavGroup } from './components/sidebar-nav'
 
 export function Settings() {
-  const { data: templates } = useContractTemplates()
-  const activeTemplate = templates?.find((t) => t.is_active) ?? templates?.[0]
-  const templateHref = activeTemplate
-    ? `/templates/${activeTemplate.id}`
-    : '/templates/new'
   const { pathname } = useLocation()
   const pageTitle = useMemo(() => {
     const titles: Record<string, { title: string; desc: string }> = {
@@ -51,11 +45,6 @@ export function Settings() {
     {
       label: 'รูปแบบเอกสาร',
       items: [
-        {
-          title: 'สัญญาเช่า',
-          href: templateHref,
-          icon: <FileText size={18} />,
-        },
         {
           title: 'ใบแจ้งหนี้/ใบเสร็จ',
           href: '/settings/invoice-settings',
