@@ -107,7 +107,15 @@ export function TemplateDocEditor({ id }: { id: string }) {
         <h1 className='ml-2 truncate text-base font-semibold'>
           แก้เอกสาร · {template?.data.name || 'แบบสัญญา'}
         </h1>
-        <div className='ml-auto'>
+        <div className='ml-auto flex items-center gap-2'>
+          <Button
+            variant='outline'
+            onClick={() => navigate({ to: '/templates/$id', params: { id } })}
+            title='ชื่อแบบ · เอกสารแนบท้าย · พยาน · ตั้งเป็นแบบที่ใช้'
+          >
+            <Settings2 className='size-4' />
+            ตั้งค่าแบบฟอร์ม
+          </Button>
           <Button onClick={handleSave} disabled={!dirty || update.isPending}>
             <Save className='size-4' />
             {update.isPending ? 'กำลังบันทึก…' : 'บันทึก'}
