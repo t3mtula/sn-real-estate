@@ -660,3 +660,32 @@ export function useBulkUpdateTags() {
     },
   })
 }
+
+/**
+ * Hard delete สัญญา (สำหรับเคลียร์ข้อมูลทดสอบ · ปกติควร "ยกเลิก" แทน)
+ * permission gating ค่อยทำทีหลัง
+ */
+export function useDeleteContract() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data: existing } = await supabase
+        .from(TABLE)
+        .select('data')
+        .eq('id', id)
+        .maybeSingle()
+      const { error } = await supabase.from(TABLE).delete().eq('id', id)
+      if (error) throw error
+      void logActivity({
+        action: 'delete',
+        entity: 'contracts',
+        entity_id: id,
+        description: `ลบถาวร สัญญา ${(existing?.data as ContractData | undefined)?.no ?? '#' + id}`,
+        before: (existing?.data ?? null) as Record<string, unknown> | null,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+    },
+  })
+}

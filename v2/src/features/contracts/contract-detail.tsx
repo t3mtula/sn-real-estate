@@ -17,6 +17,7 @@ import {
   RefreshCw,
   RotateCcw,
   ScrollText,
+  Trash2,
   UserRound,
   Users,
   XCircle,
@@ -60,6 +61,7 @@ import { useActiveContractTemplate, useContractTemplate } from '@/features/templ
 import {
   DuplicateContractNoError,
   useCancelContract,
+  useDeleteContract,
   useRestoreContract,
   useUpdateContract,
   useUpdateMoveOutNotice,
@@ -415,7 +417,9 @@ function Content({
   const [moveOutExpanded, setMoveOutExpanded] = useState(false)
   // printHtml state removed — now opens in new tab directly
   const restore = useRestoreContract(contract.id)
+  const del = useDeleteContract()
   const confirm = useConfirm()
+  const navigate = useNavigate()
 
   async function handleRestore() {
     const ok = await confirm({
@@ -429,6 +433,25 @@ function Content({
       toast.success('คืนสถานะสัญญาแล้ว')
     } catch (err) {
       toast.error('คืนสถานะไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleDelete() {
+    const ok = await confirm({
+      title: `ลบถาวร สัญญา ${display}?`,
+      description: 'ลบแล้วเรียกคืนไม่ได้ · ปกติควรใช้ "ยกเลิกสัญญา" แทน · ใช้ลบเฉพาะข้อมูลทดสอบ',
+      confirmLabel: 'ลบถาวร',
+      destructive: true,
+    })
+    if (!ok) return
+    try {
+      await del.mutateAsync(contract.id)
+      toast.success('ลบสัญญาแล้ว')
+      navigate({ to: '/contracts' })
+    } catch (err) {
+      toast.error('ลบไม่สำเร็จ', {
         description: err instanceof Error ? err.message : String(err),
       })
     }
@@ -554,6 +577,15 @@ function Content({
           <Button onClick={onEdit}>
             <Pencil className='size-4' />
             แก้ไข
+          </Button>
+          <Button
+            variant='outline'
+            onClick={handleDelete}
+            disabled={del.isPending}
+            className='text-destructive hover:bg-destructive/10 hover:text-destructive'
+          >
+            <Trash2 className='size-4' />
+            ลบ
           </Button>
         </div>
       </header>
