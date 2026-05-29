@@ -41,6 +41,8 @@ export interface StatementInfo {
   period: string
   /** ชื่อเจ้าของบัญชี */
   accountName: string
+  /** ยอดรวมเงินเข้าที่ statement พิมพ์ไว้ (ถ้าดึงได้) — ใช้เช็คว่า parser ดึงครบไหม (C) */
+  controlTotal?: number
 }
 
 export interface ParsedStatement {
@@ -70,6 +72,20 @@ function parseAmt(s: string): number {
 /** ลบ dash/hyphen/space ทั้งหมด สำหรับเทียบเลขบัญชี */
 export function stripDashes(s: string): string {
   return s.replace(/[-\s]/g, '')
+}
+
+/**
+ * พยายามดึง "ยอดรวมเงินเข้า/ฝาก/เครดิต" ที่ statement พิมพ์สรุปไว้ (C — เช็ค parser ตกหล่น)
+ * — จับเฉพาะ label ที่หมายถึงเงินเข้าชัด ๆ (ไม่จับยอดถอน/คงเหลือ กัน false alarm)
+ * — ไม่เจอ = คืน undefined (ไม่เตือน · ให้คนเทียบเอง)
+ */
+function extractControlTotal(text: string): number | undefined {
+  const re =
+    /(?:ยอดรวม(?:เงิน)?(?:ฝาก|เข้า|เครดิต)|รวม(?:เงิน)?(?:ฝาก|เข้า)|จำนวนเงินฝากรวม|Total\s+(?:Credit|Deposit)(?:\s+Amount)?)\s*[:\-]?\s*([\d,]+\.\d{2})/i
+  const m = text.match(re)
+  if (!m) return undefined
+  const n = parseAmt(m[1])
+  return n > 0 ? n : undefined
 }
 
 // ─── SCB parser ─────────────────────────────────────────────────────────────
@@ -379,6 +395,7 @@ export function parseStatementRows(rows: string[][]): ParsedStatement {
       acctNoRaw: stripDashes(acctMatch?.[1] ?? ''),
       accountName: nameMatch?.[1]?.trim() ?? '',
       period: '',
+      controlTotal: extractControlTotal(flat),
     },
     transactions,
   }
@@ -388,11 +405,12 @@ export function parseStatementRows(rows: string[][]): ParsedStatement {
 
 export function parseStatementText(text: string): ParsedStatement {
   const bank = detectBank(text)
+  const controlTotal = extractControlTotal(text)
 
-  if (bank === 'SCB') return { info: { bank, ...extractSCBInfo(text) }, transactions: parseSCBStatement(text) }
-  if (bank === 'KBANK') return { info: { bank, ...extractKBankInfo(text) }, transactions: parseKBankStatement(text) }
-  if (bank === 'BBL') return { info: { bank, ...extractBBLInfo(text) }, transactions: parseBBLStatement(text) }
-  if (bank === 'BAY') return { info: { bank, ...extractBAYInfo(text) }, transactions: parseBAYStatement(text) }
+  if (bank === 'SCB') return { info: { bank, controlTotal, ...extractSCBInfo(text) }, transactions: parseSCBStatement(text) }
+  if (bank === 'KBANK') return { info: { bank, controlTotal, ...extractKBankInfo(text) }, transactions: parseKBankStatement(text) }
+  if (bank === 'BBL') return { info: { bank, controlTotal, ...extractBBLInfo(text) }, transactions: parseBBLStatement(text) }
+  if (bank === 'BAY') return { info: { bank, controlTotal, ...extractBAYInfo(text) }, transactions: parseBAYStatement(text) }
 
   return { info: { bank: 'UNKNOWN', acctNoRaw: '', accountName: '', period: '' }, transactions: [] }
 }

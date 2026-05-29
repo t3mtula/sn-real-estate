@@ -314,6 +314,11 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const selectableCount = rows.length - dupIds.size
   const allSelected = selectableCount > 0 && selectedCount === selectableCount
 
+  // C — เช็คยอดรวม: รวมเงินเข้าที่ดึงได้ทั้งหมด เทียบกับยอดที่ statement พิมพ์ไว้ (ถ้ามี)
+  const parsedTotal = rows.reduce((s, r) => s + r.amount, 0)
+  const controlTotal = info?.controlTotal
+  const controlMismatch = controlTotal != null && Math.abs(controlTotal - parsedTotal) > 1
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v) }}>
@@ -457,6 +462,33 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
               </p>
             ) : (
               <>
+                {/* C — ยอดรวมเงินเข้าที่ดึงได้ (ให้พนักงานเทียบกับ statement ตาเปล่าได้เสมอ) */}
+                <div
+                  className={cn(
+                    'rounded-md border px-3 py-2 text-sm',
+                    controlMismatch
+                      ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-400/40 dark:bg-red-500/10 dark:text-red-300'
+                      : 'bg-muted/30',
+                  )}
+                >
+                  <div className='flex items-center justify-between'>
+                    <span className='text-muted-foreground'>ยอดรวมเงินเข้าที่ดึงได้ ({rows.length} รายการ)</span>
+                    <span className='font-semibold tabular-nums'>{amt(parsedTotal, { decimal: 2, symbol: false })}</span>
+                  </div>
+                  {controlTotal != null && (
+                    <div className='mt-1 flex items-center justify-between text-xs'>
+                      <span className={controlMismatch ? 'font-medium' : 'text-muted-foreground'}>
+                        {controlMismatch
+                          ? '⚠️ ไม่ตรงกับยอดรวมใน statement — อาจดึงตกหล่น'
+                          : '✓ ตรงกับยอดรวมใน statement'}
+                      </span>
+                      <span className='tabular-nums text-muted-foreground'>
+                        statement: {amt(controlTotal, { decimal: 2, symbol: false })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* D — เตือนรายการซ้ำ */}
                 {dupIds.size > 0 && (
                   <div className='flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-300'>
