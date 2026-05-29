@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Value } from 'platejs'
 import { Plate, usePlateEditor } from 'platejs/react'
 import { Previewer } from 'pagedjs'
+import pagedPolyfillUrl from 'pagedjs/dist/paged.polyfill.min.js?url'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Editor, EditorContainer } from '@/components/ui/editor'
@@ -36,6 +37,22 @@ const PREVIEW_CSS = `
   .doc-body [data-slate-align='center'] { text-align: center; }
   .doc-body [data-slate-align='right'] { text-align: right; }
 `
+
+/** Wrap paged.js content + css into a self-paginating iframe document
+ * (isolated — the contract CSS can't leak into the app). */
+function buildPagedIframe(content: string, css: string): string {
+  return (
+    '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +
+    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">' +
+    `<style>${css}
+      @media screen {
+        body { background: #eef1f5; margin: 0; }
+        .pagedjs_page { margin: 0 auto 14px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+      }</style>` +
+    `<script src="${pagedPolyfillUrl}"><\/script>` +
+    `</head><body>${content}</body></html>`
+  )
+}
 
 export type DocEditorProps = {
   value: Value
@@ -63,6 +80,7 @@ export function DocEditor({
   const [building, setBuilding] = useState(false)
   const [pageCount, setPageCount] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [frameHtml, setFrameHtml] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const runningRef = useRef(false)
   const pendingRef = useRef<Value | null>(null)
@@ -81,21 +99,26 @@ export function DocEditor({
       setErr(null)
       try {
         const html = fillChips(await serializeDocToHtml(val), previewData ?? {})
-        const built = renderPreviewDoc
-          ? renderPreviewDoc(html)
-          : { content: `<div class="doc-body">${html}</div>`, css: PREVIEW_CSS }
-        const container = previewRef.current
-        if (!container) return
-        document
-          .querySelectorAll('style[data-pagedjs-inserted-styles]')
-          .forEach((s) => s.remove())
-        container.innerHTML = ''
-        const result = await new Previewer().preview(
-          built.content,
-          [{ 'inline.css': built.css }],
-          container
-        )
-        setPageCount(result?.total ?? null)
+        if (renderPreviewDoc) {
+          // Framed mode: paginate inside an iframe via the paged.js polyfill so
+          // the contract CSS stays isolated (won't leak into the app layout).
+          const built = renderPreviewDoc(html)
+          setFrameHtml(buildPagedIframe(built.content, built.css))
+        } else {
+          // Bare mode: paginate the body with paged.js into a container.
+          const container = previewRef.current
+          if (!container) return
+          document
+            .querySelectorAll('style[data-pagedjs-inserted-styles]')
+            .forEach((s) => s.remove())
+          container.innerHTML = ''
+          const result = await new Previewer().preview(
+            `<div class="doc-body">${html}</div>`,
+            [{ 'inline.css': PREVIEW_CSS }],
+            container
+          )
+          setPageCount(result?.total ?? null)
+        }
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e))
       } finally {
@@ -146,11 +169,13 @@ export function DocEditor({
 
             {/* A4 preview (paged.js — real page breaks) */}
             {showPreview && (
-              <div className='relative overflow-auto rounded-md border bg-muted/30 p-4'>
-                <div className='mb-2 flex items-center gap-2 text-xs text-muted-foreground'>
+              <div className='relative flex flex-col rounded-md border bg-muted/30'>
+                <div className='flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground'>
                   <span>พรีวิวสัญญา A4 (ข้อมูลตัวอย่าง)</span>
                   {building && <Loader2 className='size-3 animate-spin' />}
-                  {pageCount != null && !building && <span>· {pageCount} หน้า</span>}
+                  {!renderPreviewDoc && pageCount != null && !building && (
+                    <span>· {pageCount} หน้า</span>
+                  )}
                 </div>
                 {err && (
                   <div className='m-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive'>
@@ -158,7 +183,17 @@ export function DocEditor({
                     <p className='mt-1'>{err}</p>
                   </div>
                 )}
-                <div ref={previewRef} className='paged-preview origin-top' />
+                {renderPreviewDoc ? (
+                  <iframe
+                    title='พรีวิวสัญญา'
+                    srcDoc={frameHtml ?? ''}
+                    className='h-[80vh] w-full rounded-b-md border-0 bg-white'
+                  />
+                ) : (
+                  <div className='overflow-auto p-4'>
+                    <div ref={previewRef} className='paged-preview origin-top' />
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -438,6 +438,28 @@ function CreateRow({ row }: { row: CreateRowData }) {
             </span>
           </div>
         )}
+        {row.utilityLines.map((u, i) => (
+          <div key={i} className='flex justify-between gap-2'>
+            <span className='text-muted-foreground'>
+              {u.label}
+              {u.units
+                ? ` · ${u.units.toLocaleString('th-TH')} หน่วย × ${u.ratePerUnit}${u.fixedFee ? ` + ${u.fixedFee}` : ''}`
+                : ''}
+              {u.readingDate ? ` · จด ${u.readingDate}` : ''}
+            </span>
+            <span className='tabular-nums'>
+              {amt(u.amount, { symbol: false, decimal: 0 })}
+            </span>
+          </div>
+        ))}
+        {row.utilityLines.length > 0 && (
+          <div className='mt-0.5 flex justify-between gap-2 border-t pt-0.5 font-medium'>
+            <span>รวมทั้งใบ</span>
+            <span className='tabular-nums'>
+              {amt(row.amount, { symbol: false, decimal: 0 })}
+            </span>
+          </div>
+        )}
       </div>
       <CompareNote row={row} />
     </div>

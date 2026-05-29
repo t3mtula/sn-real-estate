@@ -19,8 +19,90 @@ import type {
   InvoiceData,
   InvoiceItem,
 } from '@/features/invoices/types'
+import type { MeterReading, MeterReadingData } from '@/features/meters/types'
 
 const TABLE = 'invoices'
+const METERS_TABLE = 'meter_readings'
+
+/** บรรทัดค่าน้ำ/ไฟที่ยังไม่ออกบิล (ภายใน — มี raw ไว้ mark billed ตอนสร้าง) */
+type UtilityLine = {
+  meterId: string
+  label: string
+  units: number
+  ratePerUnit: number
+  fixedFee: number
+  readingDate: string
+  amount: number
+  raw: MeterReadingData
+}
+
+function meterLabel(type: MeterReadingData['type']): string {
+  if (type === 'water') return 'ค่าน้ำ'
+  if (type === 'electricity') return 'ค่าไฟ'
+  return 'ค่าบริการอื่น'
+}
+
+/**
+ * ดึงมิเตอร์ที่ "ยังไม่ออกบิล" แล้วจับคู่เข้าสัญญา
+ *
+ * จับคู่: contract_id ตรง ๆ ก่อน · ถ้าไม่มี → bridge ผ่าน property
+ *   (meter.property_id = properties.id UUID → property.data.pid → contract.pid_property)
+ * คืน Map<contractId, UtilityLine[]>
+ */
+async function fetchUnbilledUtilitiesByContract(
+  contracts: Array<{ id: string; data: ContractData }>,
+): Promise<Map<string, UtilityLine[]>> {
+  const [metersRes, propsRes] = await Promise.all([
+    supabase.from(METERS_TABLE).select('id, data').is('deleted_at', null),
+    supabase.from('properties').select('id, data'),
+  ])
+  if (metersRes.error) throw metersRes.error
+  if (propsRes.error) throw propsRes.error
+
+  // property UUID → pid (number)
+  const pidByPropUuid = new Map<string, number>()
+  for (const p of (propsRes.data ?? []) as Array<{ id: string; data: { pid?: number } }>) {
+    if (p.data?.pid != null) pidByPropUuid.set(p.id, Number(p.data.pid))
+  }
+  // contract lookup
+  const contractById = new Set<string>()
+  const contractByPid = new Map<number, string>()
+  for (const c of contracts) {
+    contractById.add(c.id)
+    const pid = c.data?.pid_property
+    if (pid != null) contractByPid.set(Number(pid), c.id)
+  }
+
+  const out = new Map<string, UtilityLine[]>()
+  for (const m of (metersRes.data ?? []) as MeterReading[]) {
+    const d = m.data
+    if (!d || d.billed === true) continue
+    let cid: string | undefined
+    if (d.contract_id && contractById.has(d.contract_id)) {
+      cid = d.contract_id
+    } else if (d.property_id) {
+      const pid = pidByPropUuid.get(d.property_id)
+      if (pid != null) cid = contractByPid.get(pid)
+    }
+    if (!cid) continue
+    const total = Number(d.total) || 0
+    if (total <= 0) continue
+    const line: UtilityLine = {
+      meterId: m.id,
+      label: meterLabel(d.type),
+      units: Number(d.units) || 0,
+      ratePerUnit: Number(d.rate_per_unit) || 0,
+      fixedFee: Number(d.fixed_fee) || 0,
+      readingDate: d.reading_date ?? '',
+      amount: total,
+      raw: d,
+    }
+    const arr = out.get(cid) ?? []
+    arr.push(line)
+    out.set(cid, arr)
+  }
+  return out
+}
 
 const TH_MONTHS_FULL = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
@@ -443,6 +525,15 @@ export type BatchGeneratePreview = {
     vatMode: InvoiceData['vatMode']
     vatRate: number
     vatAmount: number
+    /** ค่าน้ำ/ไฟที่ดึงจากมิเตอร์ที่ยังไม่ออกบิล (แยกบรรทัด) */
+    utilityLines: Array<{
+      label: string
+      units: number
+      ratePerUnit: number
+      fixedFee: number
+      readingDate: string
+      amount: number
+    }>
     rateNote: string
     freqType: string
     freqLabel: string
@@ -581,6 +672,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           vatMode,
           vatRate: vatMode === 'none' ? 0 : vatRate,
           vatAmount,
+          utilityLines: [],
           rateNote,
           freqType: freq.type ?? 'monthly',
           freqLabel: freq.label,
@@ -590,6 +682,23 @@ export function useBatchGeneratePreview(month: string | undefined) {
           prevMonth: null,
           compareStatus: 'new',
         })
+      }
+
+      // เติมค่าน้ำ/ไฟจากมิเตอร์ที่ยังไม่ออกบิล → รวมเข้ายอด (แยกบรรทัด)
+      const utilByContract = await fetchUnbilledUtilitiesByContract(contracts)
+      for (const row of willCreate) {
+        const lines = utilByContract.get(row.contractId) ?? []
+        if (lines.length === 0) continue
+        row.utilityLines = lines.map((l) => ({
+          label: l.label,
+          units: l.units,
+          ratePerUnit: l.ratePerUnit,
+          fixedFee: l.fixedFee,
+          readingDate: l.readingDate,
+          amount: l.amount,
+        }))
+        const utilSum = lines.reduce((s, l) => s + l.amount, 0)
+        row.amount = Number((row.amount + utilSum).toFixed(2))
       }
 
       // เทียบกับใบรอบก่อนของแต่ละสัญญา (ใบค่าเช่าล่าสุดที่เดือนก่อนหน้า · ไม่ถูกยกเลิก)
@@ -688,6 +797,9 @@ export function useGenerateMonthlyInvoices() {
         if (inv.contract_id) existingByContract.add(inv.contract_id)
       }
 
+      // มิเตอร์น้ำ/ไฟที่ยังไม่ออกบิล → จับคู่สัญญา (รวมเข้าใบ + mark billed ตอนสร้าง)
+      const utilByContract = await fetchUnbilledUtilitiesByContract(contracts)
+
       const [yStr, moStr] = month.split('-')
       const yNum = Number.parseInt(yStr, 10)
       const moNum = Number.parseInt(moStr, 10)
@@ -747,11 +859,22 @@ export function useGenerateMonthlyInvoices() {
         const day = Math.min(Math.max(1, contractDueDay), lastDay)
         const dueDate = fmtBE(new Date(yNum, moNum - 1, day))
 
+        // ค่าน้ำ/ไฟที่ยังไม่ออกบิลของสัญญานี้ → เพิ่มเป็นบรรทัด + รวมยอด
+        const utils = utilByContract.get(c.id) ?? []
+        const utilSum = utils.reduce((s, u) => s + u.amount, 0)
+        const grandTotal = Number((total + utilSum).toFixed(2))
+
         const items: InvoiceItem[] = [
           {
             desc: buildItemDescription(freq.type, month, 'rent'),
             amount: total,
           },
+          ...utils.map((u) => ({
+            desc: u.readingDate
+              ? `${u.label} (${u.units} หน่วย · จด ${u.readingDate})`
+              : `${u.label} (${u.units} หน่วย)`,
+            amount: u.amount,
+          })),
         ]
         const pid = Date.now() + created
         const id = String(pid)
@@ -764,7 +887,7 @@ export function useGenerateMonthlyInvoices() {
           date: today,
           dueDate,
           items,
-          total,
+          total: grandTotal,
           bankAccountId: d.bankAccountId as string | undefined,
           headerId: d.invHeaderId as string | undefined,
           freqType: freq.type,
@@ -774,7 +897,7 @@ export function useGenerateMonthlyInvoices() {
           vatBase: baseAmount,
           status: 'draft',
           paidAmount: 0,
-          remainingAmount: total,
+          remainingAmount: grandTotal,
           payments: [],
           tenant: (d.tenant as string | undefined) ?? '',
           property: (d.property as string | undefined) ?? '',
@@ -796,6 +919,19 @@ export function useGenerateMonthlyInvoices() {
         } else {
           created++
           existingByContract.add(c.id)
+          // mark มิเตอร์ที่รวมในใบนี้ว่า "ออกบิลแล้ว" + ผูกเลขใบ (best-effort)
+          for (const u of utils) {
+            const { error: mErr } = await supabase
+              .from(METERS_TABLE)
+              .update({ data: { ...u.raw, billed: true, invoice_id: id } })
+              .eq('id', u.meterId)
+            if (mErr) {
+              errors.push({
+                contractNo,
+                message: `บันทึกมิเตอร์ ${u.label} ไม่สำเร็จ: ${mErr.message}`,
+              })
+            }
+          }
         }
       }
       if (created > 0) {
@@ -812,6 +948,7 @@ export function useGenerateMonthlyInvoices() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
     },
   })
 }
