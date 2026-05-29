@@ -1175,6 +1175,33 @@ export function useDeleteInvoice() {
   })
 }
 
+/** ลบใบแจ้งหนี้หลายใบถาวร — ปลด allocations ออกจาก payments ก่อนทุกใบ (เงินไม่หาย) */
+export function useBatchDeleteInvoices() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      let done = 0
+      for (const invId of ids) {
+        await unallocateInvoiceFromPayments(invId)
+        const { error } = await supabase.from(TABLE).delete().eq('id', invId)
+        if (error) throw error
+        void logActivity({
+          action: 'delete',
+          entity: 'invoices',
+          entity_id: invId,
+          description: `ลบถาวร ใบแจ้งหนี้ #${invId}`,
+        })
+        done++
+      }
+      return { done }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
+    },
+  })
+}
+
 // ── Record payment ───────────────────────────────────────────────────────────
 //
 // เงินทุกก้อนเก็บใน `payments` table ที่เดียว (single source of truth)

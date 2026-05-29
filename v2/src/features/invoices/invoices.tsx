@@ -24,6 +24,7 @@ import {
   Send,
   Sparkles,
   StickyNote,
+  Trash2,
   UserRound,
   Wallet,
   X,
@@ -492,9 +493,11 @@ export function Invoices() {
   const [voidOpen, setVoidOpen] = useState(false)
   const [voidReason, setVoidReason] = useState('')
   const [batchPayOpen, setBatchPayOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const exportXlsx = useExportXlsx()
   const batchMarkSent = useBatchMarkSent()
   const batchVoid = useBatchVoid()
+  const batchDelete = useBatchDeleteInvoices()
   const sendAllDrafts = useSendAllDraftsGlobal()
   const autoVoid = useAutoVoidExpiredDrafts()
   const { data: invSettings } = useInvoiceSettings()
@@ -562,6 +565,20 @@ export function Invoices() {
       setRowSelection({})
     } catch (err) {
       toast.error('ยกเลิกไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  async function handleBatchDelete() {
+    if (selectedIds.length === 0) return
+    try {
+      const res = await batchDelete.mutateAsync(selectedIds)
+      toast.success(`ลบแล้ว ${res.done} ใบ`)
+      setDeleteOpen(false)
+      setRowSelection({})
+    } catch (err) {
+      toast.error('ลบไม่สำเร็จ', {
         description: err instanceof Error ? err.message : String(err),
       })
     }
@@ -986,6 +1003,28 @@ export function Invoices() {
             >
               {batchVoid.isPending && <Loader2 className='size-4 animate-spin' />}
               ยกเลิก {voidableSelectedIds.length} ใบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch delete dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ลบใบแจ้งหนี้ {selectedCount} ใบถาวร?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ลบแล้วกู้คืนไม่ได้ · เงินที่จับคู่ไว้จะถูกปลดออก (เงินไม่หาย กลับเป็น “ยังไม่จับคู่”)
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ปิด</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchDelete}
+              disabled={batchDelete.isPending}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              {batchDelete.isPending ? 'กำลังลบ…' : `ลบถาวร ${selectedCount} ใบ`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
