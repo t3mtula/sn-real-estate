@@ -166,6 +166,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const [rows, setRows] = useState<ImportRow[]>([])
   const [detectedBankAccId, setDetectedBankAccId] = useState<string | undefined>()
   const [manualBankId, setManualBankId] = useState<string | undefined>()
+  const [picked, setPicked] = useState<Record<string, string>>({}) // rowId → contractId (override การเดา)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: bankAccounts } = useBankAccounts()
@@ -195,6 +196,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     setRows([])
     setDetectedBankAccId(undefined)
     setManualBankId(undefined)
+    setPicked({})
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -263,7 +265,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       date: r.date,
       amount: r.amount,
       bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
-      contract_id: matches.get(r._id)?.contractId,
+      contract_id: picked[r._id] ?? matches.get(r._id)?.contractId,
       payerName: r.payerName,
       payMethod: 'transfer' as const,
       notes: r.description,
@@ -446,7 +448,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                         <th className='p-2 text-left'>วันที่</th>
                         <th className='p-2 text-right'>ยอด (บาท)</th>
                         <th className='p-2 text-left'>ผู้โอน</th>
-                        <th className='p-2 text-left'>ผู้เช่า (เดา)</th>
+                        <th className='p-2 text-left'>จับคู่ผู้เช่า (% ตรง)</th>
                       </tr>
                     </thead>
                     <tbody className='divide-y'>
@@ -473,17 +475,42 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                           <td className='p-2 max-w-[120px] truncate' title={r.payerName}>
                             {r.payerName || '—'}
                           </td>
-                          <td className='p-2 max-w-[180px]'>
+                          <td className='p-2 max-w-[230px]' onClick={(e) => e.stopPropagation()}>
                             {(() => {
                               const mt = matches.get(r._id)
-                              if (!mt || mt.confidence === 'none') {
-                                return <span className='text-muted-foreground'>— ไม่พบ</span>
-                              }
-                              const dot = mt.confidence === 'high' ? 'bg-green-500' : 'bg-amber-500'
+                              const chosen = picked[r._id] ?? mt?.contractId ?? ''
+                              const pct = mt?.score ?? 0
+                              const pctCls =
+                                pct >= 75 ? 'text-green-600 border-green-300 bg-green-50'
+                                : pct >= 40 ? 'text-amber-600 border-amber-300 bg-amber-50'
+                                : 'text-muted-foreground border-border'
                               return (
-                                <div className='flex items-center gap-1.5' title={`${mt.contractNo ?? ''} · ${mt.reason}`}>
-                                  <span className={cn('size-2 rounded-full shrink-0', dot)} />
-                                  <span className='truncate'>{mt.tenantName || mt.contractNo}</span>
+                                <div className='flex items-center gap-1.5'>
+                                  <span
+                                    className={cn('shrink-0 rounded border px-1 text-[10px] tabular-nums', pctCls)}
+                                    title={mt?.reason ?? 'ยังไม่จับคู่'}
+                                  >
+                                    {pct > 0 ? `${pct}%` : '—'}
+                                  </span>
+                                  <Select
+                                    value={chosen}
+                                    onValueChange={(v) => setPicked((p) => ({ ...p, [r._id]: v }))}
+                                  >
+                                    <SelectTrigger className='h-7 text-xs'>
+                                      <SelectValue placeholder='เลือกผู้เช่า…' />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {candidates.length === 0 ? (
+                                        <div className='px-2 py-1 text-xs text-muted-foreground'>ไม่มีสัญญาผูกบัญชีนี้</div>
+                                      ) : (
+                                        candidates.map((c) => (
+                                          <SelectItem key={c.id} value={c.id} className='text-xs'>
+                                            {c.tenant || c.no} · {amt(c.expected, { decimal: 0, symbol: false })}
+                                          </SelectItem>
+                                        ))
+                                      )}
+                                    </SelectContent>
+                                  </Select>
                                 </div>
                               )
                             })()}

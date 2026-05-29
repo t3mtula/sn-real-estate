@@ -17,9 +17,17 @@ export interface MatchResult {
   contractId?: string
   contractNo?: string
   tenantName?: string
+  /** คะแนนความตรง 0-100 (ช่วยพนักงานตัดสิน) */
+  score: number
   confidence: MatchConfidence
   /** เหตุผลย่อ (ไว้โชว์/ดีบั๊ก) */
   reason: string
+}
+
+function confFromScore(score: number): MatchConfidence {
+  if (score >= 75) return 'high'
+  if (score >= 40) return 'medium'
+  return 'none'
 }
 
 const AMOUNT_TOL = 1 // บาท
@@ -65,45 +73,65 @@ export function candidatesForAccount(contracts: Contract[], bankAccountId: strin
  * @param tx       ยอด + ชื่อผู้โอน จาก statement
  * @param candidates  สัญญาของบัญชีนี้ (จาก candidatesForAccount)
  */
+/** คะแนนของสัญญา 1 ราย เทียบกับเงินก้อนนี้ + เก็บว่าตรงเพราะอะไร */
+function scoreCandidate(
+  tx: { amount: number; payerName?: string },
+  c: Candidate,
+): { score: number; amountHit: 'exact' | 'months' | 'no'; nameHit: boolean } {
+  let amountHit: 'exact' | 'months' | 'no' = 'no'
+  let score = 0
+  if (c.expected > 0) {
+    if (Math.abs(c.expected - tx.amount) <= AMOUNT_TOL) {
+      amountHit = 'exact'; score += 60
+    } else {
+      const n = tx.amount / c.expected
+      if (n >= 2 && n <= 12 && Math.abs(n - Math.round(n)) < 0.01) { amountHit = 'months'; score += 45 }
+    }
+  }
+  const nameHit = !!(tx.payerName && nameLooksSame(tx.payerName, c.tenant))
+  if (nameHit) score += 35
+  return { score, amountHit, nameHit }
+}
+
 export function matchTransaction(
   tx: { amount: number; payerName?: string },
   candidates: Candidate[],
 ): MatchResult {
   if (candidates.length === 0) {
-    return { confidence: 'none', reason: 'ไม่มีสัญญาผูกกับบัญชีนี้' }
+    return { score: 0, confidence: 'none', reason: 'ไม่มีสัญญาผูกกับบัญชีนี้' }
   }
 
-  const byAmount = candidates.filter((c) => c.expected > 0 && Math.abs(c.expected - tx.amount) <= AMOUNT_TOL)
-  const payer = tx.payerName ?? ''
+  const scored = candidates.map((c) => ({ c, ...scoreCandidate(tx, c) }))
+  scored.sort((a, b) => b.score - a.score)
+  const best = scored[0]
 
-  // ยอดตรงรายเดียว → มั่นใจสูง (ชื่อยิ่งตรงยิ่งชัด)
-  if (byAmount.length === 1) {
-    const c = byAmount[0]
-    const nameOk = payer && nameLooksSame(payer, c.tenant)
-    return {
-      contractId: c.id, contractNo: c.no, tenantName: c.tenant,
-      confidence: 'high',
-      reason: nameOk ? 'ยอด+ชื่อตรง' : 'ยอดตรง (บัญชีนี้รายเดียว)',
-    }
+  if (best.score <= 0) {
+    return { score: 0, confidence: 'none', reason: 'ไม่พบสัญญาที่ยอด/ชื่อตรง' }
   }
 
-  // ยอดตรงหลายราย → ใช้ชื่อตัดสิน
-  if (byAmount.length > 1) {
-    const byName = byAmount.filter((c) => payer && nameLooksSame(payer, c.tenant))
-    if (byName.length === 1) {
-      const c = byName[0]
-      return { contractId: c.id, contractNo: c.no, tenantName: c.tenant, confidence: 'high', reason: 'ยอดตรงหลายราย · ชื่อช่วยชี้' }
-    }
-    const c = byAmount[0]
-    return { contractId: c.id, contractNo: c.no, tenantName: c.tenant, confidence: 'medium', reason: `ยอดตรง ${byAmount.length} สัญญา · เลือกยืนยัน` }
+  // ถ้าหลายสัญญาคะแนนเท่ากันสูงสุด (เช่น 14 ห้องค่าเช่า 1,300 เท่ากัน) = ระบุไม่ได้แน่ → ลดความมั่นใจ
+  const tied = scored.filter((s) => s.score === best.score).length
+  let score = best.score
+  let reason: string
+  if (tied > 1 && !best.nameHit) {
+    score = Math.min(score, 45)
+    reason = `ยอดตรง ${tied} ห้อง · เลือกยืนยัน`
+  } else if (best.amountHit === 'exact' && best.nameHit) {
+    reason = 'ยอด + ชื่อตรง'
+  } else if (best.amountHit === 'exact') {
+    reason = 'ยอดตรงค่าเช่า'
+  } else if (best.amountHit === 'months') {
+    reason = 'ยอด = ค่าเช่าหลายเดือน'
+  } else {
+    reason = 'ชื่อตรง (ยอดไม่ตรงค่าเช่า)'
   }
 
-  // ยอดไม่ตรง → ลองชื่ออย่างเดียว
-  const byName = candidates.filter((c) => payer && nameLooksSame(payer, c.tenant))
-  if (byName.length === 1) {
-    const c = byName[0]
-    return { contractId: c.id, contractNo: c.no, tenantName: c.tenant, confidence: 'medium', reason: 'ชื่อตรง (ยอดไม่ตรงค่าเช่า)' }
+  return {
+    contractId: best.c.id,
+    contractNo: best.c.no,
+    tenantName: best.c.tenant,
+    score,
+    confidence: confFromScore(score),
+    reason,
   }
-
-  return { confidence: 'none', reason: 'ไม่พบสัญญาที่ยอด/ชื่อตรง' }
 }
