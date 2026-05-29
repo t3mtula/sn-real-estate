@@ -230,21 +230,23 @@ export function Invoices() {
         cell: ({ row }) => {
           const v = getInvoiceDisplay(row.original)
           return (
-            <span className='block max-w-[160px] truncate font-medium' title={v}>
-              {v}
-            </span>
+            <div className='max-w-[170px]'>
+              <span className='block truncate font-medium' title={v}>
+                {v}
+              </span>
+              <span className='block text-xs tabular-nums text-muted-foreground'>
+                {formatMonth(row.original.data?.month)}
+              </span>
+            </div>
           )
         },
       },
       {
+        // ซ่อนไว้ (initialState columnVisibility) — เก็บไว้ให้ตัวกรอง "เดือน" ทำงาน
         id: 'month',
         accessorFn: (row) => row.data?.month ?? '',
-        header: ({ column }) => <SortableHeader column={column}>เดือน</SortableHeader>,
-        cell: ({ row }) => (
-          <span className='text-sm tabular-nums'>
-            {formatMonth(row.original.data?.month)}
-          </span>
-        ),
+        header: () => null,
+        cell: () => null,
         filterFn: (row, _id, value) => {
           if (!value || value === 'all') return true
           return row.original.data?.month === value
@@ -252,14 +254,22 @@ export function Invoices() {
       },
       {
         id: 'tenant',
-        accessorFn: (row) => row.data?.tenant ?? '',
-        header: ({ column }) => <SortableHeader column={column}>ผู้เช่า</SortableHeader>,
+        accessorFn: (row) => `${row.data?.tenant ?? ''} ${row.data?.property ?? ''}`,
+        header: ({ column }) => (
+          <SortableHeader column={column}>ผู้เช่า / ทรัพย์สิน</SortableHeader>
+        ),
         cell: ({ row }) => {
-          const v = row.original.data?.tenant?.trim() || '—'
+          const t = row.original.data?.tenant?.trim() || '—'
+          const p = row.original.data?.property?.trim() || '—'
           const fu = row.original.data?.followUpDate?.trim()
           return (
-            <div className='max-w-[200px]'>
-              <span className='block truncate text-sm' title={v}>{v}</span>
+            <div className='max-w-[230px]'>
+              <span className='block truncate text-sm font-medium' title={t}>
+                {t}
+              </span>
+              <span className='block truncate text-xs text-muted-foreground' title={p}>
+                {p}
+              </span>
               {fu && (
                 <span className='mt-0.5 inline-flex items-center gap-1 rounded-sm bg-indigo-50 px-1.5 py-px text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'>
                   📅 {fu}
@@ -270,15 +280,23 @@ export function Invoices() {
         },
       },
       {
-        id: 'property',
-        accessorFn: (row) => row.data?.property ?? '',
-        header: ({ column }) => <SortableHeader column={column}>ทรัพย์สิน</SortableHeader>,
+        id: 'rate',
+        enableSorting: false,
+        header: () => <span>ค่าเช่า·รอบ</span>,
         cell: ({ row }) => {
-          const v = row.original.data?.property?.trim() || '—'
+          const d = row.original.data ?? {}
+          const isDeposit = (d.category ?? 'rent') === 'deposit'
+          const base = Number(d.vatBase ?? d.total) || 0
+          const freqText = isDeposit ? 'มัดจำ' : d.freqLabel?.trim() || ''
           return (
-            <span className='block max-w-[160px] truncate text-sm' title={v}>
-              {v}
-            </span>
+            <div>
+              <span className='block text-sm tabular-nums'>
+                {amt(base, { symbol: false, decimal: 0 })}
+              </span>
+              {freqText && (
+                <span className='block text-xs text-muted-foreground'>{freqText}</span>
+              )}
+            </div>
           )
         },
       },
@@ -286,11 +304,28 @@ export function Invoices() {
         id: 'total',
         accessorFn: (row) => Number(row.data?.total) || 0,
         header: ({ column }) => <SortableHeader column={column}>ยอด</SortableHeader>,
-        cell: ({ row }) => (
-          <span className='block text-right text-sm font-medium tabular-nums'>
-            {amt(row.original.data?.total)}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const d = row.original.data ?? {}
+          const totalV = Number(d.total) || 0
+          const remaining = Number(d.remainingAmount ?? totalV) || 0
+          const status = row.original._status
+          return (
+            <div className='text-right'>
+              <span className='block text-sm font-medium tabular-nums'>
+                {amt(totalV)}
+              </span>
+              {status === 'paid' ? (
+                <span className='block text-xs text-emerald-600 dark:text-emerald-400'>
+                  ชำระครบ
+                </span>
+              ) : status !== 'voided' && remaining > 0 && remaining < totalV ? (
+                <span className='block text-xs tabular-nums text-amber-600 dark:text-amber-400'>
+                  ค้าง {amt(remaining, { symbol: false, decimal: 0 })}
+                </span>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         id: 'due',
@@ -372,6 +407,7 @@ export function Invoices() {
     columns,
     enableRowSelection: true,
     getRowId: (row) => row.id,
+    initialState: { columnVisibility: { month: false } },
     state: { sorting, columnFilters, globalFilter, rowSelection },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
@@ -745,14 +781,14 @@ export function Invoices() {
                     Array.from({ length: 6 }).map((_, i) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: skeleton
                       <TableRow key={`skeleton-${i}`}>
-                        <TableCell colSpan={columns.length}>
+                        <TableCell colSpan={table.getVisibleLeafColumns().length}>
                           <Skeleton className='h-8 w-full' />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : table.getRowModel().rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={columns.length} className='h-32 text-center'>
+                      <TableCell colSpan={table.getVisibleLeafColumns().length} className='h-32 text-center'>
                         <div className='flex flex-col items-center gap-2 text-muted-foreground'>
                           <Receipt className='size-8' />
                           <p>

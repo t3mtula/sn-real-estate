@@ -256,7 +256,7 @@ function sigBoxParty(opts: {
 function renderContractDoc(
   refs: ContractHtmlRefs,
   bodyHtmlOverride?: string,
-): { html: string; docTitle: string } {
+): { html: string; docTitle: string; page1Inner: string; page2Inner: string } {
   const c = refs.contract.data
 
   // ── Names + addresses (prefer FK entity over inline string) ──
@@ -434,15 +434,15 @@ function renderContractDoc(
     '</div>' +
     '</div>'
 
-  const page1 =
-    '<div class="page">' +
+  const page1Inner =
     page1Header +
     dateStrip +
     partiesTable +
     '<div class="page-body">' +
     body +
     sigsMain +
-    '</div></div>'
+    '</div>'
+  const page1 = '<div class="page">' + page1Inner + '</div>'
 
   // ─── Page 2: Appendix ───
   const appendixHeader =
@@ -583,8 +583,7 @@ function renderContractDoc(
     }) +
     '</div></div>'
 
-  const page2 =
-    '<div class="page appendix-page">' +
+  const page2Inner =
     appendixHeader +
     '<div class="page-body">' +
     partiesSection +
@@ -594,9 +593,10 @@ function renderContractDoc(
     attachSection +
     notesSection +
     sigsAppendix +
-    '</div></div>'
+    '</div>'
+  const page2 = '<div class="page appendix-page">' + page2Inner + '</div>'
 
-  return { html: page1 + page2, docTitle }
+  return { html: page1 + page2, docTitle, page1Inner, page2Inner }
 }
 
 // ─── Shared document chrome (head + toolbar) ───
@@ -651,6 +651,30 @@ export function buildContractsBatchHtml(
   const bodyOpen = embed ? '<body class="embed">' : '<body>'
   const toolbar = hideToolbar ? '' : buildToolbar()
   return buildHead(docTitle) + bodyOpen + toolbar + inner + '</body></html>'
+}
+
+/**
+ * Build the contract as flat content + CSS for paged.js (on-screen A4 page
+ * breaks). Same professional frame as buildContractHtml, but without the fixed
+ * .page wrappers so paged.js flows it across real A4 pages.
+ */
+export function buildContractPaged(
+  refs: ContractHtmlRefs,
+  opts: BuildContractHtmlOptions = {},
+): { content: string; css: string } {
+  const { page1Inner, page2Inner } = renderContractDoc(refs, opts.bodyHtmlOverride)
+  const content =
+    `<div class="paged-doc">${page1Inner}` +
+    '<div class="contract-page-break"></div>' +
+    `${page2Inner}</div>`
+  const css =
+    CONTRACT_CSS +
+    `
+    @page { size: A4; margin: 16mm 18mm; }
+    html, body { background: #fff !important; padding: 0 !important; }
+    .contract-page-break { break-before: page; }
+    `
+  return { content, css }
 }
 
 /* ─────────── CSS (verbatim port from v1 modules/17-contract-print.js) ─────────── */

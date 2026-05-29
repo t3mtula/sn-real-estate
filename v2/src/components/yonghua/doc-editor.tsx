@@ -43,11 +43,11 @@ export type DocEditorProps = {
   /** When set, render the A4 preview with chips filled from this map. */
   previewData?: Record<string, string>
   /**
-   * Wrap the filled body HTML into a full document (e.g. the professional
-   * contract frame) → shown in an iframe. When omitted, the preview shows the
-   * bare body paginated with paged.js.
+   * Wrap the filled body HTML into paged.js inputs (e.g. the professional
+   * contract frame + its CSS). Returns the content + stylesheet that paged.js
+   * paginates into real A4 pages. When omitted, the bare body is paginated.
    */
-  renderPreviewDoc?: (filledBodyHtml: string) => string
+  renderPreviewDoc?: (filledBodyHtml: string) => { content: string; css: string }
   className?: string
 }
 
@@ -63,7 +63,6 @@ export function DocEditor({
   const [building, setBuilding] = useState(false)
   const [pageCount, setPageCount] = useState<number | null>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [frameHtml, setFrameHtml] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const runningRef = useRef(false)
   const pendingRef = useRef<Value | null>(null)
@@ -82,24 +81,21 @@ export function DocEditor({
       setErr(null)
       try {
         const html = fillChips(await serializeDocToHtml(val), previewData ?? {})
-        if (renderPreviewDoc) {
-          // Framed mode: wrap body in the pro contract frame → iframe.
-          setFrameHtml(renderPreviewDoc(html))
-        } else {
-          // Bare mode: paginate the body with paged.js.
-          const container = previewRef.current
-          if (!container) return
-          document
-            .querySelectorAll('style[data-pagedjs-inserted-styles]')
-            .forEach((s) => s.remove())
-          container.innerHTML = ''
-          const result = await new Previewer().preview(
-            `<div class="doc-body">${html}</div>`,
-            [{ 'inline.css': PREVIEW_CSS }],
-            container
-          )
-          setPageCount(result?.total ?? null)
-        }
+        const built = renderPreviewDoc
+          ? renderPreviewDoc(html)
+          : { content: `<div class="doc-body">${html}</div>`, css: PREVIEW_CSS }
+        const container = previewRef.current
+        if (!container) return
+        document
+          .querySelectorAll('style[data-pagedjs-inserted-styles]')
+          .forEach((s) => s.remove())
+        container.innerHTML = ''
+        const result = await new Previewer().preview(
+          built.content,
+          [{ 'inline.css': built.css }],
+          container
+        )
+        setPageCount(result?.total ?? null)
       } catch (e) {
         setErr(e instanceof Error ? e.message : String(e))
       } finally {
@@ -148,15 +144,13 @@ export function DocEditor({
               </div>
             </div>
 
-            {/* A4 preview */}
+            {/* A4 preview (paged.js — real page breaks) */}
             {showPreview && (
-              <div className='relative flex flex-col rounded-md border bg-muted/30'>
-                <div className='flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground'>
+              <div className='relative overflow-auto rounded-md border bg-muted/30 p-4'>
+                <div className='mb-2 flex items-center gap-2 text-xs text-muted-foreground'>
                   <span>พรีวิวสัญญา A4 (ข้อมูลตัวอย่าง)</span>
                   {building && <Loader2 className='size-3 animate-spin' />}
-                  {!renderPreviewDoc && pageCount != null && !building && (
-                    <span>· {pageCount} หน้า</span>
-                  )}
+                  {pageCount != null && !building && <span>· {pageCount} หน้า</span>}
                 </div>
                 {err && (
                   <div className='m-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive'>
@@ -164,17 +158,7 @@ export function DocEditor({
                     <p className='mt-1'>{err}</p>
                   </div>
                 )}
-                {renderPreviewDoc ? (
-                  <iframe
-                    title='พรีวิวสัญญา'
-                    srcDoc={frameHtml ?? ''}
-                    className='h-[78vh] w-full rounded-b-md border-0 bg-white'
-                  />
-                ) : (
-                  <div className='overflow-auto p-4'>
-                    <div ref={previewRef} className='paged-preview origin-top' />
-                  </div>
-                )}
+                <div ref={previewRef} className='paged-preview origin-top' />
               </div>
             )}
           </div>

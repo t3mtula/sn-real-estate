@@ -436,10 +436,25 @@ export type BatchGeneratePreview = {
     contractNo: string
     tenant: string
     property: string
+    /** ยอดรวมสุดท้าย (ค่าเช่า + VAT) — ตรงกับที่จะสร้างจริง */
     amount: number
+    /** ค่าเช่าก่อน VAT (ต่อรอบบิล) */
+    rentBase: number
+    vatMode: InvoiceData['vatMode']
+    vatRate: number
+    vatAmount: number
     rateNote: string
     freqType: string
+    freqLabel: string
+    /** จำนวนเดือนต่อรอบบิล (โชว์ "× N เดือน") */
+    rentMonths: number
     hasFreqConflict: boolean
+    /** ยอดใบรอบก่อนของสัญญานี้ (null = ไม่มีประวัติ) */
+    prevAmount: number | null
+    /** เดือนของใบรอบก่อน (YYYY-MM) */
+    prevMonth: string | null
+    /** สถานะเทียบกับใบรอบก่อน */
+    compareStatus: 'new' | 'match' | 'diff'
   }>
   willSkip: Array<{
     contractId: string
@@ -459,13 +474,19 @@ export function useBatchGeneratePreview(month: string | undefined) {
       }
       const filterTags = (input?.tags ?? []).filter(Boolean)
       const idSet = input?.contractIds?.length ? new Set(input.contractIds) : null
-      const [contractsRes, invsRes] = await Promise.all([
+      const [contractsRes, invsRes, landlordsRes] = await Promise.all([
         supabase.from('contracts').select('id, data'),
         supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
+        supabase.from('landlords').select('id, data'),
       ])
       if (contractsRes.error) throw contractsRes.error
       if (invsRes.error) throw invsRes.error
+      if (landlordsRes.error) throw landlordsRes.error
       const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
+      const landlordById = new Map<string, LandlordData>()
+      for (const l of (landlordsRes.data ?? []) as Array<{ id: string; data: LandlordData }>) {
+        landlordById.set(l.id, l.data)
+      }
       const existingByContract = new Map<string, { invoiceNo: string }>()
       for (const inv of (invsRes.data ?? []) as Invoice[]) {
         if ((inv.status ?? '').toLowerCase() === 'voided') continue
@@ -540,16 +561,66 @@ export function useBatchGeneratePreview(month: string | undefined) {
         } else if (typeof rateRaw === 'number' && rateRaw > 0) {
           rateNote = `฿${rateRaw.toLocaleString('th-TH', { maximumFractionDigits: 0 })}`
         }
+        // VAT snapshot (เหมือนตอน generate จริง) — ให้ยอด preview = ยอดที่จะสร้างจริง
+        const landlordId = (d.landlord_id ?? '') as string
+        const landlordData = landlordId ? landlordById.get(landlordId) : undefined
+        const vatMode = (landlordData?.vatMode as InvoiceData['vatMode']) ?? 'none'
+        const vatRate = Number(landlordData?.vatRate) || 0
+        const vatAmount =
+          vatMode === 'exclusive' && vatRate > 0
+            ? Number((amount * (vatRate / 100)).toFixed(2))
+            : 0
+        const total = Number((amount + vatAmount).toFixed(2))
         willCreate.push({
           contractId: c.id,
           contractNo,
           tenant,
           property,
-          amount,
+          amount: total,
+          rentBase: amount,
+          vatMode,
+          vatRate: vatMode === 'none' ? 0 : vatRate,
+          vatAmount,
           rateNote,
           freqType: freq.type ?? 'monthly',
+          freqLabel: freq.label,
+          rentMonths: freq.months || 1,
           hasFreqConflict: rateUnitMonths > freq.months,
+          prevAmount: null,
+          prevMonth: null,
+          compareStatus: 'new',
         })
+      }
+
+      // เทียบกับใบรอบก่อนของแต่ละสัญญา (ใบค่าเช่าล่าสุดที่เดือนก่อนหน้า · ไม่ถูกยกเลิก)
+      const createIds = willCreate.map((r) => r.contractId)
+      if (createIds.length > 0) {
+        const { data: priorRows, error: priorErr } = await supabase
+          .from(TABLE)
+          .select('contract_id, status, category, data')
+          .in('contract_id', createIds)
+          .lt('data->>month', month)
+        if (priorErr) throw priorErr
+        const prevByContract = new Map<string, { total: number; month: string }>()
+        for (const row of (priorRows ?? []) as Invoice[]) {
+          if ((row.status ?? '').toLowerCase() === 'voided') continue
+          const cat = (row.category ?? row.data?.category ?? 'rent').toLowerCase()
+          if (cat !== 'rent') continue
+          const cid = row.contract_id
+          if (!cid) continue
+          const m = (row.data?.month ?? '').trim()
+          if (!m) continue
+          const tot = Number(row.data?.total) || 0
+          const cur = prevByContract.get(cid)
+          if (!cur || m > cur.month) prevByContract.set(cid, { total: tot, month: m })
+        }
+        for (const row of willCreate) {
+          const prev = prevByContract.get(row.contractId)
+          if (!prev) continue
+          row.prevAmount = prev.total
+          row.prevMonth = prev.month
+          row.compareStatus = Math.abs(prev.total - row.amount) < 0.5 ? 'match' : 'diff'
+        }
       }
       return { month, willCreate, willSkip }
     },

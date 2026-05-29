@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2, Sparkles } from 'lucide-react'
+import { AlertTriangle, Check, Loader2, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -42,14 +42,6 @@ function buildMonthOptions(): string[] {
     out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
   return out
-}
-
-const FREQ_SHORT: Record<string, string> = {
-  monthly: 'รายเดือน',
-  quarterly: 'รายไตรมาส',
-  semi: 'ครึ่งปีละ',
-  yearly: 'รายปี',
-  lump: 'ครั้งเดียว',
 }
 
 const SKIP_REASON_LABEL: Record<
@@ -151,8 +143,28 @@ export function GenerateMonthlyDialog({
   }
 
   const prev = preview.data
-  const total = (prev?.willCreate.length ?? 0) + (prev?.willSkip.length ?? 0)
   const sumAmount = (prev?.willCreate ?? []).reduce((s, x) => s + x.amount, 0)
+
+  // จัดกลุ่มใบที่จะสร้าง ตามผลการเทียบใบรอบก่อน
+  const createRows = prev?.willCreate ?? []
+  const needReview = createRows.filter(
+    (r) => r.compareStatus === 'diff' || r.hasFreqConflict,
+  )
+  const newRows = createRows.filter(
+    (r) => r.compareStatus === 'new' && !r.hasFreqConflict,
+  )
+  const matchedRows = createRows.filter(
+    (r) => r.compareStatus === 'match' && !r.hasFreqConflict,
+  )
+
+  // แยกกล่อง "ข้าม" — ข้อมูลมีปัญหา (ต้องแก้) vs ข้ามปกติ
+  const skipRows = prev?.willSkip ?? []
+  const dataProblems = skipRows.filter(
+    (s) => s.reason === 'no_rate' || s.reason === 'no_dates',
+  )
+  const normalSkips = skipRows.filter(
+    (s) => s.reason !== 'no_rate' && s.reason !== 'no_dates',
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -215,83 +227,117 @@ export function GenerateMonthlyDialog({
 
           {stage === 'review' && prev && (
             <div className='space-y-3'>
-              <div className='grid grid-cols-3 gap-2 text-center text-sm'>
-                <div className='rounded-md border bg-emerald-500/10 p-3'>
+              {/* สรุป 3 กลุ่ม — ระบบเช็คให้แล้ว เหลือดูเฉพาะที่ผิดปกติ */}
+              <div className='grid grid-cols-3 gap-2 text-center'>
+                <div className='rounded-md border border-amber-500/40 bg-amber-500/10 p-3'>
+                  <div className='text-2xl font-bold tabular-nums text-amber-700 dark:text-amber-300'>
+                    {needReview.length.toLocaleString('th-TH')}
+                  </div>
+                  <div className='text-xs text-amber-700 dark:text-amber-300'>
+                    ⚠️ ต้องตรวจ
+                  </div>
+                </div>
+                <div className='rounded-md border border-sky-500/40 bg-sky-500/10 p-3'>
+                  <div className='text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-300'>
+                    {newRows.length.toLocaleString('th-TH')}
+                  </div>
+                  <div className='text-xs text-sky-700 dark:text-sky-300'>🆕 ใหม่</div>
+                </div>
+                <div className='rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3'>
                   <div className='text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300'>
-                    {prev.willCreate.length.toLocaleString('th-TH')}
+                    {matchedRows.length.toLocaleString('th-TH')}
                   </div>
                   <div className='text-xs text-emerald-700 dark:text-emerald-300'>
-                    จะสร้างใหม่
-                  </div>
-                </div>
-                <div className='rounded-md border bg-muted/40 p-3'>
-                  <div className='text-2xl font-bold tabular-nums text-muted-foreground'>
-                    {prev.willSkip.length.toLocaleString('th-TH')}
-                  </div>
-                  <div className='text-xs text-muted-foreground'>ข้าม</div>
-                </div>
-                <div className='rounded-md border bg-sky-500/10 p-3'>
-                  <div className='text-2xl font-bold tabular-nums text-sky-700 dark:text-sky-300'>
-                    {total.toLocaleString('th-TH')}
-                  </div>
-                  <div className='text-xs text-sky-700 dark:text-sky-300'>
-                    สัญญาทั้งหมด
+                    ✅ ตรงรอบก่อน
                   </div>
                 </div>
               </div>
-              {prev.willCreate.length > 0 ? (
-                <div className='rounded-md border bg-card overflow-hidden'>
-                  <div className='flex items-center justify-between border-b bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
-                    <span>{prev.willCreate.length} ใบที่จะสร้าง</span>
-                    <span className='tabular-nums'>{amt(sumAmount)}</span>
-                  </div>
-                  <div className='max-h-56 overflow-y-auto'>
-                    {prev.willCreate.slice(0, 50).map((row) => (
-                      <div
-                        key={row.contractId}
-                        className={`flex items-center justify-between gap-3 border-b px-4 py-2 text-sm last:border-b-0 ${row.hasFreqConflict ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''}`}
-                      >
-                        <div className='min-w-0'>
-                          <p className='truncate font-medium flex items-center gap-1'>
-                            {row.hasFreqConflict && (
-                              <AlertTriangle className='size-3 shrink-0 text-amber-500' />
-                            )}
-                            {row.contractNo}
-                          </p>
-                          <p className='truncate text-xs text-muted-foreground'>
-                            {row.tenant} · {row.property}
-                          </p>
-                          {(row.rateNote || row.freqType) && (
-                            <p className={`truncate text-xs ${row.hasFreqConflict ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/60'}`}>
-                              {[row.rateNote, FREQ_SHORT[row.freqType]].filter(Boolean).join(' · ')}
-                              {row.hasFreqConflict && ' ⚠️ ตรวจสอบรอบชำระ'}
-                            </p>
-                          )}
-                        </div>
-                        <span className='shrink-0 text-sm tabular-nums'>
-                          {amt(row.amount, { decimal: 0 })}
-                        </span>
-                      </div>
-                    ))}
-                    {prev.willCreate.length > 50 && (
-                      <div className='px-4 py-2 text-xs text-muted-foreground'>
-                        ... และอีก {prev.willCreate.length - 50} ใบ
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
+
+              {createRows.length === 0 ? (
                 <div className='rounded-md border bg-muted/20 p-4 text-center text-sm text-muted-foreground'>
                   ไม่มีสัญญาที่ต้องออกใบใหม่ — เดือนนี้สร้างครบแล้ว
                 </div>
+              ) : (
+                <>
+                  <div className='flex items-center justify-between rounded-md border bg-muted/30 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+                    <span>{createRows.length} ใบที่จะสร้าง</span>
+                    <span className='tabular-nums'>{amt(sumAmount)}</span>
+                  </div>
+
+                  {/* ⚠️ ต้องตรวจ — ยอดต่างจากรอบก่อน หรือรอบชำระไม่ตรง */}
+                  {needReview.length > 0 && (
+                    <div className='overflow-hidden rounded-md border border-amber-400/60 bg-card'>
+                      <div className='border-b border-amber-400/40 bg-amber-500/10 px-4 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300'>
+                        ⚠️ ต้องตรวจก่อนสร้าง ({needReview.length})
+                      </div>
+                      <div className='max-h-72 overflow-y-auto'>
+                        {needReview.slice(0, 50).map((row) => (
+                          <CreateRow key={row.contractId} row={row} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🆕 ใหม่ ไม่มีประวัติ */}
+                  {newRows.length > 0 && (
+                    <div className='overflow-hidden rounded-md border border-sky-400/50 bg-card'>
+                      <div className='border-b border-sky-400/30 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-700 dark:text-sky-300'>
+                        🆕 ใหม่ ไม่มีใบรอบก่อน ({newRows.length}) — ดูยอดสักนิด
+                      </div>
+                      <div className='max-h-56 overflow-y-auto'>
+                        {newRows.slice(0, 50).map((row) => (
+                          <CreateRow key={row.contractId} row={row} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ✅ ตรงรอบก่อน — ยุบไว้ เชื่อได้ */}
+                  {matchedRows.length > 0 && (
+                    <details className='overflow-hidden rounded-md border bg-card'>
+                      <summary className='cursor-pointer bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300'>
+                        ✅ ตรงกับใบรอบก่อน ({matchedRows.length}) — เชื่อได้ · กดดูรายละเอียด
+                      </summary>
+                      <div className='max-h-72 overflow-y-auto border-t'>
+                        {matchedRows.slice(0, 80).map((row) => (
+                          <CreateRow key={row.contractId} row={row} />
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </>
               )}
-              {prev.willSkip.length > 0 && (
-                <details className='rounded-md border bg-muted/20 overflow-hidden'>
+
+              {/* ❗ ข้อมูลมีปัญหา — ต้องไปแก้สัญญาก่อน (ชูให้เห็น) */}
+              {dataProblems.length > 0 && (
+                <div className='overflow-hidden rounded-md border border-red-400/60 bg-red-500/5'>
+                  <div className='border-b border-red-400/40 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-700 dark:text-red-300'>
+                    ❗ ข้อมูลมีปัญหา ({dataProblems.length}) — แก้สัญญาก่อน ถึงจะออกใบได้
+                  </div>
+                  <div className='max-h-40 overflow-y-auto'>
+                    {dataProblems.slice(0, 80).map((row) => (
+                      <div
+                        key={row.contractId + row.reason}
+                        className='flex items-center justify-between gap-3 border-b px-4 py-1.5 text-xs last:border-b-0'
+                      >
+                        <span className='truncate font-medium'>{row.contractNo}</span>
+                        <span className='shrink-0 text-red-600 dark:text-red-400'>
+                          {SKIP_REASON_LABEL[row.reason]}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ข้ามปกติ — ออกไปแล้ว / ยกเลิก / ไม่ตรงรอบ (ยุบไว้) */}
+              {normalSkips.length > 0 && (
+                <details className='overflow-hidden rounded-md border bg-muted/20'>
                   <summary className='cursor-pointer px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
-                    ดูที่ข้าม ({prev.willSkip.length})
+                    ข้ามปกติ ({normalSkips.length}) — ออกไปแล้ว / ยกเลิก / ไม่ตรงรอบ
                   </summary>
                   <div className='max-h-40 overflow-y-auto border-t'>
-                    {prev.willSkip.slice(0, 80).map((row) => (
+                    {normalSkips.slice(0, 80).map((row) => (
                       <div
                         key={row.contractId + row.reason}
                         className='flex items-center justify-between gap-3 px-4 py-1.5 text-xs'
@@ -346,5 +392,91 @@ export function GenerateMonthlyDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+type CreateRowData = BatchGeneratePreview['willCreate'][number]
+
+/** แถวใบที่จะสร้าง — โชว์ breakdown (รองรับหลายบรรทัด) + ผลเทียบใบรอบก่อน */
+function CreateRow({ row }: { row: CreateRowData }) {
+  const flagged = row.hasFreqConflict || row.compareStatus === 'diff'
+  return (
+    <div
+      className={`border-b px-4 py-2.5 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
+    >
+      <div className='flex items-start justify-between gap-3'>
+        <div className='min-w-0'>
+          <p className='truncate font-medium'>{row.contractNo}</p>
+          <p className='truncate text-xs text-muted-foreground'>
+            {row.tenant} · {row.property}
+          </p>
+        </div>
+        <span className='shrink-0 font-semibold tabular-nums'>
+          {amt(row.amount, { decimal: 0 })}
+        </span>
+      </div>
+      {/* breakdown — Phase 2 จะเติมค่าน้ำ/ไฟต่อจากบรรทัดค่าเช่า */}
+      <div className='mt-1.5 space-y-0.5 rounded-sm bg-muted/30 px-2.5 py-1.5 text-xs'>
+        <div className='flex justify-between gap-2'>
+          <span className='text-muted-foreground'>
+            ค่าเช่า
+            {row.rentMonths > 1
+              ? ` · ${row.rateNote || ''} × ${row.rentMonths} เดือน (${row.freqLabel})`
+              : row.rateNote
+                ? ` · ${row.rateNote}`
+                : ''}
+          </span>
+          <span className='tabular-nums'>
+            {amt(row.rentBase, { symbol: false, decimal: 0 })}
+          </span>
+        </div>
+        {row.vatAmount > 0 && (
+          <div className='flex justify-between gap-2'>
+            <span className='text-muted-foreground'>VAT {row.vatRate}%</span>
+            <span className='tabular-nums'>
+              {amt(row.vatAmount, { symbol: false, decimal: 0 })}
+            </span>
+          </div>
+        )}
+      </div>
+      <CompareNote row={row} />
+    </div>
+  )
+}
+
+/** บรรทัดเทียบกับใบรอบก่อน — หัวใจของ "ระบบเช็คให้" */
+function CompareNote({ row }: { row: CreateRowData }) {
+  if (row.hasFreqConflict) {
+    return (
+      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+        <AlertTriangle className='mt-0.5 size-3 shrink-0' />
+        รอบชำระอาจไม่ตรง — ค่าเช่าระบุเป็นรอบที่ยาวกว่ารอบออกบิล ตรวจก่อนสร้าง
+      </p>
+    )
+  }
+  if (row.compareStatus === 'diff' && row.prevAmount != null) {
+    const diff = row.amount - row.prevAmount
+    return (
+      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+        <AlertTriangle className='mt-0.5 size-3 shrink-0' />
+        ใบรอบก่อน {amt(row.prevAmount, { decimal: 0 })}
+        {row.prevMonth ? ` (${formatMonth(row.prevMonth)})` : ''} ·{' '}
+        {diff > 0 ? 'มากขึ้น' : 'น้อยลง'} {amt(Math.abs(diff), { decimal: 0 })}
+      </p>
+    )
+  }
+  if (row.compareStatus === 'match' && row.prevAmount != null) {
+    return (
+      <p className='mt-1.5 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400'>
+        <Check className='size-3 shrink-0' />
+        ตรงกับใบรอบก่อน
+      </p>
+    )
+  }
+  return (
+    <p className='mt-1.5 flex items-center gap-1 text-xs text-sky-600 dark:text-sky-400'>
+      <Sparkles className='size-3 shrink-0' />
+      ใบแรกของสัญญานี้ — ไม่มีรอบก่อนให้เทียบ
+    </p>
   )
 }

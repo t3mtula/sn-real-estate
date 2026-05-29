@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/yonghua/back-button'
 import { DocEditor } from '@/components/yonghua/doc-editor'
 import { SAMPLE_VALUES } from '@/features/doc-editor/doc-fields'
-import { buildContractHtml } from '@/features/contracts/print/contract-html'
+import { buildContractPaged } from '@/features/contracts/print/contract-html'
 import {
   SAMPLE_BANK,
   SAMPLE_CONTRACT,
@@ -52,7 +52,7 @@ export function TemplateDocEditor({ id }: { id: string }) {
   // the preview looks like a real printed contract.
   const renderPreviewDoc = useCallback(
     (bodyHtml: string) =>
-      buildContractHtml(
+      buildContractPaged(
         {
           contract: SAMPLE_CONTRACT,
           tenant: SAMPLE_TENANT,
@@ -62,7 +62,7 @@ export function TemplateDocEditor({ id }: { id: string }) {
           parent: null,
           template: template as ContractTemplate | null,
         },
-        { bodyHtmlOverride: bodyHtml, embed: true },
+        { bodyHtmlOverride: bodyHtml },
       ),
     [template],
   )
