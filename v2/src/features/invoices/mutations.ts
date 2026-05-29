@@ -11,7 +11,7 @@ import {
   getPaymentFreq,
   isContractDueForMonth,
 } from '@/features/invoices/queries'
-import { recordPaymentCore } from '@/features/payments/core'
+import { recordPaymentCore, unallocateInvoiceFromPayments } from '@/features/payments/core'
 import type { GenerateInvoiceFormValues } from '@/features/invoices/schema'
 import type {
   Invoice,
@@ -827,6 +827,8 @@ export function useDeleteInvoice() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { data: before } = await supabase.from(TABLE).select('*').eq('id', id).maybeSingle()
+      // ปลดการจับคู่เงินที่ผูกกับใบนี้ก่อน (เงินไม่หาย → กลายเป็น "ยังไม่จับคู่")
+      await unallocateInvoiceFromPayments(id)
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
       void logActivity({

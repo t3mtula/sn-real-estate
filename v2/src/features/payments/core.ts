@@ -218,6 +218,25 @@ export async function recordPaymentCore(input: RecordPaymentInput): Promise<Paym
   return payment
 }
 
+/**
+ * ปลดการจับคู่ invoice ออกจาก payments ทุกแถว (ใช้ตอนจะลบ invoice)
+ * — เงินไม่หาย · payment ที่ไม่เหลือ allocation = กลายเป็น "ยังไม่จับคู่"
+ */
+export async function unallocateInvoiceFromPayments(invoiceId: string): Promise<void> {
+  const pays = await fetchPaymentsForInvoice(invoiceId)
+  for (const p of pays) {
+    const remaining = (p.data.allocations ?? []).filter((a) => a.invoice_id !== invoiceId)
+    const allocated = remaining.reduce((s, a) => s + (Number(a.amount) || 0), 0)
+    const status: PaymentStatus =
+      remaining.length === 0 ? 'unallocated' : Number(p.data.amount) - allocated > 0.01 ? 'partial' : 'matched'
+    const { error } = await supabase
+      .from(PAY)
+      .update({ data: { ...p.data, allocations: remaining, status }, updated_at: new Date().toISOString() })
+      .eq('id', p.id)
+    if (error) throw error
+  }
+}
+
 /** ลบเงิน 1 ก้อน → ลบแถว แล้ว recompute invoice ที่เคยจับคู่ทุกใบ */
 export async function deletePaymentCore(payment: Payment): Promise<void> {
   const invoiceIds = [...new Set((payment.data.allocations ?? []).map((a) => a.invoice_id))]

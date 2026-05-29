@@ -15,8 +15,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Trash2 } from 'lucide-react'
 import { amt } from '@/lib/thai'
+import { useConfirm } from '@/hooks/use-confirm'
 import { usePaymentsByInvoice } from '@/features/payments/queries'
+import { useDeletePayment } from '@/features/payments/mutations'
 import { allocatedToInvoice } from '@/features/payments/core'
 import { useRecordPayment } from './mutations'
 import { getInvoiceDisplay } from './queries'
@@ -174,7 +177,10 @@ export function QuickPaymentDialog({
 export function PaymentPanel({ invoice }: Props) {
   const data = invoice.data
   const { data: paymentRows } = usePaymentsByInvoice(invoice.id)
+  const delPayment = useDeletePayment()
+  const confirm = useConfirm()
   const payments = (paymentRows ?? []).map((p) => ({
+    payment: p,
     date: p.data.date,
     method: p.data.payMethod,
     ref: p.data.slipRef,
@@ -289,16 +295,42 @@ export function PaymentPanel({ invoice }: Props) {
               <TableHead className='text-xs'>ช่องทาง</TableHead>
               <TableHead className='text-xs'>อ้างอิง</TableHead>
               <TableHead className='text-right text-xs'>ยอด</TableHead>
+              <TableHead className='w-8'></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {payments.map((p, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: stable
-              <TableRow key={i}>
+            {payments.map((p) => (
+              <TableRow key={p.payment.id}>
                 <TableCell className='text-xs tabular-nums'>{p.date || '—'}</TableCell>
                 <TableCell className='text-xs'>{METHODS.find((m) => m.value === p.method)?.label ?? p.method ?? '—'}</TableCell>
                 <TableCell className='text-xs tabular-nums'>{p.ref || '—'}</TableCell>
                 <TableCell className='text-right text-xs font-medium tabular-nums text-emerald-700 dark:text-emerald-400'>+{amt(p.amount)}</TableCell>
+                <TableCell className='p-1'>
+                  <Button
+                    size='icon'
+                    variant='ghost'
+                    className='size-6 text-muted-foreground hover:text-destructive'
+                    disabled={delPayment.isPending}
+                    title='ยกเลิกรับเงินรายการนี้'
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: 'ยกเลิกรับเงินรายการนี้?',
+                        description: `ยอด ${amt(p.amount)} วันที่ ${p.date || '—'} · ยอดค้างของใบแจ้งหนี้จะกลับมา`,
+                        confirmLabel: 'ยกเลิกรับเงิน',
+                        destructive: true,
+                      })
+                      if (!ok) return
+                      try {
+                        await delPayment.mutateAsync(p.payment)
+                        toast.success('ยกเลิกรับเงินแล้ว')
+                      } catch (e) {
+                        toast.error('ยกเลิกไม่สำเร็จ', { description: String(e) })
+                      }
+                    }}
+                  >
+                    <Trash2 className='size-3.5' />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -461,11 +461,10 @@ export async function buildReceiptHtml(refs: InvoiceHtmlRefs): Promise<string> {
   const propertyName = inv.property ?? refs.property?.data?.name ?? ''
   const contractNo = c?.no ?? ''
 
+  // paidAt / payment.date เป็น พ.ศ. string "DD/MM/YYYY" อยู่แล้ว — ห้าม new Date() (จะได้ NaN)
   const paidLast: InvoicePayment | undefined = (inv.payments ?? []).slice(-1)[0]
-  const paidDate = paidLast?.date ?? inv.paidAt
-    ? new Date(String(paidLast?.date ?? inv.paidAt))
-    : new Date()
-  const paidDateBE = dateToBE(paidDate)
+  const paidDateBE =
+    paidLast?.date ?? (inv.paidAt as string | undefined) ?? dateToBE(new Date())
   const recNo = (inv.receiptNo as string) ??
     (inv.invoiceNo ? inv.invoiceNo.replace('INV', 'REC') : `REC-${refs.invoice.id}`)
   const taxInvoiceNo = (inv.taxInvoiceNo as string) ?? ''

@@ -137,8 +137,9 @@ export function InvoiceNew() {
     }
     setSubmitting(true)
     try {
+      // ยอดดึงอัตโนมัติจากสัญญาเสมอ (ช่องยอด read-only) — กัน NaN/พิมพ์ผิด
       const { id } = await create.mutateAsync({
-        values,
+        values: { ...values, amount: finalAmount },
         contract,
         tenant: tenant ?? null,
         landlord: landlord ?? null,
@@ -286,11 +287,11 @@ export function InvoiceNew() {
               <Label htmlFor='amount'>ยอด (บาท)</Label>
               <Input
                 id='amount'
-                type='number'
-                min={0}
-                step='0.01'
-                placeholder={computedAmount.toLocaleString('th-TH')}
-                {...form.register('amount', { valueAsNumber: true })}
+                type='text'
+                readOnly
+                tabIndex={-1}
+                value={amt(finalAmount, { symbol: false })}
+                className='bg-muted/50 cursor-default font-medium'
               />
               <p className='text-xs text-muted-foreground'>
                 {category === 'deposit'
