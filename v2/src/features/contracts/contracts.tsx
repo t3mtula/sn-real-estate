@@ -814,12 +814,18 @@ export function Contracts() {
                       STATUS_ACCENT_STRIP[row.original._status] ??
                         'border-l-2 border-l-transparent',
                     )}
-                    onClick={() =>
+                    onClick={() => {
+                      // โหมดเลือก (เลือกไว้แล้ว ≥1) → คลิกทั้งแถว = ติ๊ก/เอาติ๊กออก
+                      // ปกติ (ยังไม่เลือกอะไร) → คลิกแถว = เปิดหน้าสัญญา
+                      if (selectedCount > 0) {
+                        row.toggleSelected(!row.getIsSelected())
+                        return
+                      }
                       navigate({
                         to: '/contracts/$id',
                         params: { id: row.original.id },
                       })
-                    }
+                    }}
                     onMouseEnter={(e) => onRowEnter(row.original, e)}
                     onMouseMove={(e) => {
                       // Update position if popover is already open so it follows cursor
