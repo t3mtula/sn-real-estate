@@ -306,7 +306,8 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   }, [utilLines])
 
   // จับคู่เงินเข้า → สัญญา/ผู้เช่า (กรองด้วยบัญชี แล้วเทียบยอด+ชื่อ+น้ำไฟ)
-  const effectiveBankId = manualBankId ?? detectedBankAccId
+  // detect จาก statement = ตัวจริง (ชนะเสมอ) · เลือกเองใช้เฉพาะตอน detect ไม่เจอ
+  const effectiveBankId = detectedBankAccId ?? manualBankId
   const candidates = useMemo(
     () =>
       effectiveBankId && contracts
@@ -869,19 +870,32 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
                 <Badge variant='outline'>{BANK_LABEL[info.bank] ?? info.bank}</Badge>
                 {info.accountName && <span className='text-muted-foreground'>{info.accountName}</span>}
                 <div className='ms-auto flex items-center gap-1.5'>
-                  <Label className='text-xs text-muted-foreground'>บัญชีรับเงิน</Label>
-                  <Select value={manualBankId ?? detectedBankAccId ?? ''} onValueChange={(v) => setManualBankId(v)}>
-                    <SelectTrigger className='h-8 w-64 text-xs'>
-                      <SelectValue placeholder='— เลือกบัญชีรับเงิน —' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(bankAccounts ?? []).map((b) => (
-                        <SelectItem key={b.id} value={b.id}>
-                          {b.data?.bank} {b.data?.acctNo} · {b.data?.accountName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {detectedBankAccId ? (
+                    <Badge variant='outline' className='gap-1 border-green-300 text-green-600'>
+                      <CheckCircle2 className='size-3' />
+                      {(() => {
+                        const b = bankAccounts?.find((x) => x.id === detectedBankAccId)
+                        return `${b?.data?.bank ?? ''} ${b?.data?.acctNo ?? ''}`
+                      })()}
+                      <span className='font-normal text-muted-foreground'>(ล็อกจากไฟล์)</span>
+                    </Badge>
+                  ) : (
+                    <>
+                      <Label className='text-xs text-muted-foreground'>บัญชีรับเงิน</Label>
+                      <Select value={manualBankId ?? ''} onValueChange={(v) => setManualBankId(v)}>
+                        <SelectTrigger className='h-8 w-64 text-xs'>
+                          <SelectValue placeholder='— เลือกบัญชีรับเงิน —' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(bankAccounts ?? []).map((b) => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.data?.bank} {b.data?.acctNo} · {b.data?.accountName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </>
+                  )}
                 </div>
               </div>
 

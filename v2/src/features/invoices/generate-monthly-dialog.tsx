@@ -171,10 +171,11 @@ export function GenerateMonthlyDialog({
 
   // สรุปยอดตามบัญชีรับเงิน (เฉพาะใบที่เลือก) — เงินเข้าบัญชีไหนกี่ใบ กี่บาท
   const byAccount = (() => {
-    const m = new Map<string, { count: number; total: number }>()
+    const m = new Map<string, { count: number; total: number; name: string }>()
     for (const r of selectedRows) {
-      const key = r.bankLabel && r.bankLabel !== '—' ? r.bankLabel : '— ไม่ระบุบัญชี'
-      const cur = m.get(key) ?? { count: 0, total: 0 }
+      const noAcct = !r.bankLabel || r.bankLabel === '—'
+      const key = noAcct ? '— ไม่ระบุบัญชี' : r.bankLabel
+      const cur = m.get(key) ?? { count: 0, total: 0, name: noAcct ? '' : r.bankName }
       cur.count += 1
       cur.total += r.amount
       m.set(key, cur)
@@ -339,12 +340,22 @@ export function GenerateMonthlyDialog({
                               key={a.label}
                               className='flex items-center justify-between gap-3 border-b px-4 py-1.5 text-sm last:border-b-0'
                             >
-                              <span
-                                className={`truncate ${noAcct ? 'font-medium text-red-600 dark:text-red-400' : ''}`}
-                                title={a.label}
-                              >
-                                {a.label}
-                              </span>
+                              <div className='min-w-0'>
+                                <span
+                                  className={`block truncate font-medium ${noAcct ? 'text-red-600 dark:text-red-400' : ''}`}
+                                  title={a.name || a.label}
+                                >
+                                  {a.name || a.label}
+                                </span>
+                                {a.name && (
+                                  <span
+                                    className='block truncate text-xs text-muted-foreground'
+                                    title={a.label}
+                                  >
+                                    {a.label}
+                                  </span>
+                                )}
+                              </div>
                               <span className='shrink-0 text-muted-foreground'>
                                 {a.count.toLocaleString('th-TH')} ใบ ·{' '}
                                 <span className='font-semibold tabular-nums text-foreground'>
@@ -354,6 +365,14 @@ export function GenerateMonthlyDialog({
                             </div>
                           )
                         })}
+                      </div>
+                      {/* แถวรวม — กระทบยอดกับ run รวม */}
+                      <div className='flex items-center justify-between gap-3 border-t bg-muted/40 px-4 py-2 text-sm font-semibold'>
+                        <span>รวมทุกบัญชี</span>
+                        <span>
+                          {selectedCount.toLocaleString('th-TH')} ใบ ·{' '}
+                          <span className='tabular-nums'>{amt(sumAmount, { decimal: 0 })}</span>
+                        </span>
                       </div>
                     </details>
                   )}

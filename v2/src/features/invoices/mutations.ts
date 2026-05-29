@@ -534,6 +534,8 @@ export type BatchGeneratePreview = {
     landlord: string
     /** บัญชีรับเงิน (ธนาคาร · เลขบัญชี) */
     bankLabel: string
+    /** ชื่อบัญชี / เจ้าของบัญชี */
+    bankName: string
     /** ยอดรวมสุดท้าย (ค่าเช่า + VAT) — ตรงกับที่จะสร้างจริง */
     amount: number
     /** ค่าเช่าก่อน VAT (ต่อรอบบิล) */
@@ -723,6 +725,11 @@ export function useBatchGeneratePreview(month: string | undefined) {
             bk.accountName ||
             '—'
           : '—'
+        const bankName = bk
+          ? (bk.accountName as string | undefined)?.trim() ||
+            (bk.ownerLandlordName as string | undefined)?.trim() ||
+            ''
+          : ''
         const vatMode = (landlordData?.vatMode as InvoiceData['vatMode']) ?? 'none'
         const vatRate = Number(landlordData?.vatRate) || 0
         const vatAmount =
@@ -746,6 +753,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           property,
           landlord: landlordName,
           bankLabel,
+          bankName,
           amount: total,
           rentBase: amount,
           vatMode,
