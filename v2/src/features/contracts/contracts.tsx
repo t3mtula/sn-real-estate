@@ -141,6 +141,8 @@ export function Contracts() {
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
   const hoverTimer = useRef<number | null>(null)
+  // Anchor row id for shift-click range selection
+  const lastSelectedId = useRef<string | null>(null)
 
   function onRowEnter(row: Row, e: React.MouseEvent) {
     const x = e.clientX
@@ -194,7 +196,10 @@ export function Contracts() {
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
-            onCheckedChange={(v) => row.toggleSelected(!!v)}
+            onCheckedChange={(v) => {
+              row.toggleSelected(!!v)
+              lastSelectedId.current = row.id // anchor for shift-range
+            }}
             aria-label='เลือก'
             onClick={(e) => e.stopPropagation()}
           />
@@ -478,6 +483,22 @@ export function Contracts() {
 
   const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k])
   const selectedCount = selectedIds.length
+
+  // Shift-click: select every row between the anchor and the target (visible order).
+  // Returns false if there's no valid anchor yet (caller falls back to single toggle).
+  function selectRange(targetId: string): boolean {
+    const anchorId = lastSelectedId.current
+    if (!anchorId || anchorId === targetId) return false
+    const viewRows = table.getRowModel().rows
+    const ai = viewRows.findIndex((r) => r.id === anchorId)
+    const ti = viewRows.findIndex((r) => r.id === targetId)
+    if (ai < 0 || ti < 0) return false
+    const [lo, hi] = ai < ti ? [ai, ti] : [ti, ai]
+    const next: RowSelectionState = { ...rowSelection }
+    for (let i = lo; i <= hi; i++) next[viewRows[i].id] = true
+    setRowSelection(next)
+    return true
+  }
 
   // tag ที่มีอยู่บนสัญญาที่เลือก (ใช้เป็นตัวเลือกตอน "เอา tag ออก")
   const tagsOnSelected = useMemo(() => {
@@ -814,17 +835,24 @@ export function Contracts() {
                       STATUS_ACCENT_STRIP[row.original._status] ??
                         'border-l-2 border-l-transparent',
                     )}
-                    onClick={() => {
+                    onClick={(e) => {
                       // โหมดเลือก (เลือกไว้แล้ว ≥1) → คลิกทั้งแถว = ติ๊ก/เอาติ๊กออก
+                      //   · Shift+คลิก = เลือกเป็นช่วงจากอันก่อนหน้า
                       // ปกติ (ยังไม่เลือกอะไร) → คลิกแถว = เปิดหน้าสัญญา
                       if (selectedCount > 0) {
+                        if (e.shiftKey && selectRange(row.id)) return
                         row.toggleSelected(!row.getIsSelected())
+                        lastSelectedId.current = row.id
                         return
                       }
                       navigate({
                         to: '/contracts/$id',
                         params: { id: row.original.id },
                       })
+                    }}
+                    onMouseDown={(e) => {
+                      // กัน browser ลากไฮไลต์ข้อความตอน Shift+คลิกเลือกช่วง
+                      if (e.shiftKey) e.preventDefault()
                     }}
                     onMouseEnter={(e) => onRowEnter(row.original, e)}
                     onMouseMove={(e) => {
@@ -846,7 +874,9 @@ export function Contracts() {
                             isSelect
                               ? (e) => {
                                   e.stopPropagation()
+                                  if (e.shiftKey && selectRange(row.id)) return
                                   row.toggleSelected(!row.getIsSelected())
+                                  lastSelectedId.current = row.id
                                 }
                               : undefined
                           }
