@@ -27,7 +27,7 @@ export function TemplateDocEditor({ id }: { id: string }) {
 
   // Seed the editor once the template loads.
   useEffect(() => {
-    if (template && value === null) {
+    if (template?.data && value === null) {
       setValue(template.data.doc ?? structuredToPlate(template.data))
     }
   }, [template, value])
@@ -37,6 +37,19 @@ export function TemplateDocEditor({ id }: { id: string }) {
     await update.mutateAsync({ data: { doc: value } })
     setDirty(false)
     toast.success('บันทึกเอกสารแล้ว')
+  }
+
+  if (!isLoading && !template) {
+    return (
+      <>
+        <Header fixed>
+          <BackButton fallback='/templates' />
+        </Header>
+        <Main>
+          <p className='text-sm text-muted-foreground'>ไม่พบแบบสัญญานี้</p>
+        </Main>
+      </>
+    )
   }
 
   if (isLoading || value === null) {

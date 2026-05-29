@@ -1,4 +1,4 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import {
   closestCenter,
   DndContext,
@@ -397,11 +397,14 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
           </div>
           <div className='flex gap-2'>
             {mode === 'edit' && id && (
-              <Button asChild variant='outline'>
-                <Link to='/templates/$id/doc' params={{ id }}>
-                  <FileText className='size-4' />
-                  โหมดเอกสาร
-                </Link>
+              <Button
+                variant='outline'
+                onClick={() =>
+                  navigate({ to: '/templates/$id/doc', params: { id } })
+                }
+              >
+                <FileText className='size-4' />
+                โหมดเอกสาร
               </Button>
             )}
             {mode === 'new' && (
