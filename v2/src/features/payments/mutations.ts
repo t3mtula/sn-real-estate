@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { logActivity } from '@/lib/audit-log'
 import { supabase } from '@/lib/supabase'
-import { recordPaymentCore, deletePaymentCore } from './core'
+import { recordPaymentCore, deletePaymentCore, allocatePaymentToInvoices } from './core'
 import type { PaymentFormValues } from './schema'
 import type { Payment, PaymentStatus } from './types'
 
@@ -51,6 +51,7 @@ export interface BatchPaymentRow {
   sourceBankCode?: string
   sourceAcctSuffix?: string
   pickedManually?: boolean
+  fingerprint?: string
   payMethod?: 'transfer' | 'cash' | 'check' | 'promptpay'
   notes?: string
   status: PaymentStatus
@@ -73,6 +74,7 @@ export function useBatchSavePayments() {
           sourceBankCode: r.sourceBankCode || undefined,
           sourceAcctSuffix: r.sourceAcctSuffix || undefined,
           pickedManually: r.pickedManually || undefined,
+          fingerprint: r.fingerprint || undefined,
           payMethod: r.payMethod ?? 'transfer',
           notes: r.notes ?? undefined,
           status: r.status,
@@ -93,6 +95,25 @@ export function useBatchSavePayments() {
     },
     onError: (err) => {
       toast.error('นำเข้าไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    },
+  })
+}
+
+/** Allocate an existing (parked) payment to invoices — greedy, leftover stays as credit */
+export function useAllocatePayment() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ payment, invoiceIds }: { payment: Payment; invoiceIds: string[] }) =>
+      allocatePaymentToInvoices(payment, invoiceIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [TABLE] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success('จับคู่เงินกับใบแจ้งหนี้แล้ว')
+    },
+    onError: (err) => {
+      toast.error('จับคู่ไม่สำเร็จ', {
         description: err instanceof Error ? err.message : String(err),
       })
     },

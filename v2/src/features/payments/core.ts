@@ -221,6 +221,73 @@ export async function recordPaymentCore(input: RecordPaymentInput): Promise<Paym
 }
 
 /**
+ * จับคู่ payment ที่มีอยู่แล้ว (เช่นที่ import มาแบบยังไม่จับ) เข้ากับใบแจ้งหนี้
+ * — greedy: เติมแต่ละใบให้เต็มก่อนไปใบถัดไป (เรียงตาม invoice_ids ที่ส่งมา)
+ * — ส่วนที่เกินจากยอดใบทั้งหมด = "เครดิตยกไป" (payment เหลือ status partial)
+ * — recompute ทั้งใบใหม่ + ใบเก่าที่เคยจับ (กันยอดค้างที่ใบเดิม)
+ */
+export async function allocatePaymentToInvoices(payment: Payment, invoiceIds: string[]): Promise<void> {
+  const oldInvoiceIds = (payment.data.allocations ?? []).map((a) => a.invoice_id)
+
+  const { data: ivRows, error: ivErr } = await supabase
+    .from(INV)
+    .select('id, data, contract_id')
+    .in('id', invoiceIds.length ? invoiceIds : ['__none__'])
+  if (ivErr) throw ivErr
+  const byId = new Map(
+    (ivRows ?? []).map((r) => [r.id as string, { data: r.data as Record<string, unknown>, contract_id: r.contract_id as string | null }]),
+  )
+
+  const allocations: PaymentAllocation[] = []
+  let derivedContractId: string | undefined
+  let remaining = Number(payment.data.amount) || 0
+  for (const ivId of invoiceIds) {
+    if (remaining <= 0.01) break
+    const row = byId.get(ivId)
+    if (!row) continue
+    const dd = row.data
+    const total = Number(dd.total ?? 0)
+    const already = Number(dd.paidAmount ?? dd.paid_amount ?? 0)
+    const out = Math.max(0, total - already)
+    const alloc = Math.min(remaining, out)
+    if (alloc <= 0) continue
+    allocations.push({ invoice_id: ivId, amount: alloc })
+    remaining -= alloc
+    if (!derivedContractId) derivedContractId = row.contract_id ?? (dd.cid != null ? String(dd.cid) : undefined)
+  }
+
+  const leftover = (Number(payment.data.amount) || 0) - allocations.reduce((s, a) => s + a.amount, 0)
+  const status: PaymentStatus =
+    allocations.length === 0 ? 'unallocated' : leftover > 0.01 ? 'partial' : 'matched'
+
+  const { error: upErr } = await supabase
+    .from(PAY)
+    .update({
+      data: {
+        ...payment.data,
+        contract_id: payment.data.contract_id || derivedContractId || undefined,
+        allocations,
+        status,
+      },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', payment.id)
+  if (upErr) throw upErr
+
+  const affected = new Set<string>([...oldInvoiceIds, ...allocations.map((a) => a.invoice_id)])
+  for (const id of affected) await recomputeInvoiceMirror(id)
+
+  await logActivity({
+    action: 'update',
+    entity: 'payment',
+    entity_id: payment.id,
+    description:
+      `จับคู่เงิน ${Math.round(Number(payment.data.amount) || 0).toLocaleString('th-TH')} บาท เข้า ${allocations.length} ใบ` +
+      (leftover > 0.01 ? ` · เหลือเครดิต ${Math.round(leftover).toLocaleString('th-TH')} บาท` : ''),
+  })
+}
+
+/**
  * ปลดการจับคู่ invoice ออกจาก payments ทุกแถว (ใช้ตอนจะลบ invoice)
  * — เงินไม่หาย · payment ที่ไม่เหลือ allocation = กลายเป็น "ยังไม่จับคู่"
  */

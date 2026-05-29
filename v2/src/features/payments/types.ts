@@ -18,6 +18,7 @@ export interface PaymentData {
   sourceBankCode?: string        // ธนาคารต้นทาง เช่น KBANK (จาก statement)
   sourceAcctSuffix?: string      // เลขท้ายบัญชีต้นทาง เช่น 9812 — ใช้ "จำผู้เช่า" (A)
   pickedManually?: boolean       // พนักงานเลือกผู้เช่าเอง (≠ ระบบเดา) → ใช้ถ่วงน้ำหนักตอนเรียนรู้ (A)
+  fingerprint?: string           // ลายนิ้วมือของ "โอนต้นทาง" (วันที่+ยอดเต็ม+เวลา+เลขต้นทาง) — กันซ้ำแม้แบ่งจ่าย (D)
   slipRef?: string               // unique transRef จาก slip
   slipImageUrl?: string
   receiptNo?: string             // เลขใบเสร็จ

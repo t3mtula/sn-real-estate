@@ -4,8 +4,8 @@
  */
 import * as pdfjsLib from 'pdfjs-dist'
 import * as XLSX from 'xlsx'
-import { useState, useRef, useMemo } from 'react'
-import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Ban, Settings2, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState, useRef, useMemo, Fragment } from 'react'
+import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Ban, Settings2, ChevronDown, ChevronRight, Split, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -216,6 +216,25 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       else next.add(id)
       return next
     })
+  // สเต็ป 2 — แบ่งจ่าย: rowId → หลายบรรทัด {สัญญา, ยอด} · มีค่า = อยู่โหมดแบ่ง
+  const [splits, setSplits] = useState<Record<string, { contractId: string; amount: number }[]>>({})
+  const startSplit = (id: string, full: number, suggested?: string) =>
+    setSplits((prev) => ({
+      ...prev,
+      [id]: [
+        { contractId: suggested ?? '', amount: full },
+        { contractId: '', amount: 0 },
+      ],
+    }))
+  const cancelSplit = (id: string) =>
+    setSplits((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  const setSplitLines = (id: string, lines: { contractId: string; amount: number }[]) =>
+    setSplits((prev) => ({ ...prev, [id]: lines }))
+
   // มุมมอง manage-by-exception
   const [showOnlyNeeded, setShowOnlyNeeded] = useState(false) // กรอง "เฉพาะที่ต้องจับ"
   const [collapseGreen, setCollapseGreen] = useState(true) // พับกลุ่ม 🟢 จับให้แล้ว
@@ -345,7 +364,9 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const existingFingerprints = useMemo(() => {
     const s = new Set<string>()
     for (const p of existingPays.data ?? []) {
-      s.add(txFingerprint(p.data.date, Number(p.data.amount) || 0, p.data.time, p.data.sourceAcctSuffix))
+      // ลายนิ้วมือ "โอนต้นทาง" ที่เก็บไว้ (กันซ้ำแม้แบ่งจ่าย) + reconstruct เผื่อ payment เก่า
+      if (p.data.fingerprint) s.add(p.data.fingerprint)
+      else s.add(txFingerprint(p.data.date, Number(p.data.amount) || 0, p.data.time, p.data.sourceAcctSuffix))
     }
     return s
   }, [existingPays.data])
@@ -371,6 +392,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     setManualBankId(undefined)
     setPicked({})
     setNotRent(new Set())
+    setSplits({})
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -436,23 +458,46 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     if (selected.length === 0) return
 
     setStep('saving')
-    const batch: BatchPaymentRow[] = selected.map((r) => {
-      const isOther = notRent.has(r._id)
-      return {
+    const batch: BatchPaymentRow[] = selected.flatMap((r) => {
+      const fp = txFingerprint(r.date, r.amount, r.time, r.sourceAcctSuffix)
+      const base = {
         date: r.date,
         time: r.time || undefined,
-        amount: r.amount,
         bank_account_id: effectiveBankId ?? r.matchedBankAccountId,
-        // "ไม่ใช่ค่าเช่า" → ไม่ผูกสัญญา · บันทึกเป็นเงินเข้าสถานะ other (ยอดบัญชีกระทบครบ)
-        contract_id: isOther ? undefined : (picked[r._id] ?? matches.get(r._id)?.contractId),
         payerName: r.payerName,
         sourceBankCode: r.sourceBankCode || undefined,
         sourceAcctSuffix: r.sourceAcctSuffix || undefined,
-        pickedManually: isOther ? false : picked[r._id] != null,
+        fingerprint: fp, // ลายนิ้วมือ "โอนต้นทาง" เต็มก้อน — กันซ้ำแม้แบ่งจ่าย
         payMethod: 'transfer' as const,
-        notes: r.description,
-        status: isOther ? ('other' as const) : ('unallocated' as const),
       }
+      // สเต็ป 2 — แบ่งจ่าย: 1 โอน → หลาย payment (ห้องละ record · ใช้ fingerprint เดียวกัน)
+      // แบ่งเฉพาะตอนถูกต้อง (ทุกบรรทัดมีสัญญา + ยอดรวมตรงกับยอดโอน) มิฉะนั้นเซฟเป็นก้อนเดียว
+      const sp = splits[r._id]
+      const spSum = sp ? sp.reduce((s, l) => s + (Number(l.amount) || 0), 0) : 0
+      const spValid = !!sp && sp.length > 1 && sp.every((l) => l.contractId) && Math.abs(spSum - r.amount) <= 1
+      if (spValid && sp) {
+        const lines = sp.filter((l) => Number(l.amount) > 0)
+        return lines.map((l, i) => ({
+          ...base,
+          amount: Number(l.amount),
+          contract_id: l.contractId,
+          pickedManually: true,
+          notes: `แบ่งจ่าย ${i + 1}/${lines.length} · ${r.description}`,
+          status: 'unallocated' as const,
+        }))
+      }
+      // "ไม่ใช่ค่าเช่า" → ไม่ผูกสัญญา · บันทึกเป็นเงินเข้าสถานะ other (ยอดบัญชีกระทบครบ)
+      const isOther = notRent.has(r._id)
+      return [
+        {
+          ...base,
+          amount: r.amount,
+          contract_id: isOther ? undefined : (picked[r._id] ?? matches.get(r._id)?.contractId),
+          pickedManually: isOther ? false : picked[r._id] != null,
+          notes: r.description,
+          status: isOther ? ('other' as const) : ('unallocated' as const),
+        },
+      ]
     })
 
     try {
@@ -479,6 +524,13 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
     for (const r of rows) {
       if (dupIds.has(r._id)) { m.set(r._id, 'dup'); continue }
       if (notRent.has(r._id)) { m.set(r._id, 'other'); continue }
+      const sp = splits[r._id]
+      if (sp) {
+        const sum = sp.reduce((s, l) => s + (Number(l.amount) || 0), 0)
+        const valid = sp.length > 1 && sp.every((l) => l.contractId) && Math.abs(sum - r.amount) <= 1
+        m.set(r._id, valid ? 'matched' : 'review')
+        continue
+      }
       const mt = matches.get(r._id)
       const chosen = picked[r._id] ?? mt?.contractId
       if (chosen && (picked[r._id] != null || mt?.confidence === 'high')) m.set(r._id, 'matched')
@@ -486,7 +538,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       else m.set(r._id, 'unmatched')
     }
     return m
-  }, [rows, dupIds, notRent, matches, picked])
+  }, [rows, dupIds, notRent, splits, matches, picked])
 
   const grouped = useMemo(() => {
     const g: Record<RowState, ImportRow[]> = { unmatched: [], review: [], matched: [], other: [], dup: [] }
@@ -502,11 +554,31 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const showTime = !hiddenCols.has('time')
   const colCount = 4 + (showPayer ? 1 : 0) + (showSource ? 1 : 0) + (showTime ? 1 : 0)
 
-  /** แถว 1 รายการ — ใช้ร่วมทุกกลุ่ม */
+  // ตัวเลือกสัญญาใน dropdown (ใช้ซ้ำทั้งช่องจับคู่หลัก + ช่องแบ่งจ่าย · ไม่ copy)
+  const candidateItems =
+    candidates.length === 0 ? (
+      <div className='px-2 py-1 text-xs text-muted-foreground'>ไม่มีสัญญาผูกบัญชีนี้</div>
+    ) : (
+      candidates.map((c) => {
+        const ar = arrearsByContract.get(c.id)
+        return (
+          <SelectItem key={c.id} value={c.id} className='text-xs'>
+            {c.tenant || c.no}
+            {c.room ? ` · ${c.room}` : ''} · {amt(c.expected, { decimal: 0, symbol: false })}
+            {ar ? ` · ค้าง ${ar.count} ใบ` : ''}
+          </SelectItem>
+        )
+      })
+    )
+
+  /** แถว 1 รายการ — ใช้ร่วมทุกกลุ่ม (คืน Fragment: แถวหลัก + ตัวแก้แบ่งจ่ายถ้ามี) */
   const renderRow = (r: ImportRow) => {
     const st = rowStateById.get(r._id)
     const isDup = st === 'dup'
     const isOther = st === 'other'
+    const sp = splits[r._id]
+    const splitSum = sp ? sp.reduce((s, l) => s + (Number(l.amount) || 0), 0) : 0
+    const splitOk = !!sp && sp.length > 1 && sp.every((l) => l.contractId) && Math.abs(splitSum - r.amount) <= 1
     const mt = matches.get(r._id)
     const chosen = picked[r._id] ?? mt?.contractId ?? ''
     const pct = mt?.score ?? 0
@@ -515,102 +587,157 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       : pct >= 40 ? 'text-amber-600 border-amber-300 bg-amber-50'
       : 'text-muted-foreground border-border'
     return (
-      <tr
-        key={r._id}
-        className={cn(
-          'transition-colors',
-          isDup ? 'opacity-50' : cn('cursor-pointer hover:bg-muted/40', !r.selected && 'opacity-40'),
-        )}
-        onClick={() => toggleRow(r._id)}
-      >
-        <td className='p-2 text-center align-top'>
-          <Checkbox
-            checked={r.selected && !isDup}
-            disabled={isDup}
-            onCheckedChange={() => toggleRow(r._id)}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </td>
-        {showSource && (
-          <td className='whitespace-nowrap p-2 align-top text-[11px] text-muted-foreground'>
-            {r.sourceBankCode || '—'}
-            {r.sourceAcctSuffix ? ` x${r.sourceAcctSuffix}` : ''}
-          </td>
-        )}
-        <td className='whitespace-nowrap p-2 align-top font-mono'>
-          {r.date}
-          {isDup && (
-            <span className='ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'>
-              ซ้ำ
-            </span>
+      <Fragment key={r._id}>
+        <tr
+          className={cn(
+            'transition-colors',
+            isDup ? 'opacity-50' : cn('cursor-pointer hover:bg-muted/40', !r.selected && 'opacity-40'),
           )}
-        </td>
-        {showTime && (
-          <td className='whitespace-nowrap p-2 align-top text-muted-foreground'>{r.time || '—'}</td>
-        )}
-        <td className='whitespace-nowrap p-2 text-right align-top font-semibold tabular-nums'>
-          {amt(r.amount, { decimal: 0, symbol: false })}
-        </td>
-        {showPayer && (
-          <td className='max-w-[140px] truncate p-2 align-top' title={r.payerName}>
-            {r.payerName || '—'}
+          onClick={() => toggleRow(r._id)}
+        >
+          <td className='p-2 text-center align-top'>
+            <Checkbox
+              checked={r.selected && !isDup}
+              disabled={isDup}
+              onCheckedChange={() => toggleRow(r._id)}
+              onClick={(e) => e.stopPropagation()}
+            />
           </td>
-        )}
-        <td className='max-w-[260px] p-2 align-top' onClick={(e) => e.stopPropagation()}>
-          {isOther ? (
-            <div className='flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
-              <span className='flex items-center gap-1'>
-                <Ban className='size-3 shrink-0' /> ไม่ใช่ค่าเช่า
-              </span>
-              <button
-                type='button'
-                className='shrink-0 underline-offset-2 hover:underline'
-                onClick={() => toggleNotRent(r._id)}
-              >
-                คืนค่า
-              </button>
-            </div>
-          ) : (
-            <div className='flex items-center gap-1.5'>
-              <span
-                className={cn('shrink-0 rounded border px-1 text-[10px] tabular-nums', pctCls)}
-                title={mt?.reason ?? 'ยังไม่จับคู่'}
-              >
-                {pct > 0 ? `${pct}%` : '—'}
-              </span>
-              <Select value={chosen} onValueChange={(v) => setPicked((p) => ({ ...p, [r._id]: v }))}>
-                <SelectTrigger className='h-7 text-xs'>
-                  <SelectValue placeholder='เลือกผู้เช่า…' />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidates.length === 0 ? (
-                    <div className='px-2 py-1 text-xs text-muted-foreground'>ไม่มีสัญญาผูกบัญชีนี้</div>
-                  ) : (
-                    candidates.map((c) => {
-                      const ar = arrearsByContract.get(c.id)
-                      return (
-                        <SelectItem key={c.id} value={c.id} className='text-xs'>
-                          {c.tenant || c.no}
-                          {c.room ? ` · ${c.room}` : ''} · {amt(c.expected, { decimal: 0, symbol: false })}
-                          {ar ? ` · ค้าง ${ar.count} ใบ` : ''}
-                        </SelectItem>
-                      )
-                    })
-                  )}
-                </SelectContent>
-              </Select>
-              <button
-                type='button'
-                title='ไม่ใช่ค่าเช่า (โอนผิด/เงินอื่น)'
-                className='shrink-0 text-muted-foreground hover:text-foreground'
-                onClick={() => toggleNotRent(r._id)}
-              >
-                <Ban className='size-3.5' />
-              </button>
-            </div>
+          {showSource && (
+            <td className='whitespace-nowrap p-2 align-top text-[11px] text-muted-foreground'>
+              {r.sourceBankCode || '—'}
+              {r.sourceAcctSuffix ? ` x${r.sourceAcctSuffix}` : ''}
+            </td>
           )}
-        </td>
-      </tr>
+          <td className='whitespace-nowrap p-2 align-top font-mono'>
+            {r.date}
+            {isDup && (
+              <span className='ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'>
+                ซ้ำ
+              </span>
+            )}
+          </td>
+          {showTime && (
+            <td className='whitespace-nowrap p-2 align-top text-muted-foreground'>{r.time || '—'}</td>
+          )}
+          <td className='whitespace-nowrap p-2 text-right align-top font-semibold tabular-nums'>
+            {amt(r.amount, { decimal: 0, symbol: false })}
+          </td>
+          {showPayer && (
+            <td className='max-w-[140px] truncate p-2 align-top' title={r.payerName}>
+              {r.payerName || '—'}
+            </td>
+          )}
+          <td className='max-w-[260px] p-2 align-top' onClick={(e) => e.stopPropagation()}>
+            {isOther ? (
+              <div className='flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
+                <span className='flex items-center gap-1'>
+                  <Ban className='size-3 shrink-0' /> ไม่ใช่ค่าเช่า
+                </span>
+                <button type='button' className='shrink-0 underline-offset-2 hover:underline' onClick={() => toggleNotRent(r._id)}>
+                  คืนค่า
+                </button>
+              </div>
+            ) : sp ? (
+              <div className='flex items-center justify-between gap-1.5 text-xs'>
+                <span className={cn('flex items-center gap-1', splitOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                  <Split className='size-3 shrink-0' /> แบ่ง {sp.filter((l) => l.contractId).length} ห้อง
+                  {!splitOk && ' · ยอดไม่ตรง'}
+                </span>
+                <button type='button' className='shrink-0 underline-offset-2 hover:underline' onClick={() => cancelSplit(r._id)}>
+                  ยกเลิก
+                </button>
+              </div>
+            ) : (
+              <div className='flex items-center gap-1.5'>
+                <span className={cn('shrink-0 rounded border px-1 text-[10px] tabular-nums', pctCls)} title={mt?.reason ?? 'ยังไม่จับคู่'}>
+                  {pct > 0 ? `${pct}%` : '—'}
+                </span>
+                <Select value={chosen} onValueChange={(v) => setPicked((p) => ({ ...p, [r._id]: v }))}>
+                  <SelectTrigger className='h-7 text-xs'>
+                    <SelectValue placeholder='เลือกผู้เช่า…' />
+                  </SelectTrigger>
+                  <SelectContent>{candidateItems}</SelectContent>
+                </Select>
+                <button
+                  type='button'
+                  title='แบ่งจ่าย (1 โอน → หลายห้อง)'
+                  className='shrink-0 text-muted-foreground hover:text-foreground'
+                  onClick={() => startSplit(r._id, r.amount, chosen || undefined)}
+                >
+                  <Split className='size-3.5' />
+                </button>
+                <button
+                  type='button'
+                  title='ไม่ใช่ค่าเช่า (โอนผิด/เงินอื่น)'
+                  className='shrink-0 text-muted-foreground hover:text-foreground'
+                  onClick={() => toggleNotRent(r._id)}
+                >
+                  <Ban className='size-3.5' />
+                </button>
+              </div>
+            )}
+          </td>
+        </tr>
+        {sp && (
+          <tr className='bg-muted/20'>
+            <td colSpan={colCount} className='px-4 py-2.5' onClick={(e) => e.stopPropagation()}>
+              <div className='space-y-1.5'>
+                <div className='text-xs font-medium text-muted-foreground'>
+                  แบ่งจ่าย {amt(r.amount, { decimal: 0, symbol: false })} บาท เป็นหลายห้อง:
+                </div>
+                {sp.map((ln, i) => (
+                  <div key={i} className='flex items-center gap-2'>
+                    <Select
+                      value={ln.contractId}
+                      onValueChange={(v) =>
+                        setSplitLines(r._id, sp.map((x, j) => (j === i ? { ...x, contractId: v } : x)))
+                      }
+                    >
+                      <SelectTrigger className='h-7 flex-1 text-xs'>
+                        <SelectValue placeholder='เลือกห้อง/ผู้เช่า…' />
+                      </SelectTrigger>
+                      <SelectContent>{candidateItems}</SelectContent>
+                    </Select>
+                    <Input
+                      type='number'
+                      inputMode='decimal'
+                      value={ln.amount || ''}
+                      onChange={(e) =>
+                        setSplitLines(r._id, sp.map((x, j) => (j === i ? { ...x, amount: Number(e.target.value) || 0 } : x)))
+                      }
+                      className='h-7 w-28 text-right text-xs tabular-nums'
+                      placeholder='ยอด'
+                    />
+                    <button
+                      type='button'
+                      className='shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-30'
+                      disabled={sp.length <= 2}
+                      onClick={() => setSplitLines(r._id, sp.filter((_, j) => j !== i))}
+                      title='ลบบรรทัด'
+                    >
+                      <X className='size-3.5' />
+                    </button>
+                  </div>
+                ))}
+                <div className='flex items-center justify-between pt-0.5'>
+                  <button
+                    type='button'
+                    className='flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline'
+                    onClick={() => setSplitLines(r._id, [...sp, { contractId: '', amount: 0 }])}
+                  >
+                    <Plus className='size-3' /> เพิ่มห้อง
+                  </button>
+                  <span className={cn('text-xs tabular-nums', splitOk ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                    รวม {amt(splitSum, { decimal: 0, symbol: false })} / {amt(r.amount, { decimal: 0, symbol: false })}
+                    {!splitOk && Math.abs(splitSum - r.amount) > 1 && ` (ต่าง ${amt(Math.abs(splitSum - r.amount), { decimal: 0, symbol: false })})`}
+                  </span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        )}
+      </Fragment>
     )
   }
 

@@ -1,10 +1,12 @@
+import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, Ban, Banknote, CircleCheck, CircleDot, CircleHelp, Trash2 } from 'lucide-react'
+import { ArrowLeft, Ban, Banknote, CircleCheck, CircleDot, CircleHelp, Link2, Trash2 } from 'lucide-react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
@@ -13,7 +15,7 @@ import { useInvoices } from '@/features/invoices/queries'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 import { usePayment } from './queries'
-import { useDeletePayment } from './mutations'
+import { useDeletePayment, useAllocatePayment } from './mutations'
 import { PAY_METHOD_LABELS } from './schema'
 import type { PaymentStatus } from './types'
 
@@ -43,8 +45,10 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
   const { data: bankAccounts } = useBankAccounts()
   const { data: invoices } = useInvoices()
   const del = useDeletePayment()
+  const allocate = useAllocatePayment()
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [sel, setSel] = useState<Set<string>>(new Set())
 
   if (isLoading) return (
     <>
@@ -66,6 +70,40 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
   const st = d.status ?? 'unallocated'
   const stCfg = STATUS_CONFIG[st as PaymentStatus] ?? STATUS_CONFIG.unallocated
   const StIcon = stCfg.icon
+
+  // สเต็ป 3 — จับคู่เงินค้างเข้าใบแจ้งหนี้ของสัญญานี้ (เฉพาะเงินที่ยังไม่จับ)
+  const outstandingInvoices = (invoices ?? [])
+    .filter((i) => i.contract_id === d.contract_id)
+    .map((i) => {
+      const total = Number(i.data?.total) || 0
+      const paid = Number(i.data?.paidAmount ?? i.data?.paid_amount ?? 0) || 0
+      return { inv: i, out: Math.max(0, total - paid) }
+    })
+    .filter((x) => {
+      const s = (x.inv.status ?? x.inv.data?.status ?? '').toLowerCase()
+      return s !== 'paid' && s !== 'voided' && x.out > 0.01
+    })
+    .sort((a, b) => String(a.inv.data?.month ?? '').localeCompare(String(b.inv.data?.month ?? '')))
+
+  const canAllocate = st === 'unallocated' && !!d.contract_id && outstandingInvoices.length > 0
+  const payAmount = Number(d.amount) || 0
+  // greedy preview: เติมตามใบที่เลือก (เรียงเก่า→ใหม่) จนเงินหมด · เหลือ = เครดิตยกไป
+  const allocPreview = new Map<string, number>()
+  let rem = payAmount
+  for (const { inv, out } of outstandingInvoices) {
+    if (!sel.has(inv.id) || rem <= 0.01) continue
+    const a = Math.min(rem, out)
+    allocPreview.set(inv.id, a)
+    rem -= a
+  }
+  const creditLeft = rem
+
+  async function handleAllocate() {
+    const ids = outstandingInvoices.filter((x) => sel.has(x.inv.id)).map((x) => x.inv.id)
+    if (ids.length === 0) return
+    await allocate.mutateAsync({ payment: payment!, invoiceIds: ids })
+    setSel(new Set())
+  }
 
   async function handleDelete() {
     const ok = await confirm({
@@ -150,6 +188,69 @@ export function PaymentDetail({ id }: PaymentDetailProps) {
               ) : '—'}
             </Field>
           </section>
+
+          {/* จับคู่เงินค้างเข้าใบแจ้งหนี้ (สเต็ป 3) */}
+          {canAllocate && (
+            <section className='rounded-lg border p-4'>
+              <h2 className='mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground'>
+                จับคู่กับใบแจ้งหนี้
+              </h2>
+              <p className='mb-3 text-xs text-muted-foreground'>
+                เลือกใบที่จะให้เงินก้อนนี้จ่าย · จ่ายใบเก่าก่อน · ส่วนที่เกินเก็บเป็นเครดิตยกไปจ่ายใบหน้า
+              </p>
+              <div className='space-y-1'>
+                {outstandingInvoices.map(({ inv, out }) => {
+                  const prev = allocPreview.get(inv.id)
+                  const checked = sel.has(inv.id)
+                  return (
+                    <label
+                      key={inv.id}
+                      className='flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted/40'
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() =>
+                          setSel((p) => {
+                            const n = new Set(p)
+                            if (n.has(inv.id)) n.delete(inv.id)
+                            else n.add(inv.id)
+                            return n
+                          })
+                        }
+                      />
+                      <span className='flex-1'>
+                        {String(inv.data?.invoiceNo ?? inv.id)}
+                        {inv.data?.month != null && (
+                          <span className='ml-1 text-muted-foreground'>· {String(inv.data.month)}</span>
+                        )}
+                      </span>
+                      <span className='tabular-nums text-muted-foreground'>ค้าง {amt(out, { decimal: 0 })}</span>
+                      {prev != null && (
+                        <span className='w-24 text-right font-medium tabular-nums text-emerald-600 dark:text-emerald-400'>
+                          จ่าย {amt(prev, { decimal: 0 })}
+                        </span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+              <div className='mt-3 flex items-center justify-between border-t pt-3 text-sm'>
+                <span className='text-muted-foreground'>
+                  เงินก้อนนี้ {amt(payAmount, { decimal: 0 })} ·{' '}
+                  {creditLeft > 0.01 ? (
+                    <span className='font-medium text-amber-600 dark:text-amber-400'>
+                      เหลือเครดิต {amt(creditLeft, { decimal: 0 })}
+                    </span>
+                  ) : (
+                    <span className='font-medium text-emerald-600 dark:text-emerald-400'>จ่ายครบพอดี</span>
+                  )}
+                </span>
+                <Button size='sm' onClick={handleAllocate} disabled={sel.size === 0 || allocate.isPending}>
+                  <Link2 className='size-3.5' /> จับคู่ {sel.size} ใบ
+                </Button>
+              </div>
+            </section>
+          )}
 
           {/* Allocations */}
           {(d.allocations?.length ?? 0) > 0 && (
