@@ -17,7 +17,6 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  FileText,
   GripVertical,
   Loader2,
   Plus,
@@ -396,17 +395,6 @@ export function ContractTemplateEditor({ id }: { id?: string }) {
             </p>
           </div>
           <div className='flex gap-2'>
-            {mode === 'edit' && id && (
-              <Button
-                variant='outline'
-                onClick={() =>
-                  navigate({ to: '/templates/doc/$id', params: { id } })
-                }
-              >
-                <FileText className='size-4' />
-                โหมดเอกสาร
-              </Button>
-            )}
             {mode === 'new' && (
               <Button
                 variant='outline'
