@@ -11,6 +11,7 @@ import {
   getPaymentFreq,
   isContractDueForMonth,
 } from '@/features/invoices/queries'
+import { recordPaymentCore } from '@/features/payments/core'
 import type { GenerateInvoiceFormValues } from '@/features/invoices/schema'
 import type {
   Invoice,
@@ -842,41 +843,15 @@ export function useDeleteInvoice() {
   })
 }
 
-// ── Counter allocation helpers (via Postgres RPC) ──────────────────────────
+// ── Record payment ───────────────────────────────────────────────────────────
 //
-// RPC functions defined in migration 20260524000001_invoice_counters.sql:
-//   allocate_receipt_nos(invoice_month text, count int) → text[]
-//   allocate_tax_invoice_nos(issue_date date, count int) → text[]
-//
-// Both use pg_advisory_xact_lock so concurrent callers are serialised
-// per period — no duplicate numbers within v2.  v1 collision is accepted
-// (Tem 24 พ.ค. 2026).
-
-async function allocateReceiptNos(month: string, count: number): Promise<string[]> {
-  const { data, error } = await supabase.rpc('allocate_receipt_nos', {
-    invoice_month: month,
-    count,
-  })
-  if (error) throw new Error(`allocate_receipt_nos: ${error.message}`)
-  return data as string[]
-}
-
-async function allocateTaxInvoiceNos(count: number): Promise<string[]> {
-  const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-  const { data, error } = await supabase.rpc('allocate_tax_invoice_nos', {
-    issue_date: today,
-    count,
-  })
-  if (error) throw new Error(`allocate_tax_invoice_nos: ${error.message}`)
-  return data as string[]
-}
+// เงินทุกก้อนเก็บใน `payments` table ที่เดียว (single source of truth)
+// receiptNo / taxInvoiceNo / paidAmount ของ invoice ถูก recompute ใน
+// recordPaymentCore → recomputeInvoiceMirror (ดู features/payments/core.ts)
 
 /**
- * Record a payment (full or partial) — single read-compute-write.
- *
- * Receipt no format: REC-YYYY-MM-NNNN (allocated via Postgres RPC · atomic)
- * Tax invoice no:    TIV-YYMM-NNNN   (assigned iff vatMode ≠ 'none' and invoice
- *                    becomes fully paid · พ.ศ. year · allocated via Postgres RPC)
+ * Record a payment (full or partial) against ONE invoice.
+ * เขียนลง payments table แล้ว recompute ยอดของ invoice นั้น (กัน split-brain)
  */
 export function useRecordPayment(id: string) {
   const qc = useQueryClient()
@@ -888,79 +863,19 @@ export function useRecordPayment(id: string) {
       ref?: string
       note?: string
     }) => {
-      // Single read
-      const { data: existing, error: readError } = await supabase
-        .from(TABLE)
-        .select('data, status, category')
-        .eq('id', id)
-        .single()
-      if (readError) throw readError
-
-      const d = (existing?.data ?? {}) as InvoiceData
-      const prevPaid = d.paidAmount ?? 0
-      const total = d.total ?? 0
-      const newPaid = prevPaid + input.amount
-      const newRemaining = Math.max(total - newPaid, 0)
-      const newStatus: string = newRemaining <= 0 ? 'paid' : 'partial'
-      const month = d.month ?? new Date().toISOString().slice(0, 7) // YYYY-MM
-
-      // Allocate receipt number (atomic, per-month sequential)
-      const [receiptNo] = await allocateReceiptNos(month, 1)
-
-      // Allocate tax invoice number iff VAT invoice becomes fully paid
-      const isVat = d.vatMode && d.vatMode !== 'none'
-      let taxInvoiceNo: string | undefined
-      let taxInvoiceIssuedAt: string | undefined
-      if (isVat && newStatus === 'paid' && !d.taxInvoiceNo) {
-        ;[taxInvoiceNo] = await allocateTaxInvoiceNos(1)
-        taxInvoiceIssuedAt = new Date().toISOString()
-      }
-
-      const payment = {
+      await recordPaymentCore({
         date: input.date,
         amount: input.amount,
-        method: input.method,
-        ref: input.ref ?? '',
-        note: input.note ?? '',
-        receiptNo,
-      }
-
-      // Single write — build merged data here, no second read
-      const mergedData: InvoiceData = {
-        ...d,
-        paidAmount: newPaid,
-        remainingAmount: newRemaining,
-        status: newStatus,
-        payments: [...(d.payments ?? []), payment],
-        receiptNo,
-        paidAt: newStatus === 'paid' ? input.date : (d.paidAt as string | undefined),
         payMethod: input.method,
-        ...(input.ref ? { payRef: input.ref } : {}),
-        ...(input.note ? { payNote: input.note } : {}),
-        ...(taxInvoiceNo ? { taxInvoiceNo, taxInvoiceIssuedAt } : {}),
-      }
-
-      const { data: updated, error: writeError } = await supabase
-        .from(TABLE)
-        .update({ data: mergedData, status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select('id')
-      if (writeError) throw writeError
-      if (!updated || updated.length === 0) {
-        throw new Error('ไม่พบใบแจ้งหนี้ หรือไม่มีสิทธิ์แก้ไข (RLS)')
-      }
-
-      void logActivity({
-        action: 'update',
-        entity: 'invoices',
-        entity_id: id,
-        description: `รับเงิน ${input.amount.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''} → ${receiptNo}${taxInvoiceNo ? ` · ใบกำกับ ${taxInvoiceNo}` : ''}`,
-        after: { paidAmount: newPaid, remainingAmount: newRemaining, status: newStatus, receiptNo, taxInvoiceNo },
+        slipRef: input.ref,
+        notes: input.note,
+        invoice_ids: [id],
       })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['invoices', id] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
     },
   })
 }
@@ -976,14 +891,9 @@ export type BatchPaymentResult = {
 /**
  * Batch record payment — mark multiple invoices paid in one action.
  *
- * Port of v1 submitBatchPayment():
- *   - Reads all invoices at once
- *   - Allocates receipt nos grouped per month (one RPC call per unique month)
- *   - Allocates tax invoice nos for VAT invoices in one RPC call
- *   - Writes each invoice in series (safe · keeps audit log per invoice)
- *
- * Each invoice is paid in full (remaining → 0).
- * Already-paid or voided invoices are skipped silently.
+ * แต่ละใบจ่ายเต็มจำนวน (remaining → 0) ผ่าน recordPaymentCore (payments table = SSOT)
+ * → ได้ payment 1 แถวต่อใบ + recompute ยอด/receiptNo/taxInvoiceNo ให้เอง
+ * ใบที่จ่ายครบแล้ว/ยกเลิกแล้ว ถูกข้ามเงียบ ๆ
  */
 export function useBatchRecordPayment() {
   const qc = useQueryClient()
@@ -1009,34 +919,7 @@ export function useBatchRecordPayment() {
       })
       if (payable.length === 0) throw new Error('ไม่มีใบที่รอรับเงินในรายการที่เลือก')
 
-      // 3. Allocate receipt nos per unique month (atomic RPC)
-      const monthGroups = new Map<string, string[]>()
-      for (const row of payable) {
-        const month = ((row as { data: InvoiceData }).data?.month) ?? new Date().toISOString().slice(0, 7)
-        if (!monthGroups.has(month)) monthGroups.set(month, [])
-        monthGroups.get(month)!.push(row.id as string)
-      }
-      const receiptNoByInvoiceId = new Map<string, string>()
-      for (const [month, ids] of monthGroups) {
-        const nos = await allocateReceiptNos(month, ids.length)
-        ids.forEach((id, i) => receiptNoByInvoiceId.set(id, nos[i]))
-      }
-
-      // 4. Allocate tax invoice nos for VAT invoices that become paid
-      const vatPayableIds = payable
-        .filter((r) => {
-          const d = (r as { data: InvoiceData }).data
-          return d?.vatMode && d.vatMode !== 'none' && !d.taxInvoiceNo
-        })
-        .map((r) => r.id as string)
-      const taxNoByInvoiceId = new Map<string, string>()
-      if (vatPayableIds.length > 0) {
-        const taxNos = await allocateTaxInvoiceNos(vatPayableIds.length)
-        vatPayableIds.forEach((id, i) => taxNoByInvoiceId.set(id, taxNos[i]))
-      }
-
-      // 5. Write each invoice
-      const taxIssuedAt = new Date().toISOString()
+      // 3. Record one payment per invoice (full remaining) via the single core writer
       let done = 0
       let totalCollected = 0
       const errors: BatchPaymentResult['errors'] = []
@@ -1049,48 +932,15 @@ export function useBatchRecordPayment() {
           : Math.max((d.total ?? 0) - (d.paidAmount ?? 0), 0)
         if (remaining <= 0) continue
 
-        const receiptNo = receiptNoByInvoiceId.get(invoiceId)!
-        const taxInvoiceNo = taxNoByInvoiceId.get(invoiceId)
-        const newPaid = (d.paidAmount ?? 0) + remaining
-
-        const payment = {
-          date: input.date,
-          amount: remaining,
-          method: input.method,
-          ref: input.ref ?? '',
-          note: input.note ?? '',
-          receiptNo,
-        }
-
-        const mergedData: InvoiceData = {
-          ...d,
-          paidAmount: newPaid,
-          remainingAmount: 0,
-          status: 'paid',
-          payments: [...(d.payments ?? []), payment],
-          receiptNo,
-          paidAt: input.date,
-          payMethod: input.method,
-          ...(input.ref ? { payRef: input.ref } : {}),
-          ...(input.note ? { payNote: input.note } : {}),
-          ...(taxInvoiceNo ? { taxInvoiceNo, taxInvoiceIssuedAt: taxIssuedAt } : {}),
-        }
-
         try {
-          const { error: writeErr } = await supabase
-            .from(TABLE)
-            .update({ data: mergedData, status: 'paid', updated_at: new Date().toISOString() })
-            .eq('id', invoiceId)
-          if (writeErr) throw writeErr
-
-          void logActivity({
-            action: 'update',
-            entity: 'invoices',
-            entity_id: invoiceId,
-            description: `รับเงิน ${remaining.toLocaleString('th-TH')} บาท · ${input.method}${input.ref ? ` · ref: ${input.ref}` : ''} → ${receiptNo}${taxInvoiceNo ? ` · ใบกำกับ ${taxInvoiceNo}` : ''} (batch ${payable.length} ใบ)`,
-            after: { paidAmount: newPaid, remainingAmount: 0, status: 'paid', receiptNo, taxInvoiceNo },
+          await recordPaymentCore({
+            date: input.date,
+            amount: remaining,
+            payMethod: input.method,
+            slipRef: input.ref,
+            notes: input.note,
+            invoice_ids: [invoiceId],
           })
-
           done++
           totalCollected += remaining
         } catch (err) {
@@ -1102,6 +952,7 @@ export function useBatchRecordPayment() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['payments'] })
     },
   })
 }

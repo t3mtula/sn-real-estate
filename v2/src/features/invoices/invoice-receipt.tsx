@@ -11,23 +11,28 @@ import { amt, fmtBE } from '@/lib/thai'
 import { useInvoice } from '@/features/invoices/queries'
 import { useContract } from '@/features/contracts/queries'
 import { useLandlord } from '@/features/landlords/queries'
+import { usePaymentsByInvoice } from '@/features/payments/queries'
+import { allocatedToInvoice } from '@/features/payments/core'
+
+type ReceiptLine = { date?: string; amount: number }
 
 function ReceiptHalf({
   title,
   invoice,
+  payments,
   companyName,
   companyAddress,
   today,
 }: {
   title: string
   invoice: ReturnType<typeof useInvoice>['data']
+  payments: ReceiptLine[]
   companyName?: string
   companyAddress?: string
   today: string
 }) {
   if (!invoice) return null
   const d = invoice.data
-  const payments = d?.payments ?? []
   const lastPayment = payments[payments.length - 1]
 
   return (
@@ -128,6 +133,11 @@ export function InvoiceReceipt() {
   const { data: invoice, isLoading } = useInvoice(id)
   const { data: contract } = useContract(invoice?.contract_id ?? undefined)
   const { data: landlord } = useLandlord(contract?.data?.landlord_id)
+  const { data: paymentRows } = usePaymentsByInvoice(id)
+  const payments: ReceiptLine[] = (paymentRows ?? []).map((p) => ({
+    date: p.data.date,
+    amount: allocatedToInvoice(p, id),
+  }))
   // computed at render time, not module load
   const today = useMemo(() => fmtBE(new Date()), [])
 
@@ -186,6 +196,7 @@ export function InvoiceReceipt() {
         <ReceiptHalf
           title='ต้นฉบับ (ผู้เช่า)'
           invoice={invoice}
+          payments={payments}
           companyName={landlordName}
           companyAddress={landlordAddress}
           today={today}
@@ -193,6 +204,7 @@ export function InvoiceReceipt() {
         <ReceiptHalf
           title='สำเนา (ผู้ให้เช่า)'
           invoice={invoice}
+          payments={payments}
           companyName={landlordName}
           companyAddress={landlordAddress}
           today={today}

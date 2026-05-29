@@ -1012,7 +1012,7 @@ function InvoiceHoverDetail({ invoice }: { invoice: Row }) {
   }
   const note = (d as { note?: string }).note
   const lineItems = d.items ?? []
-  const payments = d.payments ?? []
+  const paidAmount = Number(d.paidAmount ?? 0)
   return (
     <div className='space-y-2 text-xs'>
       <div className='flex flex-wrap items-center gap-1.5 border-b pb-2'>
@@ -1057,21 +1057,14 @@ function InvoiceHoverDetail({ invoice }: { invoice: Row }) {
           )}
         </div>
       )}
-      {payments.length > 0 && (
-        <div className='space-y-0.5 border-t pt-1.5'>
-          <p className='text-[10px] uppercase tracking-wider text-muted-foreground'>
-            ชำระ {payments.length} ครั้ง
-          </p>
-          {payments.slice(0, 3).map((p, i) => (
-            <div key={i} className='flex justify-between gap-2'>
-              <span className='truncate'>
-                {p.date ?? '—'} · {p.method ?? '—'}
-              </span>
-              <span className='tabular-nums text-emerald-700 dark:text-emerald-400'>
-                {amt(p.amount, { symbol: false, decimal: 2 })}
-              </span>
-            </div>
-          ))}
+      {paidAmount > 0 && (
+        <div className='flex justify-between gap-2 border-t pt-1.5'>
+          <span className='text-[10px] uppercase tracking-wider text-muted-foreground'>
+            ชำระแล้ว
+          </span>
+          <span className='tabular-nums text-emerald-700 dark:text-emerald-400'>
+            {amt(paidAmount, { symbol: false, decimal: 2 })}
+          </span>
         </div>
       )}
       {note && (

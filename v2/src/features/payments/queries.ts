@@ -55,6 +55,24 @@ export function usePaymentsByContract(contractId: string | undefined) {
   })
 }
 
+/** Payments allocated to a specific invoice (jsonb contains on allocations[]) */
+export function usePaymentsByInvoice(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: [TABLE, 'by-invoice', invoiceId],
+    queryFn: async (): Promise<Payment[]> => {
+      if (!invoiceId) return []
+      const { data, error } = await supabase
+        .from(TABLE)
+        .select('id, data, created_at, updated_at')
+        .filter('data->allocations', 'cs', JSON.stringify([{ invoice_id: invoiceId }]))
+        .order('created_at', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as Payment[]
+    },
+    enabled: !!invoiceId,
+  })
+}
+
 /** Payments that hit a specific bank account */
 export function usePaymentsByBankAccount(bankAccountId: string | undefined) {
   return useQuery({

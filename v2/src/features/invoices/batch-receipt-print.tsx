@@ -10,8 +10,13 @@
 import { Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { fmtBE } from '@/lib/thai'
+import { supabase } from '@/lib/supabase'
+import { allocatedToInvoice } from '@/features/payments/core'
+import type { Payment } from '@/features/payments/types'
 import { Button } from '@/components/ui/button'
-import type { Invoice, InvoicePayment } from './types'
+import type { Invoice } from './types'
+
+type ReceiptLine = { date?: string; amount: number }
 
 // ── HTML builder (pure function — no React) ──────────────────────────────────
 
@@ -26,9 +31,8 @@ function fmtBaht(n: unknown): string {
   return num.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function buildSingleReceiptHtml(inv: Invoice, today: string): string {
+function buildSingleReceiptHtml(inv: Invoice, today: string, payments: ReceiptLine[]): string {
   const d = inv.data
-  const payments: InvoicePayment[] = d?.payments ?? []
   const lastPayment = payments[payments.length - 1]
   const paidDate = lastPayment?.date ?? d?.paidAt ?? today
   const receiptNo = (d?.receiptNo as string | undefined) ??
@@ -122,12 +126,12 @@ function buildSingleReceiptHtml(inv: Invoice, today: string): string {
   return halfHtml('ต้นฉบับ') + halfHtml('สำเนา')
 }
 
-function buildBatchReceiptHtml(invoices: Invoice[]): string {
+function buildBatchReceiptHtml(invoices: Invoice[], linesByInvoice: Map<string, ReceiptLine[]>): string {
   const today = fmtBE(new Date())
   const pages = invoices
     .map(
       (inv) =>
-        `<div class="receipt-page">${buildSingleReceiptHtml(inv, today)}</div>`,
+        `<div class="receipt-page">${buildSingleReceiptHtml(inv, today, linesByInvoice.get(inv.id) ?? [])}</div>`,
     )
     .join('\n')
 
@@ -188,12 +192,30 @@ export function BatchReceiptPrintButton({ invoices, disabled }: Props) {
     return s === 'paid' || (inv.data?.remainingAmount ?? 1) === 0
   })
 
-  function handlePrint() {
+  async function handlePrint() {
     if (paidInvoices.length === 0) {
       toast.warning('ไม่มีใบเสร็จที่พิมพ์ได้ · เลือกเฉพาะใบที่ชำระแล้ว')
       return
     }
-    const html = buildBatchReceiptHtml(paidInvoices)
+
+    // ดึงรายการรับเงินของใบที่เลือก (จาก payments table = SSOT) แล้วจัดกลุ่มตาม invoice
+    const ids = paidInvoices.map((i) => i.id)
+    const linesByInvoice = new Map<string, ReceiptLine[]>()
+    const { data: payRows } = await supabase
+      .from('payments')
+      .select('id, data, created_at, updated_at')
+      .order('created_at', { ascending: true })
+    for (const p of (payRows ?? []) as Payment[]) {
+      for (const id of ids) {
+        const amount = allocatedToInvoice(p, id)
+        if (amount > 0) {
+          if (!linesByInvoice.has(id)) linesByInvoice.set(id, [])
+          linesByInvoice.get(id)!.push({ date: p.data.date, amount })
+        }
+      }
+    }
+
+    const html = buildBatchReceiptHtml(paidInvoices, linesByInvoice)
     const win = window.open('', '_blank', 'width=700,height=900')
     if (!win) {
       toast.error('ไม่สามารถเปิดหน้าต่างพิมพ์ · กรุณาอนุญาต popup')

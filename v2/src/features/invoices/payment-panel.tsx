@@ -16,6 +16,8 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { amt } from '@/lib/thai'
+import { usePaymentsByInvoice } from '@/features/payments/queries'
+import { allocatedToInvoice } from '@/features/payments/core'
 import { useRecordPayment } from './mutations'
 import { getInvoiceDisplay } from './queries'
 import type { Invoice } from './types'
@@ -171,7 +173,13 @@ export function QuickPaymentDialog({
 
 export function PaymentPanel({ invoice }: Props) {
   const data = invoice.data
-  const payments = data?.payments ?? []
+  const { data: paymentRows } = usePaymentsByInvoice(invoice.id)
+  const payments = (paymentRows ?? []).map((p) => ({
+    date: p.data.date,
+    method: p.data.payMethod,
+    ref: p.data.slipRef,
+    amount: allocatedToInvoice(p, invoice.id),
+  }))
   const remaining = data?.remainingAmount ?? (data?.total ?? 0) - (data?.paidAmount ?? 0)
   // use computed `remaining` — avoids false negative for v1 invoices lacking remainingAmount field
   const isFullyPaid = remaining <= 0 && (data?.paidAmount ?? 0) > 0
