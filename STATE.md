@@ -2,6 +2,17 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
+## 🔄 Session 2026-05-29 — [v2] เคลียร์ระบบเก็บเงิน (branch feat/unify-payments)
+
+งานทั้งหมดอยู่บน branch feat/unify-payments · deploy ขึ้น preview แล้ว · **ยังไม่ merge main**
+
+1. **payments = SSOT** — สร้าง `payments/core.ts` เป็นตัวเขียนเงินตัวเดียว · invoice mirror recompute จาก payments เสมอ (กัน split-brain) · ทุกปุ่มรับเงิน (ใบ/หน้า/import) ผ่านที่เดียว
+2. **ซ่อม OCR statement** — reconstruct บรรทัดตาม Y-coord · รองรับ PDF+CSV+XLSX · ธนาคาร SCB/KBank/BBL/BAY (กรุงศรี CSV 87/87 รายการมีชื่อ)
+3. **แก้ bugs จากเทส** — วันที่ชำระ NaN → ใช้ BE string ตรง · ยอดใบ auto+read-only · ยกเลิกรับเงินในใบ · ลบใบแจ้งหนี้ปลอดภัย (unallocate ก่อน) · ลบสัญญาถาวร
+4. **Matching engine** — กรองด้วยบัญชี + % ตรง (ยอด+ชื่อ) + dropdown เลือกผู้เช่าต่อแถว
+
+**ถัดไป:** Tem ยืนยัน preview → merge main + deploy:prod · หน้าจับคู่แยก (reconciliation) · รอ statement กรุงไทย+กรุงศรี · Print engine unification (handoff 29 พ.ค.)
+
 ## ✅ Session 2026-05-26 — Activity log track-changes + แก้ล่าสุด column
 
 งานทั้งหมด deploy ขึ้น Cloudflare Pages แล้ว · CI ผ่าน ✅ (commit 85dc12e)
