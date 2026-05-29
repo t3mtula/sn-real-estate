@@ -5,11 +5,19 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import * as XLSX from 'xlsx'
 import { useState, useRef, useMemo } from 'react'
-import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Ban } from 'lucide-react'
+import { FileUp, Loader2, AlertCircle, CheckCircle2, Eye, EyeOff, Ban, Settings2, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -23,6 +31,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { useBankAccounts } from '@/features/bank-accounts/queries'
 import { useContracts } from '@/features/contracts/queries'
+import { useProperties } from '@/features/properties/queries'
+import { useInvoices } from '@/features/invoices/queries'
 import { fetchUnbilledUtilitiesByContract } from '@/features/invoices/mutations'
 import { usePaymentsByBankAccount } from './queries'
 import { candidatesForAccount, matchTransaction, sourceKeyOf, type MatchResult } from './matching'
@@ -149,6 +159,29 @@ function txFingerprint(date: string, amount: number, time?: string, suffix?: str
   return `${date}|${(Number(amount) || 0).toFixed(2)}|${time ?? ''}|${suffix ?? ''}`
 }
 
+// คอลัมน์ที่ซ่อน/โชว์ได้ (⚙️) · key → label · จดจำใน localStorage
+type ColKey = 'time' | 'payer' | 'source'
+const TOGGLE_COLS: { key: ColKey; label: string }[] = [
+  { key: 'payer', label: 'ผู้โอน' },
+  { key: 'source', label: 'บัญชีต้นทาง' },
+  { key: 'time', label: 'เวลา' },
+]
+const COLS_LS_KEY = 'sn.import.hiddenCols'
+const DEFAULT_HIDDEN: ColKey[] = ['time'] // เวลา ซ่อนเริ่มต้น (ข้อมูลรอง)
+
+function loadHiddenCols(): Set<ColKey> {
+  try {
+    const raw = localStorage.getItem(COLS_LS_KEY)
+    if (raw) return new Set(JSON.parse(raw) as ColKey[])
+  } catch {
+    /* ignore */
+  }
+  return new Set(DEFAULT_HIDDEN)
+}
+
+/** สถานะการจับคู่ของ 1 รายการ — ใช้จัดกลุ่ม/เรียง/แถบสรุป */
+type RowState = 'matched' | 'review' | 'unmatched' | 'other' | 'dup'
+
 const BANK_LABEL: Record<string, string> = {
   SCB: 'ไทยพาณิชย์',
   KBANK: 'กสิกรไทย',
@@ -183,11 +216,59 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
       else next.add(id)
       return next
     })
+  // มุมมอง manage-by-exception
+  const [showOnlyNeeded, setShowOnlyNeeded] = useState(false) // กรอง "เฉพาะที่ต้องจับ"
+  const [collapseGreen, setCollapseGreen] = useState(true) // พับกลุ่ม 🟢 จับให้แล้ว
+  const [hiddenCols, setHiddenCols] = useState<Set<ColKey>>(() => loadHiddenCols())
+  const toggleCol = (key: ColKey) =>
+    setHiddenCols((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      try {
+        localStorage.setItem(COLS_LS_KEY, JSON.stringify([...next]))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
   const fileRef = useRef<HTMLInputElement>(null)
 
   const { data: bankAccounts } = useBankAccounts()
   const { data: contracts } = useContracts()
+  const { data: properties } = useProperties()
+  const { data: allInvoices } = useInvoices()
   const batchSave = useBatchSavePayments()
+
+  // ชื่อห้อง/ทรัพย์ — map pid → name (โชว์ใน dropdown)
+  const propNameByPid = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const p of properties ?? []) {
+      if (p.data?.pid != null) m.set(Number(p.data.pid), String(p.data.name ?? ''))
+    }
+    return m
+  }, [properties])
+
+  // ค้างต่อสัญญา — ใบแจ้งหนี้ที่ยังไม่จ่าย/จ่ายบางส่วน (สถานะ ≠ paid/voided) · นับใบ + รวมยอดค้าง
+  const arrearsByContract = useMemo(() => {
+    const m = new Map<string, { count: number; outstanding: number }>()
+    for (const inv of allInvoices ?? []) {
+      const st = (inv.status ?? inv.data?.status ?? '').toLowerCase()
+      if (st === 'paid' || st === 'voided') continue
+      const cid = inv.contract_id
+      if (!cid) continue
+      const d = inv.data ?? {}
+      const total = Number(d.total) || 0
+      const paid = Number(d.paidAmount ?? d.paid_amount ?? 0) || 0
+      const out = Math.max(0, total - paid)
+      if (out <= 0.01) continue
+      const cur = m.get(cid) ?? { count: 0, outstanding: 0 }
+      cur.count += 1
+      cur.outstanding += out
+      m.set(cid, cur)
+    }
+    return m
+  }, [allInvoices])
 
   // B — ค่าน้ำ/ไฟค้างบิลต่อสัญญา (reuse ตัวเดียวกับระบบออกใบแจ้งหนี้) → ช่วยจับยอดห้องรวมน้ำไฟ
   const { data: utilLines } = useQuery({
@@ -208,8 +289,11 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   // จับคู่เงินเข้า → สัญญา/ผู้เช่า (กรองด้วยบัญชี แล้วเทียบยอด+ชื่อ+น้ำไฟ)
   const effectiveBankId = manualBankId ?? detectedBankAccId
   const candidates = useMemo(
-    () => (effectiveBankId && contracts ? candidatesForAccount(contracts, effectiveBankId, utilTotalByContract) : []),
-    [contracts, effectiveBankId, utilTotalByContract],
+    () =>
+      effectiveBankId && contracts
+        ? candidatesForAccount(contracts, effectiveBankId, utilTotalByContract, propNameByPid)
+        : [],
+    [contracts, effectiveBankId, utilTotalByContract, propNameByPid],
   )
   // ประวัติเงินเข้าบัญชีนี้ — ใช้ทั้งกันซ้ำ (D) และ "จำบัญชีต้นทาง→ผู้เช่า" (A)
   const existingPays = usePaymentsByBankAccount(effectiveBankId)
@@ -389,13 +473,160 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
   const controlTotal = info?.controlTotal
   const controlMismatch = controlTotal != null && Math.abs(controlTotal - parsedTotal) > 1
 
+  // ── manage-by-exception: สถานะ/กลุ่ม/นับ ของแต่ละรายการ ──────────────────────
+  const rowStateById = useMemo(() => {
+    const m = new Map<string, RowState>()
+    for (const r of rows) {
+      if (dupIds.has(r._id)) { m.set(r._id, 'dup'); continue }
+      if (notRent.has(r._id)) { m.set(r._id, 'other'); continue }
+      const mt = matches.get(r._id)
+      const chosen = picked[r._id] ?? mt?.contractId
+      if (chosen && (picked[r._id] != null || mt?.confidence === 'high')) m.set(r._id, 'matched')
+      else if (chosen && mt?.confidence === 'medium') m.set(r._id, 'review')
+      else m.set(r._id, 'unmatched')
+    }
+    return m
+  }, [rows, dupIds, notRent, matches, picked])
+
+  const grouped = useMemo(() => {
+    const g: Record<RowState, ImportRow[]> = { unmatched: [], review: [], matched: [], other: [], dup: [] }
+    for (const r of rows) g[rowStateById.get(r._id) ?? 'unmatched'].push(r)
+    return g
+  }, [rows, rowStateById])
+
+  const previewFull = step === 'preview' && !!info && rows.length > 0
+
+  // คอลัมน์ที่โชว์ (⚙️)
+  const showPayer = !hiddenCols.has('payer')
+  const showSource = !hiddenCols.has('source')
+  const showTime = !hiddenCols.has('time')
+  const colCount = 4 + (showPayer ? 1 : 0) + (showSource ? 1 : 0) + (showTime ? 1 : 0)
+
+  /** แถว 1 รายการ — ใช้ร่วมทุกกลุ่ม */
+  const renderRow = (r: ImportRow) => {
+    const st = rowStateById.get(r._id)
+    const isDup = st === 'dup'
+    const isOther = st === 'other'
+    const mt = matches.get(r._id)
+    const chosen = picked[r._id] ?? mt?.contractId ?? ''
+    const pct = mt?.score ?? 0
+    const pctCls =
+      pct >= 75 ? 'text-green-600 border-green-300 bg-green-50'
+      : pct >= 40 ? 'text-amber-600 border-amber-300 bg-amber-50'
+      : 'text-muted-foreground border-border'
+    return (
+      <tr
+        key={r._id}
+        className={cn(
+          'transition-colors',
+          isDup ? 'opacity-50' : cn('cursor-pointer hover:bg-muted/40', !r.selected && 'opacity-40'),
+        )}
+        onClick={() => toggleRow(r._id)}
+      >
+        <td className='p-2 text-center align-top'>
+          <Checkbox
+            checked={r.selected && !isDup}
+            disabled={isDup}
+            onCheckedChange={() => toggleRow(r._id)}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </td>
+        {showSource && (
+          <td className='whitespace-nowrap p-2 align-top text-[11px] text-muted-foreground'>
+            {r.sourceBankCode || '—'}
+            {r.sourceAcctSuffix ? ` x${r.sourceAcctSuffix}` : ''}
+          </td>
+        )}
+        <td className='whitespace-nowrap p-2 align-top font-mono'>
+          {r.date}
+          {isDup && (
+            <span className='ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'>
+              ซ้ำ
+            </span>
+          )}
+        </td>
+        {showTime && (
+          <td className='whitespace-nowrap p-2 align-top text-muted-foreground'>{r.time || '—'}</td>
+        )}
+        <td className='whitespace-nowrap p-2 text-right align-top font-semibold tabular-nums'>
+          {amt(r.amount, { decimal: 0, symbol: false })}
+        </td>
+        {showPayer && (
+          <td className='max-w-[140px] truncate p-2 align-top' title={r.payerName}>
+            {r.payerName || '—'}
+          </td>
+        )}
+        <td className='max-w-[260px] p-2 align-top' onClick={(e) => e.stopPropagation()}>
+          {isOther ? (
+            <div className='flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
+              <span className='flex items-center gap-1'>
+                <Ban className='size-3 shrink-0' /> ไม่ใช่ค่าเช่า
+              </span>
+              <button
+                type='button'
+                className='shrink-0 underline-offset-2 hover:underline'
+                onClick={() => toggleNotRent(r._id)}
+              >
+                คืนค่า
+              </button>
+            </div>
+          ) : (
+            <div className='flex items-center gap-1.5'>
+              <span
+                className={cn('shrink-0 rounded border px-1 text-[10px] tabular-nums', pctCls)}
+                title={mt?.reason ?? 'ยังไม่จับคู่'}
+              >
+                {pct > 0 ? `${pct}%` : '—'}
+              </span>
+              <Select value={chosen} onValueChange={(v) => setPicked((p) => ({ ...p, [r._id]: v }))}>
+                <SelectTrigger className='h-7 text-xs'>
+                  <SelectValue placeholder='เลือกผู้เช่า…' />
+                </SelectTrigger>
+                <SelectContent>
+                  {candidates.length === 0 ? (
+                    <div className='px-2 py-1 text-xs text-muted-foreground'>ไม่มีสัญญาผูกบัญชีนี้</div>
+                  ) : (
+                    candidates.map((c) => {
+                      const ar = arrearsByContract.get(c.id)
+                      return (
+                        <SelectItem key={c.id} value={c.id} className='text-xs'>
+                          {c.tenant || c.no}
+                          {c.room ? ` · ${c.room}` : ''} · {amt(c.expected, { decimal: 0, symbol: false })}
+                          {ar ? ` · ค้าง ${ar.count} ใบ` : ''}
+                        </SelectItem>
+                      )
+                    })
+                  )}
+                </SelectContent>
+              </Select>
+              <button
+                type='button'
+                title='ไม่ใช่ค่าเช่า (โอนผิด/เงินอื่น)'
+                className='shrink-0 text-muted-foreground hover:text-foreground'
+                onClick={() => toggleNotRent(r._id)}
+              >
+                <Ban className='size-3.5' />
+              </button>
+            </div>
+          )}
+        </td>
+      </tr>
+    )
+  }
+
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v) }}>
-      <DialogContent className='max-w-2xl max-h-[85vh] overflow-y-auto'>
-        <DialogHeader>
+      <DialogContent
+        className={cn(
+          previewFull
+            ? 'flex max-h-[92vh] w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1100px]'
+            : 'max-w-2xl max-h-[85vh] overflow-y-auto',
+        )}
+      >
+        <DialogHeader className={previewFull ? 'shrink-0 border-b px-6 pb-3 pt-5' : undefined}>
           <DialogTitle>นำเข้า Statement จากธนาคาร</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className={previewFull ? 'sr-only' : undefined}>
             อัปโหลดไฟล์ statement (PDF / CSV / Excel) จาก ไทยพาณิชย์ · กสิกร · กรุงเทพ · กรุงศรี · ระบบจะดึงรายการเงินเข้าให้อัตโนมัติ
           </DialogDescription>
         </DialogHeader>
@@ -488,225 +719,198 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
           </div>
         )}
 
-        {/* ── STEP: preview ── */}
-        {step === 'preview' && info && (
+        {/* ── STEP: preview · ไม่พบรายการ (compact) ── */}
+        {step === 'preview' && info && rows.length === 0 && (
           <div className='space-y-4'>
-            {/* statement info */}
             <div className='flex flex-wrap gap-2 text-sm'>
               <Badge variant='outline'>{BANK_LABEL[info.bank] ?? info.bank}</Badge>
               {info.accountName && <span className='text-muted-foreground'>{info.accountName}</span>}
-              {detectedBankAccId && !manualBankId ? (
-                <Badge variant='outline' className='text-green-600 border-green-300'>
-                  <CheckCircle2 className='size-3 mr-1' /> จับคู่บัญชีในระบบแล้ว
-                </Badge>
-              ) : !detectedBankAccId && !manualBankId ? (
-                <Badge variant='outline' className='text-amber-600 border-amber-300'>
-                  ไม่พบบัญชีนี้ในระบบ — เลือกบัญชีด้านล่าง
-                </Badge>
-              ) : null}
             </div>
-
-            {/* บัญชีรับเงิน — เลือกเองได้ (จำเป็นถ้าจับคู่อัตโนมัติไม่ได้ เช่น CSV ไม่มีเลขบัญชี) */}
-            <div className='space-y-1.5'>
-              <Label className='text-xs'>บัญชีรับเงิน (เงินทุกรายการเข้าบัญชีนี้)</Label>
-              <Select
-                value={manualBankId ?? detectedBankAccId ?? ''}
-                onValueChange={(v) => setManualBankId(v)}
-              >
-                <SelectTrigger className='h-9 text-sm'>
-                  <SelectValue placeholder='— เลือกบัญชีรับเงิน —' />
-                </SelectTrigger>
-                <SelectContent>
-                  {(bankAccounts ?? []).map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.data?.bank} {b.data?.acctNo} · {b.data?.accountName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {rows.length === 0 ? (
-              <p className='text-sm text-muted-foreground py-4 text-center'>
-                ไม่พบรายการรับเงินใน statement นี้
-              </p>
-            ) : (
-              <>
-                {/* C — ยอดรวมเงินเข้าที่ดึงได้ (ให้พนักงานเทียบกับ statement ตาเปล่าได้เสมอ) */}
-                <div
-                  className={cn(
-                    'rounded-md border px-3 py-2 text-sm',
-                    controlMismatch
-                      ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-400/40 dark:bg-red-500/10 dark:text-red-300'
-                      : 'bg-muted/30',
-                  )}
-                >
-                  <div className='flex items-center justify-between'>
-                    <span className='text-muted-foreground'>ยอดรวมเงินเข้าที่ดึงได้ ({rows.length} รายการ)</span>
-                    <span className='font-semibold tabular-nums'>{amt(parsedTotal, { decimal: 2, symbol: false })}</span>
-                  </div>
-                  {controlTotal != null && (
-                    <div className='mt-1 flex items-center justify-between text-xs'>
-                      <span className={controlMismatch ? 'font-medium' : 'text-muted-foreground'}>
-                        {controlMismatch
-                          ? '⚠️ ไม่ตรงกับยอดรวมใน statement — อาจดึงตกหล่น'
-                          : '✓ ตรงกับยอดรวมใน statement'}
-                      </span>
-                      <span className='tabular-nums text-muted-foreground'>
-                        statement: {amt(controlTotal, { decimal: 2, symbol: false })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* D — เตือนรายการซ้ำ */}
-                {dupIds.size > 0 && (
-                  <div className='flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-300'>
-                    <AlertCircle className='size-4 shrink-0' />
-                    พบ {dupIds.size} รายการที่เคยนำเข้าบัญชีนี้แล้ว — ระบบกันไว้ไม่ให้ลงซ้ำ
-                  </div>
-                )}
-
-                {/* select all */}
-                <div className='flex items-center gap-2 text-sm'>
-                  <Checkbox
-                    id='select-all'
-                    checked={allSelected}
-                    onCheckedChange={(v) => selectAll(!!v)}
-                  />
-                  <label htmlFor='select-all' className='cursor-pointer'>
-                    เลือกทั้งหมด ({selectableCount} รายการ)
-                    {dupIds.size > 0 && (
-                      <span className='ml-1 text-muted-foreground'>· ซ้ำ {dupIds.size}</span>
-                    )}
-                  </label>
-                </div>
-
-                {/* table */}
-                <div className='rounded-md border overflow-hidden'>
-                  <table className='w-full text-xs'>
-                    <thead className='bg-muted/50'>
-                      <tr>
-                        <th className='w-8 p-2'></th>
-                        <th className='p-2 text-left'>วันที่</th>
-                        <th className='p-2 text-right'>ยอด (บาท)</th>
-                        <th className='p-2 text-left'>ผู้โอน</th>
-                        <th className='p-2 text-left'>จับคู่ผู้เช่า (% ตรง)</th>
-                      </tr>
-                    </thead>
-                    <tbody className='divide-y'>
-                      {rows.map((r) => {
-                        const isDup = dupIds.has(r._id)
-                        return (
-                        <tr
-                          key={r._id}
-                          className={cn(
-                            'transition-colors',
-                            isDup
-                              ? 'opacity-50'
-                              : cn('cursor-pointer hover:bg-muted/40', !r.selected && 'opacity-40'),
-                          )}
-                          onClick={() => toggleRow(r._id)}
-                        >
-                          <td className='p-2 text-center'>
-                            <Checkbox
-                              checked={r.selected && !isDup}
-                              disabled={isDup}
-                              onCheckedChange={() => toggleRow(r._id)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </td>
-                          <td className='p-2 font-mono whitespace-nowrap'>
-                            {r.date}
-                            {isDup && (
-                              <span className='ml-1.5 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'>
-                                ซ้ำ
-                              </span>
-                            )}
-                          </td>
-                          <td className='p-2 text-right font-semibold tabular-nums whitespace-nowrap'>
-                            {amt(r.amount, { decimal: 0, symbol: false })}
-                          </td>
-                          <td className='p-2 max-w-[120px] truncate' title={r.payerName}>
-                            {r.payerName || '—'}
-                          </td>
-                          <td className='p-2 max-w-[230px]' onClick={(e) => e.stopPropagation()}>
-                            {notRent.has(r._id) ? (
-                              <div className='flex items-center justify-between gap-1.5 text-xs text-slate-500 dark:text-slate-400'>
-                                <span className='flex items-center gap-1'>
-                                  <Ban className='size-3 shrink-0' /> ไม่ใช่ค่าเช่า
-                                </span>
-                                <button
-                                  type='button'
-                                  className='shrink-0 underline-offset-2 hover:underline'
-                                  onClick={() => toggleNotRent(r._id)}
-                                >
-                                  คืนค่า
-                                </button>
-                              </div>
-                            ) : (() => {
-                              const mt = matches.get(r._id)
-                              const chosen = picked[r._id] ?? mt?.contractId ?? ''
-                              const pct = mt?.score ?? 0
-                              const pctCls =
-                                pct >= 75 ? 'text-green-600 border-green-300 bg-green-50'
-                                : pct >= 40 ? 'text-amber-600 border-amber-300 bg-amber-50'
-                                : 'text-muted-foreground border-border'
-                              return (
-                                <div className='flex items-center gap-1.5'>
-                                  <span
-                                    className={cn('shrink-0 rounded border px-1 text-[10px] tabular-nums', pctCls)}
-                                    title={mt?.reason ?? 'ยังไม่จับคู่'}
-                                  >
-                                    {pct > 0 ? `${pct}%` : '—'}
-                                  </span>
-                                  <Select
-                                    value={chosen}
-                                    onValueChange={(v) => setPicked((p) => ({ ...p, [r._id]: v }))}
-                                  >
-                                    <SelectTrigger className='h-7 text-xs'>
-                                      <SelectValue placeholder='เลือกผู้เช่า…' />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {candidates.length === 0 ? (
-                                        <div className='px-2 py-1 text-xs text-muted-foreground'>ไม่มีสัญญาผูกบัญชีนี้</div>
-                                      ) : (
-                                        candidates.map((c) => (
-                                          <SelectItem key={c.id} value={c.id} className='text-xs'>
-                                            {c.tenant || c.no} · {amt(c.expected, { decimal: 0, symbol: false })}
-                                          </SelectItem>
-                                        ))
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                  <button
-                                    type='button'
-                                    title='ไม่ใช่ค่าเช่า (โอนผิด/เงินอื่น)'
-                                    className='shrink-0 text-muted-foreground hover:text-foreground'
-                                    onClick={() => toggleNotRent(r._id)}
-                                  >
-                                    <Ban className='size-3.5' />
-                                  </button>
-                                </div>
-                              )
-                            })()}
-                          </td>
-                        </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {error && (
-                  <div className='flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive'>
-                    <AlertCircle className='size-4 shrink-0' />
-                    {error}
-                  </div>
-                )}
-              </>
-            )}
+            <p className='py-4 text-center text-sm text-muted-foreground'>
+              ไม่พบรายการรับเงินใน statement นี้
+            </p>
           </div>
+        )}
+
+        {/* ── STEP: preview · เต็มจอ (manage-by-exception) ── */}
+        {previewFull && info && (
+          <>
+            {/* แถบควบคุม + สรุป (คงที่ด้านบน) */}
+            <div className='shrink-0 space-y-3 border-b bg-muted/20 px-6 py-3'>
+              {/* statement info + บัญชีรับเงิน */}
+              <div className='flex flex-wrap items-center gap-2 text-sm'>
+                <Badge variant='outline'>{BANK_LABEL[info.bank] ?? info.bank}</Badge>
+                {info.accountName && <span className='text-muted-foreground'>{info.accountName}</span>}
+                <div className='ms-auto flex items-center gap-1.5'>
+                  <Label className='text-xs text-muted-foreground'>บัญชีรับเงิน</Label>
+                  <Select value={manualBankId ?? detectedBankAccId ?? ''} onValueChange={(v) => setManualBankId(v)}>
+                    <SelectTrigger className='h-8 w-64 text-xs'>
+                      <SelectValue placeholder='— เลือกบัญชีรับเงิน —' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(bankAccounts ?? []).map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.data?.bank} {b.data?.acctNo} · {b.data?.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* แถบสรุป 🟢🟡⬜ + รวมเงิน */}
+              <div className='flex flex-wrap items-center gap-2 text-xs'>
+                <span className='rounded-md border border-border bg-background px-2 py-1 font-medium'>
+                  ⬜ ยังไม่จับ {grouped.unmatched.length}
+                </span>
+                <span className='rounded-md border border-amber-300 bg-amber-50 px-2 py-1 font-medium text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-300'>
+                  🟡 ต้องเช็ค {grouped.review.length}
+                </span>
+                <span className='rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-300'>
+                  🟢 จับให้แล้ว {grouped.matched.length}
+                </span>
+                {grouped.other.length > 0 && (
+                  <span className='rounded-md border border-border bg-background px-2 py-1 text-slate-500'>
+                    ไม่ใช่ค่าเช่า {grouped.other.length}
+                  </span>
+                )}
+                <span className='ms-auto flex items-center gap-3'>
+                  <span className='text-muted-foreground'>
+                    รวมที่ดึงได้ {rows.length} รายการ ·{' '}
+                    <span className={cn('font-semibold tabular-nums', controlMismatch && 'text-red-600')}>
+                      {amt(parsedTotal, { decimal: 2, symbol: false })}
+                    </span>
+                  </span>
+                  {controlTotal != null && (
+                    <span className={cn('tabular-nums', controlMismatch ? 'font-medium text-red-600' : 'text-muted-foreground')}>
+                      {controlMismatch ? '⚠️ statement ' : '✓ statement '}
+                      {amt(controlTotal, { decimal: 2, symbol: false })}
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {/* dup banner */}
+              {dupIds.size > 0 && (
+                <div className='flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-700 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-300'>
+                  <AlertCircle className='size-3.5 shrink-0' />
+                  พบ {dupIds.size} รายการที่เคยนำเข้าบัญชีนี้แล้ว — ระบบกันไว้ไม่ให้ลงซ้ำ
+                </div>
+              )}
+
+              {/* filter + ⚙️ */}
+              <div className='flex items-center justify-between gap-2'>
+                <label className='flex cursor-pointer items-center gap-2 text-xs'>
+                  <Checkbox checked={showOnlyNeeded} onCheckedChange={(v) => setShowOnlyNeeded(!!v)} />
+                  เฉพาะที่ต้องจับ (⬜ + 🟡)
+                </label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant='outline' size='sm' className='h-8 gap-1.5 text-xs'>
+                      <Settings2 className='size-3.5' /> คอลัมน์
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='end'>
+                    <DropdownMenuLabel className='text-xs'>แสดงคอลัมน์</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {TOGGLE_COLS.map((c) => (
+                      <DropdownMenuCheckboxItem
+                        key={c.key}
+                        checked={!hiddenCols.has(c.key)}
+                        onCheckedChange={() => toggleCol(c.key)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {c.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* ตาราง (เลื่อนได้) */}
+            <div className='min-h-0 flex-1 overflow-y-auto px-6 py-3'>
+              <table className='w-full text-xs'>
+                <thead className='sticky top-0 z-10 bg-background'>
+                  <tr className='border-b text-left text-[10px] uppercase tracking-wide text-muted-foreground'>
+                    <th className='w-8 p-2'>
+                      <Checkbox checked={allSelected} onCheckedChange={(v) => selectAll(!!v)} aria-label='เลือกทั้งหมด' />
+                    </th>
+                    {showSource && <th className='p-2'>บัญชีต้นทาง</th>}
+                    <th className='p-2'>วันที่</th>
+                    {showTime && <th className='p-2'>เวลา</th>}
+                    <th className='p-2 text-right'>ยอด</th>
+                    {showPayer && <th className='p-2'>ผู้โอน</th>}
+                    <th className='p-2'>จับคู่ผู้เช่า</th>
+                  </tr>
+                </thead>
+                <tbody className='divide-y'>
+                  {grouped.unmatched.length > 0 && (
+                    <>
+                      <tr className='bg-muted/30'>
+                        <td colSpan={colCount} className='px-2 py-1 text-[11px] font-semibold text-muted-foreground'>
+                          ⬜ ยังไม่จับ ({grouped.unmatched.length})
+                        </td>
+                      </tr>
+                      {grouped.unmatched.map(renderRow)}
+                    </>
+                  )}
+                  {grouped.review.length > 0 && (
+                    <>
+                      <tr className='bg-amber-50/60 dark:bg-amber-500/5'>
+                        <td colSpan={colCount} className='px-2 py-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300'>
+                          🟡 ต้องเช็ค ({grouped.review.length})
+                        </td>
+                      </tr>
+                      {grouped.review.map(renderRow)}
+                    </>
+                  )}
+                  {!showOnlyNeeded && grouped.matched.length > 0 && (
+                    <>
+                      <tr
+                        className='cursor-pointer bg-emerald-50/60 hover:bg-emerald-100/60 dark:bg-emerald-500/5'
+                        onClick={() => setCollapseGreen((v) => !v)}
+                      >
+                        <td colSpan={colCount} className='px-2 py-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300'>
+                          <span className='flex items-center gap-1'>
+                            {collapseGreen ? <ChevronRight className='size-3.5' /> : <ChevronDown className='size-3.5' />}
+                            🟢 จับให้แล้ว ({grouped.matched.length}){collapseGreen ? ' · กดดู' : ''}
+                          </span>
+                        </td>
+                      </tr>
+                      {!collapseGreen && grouped.matched.map(renderRow)}
+                    </>
+                  )}
+                  {!showOnlyNeeded && grouped.other.length > 0 && (
+                    <>
+                      <tr className='bg-muted/30'>
+                        <td colSpan={colCount} className='px-2 py-1 text-[11px] font-semibold text-slate-500'>
+                          ไม่ใช่ค่าเช่า ({grouped.other.length})
+                        </td>
+                      </tr>
+                      {grouped.other.map(renderRow)}
+                    </>
+                  )}
+                  {!showOnlyNeeded && grouped.dup.length > 0 && (
+                    <>
+                      <tr className='bg-muted/30'>
+                        <td colSpan={colCount} className='px-2 py-1 text-[11px] font-semibold text-muted-foreground'>
+                          ซ้ำ — กันไม่ให้ลงซ้ำ ({grouped.dup.length})
+                        </td>
+                      </tr>
+                      {grouped.dup.map(renderRow)}
+                    </>
+                  )}
+                </tbody>
+              </table>
+              {error && (
+                <div className='mt-3 flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive'>
+                  <AlertCircle className='size-4 shrink-0' />
+                  {error}
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {/* ── STEP: saving ── */}
@@ -729,7 +933,7 @@ export function ImportPdfDialog({ open, onOpenChange }: Props) {
         )}
 
         {/* ── footer ── */}
-        <DialogFooter>
+        <DialogFooter className={previewFull ? 'shrink-0 border-t bg-muted/20 px-6 py-3' : undefined}>
           {step === 'upload' && (
             <Button onClick={handleParse} disabled={!file}>
               อ่านรายการจาก PDF

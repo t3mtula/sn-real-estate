@@ -56,6 +56,8 @@ interface Candidate {
   expected: number
   /** ค่าเช่า + น้ำ/ไฟเดือนนั้น (ถ้ามีมิเตอร์ค้างบิล) — ช่วยจับห้องที่รวมน้ำไฟ (B) */
   expectedWithUtil?: number
+  /** ชื่อห้อง/ทรัพย์ (โชว์ใน dropdown ช่วยตัดสิน) */
+  room?: string
 }
 
 /** คีย์บัญชีต้นทาง (ธนาคาร+เลขท้าย) สำหรับ "จำผู้เช่า" (A) — normalize ตัวพิมพ์/ช่องว่าง */
@@ -73,18 +75,21 @@ export function candidatesForAccount(
   contracts: Contract[],
   bankAccountId: string,
   utilByContract?: Map<string, number>,
+  propNameByPid?: Map<number, string>,
 ): Candidate[] {
   return contracts
     .filter((c) => c.data?.bankAccountId === bankAccountId && c.data?.cancelled !== true)
     .map((c) => {
       const expected = getInvoiceAmount(c.data?.rate as string | number | undefined, c.data)
       const util = utilByContract?.get(c.id) ?? 0
+      const pid = c.data?.pid_property
       return {
         id: c.id,
         no: String(c.data?.no ?? ''),
         tenant: String(c.data?.tenant ?? c.data?.tenantName ?? ''),
         expected,
         expectedWithUtil: util > 0 ? Number((expected + util).toFixed(2)) : undefined,
+        room: pid != null ? propNameByPid?.get(Number(pid)) : undefined,
       }
     })
 }
