@@ -47,16 +47,21 @@ function buildPagedIframe(content: string, css: string): string {
   // width (no horizontal overflow) and the page breaks are clearly visible.
   const fitScript =
     '(function(){' +
-    'function fit(){' +
-    'var p=document.querySelector(".pagedjs_page");' +
-    'if(!p){return setTimeout(fit,150);}' +
-    'document.documentElement.style.zoom="";' +
+    'function style(){' +
+    'var pages=document.querySelectorAll(".pagedjs_page");' +
+    'if(!pages.length){return false;}' +
+    'document.documentElement.style.background="#e9edf2";' +
+    'document.body.style.background="#e9edf2";document.body.style.margin="0";' +
     'var avail=document.documentElement.clientWidth-16;' +
-    'var s=Math.min(1,avail/p.offsetWidth);' +
-    'document.documentElement.style.zoom=String(s);' +
-    '}' +
-    'fit();' +
-    'var t;window.addEventListener("resize",function(){clearTimeout(t);t=setTimeout(fit,200);});' +
+    'var z=Math.min(1,avail/pages[0].offsetWidth);' +
+    'document.documentElement.style.zoom=String(z);' +
+    'for(var i=0;i<pages.length;i++){var p=pages[i];' +
+    'p.style.setProperty("margin","0 auto 20px","important");' +
+    'p.style.setProperty("background","#fff","important");' +
+    'p.style.setProperty("box-shadow","0 3px 16px rgba(0,0,0,.25)","important");}' +
+    'return true;}' +
+    'var n=0,iv=setInterval(function(){style();if(++n>24){clearInterval(iv);}},250);' +
+    'window.addEventListener("resize",style);' +
     '})();'
   return (
     '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +
