@@ -148,13 +148,15 @@ export function GenerateMonthlyDialog({
   // จัดกลุ่มใบที่จะสร้าง ตามผลการเทียบใบรอบก่อน
   const createRows = prev?.willCreate ?? []
   const needReview = createRows.filter(
-    (r) => r.compareStatus === 'diff' || r.hasFreqConflict,
+    (r) => r.compareStatus === 'diff' || r.hasFreqConflict || r.maybeMissingUtility,
   )
   const newRows = createRows.filter(
-    (r) => r.compareStatus === 'new' && !r.hasFreqConflict,
+    (r) =>
+      r.compareStatus === 'new' && !r.hasFreqConflict && !r.maybeMissingUtility,
   )
   const matchedRows = createRows.filter(
-    (r) => r.compareStatus === 'match' && !r.hasFreqConflict,
+    (r) =>
+      r.compareStatus === 'match' && !r.hasFreqConflict && !r.maybeMissingUtility,
   )
 
   // แยกกล่อง "ข้าม" — ข้อมูลมีปัญหา (ต้องแก้) vs ข้ามปกติ
@@ -399,7 +401,8 @@ type CreateRowData = BatchGeneratePreview['willCreate'][number]
 
 /** แถวใบที่จะสร้าง — โชว์ breakdown (รองรับหลายบรรทัด) + ผลเทียบใบรอบก่อน */
 function CreateRow({ row }: { row: CreateRowData }) {
-  const flagged = row.hasFreqConflict || row.compareStatus === 'diff'
+  const flagged =
+    row.hasFreqConflict || row.compareStatus === 'diff' || row.maybeMissingUtility
   return (
     <div
       className={`border-b px-4 py-2.5 text-sm last:border-b-0 ${flagged ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}
@@ -473,6 +476,17 @@ function CompareNote({ row }: { row: CreateRowData }) {
       <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
         <AlertTriangle className='mt-0.5 size-3 shrink-0' />
         รอบชำระอาจไม่ตรง — ค่าเช่าระบุเป็นรอบที่ยาวกว่ารอบออกบิล ตรวจก่อนสร้าง
+      </p>
+    )
+  }
+  if (row.maybeMissingUtility) {
+    return (
+      <p className='mt-1.5 flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400'>
+        <AlertTriangle className='mt-0.5 size-3 shrink-0' />
+        เดือนก่อนมีค่าน้ำ/ไฟ แต่เดือนนี้ไม่มี — อาจยังไม่จดมิเตอร์
+        {row.prevAmount != null
+          ? ` (ใบรอบก่อน ${amt(row.prevAmount, { decimal: 0 })})`
+          : ''}
       </p>
     )
   }

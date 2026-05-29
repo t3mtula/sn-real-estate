@@ -43,14 +43,23 @@ const PREVIEW_CSS = `
 /** Wrap paged.js content + css into a self-paginating iframe document
  * (isolated — the contract CSS can't leak into the app). */
 function buildPagedIframe(content: string, css: string): string {
+  // After paged.js paginates, zoom the pages so a full A4 sheet fits the iframe
+  // width (no horizontal overflow) and the page breaks are clearly visible.
+  const fitScript =
+    'window.PagedConfig={auto:true,after:function(){' +
+    'var fit=function(){var p=document.querySelector(".pagedjs_page");' +
+    'if(!p){return;}var avail=document.documentElement.clientWidth-8;' +
+    'var s=Math.min(1,avail/p.offsetWidth);document.documentElement.style.zoom=String(s);};' +
+    'fit();window.addEventListener("resize",fit);}};'
   return (
     '<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">' +
     '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">' +
     `<style>${css}
       @media screen {
-        body { background: #eef1f5; margin: 0; }
-        .pagedjs_page { margin: 0 auto 14px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+        html, body { background: #eef1f5; margin: 0; }
+        .pagedjs_page { margin: 0 auto 16px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.18); }
       }</style>` +
+    `<script>${fitScript}<\/script>` +
     `<script src="${window.location.origin}${PAGED_POLYFILL_URL}"><\/script>` +
     `</head><body>${content}</body></html>`
   )

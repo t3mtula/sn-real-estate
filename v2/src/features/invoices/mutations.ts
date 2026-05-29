@@ -253,11 +253,22 @@ export function useGenerateInvoiceFromContract() {
           ? Number((baseAmount * (1 + vatRate / 100)).toFixed(2))
           : baseAmount
 
+      // รายการเพิ่ม (ค่าน้ำ/ไฟ/ค่าอื่น) ที่กรอกมือในฟอร์ม
+      const extraItems = (values.extraItems ?? [])
+        .map((it) => ({
+          desc: (it.desc ?? '').trim(),
+          amount: Number(it.amount) || 0,
+        }))
+        .filter((it) => it.desc !== '' && it.amount > 0)
+      const extraSum = extraItems.reduce((s, it) => s + it.amount, 0)
+      const grandTotal = Number((total + extraSum).toFixed(2))
+
       const items: InvoiceItem[] = [
         {
           desc: values.note?.trim() || buildItemDescription(freq.type, month, category),
           amount: total,
         },
+        ...extraItems,
       ]
 
       // Due date: month + dueDay (clamped to last day of month).
@@ -291,7 +302,7 @@ export function useGenerateInvoiceFromContract() {
         date: today,
         dueDate,
         items,
-        total,
+        total: grandTotal,
         bankAccountId:
           values.bankAccountId?.trim() ||
           (contract.data?.bankAccountId as string | undefined),
@@ -304,7 +315,7 @@ export function useGenerateInvoiceFromContract() {
         vatBase: baseAmount,
         status: 'draft',
         paidAmount: 0,
-        remainingAmount: total,
+        remainingAmount: grandTotal,
         payments: [],
         tenant: tenant?.data?.name ?? (contract.data?.tenant as string | undefined) ?? '',
         property: property?.data?.name ?? (contract.data?.property as string | undefined) ?? '',
@@ -546,6 +557,8 @@ export type BatchGeneratePreview = {
     prevMonth: string | null
     /** สถานะเทียบกับใบรอบก่อน */
     compareStatus: 'new' | 'match' | 'diff'
+    /** ใบรอบก่อนมีค่าน้ำ/ไฟ แต่เดือนนี้ไม่มี → อาจยังไม่จดมิเตอร์ */
+    maybeMissingUtility: boolean
   }>
   willSkip: Array<{
     contractId: string
@@ -681,6 +694,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           prevAmount: null,
           prevMonth: null,
           compareStatus: 'new',
+          maybeMissingUtility: false,
         })
       }
 
@@ -710,7 +724,10 @@ export function useBatchGeneratePreview(month: string | undefined) {
           .in('contract_id', createIds)
           .lt('data->>month', month)
         if (priorErr) throw priorErr
-        const prevByContract = new Map<string, { total: number; month: string }>()
+        const prevByContract = new Map<
+          string,
+          { total: number; month: string; hadUtility: boolean }
+        >()
         for (const row of (priorRows ?? []) as Invoice[]) {
           if ((row.status ?? '').toLowerCase() === 'voided') continue
           const cat = (row.category ?? row.data?.category ?? 'rent').toLowerCase()
@@ -720,8 +737,14 @@ export function useBatchGeneratePreview(month: string | undefined) {
           const m = (row.data?.month ?? '').trim()
           if (!m) continue
           const tot = Number(row.data?.total) || 0
+          const items = row.data?.items ?? []
+          const hadUtility = items.some((it) =>
+            /ค่าน้ำ|ค่าไฟ|ค่าบริการ/.test(it?.desc ?? ''),
+          )
           const cur = prevByContract.get(cid)
-          if (!cur || m > cur.month) prevByContract.set(cid, { total: tot, month: m })
+          if (!cur || m > cur.month) {
+            prevByContract.set(cid, { total: tot, month: m, hadUtility })
+          }
         }
         for (const row of willCreate) {
           const prev = prevByContract.get(row.contractId)
@@ -729,6 +752,8 @@ export function useBatchGeneratePreview(month: string | undefined) {
           row.prevAmount = prev.total
           row.prevMonth = prev.month
           row.compareStatus = Math.abs(prev.total - row.amount) < 0.5 ? 'match' : 'diff'
+          row.maybeMissingUtility =
+            prev.hadUtility && row.utilityLines.length === 0
         }
       }
       return { month, willCreate, willSkip }

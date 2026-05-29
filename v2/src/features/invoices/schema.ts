@@ -32,6 +32,16 @@ export const generateInvoiceFormSchema = z.object({
     .default(5),
   category: z.enum(['rent', 'deposit']).default('rent'),
   note: z.string().trim().max(500).optional().default(''),
+  /** รายการเพิ่ม (ค่าน้ำ/ไฟ/ค่าอื่น) — กรอกมือในฟอร์ม */
+  extraItems: z
+    .array(
+      z.object({
+        desc: z.string().trim().max(200),
+        amount: z.number().min(0, 'ยอดต้องไม่ติดลบ'),
+      }),
+    )
+    .optional()
+    .default([]),
 })
 
 export type GenerateInvoiceFormValues = z.input<typeof generateInvoiceFormSchema>
@@ -43,4 +53,5 @@ export const GENERATE_INVOICE_DEFAULTS: GenerateInvoiceFormValues = {
   dueDay: 5,
   category: 'rent',
   note: '',
+  extraItems: [],
 }

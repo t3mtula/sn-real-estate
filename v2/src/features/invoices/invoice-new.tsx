@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate, useSearch  } from '@tanstack/react-router'
-import { Loader2  } from 'lucide-react'
+import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -127,6 +127,18 @@ export function InvoiceNew() {
           contract?.data,
         )
   const finalAmount = Number(amountOverride ?? computedAmount) || computedAmount
+
+  // รายการเพิ่ม (ค่าน้ำ/ไฟ/ค่าอื่น) — กรอกมือ
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'extraItems',
+  })
+  const extraItems = form.watch('extraItems') ?? []
+  const extrasSum = extraItems.reduce(
+    (s, it) => s + (Number(it?.amount) || 0),
+    0,
+  )
+  const grandTotal = finalAmount + extrasSum
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -331,6 +343,58 @@ export function InvoiceNew() {
                 {...form.register('note')}
               />
             </div>
+
+            <div className='space-y-2 sm:col-span-2'>
+              <div className='flex items-center justify-between'>
+                <Label>รายการเพิ่ม (ค่าน้ำ · ค่าไฟ · ค่าอื่น)</Label>
+                <Button
+                  type='button'
+                  variant='outline'
+                  size='sm'
+                  onClick={() => append({ desc: '', amount: 0 })}
+                >
+                  <Plus className='size-4' />
+                  เพิ่มรายการ
+                </Button>
+              </div>
+              {fields.length === 0 ? (
+                <p className='text-xs text-muted-foreground'>
+                  ยังไม่มีรายการเพิ่ม · เช่น ค่าน้ำ/ค่าไฟ — กด "เพิ่มรายการ"
+                </p>
+              ) : (
+                <div className='space-y-2'>
+                  {fields.map((f, i) => (
+                    <div key={f.id} className='flex items-start gap-2'>
+                      <Input
+                        placeholder='รายการ เช่น ค่าน้ำเดือน พ.ค.'
+                        className='flex-1'
+                        {...form.register(`extraItems.${i}.desc` as const)}
+                      />
+                      <Input
+                        type='number'
+                        min={0}
+                        step='0.01'
+                        placeholder='ยอด'
+                        className='w-32'
+                        {...form.register(`extraItems.${i}.amount` as const, {
+                          valueAsNumber: true,
+                        })}
+                      />
+                      <Button
+                        type='button'
+                        variant='ghost'
+                        size='icon'
+                        className='shrink-0 text-destructive'
+                        onClick={() => remove(i)}
+                        aria-label='ลบรายการ'
+                      >
+                        <Trash2 className='size-4' />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className='rounded-md border bg-muted/30 p-4 text-sm'>
@@ -361,8 +425,27 @@ export function InvoiceNew() {
                 <li>
                   เดือน: <span className='text-foreground'>{formatMonth(month)}</span>
                 </li>
+                <li>
+                  {category === 'deposit' ? 'เงินประกัน' : 'ค่าเช่า'}:{' '}
+                  <span className='text-foreground'>{amt(finalAmount)}</span>
+                </li>
+                {extraItems
+                  .filter(
+                    (it) =>
+                      (it?.desc?.trim() || '') !== '' &&
+                      (Number(it?.amount) || 0) > 0,
+                  )
+                  .map((it, i) => (
+                    <li key={i}>
+                      {it.desc}:{' '}
+                      <span className='text-foreground'>
+                        {amt(Number(it.amount) || 0)}
+                      </span>
+                    </li>
+                  ))}
                 <li className='font-medium'>
-                  ยอด: <span className='text-foreground'>{amt(finalAmount)}</span>
+                  รวมทั้งใบ:{' '}
+                  <span className='text-foreground'>{amt(grandTotal)}</span>
                 </li>
               </ul>
             ) : (
