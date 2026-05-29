@@ -1,6 +1,7 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -9,8 +10,9 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, MapPin, Plus, Search, StickyNote, UserRound } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Search, StickyNote, Tag as TagIcon, UserRound, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { useMemo, useRef, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { freqShortLabel, monthlyRevenue } from '@/lib/contracts/stats'
 import { OverdueBadge } from '@/components/yonghua/overdue-badge'
@@ -21,7 +23,13 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -38,7 +46,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useRef } from 'react'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
@@ -48,7 +55,10 @@ import {
   getContractStatus,
   getStatusMeta,
   useContracts,
+  useContractTags,
 } from '@/features/contracts/queries'
+import { useBulkUpdateTags } from '@/features/contracts/mutations'
+import { TagInput } from '@/components/yonghua/tag-input'
 import { amt, dayjs, fmtThaiShort } from '@/lib/thai'
 import {
   CONTRACT_STATUSES,
@@ -117,6 +127,11 @@ export function Contracts() {
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const { data: tagSuggestions } = useContractTags()
+  const bulkTag = useBulkUpdateTags()
+  const [bulkTagDraft, setBulkTagDraft] = useState<string[]>([])
+  const [bulkTagOpen, setBulkTagOpen] = useState(false)
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
@@ -154,6 +169,33 @@ export function Contracts() {
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
       {
+        id: 'select',
+        size: 28,
+        enableSorting: false,
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected()
+                ? true
+                : table.getIsSomePageRowsSelected()
+                ? 'indeterminate'
+                : false
+            }
+            onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
+            aria-label='เลือกทั้งหมดในหน้า'
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(v) => row.toggleSelected(!!v)}
+            aria-label='เลือก'
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+      },
+      {
         id: 'no',
         accessorFn: (row) => getContractDisplay(row),
         header: ({ column }) => (
@@ -161,11 +203,51 @@ export function Contracts() {
         ),
         cell: ({ row }) => {
           const v = getContractDisplay(row.original)
+          const tags = Array.isArray(row.original.data?.tags)
+            ? (row.original.data.tags as string[])
+            : []
           return (
-            <span className='block max-w-[140px] truncate font-medium' title={v}>
-              {v}
-            </span>
+            <div className='max-w-[150px]'>
+              <span className='block truncate font-medium' title={v}>
+                {v}
+              </span>
+              {tags.length > 0 && (
+                <div className='mt-1 flex flex-wrap gap-1'>
+                  {tags.slice(0, 3).map((t) => (
+                    <span
+                      key={t}
+                      className='inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'
+                    >
+                      {t}
+                    </span>
+                  ))}
+                  {tags.length > 3 && (
+                    <span className='text-[10px] text-muted-foreground'>
+                      +{tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )
+        },
+      },
+      {
+        id: 'tags',
+        accessorFn: (row) =>
+          Array.isArray(row.data?.tags) ? (row.data.tags as string[]) : [],
+        enableSorting: false,
+        // ซ่อนคอลัมน์ — ใช้เป็น filter เท่านั้น (tag แสดงใต้เลขสัญญาแล้ว)
+        header: () => null,
+        cell: () => null,
+        filterFn: (row, _id, value) => {
+          const want = (value as string[]) ?? []
+          if (want.length === 0) return true
+          const tags = Array.isArray(row.original.data?.tags)
+            ? (row.original.data.tags as string[])
+            : []
+          // ANY semantics — มี tag ที่เลือกอย่างน้อย 1 อัน
+          return want.some((w) => tags.includes(w))
         },
       },
       {
@@ -335,9 +417,18 @@ export function Contracts() {
   const table = useReactTable({
     data: rows,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+      rowSelection,
+      columnVisibility: { tags: false },
+    },
+    enableRowSelection: true,
+    getRowId: (row) => row.id,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _id, filterValue) => {
       const v = String(filterValue ?? '').toLowerCase().trim()
@@ -369,6 +460,39 @@ export function Contracts() {
       ...prev.filter((f) => f.id !== 'status'),
       ...(value && value !== 'all' ? [{ id: 'status', value }] : []),
     ])
+  }
+
+  const tagFilter =
+    (columnFilters.find((f) => f.id === 'tags')?.value as string[]) ?? []
+  const setTagFilter = (value: string[]) => {
+    setColumnFilters((prev) => [
+      ...prev.filter((f) => f.id !== 'tags'),
+      ...(value.length > 0 ? [{ id: 'tags', value }] : []),
+    ])
+  }
+
+  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k])
+  const selectedCount = selectedIds.length
+
+  async function handleBulkApplyTags() {
+    if (selectedIds.length === 0 || bulkTagDraft.length === 0) return
+    try {
+      const res = await bulkTag.mutateAsync({
+        ids: selectedIds,
+        addTags: bulkTagDraft,
+      })
+      toast.success(`ติด tag ให้ ${res.done} สัญญาแล้ว`, {
+        description:
+          res.errors.length > 0 ? `ผิดพลาด ${res.errors.length} รายการ` : undefined,
+      })
+      setBulkTagDraft([])
+      setBulkTagOpen(false)
+      setRowSelection({})
+    } catch (err) {
+      toast.error('ติด tag ไม่สำเร็จ', {
+        description: err instanceof Error ? err.message : String(err),
+      })
+    }
   }
 
   const totalRows = contracts?.length ?? 0
@@ -508,6 +632,20 @@ export function Contracts() {
               ))}
             </SelectContent>
           </Select>
+
+          <div className='flex items-center gap-2'>
+            <TagInput
+              value={tagFilter}
+              onChange={setTagFilter}
+              suggestions={tagSuggestions ?? []}
+              placeholder='กรองตาม tag'
+            />
+            {tagFilter.length > 0 && (
+              <span className='text-xs text-muted-foreground'>
+                แสดงเฉพาะ {tagFilter.length} tag
+              </span>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -641,6 +779,61 @@ export function Contracts() {
           </Table>
         </div>
       </Main>
+
+      {/* Floating bulk action bar */}
+      {selectedCount > 0 && (
+        <div className='pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
+          <div className='pointer-events-auto flex flex-wrap items-center gap-3 rounded-full border bg-card/95 px-4 py-2 shadow-lg backdrop-blur'>
+            <span className='text-sm font-semibold'>
+              เลือก {selectedCount.toLocaleString('th-TH')} สัญญา
+            </span>
+            <span className='h-4 w-px bg-border' />
+            <Popover
+              open={bulkTagOpen}
+              onOpenChange={(o) => {
+                setBulkTagOpen(o)
+                if (!o) setBulkTagDraft([])
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button size='sm' variant='outline'>
+                  <TagIcon className='size-4' />
+                  ติด tag
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className='w-72 space-y-3' align='center' side='top'>
+                <p className='text-sm font-medium'>
+                  ติด tag ให้ {selectedCount} สัญญา
+                </p>
+                <TagInput
+                  value={bulkTagDraft}
+                  onChange={setBulkTagDraft}
+                  suggestions={tagSuggestions ?? []}
+                  placeholder='เลือก/สร้าง tag'
+                />
+                <Button
+                  size='sm'
+                  className='w-full'
+                  disabled={bulkTagDraft.length === 0 || bulkTag.isPending}
+                  onClick={handleBulkApplyTags}
+                >
+                  {bulkTag.isPending && <Loader2 className='size-4 animate-spin' />}
+                  ติด tag
+                </Button>
+              </PopoverContent>
+            </Popover>
+            <span className='h-4 w-px bg-border' />
+            <Button
+              size='sm'
+              variant='ghost'
+              onClick={() => setRowSelection({})}
+              aria-label='ล้างการเลือก'
+            >
+              <X className='size-4' />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ContractRowPreview id={previewId} onClose={() => setPreviewId(null)} />
 

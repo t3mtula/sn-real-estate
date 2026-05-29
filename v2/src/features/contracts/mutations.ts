@@ -573,3 +573,90 @@ export function useSuggestContractNo() {
     },
   })
 }
+
+/* ---------- bulk tagging ---------- */
+
+export type BulkTagResult = {
+  done: number
+  errors: Array<{ id: string; message: string }>
+}
+
+/**
+ * ติด/เอา tag ออก กับหลายสัญญาพร้อมกัน
+ * - addTags: union เข้ากับ tag เดิม (ไม่ซ้ำ)
+ * - removeTags: ตัดออกจาก tag เดิม
+ * อ่าน rows ที่เลือกครั้งเดียว → merge tags → update ทีละ row
+ */
+export function useBulkUpdateTags() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      ids: string[]
+      addTags?: string[]
+      removeTags?: string[]
+    }): Promise<BulkTagResult> => {
+      const add = Array.from(
+        new Set((input.addTags ?? []).map((t) => t.trim()).filter(Boolean)),
+      )
+      const remove = new Set(
+        (input.removeTags ?? []).map((t) => t.trim()).filter(Boolean),
+      )
+      if (input.ids.length === 0 || (add.length === 0 && remove.size === 0)) {
+        return { done: 0, errors: [] }
+      }
+
+      const { data: rows, error: fetchErr } = await supabase
+        .from(TABLE)
+        .select('id, data')
+        .in('id', input.ids)
+      if (fetchErr) throw fetchErr
+
+      let done = 0
+      const errors: BulkTagResult['errors'] = []
+      for (const row of (rows ?? []) as Array<{ id: string; data: ContractData }>) {
+        const existing = Array.isArray(row.data?.tags)
+          ? (row.data.tags as string[])
+          : []
+        const merged = Array.from(
+          new Set([...existing, ...add]),
+        ).filter((t) => !remove.has(t))
+        // ไม่มีอะไรเปลี่ยน → ข้าม (กัน write เปล่า)
+        if (
+          merged.length === existing.length &&
+          merged.every((t) => existing.includes(t))
+        ) {
+          continue
+        }
+        const nextData: ContractData = { ...row.data, tags: merged }
+        const { error } = await supabase
+          .from(TABLE)
+          .update({ data: nextData, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+        if (error) {
+          errors.push({ id: row.id, message: error.message })
+        } else {
+          done++
+        }
+      }
+
+      if (done > 0) {
+        const label =
+          add.length > 0 && remove.size > 0
+            ? `ติด/เอา tag`
+            : add.length > 0
+            ? `ติด tag ${add.join(', ')}`
+            : `เอา tag ${[...remove].join(', ')} ออก`
+        void logActivity({
+          action: 'update',
+          entity: 'contracts',
+          description: `${label} · ${done} สัญญา`,
+          after: { add, remove: [...remove], count: done },
+        })
+      }
+      return { done, errors }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+    },
+  })
+}

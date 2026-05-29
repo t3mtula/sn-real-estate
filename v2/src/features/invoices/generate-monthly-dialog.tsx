@@ -25,6 +25,8 @@ import {
   type BatchGeneratePreview,
 } from '@/features/invoices/mutations'
 import { formatMonth } from '@/features/invoices/queries'
+import { useContractTags } from '@/features/contracts/queries'
+import { TagInput } from '@/components/yonghua/tag-input'
 import { amt } from '@/lib/thai'
 
 function currentMonth(): string {
@@ -69,7 +71,9 @@ export function GenerateMonthlyDialog({
   onOpenChange: (next: boolean) => void
 }) {
   const [month, setMonth] = useState<string>(currentMonth())
+  const [filterTags, setFilterTags] = useState<string[]>([])
   const monthOptions = buildMonthOptions()
+  const { data: tagSuggestions } = useContractTags()
   const preview = useBatchGeneratePreview(month)
   const generate = useGenerateMonthlyInvoices()
   const [stage, setStage] = useState<'preview' | 'review' | 'done'>('preview')
@@ -96,11 +100,11 @@ export function GenerateMonthlyDialog({
     preview.reset()
     generate.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month])
+  }, [month, filterTags])
 
   async function handleReview() {
     try {
-      await preview.mutateAsync()
+      await preview.mutateAsync({ tags: filterTags })
       setStage('review')
     } catch (err) {
       toast.error('ตรวจสอบไม่สำเร็จ', {
@@ -111,7 +115,7 @@ export function GenerateMonthlyDialog({
 
   async function handleConfirm() {
     try {
-      const res = await generate.mutateAsync({ month })
+      const res = await generate.mutateAsync({ month, tags: filterTags })
       setResult({
         created: res.created,
         skipped: res.skipped,
@@ -172,6 +176,21 @@ export function GenerateMonthlyDialog({
                 ตรวจสอบ
               </Button>
             )}
+          </div>
+
+          <div className='space-y-2'>
+            <Label>เฉพาะกลุ่ม (tag)</Label>
+            <TagInput
+              value={filterTags}
+              onChange={setFilterTags}
+              suggestions={tagSuggestions ?? []}
+              placeholder='ทั้งระบบ — เลือก tag เพื่อสร้างเฉพาะกลุ่ม'
+            />
+            <p className='text-xs text-muted-foreground'>
+              {filterTags.length === 0
+                ? 'ไม่เลือก = สร้างให้ทุกสัญญาที่ถึงรอบ'
+                : `สร้างเฉพาะสัญญาที่มี tag: ${filterTags.join(', ')}`}
+            </p>
           </div>
 
           {stage === 'review' && prev && (

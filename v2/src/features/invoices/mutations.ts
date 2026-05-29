@@ -452,10 +452,11 @@ export type BatchGeneratePreview = {
 export function useBatchGeneratePreview(month: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (): Promise<BatchGeneratePreview> => {
+    mutationFn: async (input?: { tags?: string[] }): Promise<BatchGeneratePreview> => {
       if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
         throw new Error('เดือนไม่ถูกต้อง (YYYY-MM)')
       }
+      const filterTags = (input?.tags ?? []).filter(Boolean)
       const [contractsRes, invsRes] = await Promise.all([
         supabase.from('contracts').select('id, data'),
         supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
@@ -479,6 +480,11 @@ export function useBatchGeneratePreview(month: string | undefined) {
       const willSkip: BatchGeneratePreview['willSkip'] = []
       for (const c of contracts) {
         const d = c.data ?? {}
+        // กรองตาม tag — สัญญาที่ไม่อยู่ในกลุ่มที่เลือก ตัดออกทั้งหมด (ไม่นับใน total)
+        if (filterTags.length > 0) {
+          const tags = Array.isArray(d.tags) ? (d.tags as string[]) : []
+          if (!filterTags.some((t) => tags.includes(t))) continue
+        }
         const contractNo = (d.no ?? '').trim() || `#${c.id}`
         const tenant = ((d.tenant as string | undefined) ?? '').trim() || '—'
         const property = (String(d.property ?? '') as string).trim() || '—'
@@ -569,12 +575,13 @@ export type BatchGenerateResult = {
 export function useGenerateMonthlyInvoices() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { month: string; dueDay?: number }): Promise<BatchGenerateResult> => {
+    mutationFn: async (input: { month: string; dueDay?: number; tags?: string[] }): Promise<BatchGenerateResult> => {
       const month = input.month
       if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
         throw new Error('เดือนไม่ถูกต้อง (YYYY-MM)')
       }
       const dueDay = Math.min(Math.max(1, input.dueDay ?? 5), 31)
+      const filterTags = (input.tags ?? []).filter(Boolean)
 
       const [contractsRes, invsRes, landlordsRes] = await Promise.all([
         supabase.from('contracts').select('id, data'),
@@ -618,6 +625,11 @@ export function useGenerateMonthlyInvoices() {
 
       for (const c of contracts) {
         const d = c.data ?? {}
+        // กรองตาม tag — ต้องตรงกับ preview (ตัดออกทั้งหมด ไม่นับ skip)
+        if (filterTags.length > 0) {
+          const tags = Array.isArray(d.tags) ? (d.tags as string[]) : []
+          if (!filterTags.some((t) => tags.includes(t))) continue
+        }
         const contractNo = (d.no ?? '').trim() || `#${c.id}`
         if (d.cancelled) {
           skipped++
