@@ -46,6 +46,7 @@ import {
   getPropertyAddressFull,
   getPropertyName,
   getPropertyProvince,
+  getPropertyTypeLabel,
   useProperty,
 } from '@/features/properties/queries'
 import { useContractMatchKeys } from '@/lib/queries/contract-match'
@@ -60,17 +61,13 @@ import {
   PROPERTY_FORM_DEFAULTS,
   type PropertyFormValues,
 } from '@/features/properties/schema'
-import { PROPERTY_TYPES, type PropertyTypeValue } from '@/features/properties/types'
+import { type PropertyTypeValue } from '@/features/properties/types'
 import { BackButton } from '@/components/yonghua/back-button'
 import {
   UtilityBadge,
   getPropertyUtilities,
 } from '@/features/meters/utility-badge'
 import { cn } from '@/lib/utils'
-
-const TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  PROPERTY_TYPES.map((t) => [t.value, t.label])
-)
 
 const VALID_TYPES = new Set<string>([
   'shophouse',
@@ -291,7 +288,7 @@ function PropertyContent({
   deleting: boolean
 }) {
   const p = property.data
-  const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
+  const typeName = getPropertyTypeLabel(p.type)
   const province = getPropertyProvince(p)
   const address = getPropertyAddressFull(p)
   const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)

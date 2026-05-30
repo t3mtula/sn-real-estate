@@ -1,9 +1,25 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
-import type { Property, PropertyData } from "@/features/properties/types"
+import {
+  PROPERTY_TYPES,
+  type Property,
+  type PropertyData,
+} from "@/features/properties/types"
 
 const TABLE = "properties"
+
+const TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  PROPERTY_TYPES.map((t) => [t.value, t.label]),
+)
+
+/**
+ * Map a property type value → Thai label (fallback to the raw value, "—" if empty)
+ */
+export function getPropertyTypeLabel(type: string | undefined): string {
+  if (!type) return "—"
+  return TYPE_LABEL[type] ?? type
+}
 
 /**
  * Fetch all properties · sorted by updated_at desc

@@ -77,7 +77,12 @@ import {
   type ContractFormValues,
 } from '@/features/contracts/schema'
 import { useLandlord, useLandlords } from '@/features/landlords/queries'
-import { useProperty } from '@/features/properties/queries'
+import {
+  getPropertyAddressFull,
+  getPropertyProvince,
+  getPropertyTypeLabel,
+  useProperty,
+} from '@/features/properties/queries'
 import {
   UtilityBadges,
   getContractUtilities,
@@ -695,13 +700,39 @@ function Content({
 
             <InfoRow icon={Building2} label='ทรัพย์สิน'>
               {property.data ? (
-                <Link
-                  to='/properties/$id'
-                  params={{ id: property.data.id }}
-                  className='text-primary underline-offset-4 hover:underline'
-                >
-                  {property.data.data?.name ?? '(ไม่มีชื่อ)'}
-                </Link>
+                (() => {
+                  const pd = property.data.data
+                  const typeLabel = getPropertyTypeLabel(pd?.type)
+                  const province = getPropertyProvince(pd)
+                  const addr = getPropertyAddressFull(pd)
+                  const area = pd?.area?.trim()
+                  const deed = pd?.titleDeed?.trim()
+                  return (
+                    <>
+                      <Link
+                        to='/properties/$id'
+                        params={{ id: property.data.id }}
+                        className='text-primary underline-offset-4 hover:underline'
+                      >
+                        {pd?.name ?? '(ไม่มีชื่อ)'}
+                      </Link>
+                      <div className='mt-1 space-y-0.5 text-xs text-muted-foreground'>
+                        {(typeLabel !== '—' || province !== '—') && (
+                          <p>
+                            {[typeLabel, province]
+                              .filter((v) => v && v !== '—')
+                              .join(' · ')}
+                          </p>
+                        )}
+                        {addr && addr !== '—' && <p>{addr}</p>}
+                        {area && <p>เนื้อที่ {area}</p>}
+                        {deed && <p>{deed}</p>}
+                      </div>
+                    </>
+                  )
+                })()
+              ) : String(c.property ?? '').trim() ? (
+                <span>{String(c.property).trim()}</span>
               ) : (
                 <span className='text-muted-foreground'>—</span>
               )}
