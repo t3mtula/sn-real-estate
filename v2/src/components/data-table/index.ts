@@ -1,4 +1,6 @@
 export { DataTablePagination } from './pagination'
 export { DataTableColumnHeader } from './column-header'
 export { DataTableToolbar } from './toolbar'
-export { DataTableBulkActions } from './bulk-actions'
+export { useRangeSelection, type RangeSelection } from './use-range-selection'
+export { createSelectColumn } from './select-column'
+export { BatchSelectToolbar } from './batch-select-toolbar'
