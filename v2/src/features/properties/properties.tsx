@@ -1,10 +1,8 @@
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
@@ -17,11 +15,9 @@ import {
   MapPin,
   Plus,
   Ruler,
-  Search,
   StickyNote,
   User,
   Users,
-  X,
 } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { useRowHover } from '@/hooks/use-row-hover'
@@ -30,21 +26,18 @@ import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { DaysRemainingChip } from '@/components/yonghua/days-remaining-chip'
 import { OverdueBadge } from '@/components/yonghua/overdue-badge'
 import { SEVERITY_STRIP } from '@/components/yonghua/severity'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  useCascadingFilter,
+  FilterBar,
+  type FilterField,
+} from '@/components/yonghua/cascading-filter'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -109,24 +102,11 @@ export function Properties() {
   const { data: contractKeys } = useContractMatchKeys()
   const { data: invoiceStats } = useInvoiceStatsByContract()
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
   const { hover, onEnter, onMove, onLeave } = useRowHover<Row>()
   const search = useSearch({ from: '/_authenticated/properties/' }) as {
     province?: string
   }
-
-  // Sync province URL param → column filter (on URL change)
-  useEffect(() => {
-    const provinceParam = search.province?.trim() ?? ''
-    setColumnFilters((prev) => {
-      const others = prev.filter((f) => f.id !== 'province')
-      return provinceParam
-        ? [...others, { id: 'province', value: provinceParam }]
-        : others
-    })
-  }, [search.province])
 
   // Group non-cancelled contracts by property pid — used for count + current
   // tenant + active contract (rate/timeline/overdue).
@@ -200,6 +180,65 @@ export function Properties() {
     })
   }, [properties, contractsByPid, invoiceStats])
 
+  // ตัวกรองกลาง (cascade) — ประเภท · จังหวัด→อำเภอ→ตำบล · การเช่า
+  const filterFields = useMemo<FilterField<Row>[]>(
+    () => [
+      {
+        key: 'type',
+        label: 'ประเภท',
+        get: (r) => (r.data?.type ? typeLabel(r.data.type) : null),
+      },
+      {
+        key: 'province',
+        label: 'จังหวัด',
+        get: (r) => {
+          const v = getPropertyProvince(r.data)
+          return v === '—' ? null : v
+        },
+      },
+      {
+        key: 'district',
+        label: 'อำเภอ',
+        get: (r) => r.data?.addr_district || null,
+      },
+      {
+        key: 'subdistrict',
+        label: 'ตำบล',
+        get: (r) => r.data?.addr_subdistrict || null,
+      },
+      {
+        key: 'occupancy',
+        label: 'การเช่า',
+        get: (r) => (r._contractCount > 0 ? 'มีผู้เช่า' : 'ว่าง'),
+      },
+    ],
+    [],
+  )
+  const searchGet = useCallback(
+    (r: Row) =>
+      [
+        r.data?.name,
+        r.data?.location,
+        r.data?.address,
+        r.data?.titleDeed,
+        r.data?.area,
+        r.data?.owner,
+        r.data?.province,
+        r.data?.addr_province,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [],
+  )
+  const filter = useCascadingFilter(rows, filterFields, searchGet)
+
+  // จังหวัดจาก URL (?province=) → seed ตัวกรองจังหวัด
+  useEffect(() => {
+    const p = search.province?.trim()
+    if (p) filter.setFieldValues('province', [p])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.province])
+
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
       {
@@ -238,10 +277,6 @@ export function Properties() {
             {typeLabel(row.original.data?.type)}
           </Badge>
         ),
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          return row.original.data?.type === value
-        },
       },
       {
         id: 'province',
@@ -256,16 +291,6 @@ export function Properties() {
               {v}
             </span>
           )
-        },
-        filterFn: (row, _id, value) => {
-          if (!value) return true
-          const v = String(value).trim().toLowerCase()
-          if (!v) return true
-          const p = row.original.data
-          const fields = [p?.province, p?.addr_province]
-            .filter(Boolean)
-            .map((s) => String(s).toLowerCase())
-          return fields.some((f) => f.includes(v))
         },
       },
       {
@@ -369,57 +394,13 @@ export function Properties() {
   )
 
   const table = useReactTable({
-    data: rows,
+    data: filter.filtered,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _id, filterValue) => {
-      const v = String(filterValue ?? '')
-        .toLowerCase()
-        .trim()
-      if (!v) return true
-      const p = row.original.data
-      const haystack = [
-        p?.name,
-        p?.location,
-        p?.address,
-        p?.titleDeed,
-        p?.area,
-        p?.owner,
-        p?.province,
-        p?.addr_province,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(v)
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   })
-
-  const typeFilter =
-    (columnFilters.find((f) => f.id === 'type')?.value as string) ?? 'all'
-  const setTypeFilter = (value: string) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'type'),
-      ...(value && value !== 'all' ? [{ id: 'type', value }] : []),
-    ])
-  }
-
-  const provinceFilter =
-    (columnFilters.find((f) => f.id === 'province')?.value as string) ?? ''
-  const clearProvinceFilter = () => {
-    navigate({
-      to: '/properties',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      search: {} as any,
-      replace: true,
-    })
-  }
 
   const totalRows = properties?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
@@ -523,46 +504,10 @@ export function Properties() {
         </div>
 
         {/* Filters */}
-        <div className='flex flex-wrap items-center gap-3'>
-          <div className='relative max-w-sm flex-1'>
-            <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              placeholder='ค้นหา ชื่อ · ที่อยู่ · เจ้าของ · จังหวัด...'
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className='pl-9'
-            />
-          </div>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className='w-[220px]'>
-              <SelectValue placeholder='ทุกประเภท' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>ทุกประเภท</SelectItem>
-              {PROPERTY_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {provinceFilter && (
-            <Badge
-              variant='outline'
-              className='gap-1 border-primary/30 bg-primary/10 py-1 pl-2.5 pr-1 text-primary'
-            >
-              จังหวัด: {provinceFilter}
-              <button
-                type='button'
-                onClick={clearProvinceFilter}
-                className='ml-0.5 inline-flex size-4 items-center justify-center rounded-full hover:bg-primary/20'
-                aria-label='ล้างตัวกรองจังหวัด'
-              >
-                <X className='size-3' />
-              </button>
-            </Badge>
-          )}
-        </div>
+        <FilterBar
+          filter={filter}
+          searchPlaceholder='ค้นหา ชื่อ · ที่อยู่ · เจ้าของ · จังหวัด...'
+        />
 
         {/* Error */}
         {error && (
