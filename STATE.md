@@ -2,6 +2,17 @@
 
 > **Update this file ทุกจบ session** · อ่านทุกเริ่ม session คู่กับ `memory/project_app_core.md`
 
+## ✅ Session 2026-05-30 (b) — [v2] แก้คลิกแถวใบแจ้งหนี้ขึ้น prod + retire v1 → legacy/
+
+1. **แก้คลิกแถวหน้าใบแจ้งหนี้** (ขึ้น prod แล้ว · main = c74558c) — commit ก่อน (6303a34) เขียน message ว่าทำ row-click toggle แล้ว แต่จริงไม่ได้ต่อสายที่ตัวแถว · ตอนนี้: มีติ๊กแล้วคลิกแถว = สลับเลือก (ไม่เด้งเข้าหน้ารายละเอียด) · ยังไม่ติ๊ก = คลิกแถวเข้า detail เหมือนเดิม · เพิ่ม shift-คลิกเลือกเป็นช่วง (เก็บ anchor เป็น id แก้ index เพี้ยนตอน sort/filter) → Tem ลอง preview ผ่าน → merge + deploy:prod
+2. **Retire v1** — ย้าย `RentalManagement.html` + `modules/` + AUDIT json เข้า `legacy/` (git mv · ย้อนได้) + `legacy/README.md` ปิดป้าย "ห้ามแก้/deploy" · ล้าง `CLAUDE.md` เหลือ v2 อย่างเดียว (ตัด v1 spec + กฎ 6 ข้อ v1 + split v1/v2) · ลบ entry v1 ออกจาก `.claude/launch.json`
+3. **Lesson ใหม่** — "v2 preview = Cloudflare deploy เสมอ · ห้าม local dev server" (auth Google ผ่านเองไม่ได้) บันทึก LESSONS.md + memory + Notion Lessons DB
+4. **ลบ CI v1** — หลังย้ายไฟล์ `.github/workflows/deploy.yml` (auto-deploy v1) พังทุก push → ลบทิ้ง (v1 retired) · เว็บ v1 เก่ายังอยู่ · `deploy-v2.yml` ไม่กระทบ (filter เฉพาะ `v2/**`)
+
+**Notes:** ข้อมูล v1/v2 ใช้ Supabase ตัวเดียว → retire ไม่ต้องย้ายข้อมูล · v1 บน Cloudflare เป็น project แยก (sn-real-estate · direct-upload) ไม่ผูก git → ย้ายไฟล์ repo ไม่กระทบเว็บเก่า
+
+**ถัดไป:** เว็บ v1 เก่า (sn-real-estate.pages.dev) Tem เลือก "ปล่อยไว้ก่อน" → ค่อยตัดสินใจ redirect ไป v2 / ลบ project ทีหลัง
+
 ## ✅ Session 2026-05-30 — [v2] จับคู่เงิน A–E + redesign + แบ่งจ่าย + จับคู่ค้าง (merge main + ขึ้น prod แล้ว)
 
 **merge เข้า main + deploy:prod แล้ว** (main = 0208d9b · live ที่ sn-real-estate-v2.pages.dev) · Tem ยืนยันขึ้น prod · งาน invoice wizard (per-row select + reconciliation เดือนก่อน) ยังค้างแยกบน branch feat/invoice-wizard-controls (ยังไม่ merge)
