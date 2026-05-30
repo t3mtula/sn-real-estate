@@ -36,6 +36,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { MeterGrid } from '@/features/meters/meter-grid'
 import { getMeterTypeLabel, useMeterReadings } from '@/features/meters/queries'
 import type { MeterReading, MeterType } from '@/features/meters/types'
 import { cn } from '@/lib/utils'
@@ -229,14 +231,25 @@ export function Meters() {
                 : `${filteredCount.toLocaleString('th-TH')} / ${totalRows.toLocaleString('th-TH')} รายการ`}
             </p>
           </div>
-          <Button asChild>
+          <Button asChild variant='outline'>
             <Link to='/meters/new'>
               <Plus className='size-4' />
-              เพิ่มการอ่านมิเตอร์
+              จดทีละรายการ
             </Link>
           </Button>
         </div>
 
+        <Tabs defaultValue='grid' className='space-y-4 sm:space-y-6'>
+          <TabsList>
+            <TabsTrigger value='grid'>จดมิเตอร์ (ตาราง)</TabsTrigger>
+            <TabsTrigger value='history'>ประวัติการอ่าน</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value='grid'>
+            <MeterGrid />
+          </TabsContent>
+
+          <TabsContent value='history' className='space-y-4 sm:space-y-6'>
         {/* Filters */}
         <div className='flex flex-wrap items-center gap-3'>
           <Select value={propertyFilter} onValueChange={setPropertyFilter}>
@@ -359,6 +372,8 @@ export function Meters() {
             </TableBody>
           </Table>
         </div>
+          </TabsContent>
+        </Tabs>
       </Main>
 
       <CursorPopover open={!!hover} x={hover?.x ?? 0} y={hover?.y ?? 0}>

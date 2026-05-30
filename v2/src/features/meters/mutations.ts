@@ -155,3 +155,31 @@ export function useDeleteMeterReading() {
     },
   })
 }
+
+/**
+ * จดมิเตอร์ทีละหลายห้องรวดเดียว (จากหน้าตาราง grid) — insert array ครั้งเดียว
+ * รับ MeterReadingData ที่คำนวณ units/total มาแล้ว
+ */
+export function useBulkCreateMeterReadings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (items: MeterReadingData[]) => {
+      if (items.length === 0) return { count: 0 }
+      const { error } = await supabase
+        .from(TABLE)
+        .insert(items.map((data) => ({ data })))
+      if (error) throw error
+      void logActivity({
+        action: 'create',
+        entity: 'meter_readings',
+        entity_id: `bulk-${items.length}`,
+        description: `จดมิเตอร์รวม ${items.length} รายการ`,
+        after: { count: items.length },
+      })
+      return { count: items.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
+    },
+  })
+}
