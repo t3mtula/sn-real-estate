@@ -3,7 +3,6 @@ import { useNavigate, useSearch  } from '@tanstack/react-router'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
-import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -28,7 +27,6 @@ import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
 import {
   DuplicateInvoiceError,
-  fetchUnbilledUtilitiesByContract,
   useGenerateInvoiceFromContract,
 } from '@/features/invoices/mutations'
 import {
@@ -81,7 +79,6 @@ export function InvoiceNew() {
   })
 
   const contractId = form.watch('contract_id')
-  const month = form.watch('month')
   const category = form.watch('category')
   const amountOverride = form.watch('amount')
 
@@ -135,23 +132,6 @@ export function InvoiceNew() {
     control: form.control,
     name: 'extraItems',
   })
-  const extraItems = form.watch('extraItems') ?? []
-  const extrasSum = extraItems.reduce(
-    (s, it) => s + (Number(it?.amount) || 0),
-    0,
-  )
-
-  // มิเตอร์ที่จะเข้าใบนี้ (preview · เฉพาะค่าเช่า · เดือน X ← จดเดือน X-1)
-  // contractId อยู่ใน key แล้ว · contract มาจาก useContract(contractId) → key ครอบคลุม
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps
-  const { data: utilMap } = useQuery({
-    queryKey: ['util-preview', contractId, month, category],
-    queryFn: () => fetchUnbilledUtilitiesByContract([contract!], month),
-    enabled: !!contract && category === 'rent' && !!month,
-  })
-  const previewUtils = (contract ? utilMap?.get(contract.id) : undefined) ?? []
-  const utilSum = previewUtils.reduce((s, u) => s + u.amount, 0)
-  const grandTotal = finalAmount + utilSum + extrasSum
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -408,68 +388,6 @@ export function InvoiceNew() {
                 </div>
               )}
             </div>
-          </div>
-
-          <div className='rounded-md border bg-muted/30 p-4 text-sm'>
-            <h3 className='mb-2 text-sm font-medium'>สรุปก่อนออก</h3>
-            {contract ? (
-              <ul className='space-y-1 text-muted-foreground'>
-                <li>
-                  สัญญา: <span className='text-foreground'>{contract.data?.no || `#${contract.id}`}</span>
-                </li>
-                <li>
-                  ผู้เช่า:{' '}
-                  <span className='text-foreground'>
-                    {tenant?.data?.name || contract.data?.tenant || '—'}
-                  </span>
-                </li>
-                <li>
-                  ผู้ให้เช่า:{' '}
-                  <span className='text-foreground'>
-                    {landlord?.data?.name || contract.data?.landlord || '—'}
-                  </span>
-                </li>
-                <li>
-                  ทรัพย์สิน:{' '}
-                  <span className='text-foreground'>
-                    {property?.data?.name || String(contract.data?.property ?? '') || '—'}
-                  </span>
-                </li>
-                <li>
-                  เดือน: <span className='text-foreground'>{formatMonth(month)}</span>
-                </li>
-                <li>
-                  {category === 'deposit' ? 'เงินประกัน' : 'ค่าเช่า'}:{' '}
-                  <span className='text-foreground'>{amt(finalAmount)}</span>
-                </li>
-                {previewUtils.map((u, i) => (
-                  <li key={`util-${i}`}>
-                    {u.label} ({u.units} หน่วย):{' '}
-                    <span className='text-foreground'>{amt(u.amount)}</span>
-                  </li>
-                ))}
-                {extraItems
-                  .filter(
-                    (it) =>
-                      (it?.desc?.trim() || '') !== '' &&
-                      (Number(it?.amount) || 0) > 0,
-                  )
-                  .map((it, i) => (
-                    <li key={i}>
-                      {it.desc}:{' '}
-                      <span className='text-foreground'>
-                        {amt(Number(it.amount) || 0)}
-                      </span>
-                    </li>
-                  ))}
-                <li className='font-medium'>
-                  รวมทั้งใบ:{' '}
-                  <span className='text-foreground'>{amt(grandTotal)}</span>
-                </li>
-              </ul>
-            ) : (
-              <p className='text-muted-foreground'>เลือกสัญญาก่อนเพื่อดูสรุป</p>
-            )}
           </div>
 
           <div className='flex justify-end gap-2'>

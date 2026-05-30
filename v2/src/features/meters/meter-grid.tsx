@@ -218,12 +218,14 @@ export function MeterGrid() {
     const info = kind === 'water' ? room.water : room.electricity
     return info?.existing != null ? String(info.existing.curr) : ''
   }
+  // เลขก่อน = ที่พิมพ์ (ถ้าแตะ) · ไม่งั้นเติมจาก chain · น้ำ/ไฟ ใช้ logic เดียวกันเป๊ะ
   function prevStr(room: RoomRow, kind: UtilityKind): string {
-    return draft[dKey(room.propertyId, kind)]?.prev ?? ''
+    const d = draft[dKey(room.propertyId, kind)]?.prev
+    if (d != null) return d
+    const info = kind === 'water' ? room.water : room.electricity
+    return info?.autoPrev != null ? String(info.autoPrev) : ''
   }
   function resolvePrev(room: RoomRow, kind: UtilityKind): number | null {
-    const info = kind === 'water' ? room.water : room.electricity
-    if (info?.autoPrev != null) return info.autoPrev
     return toNum(prevStr(room, kind))
   }
   function setField(propertyId: string, kind: UtilityKind, field: 'prev' | 'curr', value: string) {
@@ -533,33 +535,26 @@ function UtilityCells({
       </TableCell>
     )
   }
-  const prev = info.autoPrev != null ? info.autoPrev : toNum(prevInput)
+  const prev = toNum(prevInput)
   const curr = toNum(currValue)
   const units = prev != null && curr != null ? curr - prev : null
   const invalid = units != null && units < 0
   return (
     <>
-      <TableCell className={cn('border-l-2 py-1 text-right', border)}>
-        {info.autoPrev != null ? (
-          <div>
-            <span className='block text-sm tabular-nums text-muted-foreground'>
-              {info.autoPrev.toLocaleString('th-TH')}
-            </span>
-            {info.autoPrevMonth && (
-              <span className='block text-[10px] text-muted-foreground'>
-                สิ้น {formatMonth(info.autoPrevMonth)}
-              </span>
-            )}
-          </div>
-        ) : (
-          <Input
-            value={prevInput}
-            onChange={(e) => onPrev(e.target.value)}
-            onPaste={onPastePrev}
-            inputMode='decimal'
-            placeholder='เลขเริ่ม'
-            className='h-8 w-24 text-right tabular-nums'
-          />
+      {/* เลขก่อน — ช่องกรอกเหมือนกันทั้งน้ำ/ไฟ · มีประวัติ = เติมให้ + บอกเดือน (แก้ได้) */}
+      <TableCell className={cn('border-l-2 py-1', border)}>
+        <Input
+          value={prevInput}
+          onChange={(e) => onPrev(e.target.value)}
+          onPaste={onPastePrev}
+          inputMode='decimal'
+          placeholder='เลขเริ่ม'
+          className='h-8 w-24 text-right tabular-nums'
+        />
+        {info.autoPrevMonth && (
+          <span className='mt-0.5 block text-right text-[10px] text-muted-foreground'>
+            สิ้น {formatMonth(info.autoPrevMonth)}
+          </span>
         )}
       </TableCell>
       <TableCell className='py-1'>
