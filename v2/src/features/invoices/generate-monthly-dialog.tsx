@@ -4,6 +4,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
+  useCascadingFilter,
+  FilterBar,
+  type FilterField,
+} from '@/components/yonghua/cascading-filter'
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -55,6 +60,16 @@ const SKIP_REASON_LABEL: Record<
   no_dates: 'ไม่มีวันเริ่ม/สิ้นสุด',
   no_rate: 'ไม่มีค่าเช่า',
 }
+
+/** มิติกรองในกล่อง review (cascade) — reuse ได้ทั้งแอป */
+const FILTER_FIELDS: FilterField<CreateRowData>[] = [
+  { key: 'landlord', label: 'ผู้ให้เช่า', get: (r) => r.landlord },
+  { key: 'bank', label: 'บัญชีรับเงิน', get: (r) => r.bankName || r.bankLabel },
+  { key: 'freq', label: 'รอบบิล', get: (r) => r.freqLabel },
+  { key: 'property', label: 'ทรัพย์สิน', get: (r) => r.property },
+]
+const filterSearchText = (r: CreateRowData) =>
+  `${r.contractNo} ${r.tenant} ${r.property} ${r.landlord} ${r.bankLabel}`
 
 export function GenerateMonthlyDialog({
   open,
@@ -125,12 +140,9 @@ export function GenerateMonthlyDialog({
     }
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(selectedIds: string[]) {
     try {
-      // สร้างเฉพาะใบที่ติ๊กเลือกไว้ (ส่ง id ชัดเจน · tag ไม่ต้องกรองซ้ำ)
-      const selectedIds = (preview.data?.willCreate ?? [])
-        .filter((r) => !excluded.has(r.contractId))
-        .map((r) => r.contractId)
+      // สร้างเฉพาะใบที่ผ่านตัวกรอง + ติ๊กเลือกไว้ (ส่ง id ชัดเจน)
       const res = await generate.mutateAsync({
         month,
         tags: [],
@@ -161,13 +173,24 @@ export function GenerateMonthlyDialog({
 
   // จัดกลุ่มใบที่จะสร้าง ตามผลการเทียบใบรอบก่อน
   const createRows = prev?.willCreate ?? []
+  // ตัวกรอง cascade (ผู้ให้เช่า/บัญชี/รอบ/ทรัพย์ + ค้นหา) — ทำงานบนชุดที่กรองแล้ว
+  const filter = useCascadingFilter(createRows, FILTER_FIELDS, filterSearchText)
+  const visibleRows = filter.filtered
   const isSel = (id: string) => !excluded.has(id)
-  const selectedRows = createRows.filter((r) => isSel(r.contractId))
+  const selectedRows = visibleRows.filter((r) => isSel(r.contractId))
   const selectedCount = selectedRows.length
   const sumAmount = selectedRows.reduce((s, x) => s + x.amount, 0)
-  const allSelected = createRows.length > 0 && selectedCount === createRows.length
+  const allSelected =
+    visibleRows.length > 0 && selectedCount === visibleRows.length
   const setAll = (on: boolean) =>
-    setExcluded(on ? new Set() : new Set(createRows.map((r) => r.contractId)))
+    setExcluded((prevEx) => {
+      const next = new Set(prevEx)
+      for (const r of visibleRows) {
+        if (on) next.delete(r.contractId)
+        else next.add(r.contractId)
+      }
+      return next
+    })
 
   // สรุปยอดตามบัญชีรับเงิน (เฉพาะใบที่เลือก) — เงินเข้าบัญชีไหนกี่ใบ กี่บาท
   const byAccount = (() => {
@@ -184,21 +207,21 @@ export function GenerateMonthlyDialog({
       .map(([label, v]) => ({ label, ...v }))
       .sort((a, b) => b.total - a.total)
   })()
-  const needReview = createRows.filter(
+  const needReview = visibleRows.filter(
     (r) =>
       r.compareStatus === 'diff' ||
       r.hasFreqConflict ||
       r.maybeMissingUtility ||
       r.rateAmbiguous,
   )
-  const newRows = createRows.filter(
+  const newRows = visibleRows.filter(
     (r) =>
       r.compareStatus === 'new' &&
       !r.hasFreqConflict &&
       !r.maybeMissingUtility &&
       !r.rateAmbiguous,
   )
-  const matchedRows = createRows.filter(
+  const matchedRows = visibleRows.filter(
     (r) =>
       r.compareStatus === 'match' &&
       !r.hasFreqConflict &&
@@ -308,12 +331,21 @@ export function GenerateMonthlyDialog({
                 </div>
               ) : (
                 <>
+                  {/* ตัวกรอง cascade — ผู้ให้เช่า/บัญชี/รอบ/ทรัพย์ + ค้นหา */}
+                  <FilterBar
+                    filter={filter}
+                    searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · ผู้ให้เช่า...'
+                  />
+
                   {/* กระทบยอดทั้งรอบ vs เดือนก่อน */}
                   <div className='rounded-md border bg-muted/30 px-4 py-2.5'>
                     <div className='flex items-center justify-between text-sm font-semibold'>
                       <span>
                         เลือกสร้าง {selectedCount.toLocaleString('th-TH')} /{' '}
-                        {createRows.length.toLocaleString('th-TH')} ใบ
+                        {visibleRows.length.toLocaleString('th-TH')} ใบ
+                        {filter.activeCount > 0
+                          ? ` (กรองจาก ${createRows.length.toLocaleString('th-TH')})`
+                          : ''}
                       </span>
                       <span className='tabular-nums'>{amt(sumAmount)}</span>
                     </div>
@@ -398,6 +430,13 @@ export function GenerateMonthlyDialog({
                         ))}
                       </div>
                     </details>
+                  )}
+
+                  {/* ตัวกรองซ่อนหมด */}
+                  {visibleRows.length === 0 && (
+                    <div className='rounded-md border bg-muted/20 p-4 text-center text-sm text-muted-foreground'>
+                      ไม่พบใบที่ตรงกับตัวกรอง — ลองล้างตัวกรอง
+                    </div>
                   )}
 
                   {/* ⚠️ ต้องตรวจ — ยอดต่างจากรอบก่อน หรือรอบชำระไม่ตรง */}
@@ -539,7 +578,9 @@ export function GenerateMonthlyDialog({
           </DialogClose>
           {stage === 'review' && prev && prev.willCreate.length > 0 && (
             <Button
-              onClick={handleConfirm}
+              onClick={() =>
+                handleConfirm(selectedRows.map((r) => r.contractId))
+              }
               disabled={generate.isPending || selectedCount === 0}
             >
               {generate.isPending && <Loader2 className='size-4 animate-spin' />}
