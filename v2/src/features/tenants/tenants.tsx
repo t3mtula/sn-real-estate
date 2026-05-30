@@ -1,36 +1,31 @@
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Building2, Clock, Download, FileText, MapPin, Plus, Search, StickyNote, UserRound, Users } from 'lucide-react'
+import { Building2, Clock, Download, FileText, MapPin, Plus, StickyNote, UserRound, Users } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { useRowHover } from '@/hooks/use-row-hover'
 import { CursorPopover } from '@/components/cursor-popover'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
 import { DaysRemainingChip } from '@/components/yonghua/days-remaining-chip'
 import { OverdueBadge } from '@/components/yonghua/overdue-badge'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  useCascadingFilter,
+  FilterBar,
+  type FilterField,
+} from '@/components/yonghua/cascading-filter'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -54,10 +49,9 @@ import {
   daysUntil,
   monthlyRevenue,
 } from '@/lib/contracts/stats'
-import { parseBE } from '@/lib/thai'
+import { amt, parseBE } from '@/lib/thai'
 import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
 import { ContractMiniRow } from '@/components/yonghua/contract-mini-row'
-import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 
 const PARTY_LABEL: Record<string, string> = Object.fromEntries(
@@ -107,8 +101,6 @@ export function Tenants() {
   const { data: contracts } = useContractMatchKeys()
   const { data: invoiceStats } = useInvoiceStatsByContract()
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const navigate = useNavigate()
   const { hover, onEnter, onMove, onLeave } = useRowHover<TenantRow>()
 
@@ -158,6 +150,48 @@ export function Tenants() {
     })
   }, [tenants, contracts, invoiceStats])
 
+  // ตัวกรองกลาง — ประเภท · จังหวัด→อำเภอ · สัญญาที่ใช้งาน
+  const filterFields = useMemo<FilterField<TenantRow>[]>(
+    () => [
+      {
+        key: 'partyType',
+        label: 'ประเภท',
+        get: (r) => PARTY_LABEL[r.data?.partyType ?? ''] || null,
+      },
+      {
+        key: 'province',
+        label: 'จังหวัด',
+        get: (r) => r.data?.addrProvince?.trim() || null,
+      },
+      {
+        key: 'district',
+        label: 'อำเภอ',
+        get: (r) => r.data?.addrDistrict?.trim() || null,
+      },
+      {
+        key: 'active',
+        label: 'สัญญา',
+        get: (r) => (r._activeCount > 0 ? 'มีสัญญาเช่าอยู่' : 'ไม่มี'),
+      },
+    ],
+    [],
+  )
+  const searchGet = useCallback(
+    (r: TenantRow) =>
+      [
+        r.data?.name,
+        r.data?.taxId,
+        r.data?.phone,
+        r.data?.addrProvince,
+        r.data?.addrDistrict,
+        r.data?.addrSubdistrict,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [],
+  )
+  const filter = useCascadingFilter(rows, filterFields, searchGet)
+
   const columns = useMemo<ColumnDef<TenantRow>[]>(
     () => [
       {
@@ -198,10 +232,6 @@ export function Tenants() {
             {PARTY_LABEL[row.original.data?.partyType ?? ''] ?? '—'}
           </Badge>
         ),
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          return row.original.data?.partyType === value
-        },
       },
       {
         id: 'taxId',
@@ -282,44 +312,13 @@ export function Tenants() {
   )
 
   const table = useReactTable({
-    data: rows,
+    data: filter.filtered,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _id, filterValue) => {
-      const v = String(filterValue ?? '')
-        .toLowerCase()
-        .trim()
-      if (!v) return true
-      const t = row.original.data
-      const haystack = [
-        t?.name,
-        t?.taxId,
-        t?.phone,
-        t?.addrProvince,
-        t?.addrDistrict,
-        t?.addrSubdistrict,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(v)
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   })
-
-  const partyFilter =
-    (columnFilters.find((f) => f.id === 'partyType')?.value as string) ?? 'all'
-  const setPartyFilter = (value: string) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'partyType'),
-      ...(value && value !== 'all' ? [{ id: 'partyType', value }] : []),
-    ])
-  }
 
   const totalRows = tenants?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
@@ -425,30 +424,10 @@ export function Tenants() {
         </div>
 
         {/* Filters */}
-        <div className='flex flex-wrap items-center gap-3'>
-          <div className='relative max-w-sm flex-1'>
-            <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              placeholder='ค้น ชื่อ · เลขผู้เสียภาษี · เบอร์...'
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className='pl-9'
-            />
-          </div>
-          <Select value={partyFilter} onValueChange={setPartyFilter}>
-            <SelectTrigger className='w-[180px]'>
-              <SelectValue placeholder='ทุกประเภท' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>ทุกประเภท</SelectItem>
-              {PARTY_TYPES.map((p) => (
-                <SelectItem key={p.value} value={p.value}>
-                  {p.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <FilterBar
+          filter={filter}
+          searchPlaceholder='ค้น ชื่อ · เลขผู้เสียภาษี · เบอร์...'
+        />
 
         {error && (
           <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
