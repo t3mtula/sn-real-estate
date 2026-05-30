@@ -255,6 +255,19 @@ export function useGenerateInvoiceFromContract() {
           ? Number((baseAmount * (1 + vatRate / 100)).toFixed(2))
           : baseAmount
 
+      // ค่าน้ำ/ไฟที่ยังไม่ออกบิลของสัญญานี้ → ดึงเข้าใบอัตโนมัติ (เฉพาะใบค่าเช่า · ไม่ใช่มัดจำ)
+      const utils =
+        category === 'rent'
+          ? (await fetchUnbilledUtilitiesByContract([contract])).get(contract.id) ?? []
+          : []
+      const utilItems = utils.map((u) => ({
+        desc: u.readingDate
+          ? `${u.label} (${u.units} หน่วย · จด ${u.readingDate})`
+          : `${u.label} (${u.units} หน่วย)`,
+        amount: u.amount,
+      }))
+      const utilSum = utils.reduce((s, u) => s + u.amount, 0)
+
       // รายการเพิ่ม (ค่าน้ำ/ไฟ/ค่าอื่น) ที่กรอกมือในฟอร์ม
       const extraItems = (values.extraItems ?? [])
         .map((it) => ({
@@ -263,13 +276,14 @@ export function useGenerateInvoiceFromContract() {
         }))
         .filter((it) => it.desc !== '' && it.amount > 0)
       const extraSum = extraItems.reduce((s, it) => s + it.amount, 0)
-      const grandTotal = Number((total + extraSum).toFixed(2))
+      const grandTotal = Number((total + utilSum + extraSum).toFixed(2))
 
       const items: InvoiceItem[] = [
         {
           desc: values.note?.trim() || buildItemDescription(freq.type, month, category),
           amount: total,
         },
+        ...utilItems,
         ...extraItems,
       ]
 
@@ -338,6 +352,13 @@ export function useGenerateInvoiceFromContract() {
         .select('id')
         .single()
       if (error) throw error
+      // mark มิเตอร์ที่รวมในใบนี้ว่า "ออกบิลแล้ว" + ผูกเลขใบ (กันเก็บซ้ำ · best-effort)
+      for (const u of utils) {
+        await supabase
+          .from(METERS_TABLE)
+          .update({ data: { ...u.raw, billed: true, invoice_id: id } })
+          .eq('id', u.meterId)
+      }
       void logActivity({
         action: 'create',
         entity: 'invoices',
@@ -349,6 +370,7 @@ export function useGenerateInvoiceFromContract() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
     },
   })
 }
