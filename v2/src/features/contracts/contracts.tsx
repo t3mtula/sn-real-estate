@@ -1,7 +1,6 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
-  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -10,7 +9,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, Search, StickyNote, Tag as TagIcon, UserRound, X } from 'lucide-react'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, Search, StickyNote, Tag as TagIcon, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMemo, useRef, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
@@ -23,7 +22,6 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
   Popover,
@@ -47,6 +45,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { SortableHeader } from '@/components/yonghua/sortable-header'
+import {
+  useRangeSelection,
+  createSelectColumn,
+  BatchSelectToolbar,
+} from '@/components/data-table'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
 import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
@@ -128,7 +131,8 @@ export function Contracts() {
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const sel = useRangeSelection<Row>((r) => r.id)
+  const { rowSelection, setRowSelection, selectedIds, selectedCount } = sel
   const { data: tagSuggestions } = useContractTags()
   const bulkTag = useBulkUpdateTags()
   const [bulkTagDraft, setBulkTagDraft] = useState<string[]>([])
@@ -141,8 +145,6 @@ export function Contracts() {
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [hover, setHover] = useState<{ row: Row; x: number; y: number } | null>(null)
   const hoverTimer = useRef<number | null>(null)
-  // Anchor row id for shift-click range selection
-  const lastSelectedId = useRef<string | null>(null)
 
   function onRowEnter(row: Row, e: React.MouseEvent) {
     const x = e.clientX
@@ -175,34 +177,7 @@ export function Contracts() {
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
-      {
-        id: 'select',
-        size: 28,
-        enableSorting: false,
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected()
-                ? true
-                : table.getIsSomePageRowsSelected()
-                ? 'indeterminate'
-                : false
-            }
-            onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-            aria-label='เลือกทั้งหมดในหน้า'
-            onClick={(e) => e.stopPropagation()}
-          />
-        ),
-        cell: ({ row }) => (
-          // คลิกถูกจัดการที่ TableCell (รองรับ Shift+คลิกเลือกช่วง) — checkbox แค่โชว์สถานะ
-          <Checkbox
-            checked={row.getIsSelected()}
-            aria-label='เลือก'
-            tabIndex={-1}
-            className='pointer-events-none'
-          />
-        ),
-      },
+      createSelectColumn<Row>(),
       {
         id: 'no',
         accessorFn: (row) => getContractDisplay(row),
@@ -479,24 +454,8 @@ export function Contracts() {
     ])
   }
 
-  const selectedIds = Object.keys(rowSelection).filter((k) => rowSelection[k])
-  const selectedCount = selectedIds.length
-
-  // Shift-click: select every row between the anchor and the target (visible order).
-  // Returns false if there's no valid anchor yet (caller falls back to single toggle).
-  function selectRange(targetId: string): boolean {
-    const anchorId = lastSelectedId.current
-    if (!anchorId || anchorId === targetId) return false
-    const viewRows = table.getRowModel().rows
-    const ai = viewRows.findIndex((r) => r.id === anchorId)
-    const ti = viewRows.findIndex((r) => r.id === targetId)
-    if (ai < 0 || ti < 0) return false
-    const [lo, hi] = ai < ti ? [ai, ti] : [ti, ai]
-    const next: RowSelectionState = { ...rowSelection }
-    for (let i = lo; i <= hi; i++) next[viewRows[i].id] = true
-    setRowSelection(next)
-    return true
-  }
+  // ลำดับแถวที่เห็นจริง (หลัง sort/filter) — ป้อนให้ Shift-click เลือกช่วง
+  const orderedRows = () => table.getRowModel().rows.map((r) => r.original)
 
   // tag ที่มีอยู่บนสัญญาที่เลือก (ใช้เป็นตัวเลือกตอน "เอา tag ออก")
   const tagsOnSelected = useMemo(() => {
@@ -838,9 +797,8 @@ export function Contracts() {
                       //   · Shift+คลิก = เลือกเป็นช่วงจากอันก่อนหน้า
                       // ปกติ (ยังไม่เลือกอะไร) → คลิกแถว = เปิดหน้าสัญญา
                       if (selectedCount > 0) {
-                        if (e.shiftKey && selectRange(row.id)) return
-                        row.toggleSelected(!row.getIsSelected())
-                        lastSelectedId.current = row.id
+                        if (e.shiftKey && sel.rangeTo(row.id, orderedRows())) return
+                        sel.toggle(row.id)
                         return
                       }
                       navigate({
@@ -872,9 +830,9 @@ export function Contracts() {
                             isSelect
                               ? (e) => {
                                   e.stopPropagation()
-                                  if (e.shiftKey && selectRange(row.id)) return
-                                  row.toggleSelected(!row.getIsSelected())
-                                  lastSelectedId.current = row.id
+                                  if (e.shiftKey && sel.rangeTo(row.id, orderedRows()))
+                                    return
+                                  sel.toggle(row.id)
                                 }
                               : undefined
                           }
@@ -895,13 +853,11 @@ export function Contracts() {
       </Main>
 
       {/* Floating bulk action bar */}
-      {selectedCount > 0 && (
-        <div className='pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
-          <div className='pointer-events-auto flex flex-wrap items-center gap-3 rounded-full border bg-card/95 px-4 py-2 shadow-lg backdrop-blur'>
-            <span className='text-sm font-semibold'>
-              เลือก {selectedCount.toLocaleString('th-TH')} สัญญา
-            </span>
-            <span className='h-4 w-px bg-border' />
+      <BatchSelectToolbar
+        selectedCount={selectedCount}
+        entityName='สัญญา'
+        onClear={sel.clear}
+      >
             <Popover
               open={bulkTagOpen}
               onOpenChange={(o) => {
@@ -996,19 +952,7 @@ export function Contracts() {
               <Download className='size-4' />
               Export ที่เลือก
             </Button>
-
-            <span className='h-4 w-px bg-border' />
-            <Button
-              size='sm'
-              variant='ghost'
-              onClick={() => setRowSelection({})}
-              aria-label='ล้างการเลือก'
-            >
-              <X className='size-4' />
-            </Button>
-          </div>
-        </div>
-      )}
+      </BatchSelectToolbar>
 
       <GenerateMonthlyDialog
         open={genOpen}
