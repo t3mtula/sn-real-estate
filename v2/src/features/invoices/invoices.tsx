@@ -1,10 +1,8 @@
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
@@ -19,7 +17,6 @@ import {
   Loader2,
   Plus,
   Receipt,
-  Search,
   Send,
   Sparkles,
   StickyNote,
@@ -27,7 +24,7 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import {
@@ -45,6 +42,11 @@ import {
   createSelectColumn,
   BatchSelectToolbar,
 } from '@/components/data-table'
+import {
+  useCascadingFilter,
+  FilterBar,
+  type FilterField,
+} from '@/components/yonghua/cascading-filter'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { BatchPaymentDialog } from '@/features/invoices/batch-payment-dialog'
@@ -58,14 +60,6 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -87,11 +81,7 @@ import {
 } from '@/features/invoices/queries'
 import { CursorPopover } from '@/components/cursor-popover'
 import { InvoiceRowPreview, type InvoicePreviewKind } from '@/features/invoices/invoice-row-preview'
-import {
-  INVOICE_STATUSES,
-  type Invoice,
-  type InvoiceStatus,
-} from '@/features/invoices/types'
+import { type Invoice, type InvoiceStatus } from '@/features/invoices/types'
 import { QuickPaymentDialog } from '@/features/invoices/payment-panel'
 import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
@@ -140,8 +130,6 @@ export function Invoices() {
   // Default: no explicit column sort — rows are pre-sorted "งานเร่งด่วน" first
   // (most overdue first → most recent month). Clicking a column header overrides.
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const sel = useRangeSelection<Row>((r) => r.id)
   const { rowSelection, setRowSelection } = sel
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
@@ -189,14 +177,59 @@ export function Invoices() {
     })
   }, [invoices])
 
-  const months = useMemo(() => {
-    const set = new Set<string>()
-    for (const inv of invoices ?? []) {
-      const m = inv.data?.month
-      if (m && /^\d{4}-\d{2}$/.test(m)) set.add(m)
-    }
-    return Array.from(set).sort().reverse()
-  }, [invoices])
+  // ตัวกรองกลาง — เดือน · สถานะ(+เกินกำหนด) · ผู้ให้เช่า · ทรัพย์สิน · ประเภท
+  const filterFields = useMemo<FilterField<Row>[]>(
+    () => [
+      {
+        key: 'month',
+        label: 'เดือน',
+        get: (r) => {
+          const m = r.data?.month
+          return m && /^\d{4}-\d{2}$/.test(m) ? formatMonth(m) : null
+        },
+      },
+      {
+        key: 'status',
+        label: 'สถานะ',
+        get: (r) => {
+          const label = getStatusMeta(r._status).label
+          return r._overdue > 0 ? [label, 'เกินกำหนด'] : [label]
+        },
+      },
+      {
+        key: 'landlord',
+        label: 'ผู้ให้เช่า',
+        get: (r) => r.data?.landlord?.trim() || null,
+      },
+      {
+        key: 'property',
+        label: 'ทรัพย์สิน',
+        get: (r) => r.data?.property?.trim() || null,
+      },
+      {
+        key: 'category',
+        label: 'ประเภท',
+        get: (r) =>
+          (r.data?.category ?? 'rent') === 'deposit' ? 'เงินมัดจำ' : 'ค่าเช่า',
+      },
+    ],
+    [],
+  )
+  const searchGet = useCallback(
+    (r: Row) =>
+      [
+        r.data?.invoiceNo,
+        r.data?.tenant,
+        r.data?.landlord,
+        r.data?.property,
+        r.data?.dueDate,
+        r.data?.month,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [],
+  )
+  const filter = useCascadingFilter(rows, filterFields, searchGet)
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
@@ -217,17 +250,6 @@ export function Invoices() {
               </span>
             </div>
           )
-        },
-      },
-      {
-        // ซ่อนไว้ (initialState columnVisibility) — เก็บไว้ให้ตัวกรอง "เดือน" ทำงาน
-        id: 'month',
-        accessorFn: (row) => row.data?.month ?? '',
-        header: () => null,
-        cell: () => null,
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          return row.original.data?.month === value
         },
       },
       {
@@ -327,11 +349,6 @@ export function Invoices() {
         accessorFn: (row) => row._status,
         header: ({ column }) => <SortableHeader column={column}>สถานะ</SortableHeader>,
         cell: ({ row }) => <StatusBadge status={row.original._status} />,
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          if (value === 'overdue') return row.original._overdue > 0
-          return row.original._status === value
-        },
       },
       {
         id: 'actions',
@@ -381,55 +398,16 @@ export function Invoices() {
   )
 
   const table = useReactTable({
-    data: rows,
+    data: filter.filtered,
     columns,
     enableRowSelection: true,
     getRowId: (row) => row.id,
-    initialState: { columnVisibility: { month: false } },
-    state: { sorting, columnFilters, globalFilter, rowSelection },
+    state: { sorting, rowSelection },
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _id, filterValue) => {
-      const v = String(filterValue ?? '').toLowerCase().trim()
-      if (!v) return true
-      const d = row.original.data
-      const haystack = [
-        d?.invoiceNo,
-        d?.tenant,
-        d?.landlord,
-        d?.property,
-        d?.dueDate,
-        d?.month,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(v)
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   })
-
-  const monthFilter =
-    (columnFilters.find((f) => f.id === 'month')?.value as string) ?? 'all'
-  const setMonthFilter = (value: string) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'month'),
-      ...(value && value !== 'all' ? [{ id: 'month', value }] : []),
-    ])
-  }
-
-  const statusFilter =
-    (columnFilters.find((f) => f.id === 'status')?.value as string) ?? 'all'
-  const setStatusFilter = (value: string) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'status'),
-      ...(value && value !== 'all' ? [{ id: 'status', value }] : []),
-    ])
-  }
 
   const totalRows = invoices?.length ?? 0
   const filteredRows = table.getRowModel().rows.length
@@ -674,42 +652,11 @@ export function Invoices() {
 
           <TabsContent value='list' className='mt-4 space-y-4'>
             <div className='flex flex-wrap items-center gap-3'>
-              <div className='relative max-w-sm flex-1'>
-                <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
-                <Input
-                  placeholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · เดือน...'
-                  value={globalFilter}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  className='pl-9'
-                />
-              </div>
-              <Select value={monthFilter} onValueChange={setMonthFilter}>
-                <SelectTrigger className='w-[160px]'>
-                  <SelectValue placeholder='ทุกเดือน' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='all'>ทุกเดือน</SelectItem>
-                  {months.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {formatMonth(m)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className='w-[160px]'>
-                  <SelectValue placeholder='ทุกสถานะ' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='all'>ทุกสถานะ</SelectItem>
-                  <SelectItem value='overdue'>เกินกำหนด</SelectItem>
-                  {INVOICE_STATUSES.filter((s) => s.value !== 'unknown').map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FilterBar
+                filter={filter}
+                searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · เดือน...'
+                className='flex-1'
+              />
               <p className='ml-auto text-sm text-muted-foreground'>
                 {isLoading
                   ? 'กำลังโหลด...'

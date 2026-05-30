@@ -1,17 +1,15 @@
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type SortingState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, Search, StickyNote, Tag as TagIcon, UserRound } from 'lucide-react'
+import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, StickyNote, Tag as TagIcon, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { freqShortLabel, monthlyRevenue } from '@/lib/contracts/stats'
 import { OverdueBadge } from '@/components/yonghua/overdue-badge'
@@ -22,19 +20,11 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -50,6 +40,11 @@ import {
   createSelectColumn,
   BatchSelectToolbar,
 } from '@/components/data-table'
+import {
+  useCascadingFilter,
+  FilterBar,
+  type FilterField,
+} from '@/components/yonghua/cascading-filter'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
 import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
@@ -64,11 +59,7 @@ import { useBulkUpdateTags } from '@/features/contracts/mutations'
 import { TagInput } from '@/components/yonghua/tag-input'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
 import { amt, dayjs, fmtThaiShort } from '@/lib/thai'
-import {
-  CONTRACT_STATUSES,
-  type Contract,
-  type ContractStatus,
-} from '@/features/contracts/types'
+import { type Contract, type ContractStatus } from '@/features/contracts/types'
 import { cn } from '@/lib/utils'
 
 type Row = Contract & {
@@ -129,8 +120,6 @@ export function Contracts() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'end', desc: true },
   ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [globalFilter, setGlobalFilter] = useState('')
   const sel = useRangeSelection<Row>((r) => r.id)
   const { rowSelection, setRowSelection, selectedIds, selectedCount } = sel
   const { data: tagSuggestions } = useContractTags()
@@ -175,6 +164,49 @@ export function Contracts() {
     })
   }, [contracts, invoiceStats])
 
+  // ตัวกรองกลาง — สถานะ · tag · ผู้ให้เช่า · ทรัพย์สิน
+  const filterFields = useMemo<FilterField<Row>[]>(
+    () => [
+      {
+        key: 'status',
+        label: 'สถานะ',
+        get: (r) => getStatusMeta(r._status).label,
+      },
+      {
+        key: 'tags',
+        label: 'Tag',
+        get: (r) => (Array.isArray(r.data?.tags) ? (r.data.tags as string[]) : []),
+      },
+      {
+        key: 'landlord',
+        label: 'ผู้ให้เช่า',
+        get: (r) => r.data?.landlord?.trim() || null,
+      },
+      {
+        key: 'property',
+        label: 'ทรัพย์สิน',
+        get: (r) => String(r.data?.property ?? '').trim() || null,
+      },
+    ],
+    [],
+  )
+  const searchGet = useCallback(
+    (r: Row) =>
+      [
+        r.data?.no,
+        r.data?.tenant,
+        r.data?.landlord,
+        r.data?.start,
+        r.data?.end,
+        r.data?.taxId,
+        r.data?.madeAt,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    [],
+  )
+  const filter = useCascadingFilter(rows, filterFields, searchGet)
+
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
       createSelectColumn<Row>(),
@@ -213,24 +245,6 @@ export function Contracts() {
               )}
             </div>
           )
-        },
-      },
-      {
-        id: 'tags',
-        accessorFn: (row) =>
-          Array.isArray(row.data?.tags) ? (row.data.tags as string[]) : [],
-        enableSorting: false,
-        // ซ่อนคอลัมน์ — ใช้เป็น filter เท่านั้น (tag แสดงใต้เลขสัญญาแล้ว)
-        header: () => null,
-        cell: () => null,
-        filterFn: (row, _id, value) => {
-          const want = (value as string[]) ?? []
-          if (want.length === 0) return true
-          const tags = Array.isArray(row.original.data?.tags)
-            ? (row.original.data.tags as string[])
-            : []
-          // ANY semantics — มี tag ที่เลือกอย่างน้อย 1 อัน
-          return want.some((w) => tags.includes(w))
         },
       },
       {
@@ -351,10 +365,6 @@ export function Contracts() {
             )}
           </div>
         ),
-        filterFn: (row, _id, value) => {
-          if (!value || value === 'all') return true
-          return row.original._status === value
-        },
       },
       {
         id: 'updated_at',
@@ -398,61 +408,16 @@ export function Contracts() {
   )
 
   const table = useReactTable({
-    data: rows,
+    data: filter.filtered,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-      rowSelection,
-      columnVisibility: { tags: false },
-    },
+    state: { sorting, rowSelection },
     enableRowSelection: true,
     getRowId: (row) => row.id,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _id, filterValue) => {
-      const v = String(filterValue ?? '').toLowerCase().trim()
-      if (!v) return true
-      const d = row.original.data
-      const haystack = [
-        d?.no,
-        d?.tenant,
-        d?.landlord,
-        d?.start,
-        d?.end,
-        d?.taxId,
-        d?.madeAt,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(v)
-    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
   })
-
-  const statusFilter =
-    (columnFilters.find((f) => f.id === 'status')?.value as string) ?? 'all'
-  const setStatusFilter = (value: string) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'status'),
-      ...(value && value !== 'all' ? [{ id: 'status', value }] : []),
-    ])
-  }
-
-  const tagFilter =
-    (columnFilters.find((f) => f.id === 'tags')?.value as string[]) ?? []
-  const setTagFilter = (value: string[]) => {
-    setColumnFilters((prev) => [
-      ...prev.filter((f) => f.id !== 'tags'),
-      ...(value.length > 0 ? [{ id: 'tags', value }] : []),
-    ])
-  }
 
   // ลำดับแถวที่เห็นจริง (หลัง sort/filter) — ป้อนให้ Shift-click เลือกช่วง
   const orderedRows = () => table.getRowModel().rows.map((r) => r.original)
@@ -652,44 +617,10 @@ export function Contracts() {
           </div>
         </div>
 
-        <div className='flex flex-wrap items-center gap-3'>
-          <div className='relative max-w-sm flex-1'>
-            <Search className='pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground' />
-            <Input
-              placeholder='ค้น เลขที่ · ผู้เช่า · ผู้ให้เช่า · วันที่...'
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className='pl-9'
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className='w-[180px]'>
-              <SelectValue placeholder='ทุกสถานะ' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>ทุกสถานะ</SelectItem>
-              {CONTRACT_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <div className='flex items-center gap-2'>
-            <TagInput
-              value={tagFilter}
-              onChange={setTagFilter}
-              suggestions={tagSuggestions ?? []}
-              placeholder='กรองตาม tag'
-            />
-            {tagFilter.length > 0 && (
-              <span className='text-xs text-muted-foreground'>
-                แสดงเฉพาะ {tagFilter.length} tag
-              </span>
-            )}
-          </div>
-        </div>
+        <FilterBar
+          filter={filter}
+          searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ผู้ให้เช่า · วันที่...'
+        />
 
         {error && (
           <div className='rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive'>
