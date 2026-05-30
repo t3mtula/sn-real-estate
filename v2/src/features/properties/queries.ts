@@ -53,7 +53,7 @@ export function getPropertyName(p: PropertyData | undefined): string {
  * Get province display (prefer province field, fall back to addr_province)
  */
 export function getPropertyProvince(p: PropertyData | undefined): string {
-  return (p?.province ?? p?.addr_province ?? "").trim() || "—"
+  return (p?.province || p?.addr_province || "").trim() || "—"
 }
 
 /**
@@ -61,8 +61,17 @@ export function getPropertyProvince(p: PropertyData | undefined): string {
  */
 export function getPropertyAddressShort(p: PropertyData | undefined): string {
   if (!p) return ""
-  // Prefer location, fall back to address, then titleDeed
-  return (p.location ?? p.address ?? p.titleDeed ?? "").trim() || "—"
+  // ป้ายย่อ: prefer location (ชื่อย่อ), fall back to address, then titleDeed
+  // ใช้ || ไม่ใช่ ?? เพื่อข้าม string ว่าง
+  return (p.location || p.address || p.titleDeed || "").trim() || "—"
+}
+
+/**
+ * Get full address for detail page · prefer address (full assembled), then location, titleDeed
+ */
+export function getPropertyAddressFull(p: PropertyData | undefined): string {
+  if (!p) return ""
+  return (p.address || p.location || p.titleDeed || "").trim() || "—"
 }
 
 /**

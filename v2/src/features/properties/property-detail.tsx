@@ -28,7 +28,7 @@ import {
   useUpdateProperty,
 } from '@/features/properties/mutations'
 import {
-  getPropertyAddressShort,
+  getPropertyAddressFull,
   getPropertyName,
   getPropertyProvince,
   useProperty,
@@ -263,7 +263,7 @@ function PropertyContent({
   const p = property.data
   const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
   const province = getPropertyProvince(p)
-  const address = getPropertyAddressShort(p)
+  const address = getPropertyAddressFull(p)
   const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)
   const { data: allContracts } = useContracts()
 
