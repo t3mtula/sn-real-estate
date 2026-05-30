@@ -1,5 +1,5 @@
 /**
- * รายงานลูกหนี้ค้างชำระ — จัดกลุ่มตาม tenant
+ * รายงานลูกหนี้เกินกำหนด — จัดกลุ่มตาม tenant
  * Port from v1 showAllOutstanding()
  */
 import { Link } from '@tanstack/react-router'
@@ -31,8 +31,11 @@ export function OutstandingReport() {
     if (!invoices) return []
     const outstanding = invoices.filter((inv) => {
       const s = getEffectiveStatus(inv)
-      const isDeposit = inv.data?.category === 'deposit' || (inv as any).category === 'deposit'
-      return !isDeposit && s !== 'paid' && s !== 'voided' && (inv.data?.remainingAmount ?? inv.data?.total ?? 0) > 0
+      const remaining = inv.data?.remainingAmount ?? inv.data?.total ?? 0
+      // "ลูกหนี้เกินกำหนด" = เลยวันครบกำหนดแล้ว (overdue) + ยังมียอดค้าง
+      // ใช้ daysOverdue ตัวเดียวกับ facet "เกินกำหนด" หน้าใบแจ้งหนี้ → นิยาม/เลขตรงกัน
+      // (รวมทุกประเภท · มัดจำที่เลยกำหนดก็คือหนี้เกินกำหนด)
+      return s !== 'paid' && s !== 'voided' && daysOverdue(inv) > 0 && remaining > 0
     })
 
     const map = new Map<string, Invoice[]>()
@@ -69,7 +72,7 @@ export function OutstandingReport() {
       })),
     )
     void exportXlsx(
-      xlsxFilename('ลูกหนี้ค้างชำระ'),
+      xlsxFilename('ลูกหนี้เกินกำหนด'),
       [
         { header: 'ผู้เช่า', key: 'tenant', width: 28 },
         { header: 'เลขที่', key: 'no', width: 16 },
@@ -80,7 +83,7 @@ export function OutstandingReport() {
         { header: 'เกินกำหนด (วัน)', key: 'overdue', width: 16 },
       ],
       rows,
-      { sheetName: 'ลูกหนี้ค้างชำระ' },
+      { sheetName: 'ลูกหนี้เกินกำหนด' },
     )
   }
 
@@ -96,9 +99,10 @@ export function OutstandingReport() {
       <Main className='flex flex-1 flex-col gap-6'>
         <header className='flex flex-wrap items-center justify-between gap-3'>
           <div>
-            <h1 className='text-2xl font-bold tracking-tight'>ลูกหนี้ค้างชำระ</h1>
+            <h1 className='text-2xl font-bold tracking-tight'>ลูกหนี้เกินกำหนด</h1>
             <p className='mt-1 text-sm text-muted-foreground'>
-              {groups.length} ราย · {totalInvoices} ใบ · รวม {amt(grandTotal)}
+              เฉพาะใบที่เลยวันครบกำหนดแล้วและยังไม่จ่าย · {groups.length} ราย ·{' '}
+              {totalInvoices} ใบ · รวม {amt(grandTotal)}
             </p>
           </div>
           <Button variant='outline' onClick={handleExport} disabled={totalInvoices === 0}>
@@ -113,7 +117,7 @@ export function OutstandingReport() {
           </div>
         ) : groups.length === 0 ? (
           <div className='rounded-md border bg-muted/30 p-10 text-center text-sm text-muted-foreground'>
-            ไม่มีลูกหนี้ค้างชำระ 🎉
+            ไม่มีลูกหนี้เกินกำหนด 🎉
           </div>
         ) : (
           <div className='space-y-4'>

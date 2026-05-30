@@ -75,7 +75,7 @@ export const sidebarData: SidebarData = {
           icon: Banknote,
         },
         {
-          title: 'ลูกหนี้ค้างชำระ',
+          title: 'ลูกหนี้เกินกำหนด',
           url: '/reports/outstanding',
           icon: AlertCircle,
         },
