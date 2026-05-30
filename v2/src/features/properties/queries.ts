@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/lib/supabase"
 import type { Property, PropertyData } from "@/features/properties/types"
@@ -62,6 +63,31 @@ export function getPropertyAddressShort(p: PropertyData | undefined): string {
   if (!p) return ""
   // Prefer location, fall back to address, then titleDeed
   return (p.location ?? p.address ?? p.titleDeed ?? "").trim() || "—"
+}
+
+/**
+ * ชื่ออาคาร/ที่อยู่ย่อของห้อง สำหรับโชว์ต่อท้ายชื่อทรัพย์ + ค้นเจอในหน้าบิล/สัญญา
+ * (เหมือนบรรทัดสองในหน้าทรัพย์ แต่คืน "" ถ้าว่าง — ไม่เอา "—" มาเกะกะ)
+ */
+export function propertyBuildingText(p: PropertyData | undefined): string {
+  const v = getPropertyAddressShort(p)
+  return v === "—" ? "" : v
+}
+
+/**
+ * Map pid (เลขทรัพย์ legacy) → PropertyData · ใช้ lookup ชื่ออาคารของห้อง
+ * จากบิล/สัญญา ที่อ้างทรัพย์ด้วย pid (invoice.data.pid / contract.data.pid_property)
+ */
+export function usePropertyByPid(): Map<number, PropertyData> {
+  const { data } = useProperties()
+  return useMemo(() => {
+    const m = new Map<number, PropertyData>()
+    for (const p of data ?? []) {
+      const pid = p.data?.pid
+      if (typeof pid === "number") m.set(pid, p.data)
+    }
+    return m
+  }, [data])
 }
 
 /**

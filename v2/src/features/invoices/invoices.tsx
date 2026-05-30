@@ -47,6 +47,10 @@ import {
   FilterBar,
   type FilterField,
 } from '@/components/yonghua/cascading-filter'
+import {
+  usePropertyByPid,
+  propertyBuildingText,
+} from '@/features/properties/queries'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { BatchPaymentDialog } from '@/features/invoices/batch-payment-dialog'
@@ -87,7 +91,11 @@ import { SlipBatchUpload } from '@/features/invoices/slip-batch-upload'
 import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
 
-type Row = Invoice & { _status: InvoiceStatus; _overdue: number }
+type Row = Invoice & {
+  _status: InvoiceStatus
+  _overdue: number
+  _building: string
+}
 
 const STATUS_TONE_CLASS: Record<string, string> = {
   success: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
@@ -161,13 +169,20 @@ export function Invoices() {
     setHover(null)
   }
 
+  const propByPid = usePropertyByPid()
+
   const rows = useMemo<Row[]>(() => {
     if (!invoices) return []
-    const enriched = invoices.map((inv) => ({
-      ...inv,
-      _status: getEffectiveStatus(inv),
-      _overdue: daysOverdue(inv),
-    }))
+    const enriched = invoices.map((inv) => {
+      const pid = inv.data?.pid
+      const prop = typeof pid === 'number' ? propByPid.get(pid) : undefined
+      return {
+        ...inv,
+        _status: getEffectiveStatus(inv),
+        _overdue: daysOverdue(inv),
+        _building: propertyBuildingText(prop),
+      }
+    })
     // Default "urgent first" — overrideable by clicking column headers.
     return enriched.sort((a, b) => {
       if (a._overdue !== b._overdue) return b._overdue - a._overdue
@@ -175,7 +190,7 @@ export function Invoices() {
       const bm = b.data?.month ?? ''
       return bm.localeCompare(am)
     })
-  }, [invoices])
+  }, [invoices, propByPid])
 
   // ตัวกรองกลาง — เดือน · สถานะ(+เกินกำหนด) · ผู้ให้เช่า · ทรัพย์สิน · ประเภท
   const filterFields = useMemo<FilterField<Row>[]>(
@@ -224,6 +239,7 @@ export function Invoices() {
         r.data?.property,
         r.data?.dueDate,
         r.data?.month,
+        r._building,
       ]
         .filter(Boolean)
         .join(' '),
@@ -261,6 +277,7 @@ export function Invoices() {
         cell: ({ row }) => {
           const t = row.original.data?.tenant?.trim() || '—'
           const p = row.original.data?.property?.trim() || '—'
+          const building = row.original._building
           const fu = row.original.data?.followUpDate?.trim()
           return (
             <div className='max-w-[230px]'>
@@ -269,6 +286,7 @@ export function Invoices() {
               </span>
               <span className='block truncate text-xs text-muted-foreground' title={p}>
                 {p}
+                {building && ` · ${building}`}
               </span>
               {fu && (
                 <span className='mt-0.5 inline-flex items-center gap-1 rounded-sm bg-indigo-50 px-1.5 py-px text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'>
@@ -654,7 +672,7 @@ export function Invoices() {
             <div className='flex flex-wrap items-center gap-3'>
               <FilterBar
                 filter={filter}
-                searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · เดือน...'
+                searchPlaceholder='ค้น เลขที่ · ผู้เช่า · อาคาร...'
                 className='flex-1'
               />
               <p className='ml-auto text-sm text-muted-foreground'>

@@ -69,7 +69,7 @@ const FILTER_FIELDS: FilterField<CreateRowData>[] = [
   { key: 'property', label: 'ทรัพย์สิน', get: (r) => r.property },
 ]
 const filterSearchText = (r: CreateRowData) =>
-  `${r.contractNo} ${r.tenant} ${r.property} ${r.landlord} ${r.bankLabel}`
+  `${r.contractNo} ${r.tenant} ${r.property} ${r.propertyLocation} ${r.landlord} ${r.bankLabel}`
 
 export function GenerateMonthlyDialog({
   open,
@@ -334,7 +334,7 @@ export function GenerateMonthlyDialog({
                   {/* ตัวกรอง cascade — ผู้ให้เช่า/บัญชี/รอบ/ทรัพย์ + ค้นหา */}
                   <FilterBar
                     filter={filter}
-                    searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ทรัพย์สิน · ผู้ให้เช่า...'
+                    searchPlaceholder='ค้น เลขที่ · ผู้เช่า · อาคาร...'
                   />
 
                   {/* กระทบยอดทั้งรอบ vs เดือนก่อน */}
@@ -703,9 +703,14 @@ function CreateRow({
           </span>
           <span
             className='block truncate text-xs text-muted-foreground'
-            title={row.property}
+            title={
+              row.propertyLocation
+                ? `${row.property} · ${row.propertyLocation}`
+                : row.property
+            }
           >
             {row.property}
+            {row.propertyLocation && ` · ${row.propertyLocation}`}
           </span>
         </div>
         <div className='min-w-0'>

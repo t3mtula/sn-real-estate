@@ -45,6 +45,10 @@ import {
   FilterBar,
   type FilterField,
 } from '@/components/yonghua/cascading-filter'
+import {
+  usePropertyByPid,
+  propertyBuildingText,
+} from '@/features/properties/queries'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
 import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
@@ -66,6 +70,7 @@ type Row = Contract & {
   _status: ContractStatus
   _overdueCount: number
   _overdueAmount: number
+  _building: string
 }
 
 const STATUS_TONE_CLASS: Record<string, string> = {
@@ -151,18 +156,24 @@ export function Contracts() {
     setHover(null)
   }
 
+  const propByPid = usePropertyByPid()
+
   const rows = useMemo<Row[]>(() => {
     if (!contracts) return []
     return contracts.map((c) => {
       const s = invoiceStats?.get(c.id)
+      const pidProp = c.data?.pid_property
+      const prop =
+        typeof pidProp === 'number' ? propByPid.get(pidProp) : undefined
       return {
         ...c,
         _status: getContractStatus(c.data),
         _overdueCount: s?.overdueCount ?? 0,
         _overdueAmount: s?.overdueAmount ?? 0,
+        _building: propertyBuildingText(prop),
       }
     })
-  }, [contracts, invoiceStats])
+  }, [contracts, invoiceStats, propByPid])
 
   // ตัวกรองกลาง — สถานะ · tag · ผู้ให้เช่า · ทรัพย์สิน
   const filterFields = useMemo<FilterField<Row>[]>(
@@ -200,6 +211,7 @@ export function Contracts() {
         r.data?.end,
         r.data?.taxId,
         r.data?.madeAt,
+        r._building,
       ]
         .filter(Boolean)
         .join(' '),
@@ -285,10 +297,21 @@ export function Contracts() {
         ),
         cell: ({ row }) => {
           const v = String(row.original.data?.property ?? '').trim() || '—'
+          const building = row.original._building
           return (
-            <span className='block max-w-[180px] truncate text-sm' title={v}>
-              {v}
-            </span>
+            <div className='max-w-[180px]'>
+              <span className='block truncate text-sm' title={v}>
+                {v}
+              </span>
+              {building && (
+                <span
+                  className='block truncate text-xs text-muted-foreground'
+                  title={building}
+                >
+                  {building}
+                </span>
+              )}
+            </div>
           )
         },
       },
@@ -619,7 +642,7 @@ export function Contracts() {
 
         <FilterBar
           filter={filter}
-          searchPlaceholder='ค้น เลขที่ · ผู้เช่า · ผู้ให้เช่า · วันที่...'
+          searchPlaceholder='ค้น เลขที่ · ผู้เช่า · อาคาร · วันที่...'
         />
 
         {error && (

@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { fmtBE, parseBE, parseAmtLoose } from '@/lib/thai'
 import type { Contract, ContractData } from '@/features/contracts/types'
 import type { Landlord, LandlordData } from '@/features/landlords/types'
-import type { Property } from '@/features/properties/types'
+import type { Property, PropertyData } from '@/features/properties/types'
+import { propertyBuildingText } from '@/features/properties/queries'
 import type { Tenant } from '@/features/tenants/types'
 import {
   getInvoiceAmount,
@@ -530,6 +531,8 @@ export type BatchGeneratePreview = {
     contractNo: string
     tenant: string
     property: string
+    /** ชื่ออาคาร/ที่อยู่ย่อของห้อง (โชว์ + ค้น) · "" ถ้าไม่มี */
+    propertyLocation: string
     /** ผู้ให้เช่า (ชื่อ) */
     landlord: string
     /** บัญชีรับเงิน (ธนาคาร · เลขบัญชี) */
@@ -599,19 +602,29 @@ export function useBatchGeneratePreview(month: string | undefined) {
         pmNum === 1
           ? `${pyNum - 1}-12`
           : `${pyStr}-${String(pmNum - 1).padStart(2, '0')}`
-      const [contractsRes, invsRes, landlordsRes, banksRes, prevInvsRes] =
+      const [contractsRes, invsRes, landlordsRes, banksRes, prevInvsRes, propsRes] =
         await Promise.all([
           supabase.from('contracts').select('id, data'),
           supabase.from(TABLE).select('id, contract_id, status, category, data').eq('data->>month', month),
           supabase.from('landlords').select('id, data'),
           supabase.from('bank_accounts').select('id, data'),
           supabase.from(TABLE).select('contract_id, status, category, data').eq('data->>month', prevMonthStr),
+          supabase.from('properties').select('data'),
         ])
       if (contractsRes.error) throw contractsRes.error
       if (invsRes.error) throw invsRes.error
       if (landlordsRes.error) throw landlordsRes.error
       if (banksRes.error) throw banksRes.error
       if (prevInvsRes.error) throw prevInvsRes.error
+      if (propsRes.error) throw propsRes.error
+      // pid → ชื่ออาคาร/ที่อยู่ย่อ ของห้อง (โชว์ + ค้นในแถวออกบิล)
+      const buildingByPid = new Map<number, string>()
+      for (const p of (propsRes.data ?? []) as Array<{ data: PropertyData }>) {
+        const pid = p.data?.pid
+        if (typeof pid === 'number') {
+          buildingByPid.set(pid, propertyBuildingText(p.data))
+        }
+      }
       const contracts = (contractsRes.data ?? []) as Array<{ id: string; data: ContractData }>
       const contractNoById = new Map<string, string>()
       for (const c of contracts) {
@@ -665,6 +678,9 @@ export function useBatchGeneratePreview(month: string | undefined) {
         const contractNo = (d.no ?? '').trim() || `#${c.id}`
         const tenant = ((d.tenant as string | undefined) ?? '').trim() || '—'
         const property = (String(d.property ?? '') as string).trim() || '—'
+        const pidProp = d.pid_property
+        const propertyLocation =
+          typeof pidProp === 'number' ? buildingByPid.get(pidProp) ?? '' : ''
         if (d.cancelled) {
           willSkip.push({ contractId: c.id, contractNo, reason: 'cancelled' })
           continue
@@ -751,6 +767,7 @@ export function useBatchGeneratePreview(month: string | undefined) {
           contractNo,
           tenant,
           property,
+          propertyLocation,
           landlord: landlordName,
           bankLabel,
           bankName,
