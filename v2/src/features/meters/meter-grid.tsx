@@ -10,6 +10,7 @@
  * - paste คอลัมน์จาก Excel ได้ · กดบันทึก → เข้าใบแจ้งหนี้รอบถัดไปอัตโนมัติ (กลไกเดิม)
  */
 import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Loader2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -444,7 +445,25 @@ export function MeterGrid() {
             {rooms.map((room, i) => (
               <TableRow key={room.propertyId}>
                 <TableCell className='py-2'>
-                  <span className='block truncate text-sm font-medium'>{room.name}</span>
+                  {room.contractId ? (
+                    <Link
+                      to='/contracts/$id'
+                      params={{ id: room.contractId }}
+                      className='block truncate text-sm font-medium text-primary hover:underline'
+                      title={`เปิดสัญญา · ${room.name}`}
+                    >
+                      {room.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to='/properties/$id'
+                      params={{ id: room.propertyId }}
+                      className='block truncate text-sm font-medium hover:underline'
+                      title={`เปิดทรัพย์สิน · ${room.name}`}
+                    >
+                      {room.name}
+                    </Link>
+                  )}
                   <span className='block truncate text-xs text-muted-foreground'>
                     {room.building && `${room.building} · `}
                     {room.tenant ?? 'ว่าง'}
