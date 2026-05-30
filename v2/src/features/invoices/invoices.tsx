@@ -141,6 +141,8 @@ export function Invoices() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  // index ของแถวที่คลิกล่าสุด — ใช้เลือกเป็นช่วงด้วย shift+click
+  const selAnchorRef = useRef<number | null>(null)
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -220,7 +222,10 @@ export function Invoices() {
             checked={row.getIsSelected()}
             onCheckedChange={(v) => row.toggleSelected(!!v)}
             aria-label='เลือก'
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              selAnchorRef.current = row.index
+            }}
           />
         ),
       },
