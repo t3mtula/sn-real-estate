@@ -52,8 +52,8 @@ function currentMonth(): string {
 function buildMonthOptions(): string[] {
   const out: string[] = []
   const now = new Date()
-  // 6 months ahead + current + 12 months back
-  for (let offset = 6; offset >= -12; offset--) {
+  // ออกล่วงหน้าได้แค่เดือนถัดไป (รอบที่กำลังจะถึง) + ย้อนหลัง 12 เดือน
+  for (let offset = 1; offset >= -12; offset--) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
     out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }
@@ -142,6 +142,8 @@ export function InvoiceNew() {
   )
 
   // มิเตอร์ที่จะเข้าใบนี้ (preview · เฉพาะค่าเช่า · เดือน X ← จดเดือน X-1)
+  // contractId อยู่ใน key แล้ว · contract มาจาก useContract(contractId) → key ครอบคลุม
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data: utilMap } = useQuery({
     queryKey: ['util-preview', contractId, month, category],
     queryFn: () => fetchUnbilledUtilitiesByContract([contract!], month),

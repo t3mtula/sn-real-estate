@@ -43,7 +43,8 @@ function currentMonth(): string {
 function buildMonthOptions(): string[] {
   const out: string[] = []
   const now = new Date()
-  for (let offset = 2; offset >= -12; offset--) {
+  // ออกล่วงหน้าได้แค่เดือนถัดไป + ย้อนหลัง 12 เดือน
+  for (let offset = 1; offset >= -12; offset--) {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
     out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
   }

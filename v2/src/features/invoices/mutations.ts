@@ -139,6 +139,20 @@ const TH_MONTHS_SHORT = [
   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
 ]
 
+/** คืนมิเตอร์ที่ผูกกับใบแจ้งหนี้นี้ให้กลับเป็น "ยังไม่ออกบิล" (ตอนยกเลิก/ลบใบ → เก็บใหม่ได้) */
+async function releaseMetersForInvoice(invoiceId: string): Promise<void> {
+  const { data } = await supabase
+    .from(METERS_TABLE)
+    .select('id, data')
+    .eq('data->>invoice_id', invoiceId)
+    .is('deleted_at', null)
+  for (const m of (data ?? []) as MeterReading[]) {
+    const next: MeterReadingData = { ...m.data, billed: false }
+    delete next.invoice_id
+    await supabase.from(METERS_TABLE).update({ data: next }).eq('id', m.id)
+  }
+}
+
 export class DuplicateInvoiceError extends Error {
   conflictId: string
   conflictNo: string
@@ -456,6 +470,8 @@ export function useCancelInvoice(id: string) {
           voidedReason: input.reason?.trim() || '',
         } as Partial<InvoiceData>,
       })
+      // ยกเลิกใบ → คืนมิเตอร์ที่รวมในใบนี้ให้กลับมาเก็บใหม่ได้
+      await releaseMetersForInvoice(id)
       void logActivity({
         action: 'update',
         entity: 'invoices',
@@ -467,6 +483,7 @@ export function useCancelInvoice(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['invoices', id] })
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
     },
   })
 }
@@ -1224,6 +1241,7 @@ export function useDeleteInvoice() {
       await unallocateInvoiceFromPayments(id)
       const { error } = await supabase.from(TABLE).delete().eq('id', id)
       if (error) throw error
+      await releaseMetersForInvoice(id)
       void logActivity({
         action: 'delete',
         entity: 'invoices',
@@ -1234,6 +1252,7 @@ export function useDeleteInvoice() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
     },
   })
 }
@@ -1248,6 +1267,7 @@ export function useBatchDeleteInvoices() {
         await unallocateInvoiceFromPayments(invId)
         const { error } = await supabase.from(TABLE).delete().eq('id', invId)
         if (error) throw error
+        await releaseMetersForInvoice(invId)
         void logActivity({
           action: 'delete',
           entity: 'invoices',
@@ -1261,6 +1281,7 @@ export function useBatchDeleteInvoices() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       qc.invalidateQueries({ queryKey: ['payments'] })
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
     },
   })
 }
