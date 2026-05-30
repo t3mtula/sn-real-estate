@@ -3,6 +3,7 @@ import { useNavigate, useSearch  } from '@tanstack/react-router'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -27,6 +28,7 @@ import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
 import {
   DuplicateInvoiceError,
+  fetchUnbilledUtilitiesByContract,
   useGenerateInvoiceFromContract,
 } from '@/features/invoices/mutations'
 import {
@@ -79,6 +81,7 @@ export function InvoiceNew() {
   })
 
   const contractId = form.watch('contract_id')
+  const month = form.watch('month')
   const category = form.watch('category')
   const amountOverride = form.watch('amount')
 
@@ -132,6 +135,15 @@ export function InvoiceNew() {
     control: form.control,
     name: 'extraItems',
   })
+
+  // ค่าน้ำ/ไฟที่จะถูกดึงเข้าใบนี้อัตโนมัติ (จากมิเตอร์ของเดือนนี้) — โชว์ให้เห็นก่อนออก
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
+  const { data: utilMap } = useQuery({
+    queryKey: ['util-preview', contractId, month, category],
+    queryFn: () => fetchUnbilledUtilitiesByContract([contract!], month),
+    enabled: !!contract && category === 'rent' && !!month,
+  })
+  const autoUtils = (contract ? utilMap?.get(contract.id) : undefined) ?? []
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -350,9 +362,30 @@ export function InvoiceNew() {
                   เพิ่มรายการ
                 </Button>
               </div>
+              {/* ค่าน้ำ/ไฟ จากมิเตอร์ — ดึงเข้าใบอัตโนมัติ (read-only) */}
+              {autoUtils.length > 0 && (
+                <div className='space-y-1 rounded-md border border-sky-500/30 bg-sky-500/5 p-2.5'>
+                  <p className='text-xs font-medium text-sky-700 dark:text-sky-300'>
+                    ดึงจากมิเตอร์อัตโนมัติ (รวมในใบให้แล้ว)
+                  </p>
+                  {autoUtils.map((u, i) => (
+                    <div
+                      key={`auto-${i}`}
+                      className='flex items-center justify-between text-sm'
+                    >
+                      <span className='text-muted-foreground'>
+                        {u.label} ({u.units} หน่วย · จด {u.readingDate})
+                      </span>
+                      <span className='tabular-nums font-medium'>{amt(u.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {fields.length === 0 ? (
                 <p className='text-xs text-muted-foreground'>
-                  ยังไม่มีรายการเพิ่ม · เช่น ค่าน้ำ/ค่าไฟ — กด "เพิ่มรายการ"
+                  {autoUtils.length > 0
+                    ? 'เพิ่มรายการอื่นได้ที่ปุ่ม "เพิ่มรายการ"'
+                    : 'ยังไม่มีรายการเพิ่ม · เช่น ค่าน้ำ/ค่าไฟ — กด "เพิ่มรายการ"'}
                 </p>
               ) : (
                 <div className='space-y-2'>
