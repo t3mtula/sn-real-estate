@@ -64,6 +64,10 @@ import { TagInput } from '@/components/yonghua/tag-input'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
 import { amt, dayjs, fmtThaiShort } from '@/lib/thai'
 import { type Contract, type ContractStatus } from '@/features/contracts/types'
+import {
+  UtilityBadge,
+  getContractUtilities,
+} from '@/features/meters/utility-badge'
 import { cn } from '@/lib/utils'
 
 type Row = Contract & {
@@ -298,6 +302,7 @@ export function Contracts() {
         cell: ({ row }) => {
           const v = String(row.original.data?.property ?? '').trim() || '—'
           const building = row.original._building
+          const u = getContractUtilities(row.original.data)
           return (
             <div className='max-w-[180px]'>
               <span className='block truncate text-sm' title={v}>
@@ -310,6 +315,12 @@ export function Contracts() {
                 >
                   {building}
                 </span>
+              )}
+              {(u.water || u.electricity) && (
+                <div className='mt-1 flex flex-wrap gap-1'>
+                  {u.water && <UtilityBadge kind='water' enabled />}
+                  {u.electricity && <UtilityBadge kind='electricity' enabled />}
+                </div>
               )}
             </div>
           )

@@ -81,6 +81,10 @@ export const contractFormSchema = z
     /** ข้อความปรับค่าเช่า (optional) */
     rateAdj: z.string().trim().max(500),
 
+    /** ผู้เช่าจ่ายค่าน้ำ/ไฟไหม — ตั้งต้นจาก property.utilities ตอนเลือกทรัพย์ (override ได้) */
+    hasWaterCharge: z.boolean(),
+    hasElectricityCharge: z.boolean(),
+
     /** การลงนาม · สถานที่ทำสัญญา = ที่อยู่ 5 ช่อง (เหมือนทุก form อื่น) */
     madeAtLine: z.string().trim().max(200),
     madeAtSubdistrict: z.string().trim().max(100),
@@ -126,6 +130,8 @@ export const CONTRACT_FORM_DEFAULTS: ContractFormValues = {
   spot: '',
   dueDay: 5,
   rateAdj: '',
+  hasWaterCharge: false,
+  hasElectricityCharge: false,
   madeAtLine: '',
   madeAtSubdistrict: '',
   madeAtDistrict: '',

@@ -176,6 +176,12 @@ export type ContractData = {
   renewalStatus?: 'pending' | 'negotiating' | 'will_renew' | 'no_renewal'
   /** จุด/ล็อกบนทรัพย์สิน เช่น "ล็อก A", "ห้อง 3" */
   spot?: string
+  /**
+   * ผู้เช่ารายนี้ต้องจ่ายค่าน้ำ/ไฟไหม — ตอนสร้างสัญญาดึงค่าตั้งต้นจาก property.utilities[*].enabled
+   * (override ได้) · เรตอ่านจากทรัพย์สิน ไม่เก็บซ้ำที่นี่
+   * ไม่มี key = สัญญาเก่า (ถือว่าไม่เก็บ จนกว่าจะตั้งค่า)
+   */
+  utilities?: { water?: boolean; electricity?: boolean }
   /** Tags — free-form labels พนักงานติดเอง · ใช้ group/filter (เช่น "โซนเหนือ", "เก็บต้นเดือน") */
   tags?: string[]
   /** วันครบกำหนดใบแจ้งหนี้ (1-31) */

@@ -38,6 +38,11 @@ import { useContractTemplates } from '@/features/templates/queries'
 import { useLandlords } from '@/features/landlords/queries'
 import { useProperties } from '@/features/properties/queries'
 import { ThaiAddressInput } from '@/features/properties/components/thai-address-input'
+import {
+  UtilityBadge,
+  getPropertyUtilities,
+} from '@/features/meters/utility-badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useTenants } from '@/features/tenants/queries'
 import { cn } from '@/lib/utils'
 
@@ -101,6 +106,16 @@ export function ContractForm({
   const durMonths = form.watch('dur')
   const rateStr = form.watch('rate') ?? ''
   const rateInterval = form.watch('rateIntervalMonths')
+  const hasWaterCharge = form.watch('hasWaterCharge')
+  const hasElectricityCharge = form.watch('hasElectricityCharge')
+
+  // มิเตอร์ + เรตของทรัพย์สินที่เลือก (ใช้โชว์เรต + เตือนถ้าทรัพย์ไม่มีมิเตอร์)
+  const selectedPropertyUtil = useMemo(() => {
+    const prop = properties?.find(
+      (p) => String(p.data?.pid ?? '') === pidProperty,
+    )
+    return getPropertyUtilities(prop?.data)
+  }, [properties, pidProperty])
 
   const rateUnitConflict = useMemo(() => {
     if (!rateStr || !rateInterval) return null
@@ -131,6 +146,22 @@ export function ContractForm({
     if (owner) {
       form.setValue('landlord_id', owner, { shouldDirty: false })
     }
+  }, [pidProperty, properties, mode, form])
+
+  // ตั้งต้น "ผู้เช่าจ่ายค่าน้ำ/ไฟ" จากมิเตอร์ที่ทรัพย์สินมี — เฉพาะตอน create (override ได้)
+  useEffect(() => {
+    if (mode !== 'create') return
+    if (!pidProperty) return
+    const prop = properties?.find(
+      (p) => String(p.data?.pid ?? '') === pidProperty,
+    )
+    const u = prop?.data?.utilities
+    form.setValue('hasWaterCharge', u?.water?.enabled === true, {
+      shouldDirty: false,
+    })
+    form.setValue('hasElectricityCharge', u?.electricity?.enabled === true, {
+      shouldDirty: false,
+    })
   }, [pidProperty, properties, mode, form])
 
   // Auto-fill wit1 จากพยานประจำของ landlord (ถ้า field ว่าง)
@@ -673,6 +704,63 @@ export function ContractForm({
             placeholder='เช่น ปรับขึ้น 5% เมื่อต่อสัญญา หรือเว้นว่างถ้าไม่ปรับ'
             rows={2}
           />
+        </div>
+      </section>
+
+      {/* Section 2.5: ค่าน้ำ/ค่าไฟ */}
+      <section className='grid gap-3'>
+        <div>
+          <Label className='text-sm'>ค่าน้ำ / ค่าไฟ</Label>
+          <p className='text-xs text-muted-foreground'>
+            ดึงจากมิเตอร์ที่ตั้งไว้ในทรัพย์สิน · ติ๊กเองได้ถ้าสัญญานี้ต่างจากค่าตั้งต้น · เรตอ่านจากทรัพย์สิน
+          </p>
+        </div>
+        {pidProperty &&
+          !selectedPropertyUtil.water &&
+          !selectedPropertyUtil.electricity && (
+            <p className='rounded-md border border-dashed bg-muted/40 p-2 text-xs text-muted-foreground'>
+              ทรัพย์สินนี้ยังไม่ได้ตั้งค่ามิเตอร์น้ำ/ไฟ — ตั้งได้ที่หน้าทรัพย์สิน
+            </p>
+          )}
+        <div className='grid gap-3 sm:grid-cols-2'>
+          <label className='flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3'>
+            <Checkbox
+              checked={hasWaterCharge}
+              onCheckedChange={(c) =>
+                form.setValue('hasWaterCharge', c === true, { shouldDirty: true })
+              }
+            />
+            <div className='flex flex-1 items-center justify-between gap-2'>
+              <span className='text-sm font-medium'>เก็บค่าน้ำ</span>
+              {hasWaterCharge && (
+                <UtilityBadge
+                  kind='water'
+                  enabled
+                  rate={selectedPropertyUtil.waterRate}
+                />
+              )}
+            </div>
+          </label>
+          <label className='flex cursor-pointer items-center gap-3 rounded-md border bg-card p-3'>
+            <Checkbox
+              checked={hasElectricityCharge}
+              onCheckedChange={(c) =>
+                form.setValue('hasElectricityCharge', c === true, {
+                  shouldDirty: true,
+                })
+              }
+            />
+            <div className='flex flex-1 items-center justify-between gap-2'>
+              <span className='text-sm font-medium'>เก็บค่าไฟ</span>
+              {hasElectricityCharge && (
+                <UtilityBadge
+                  kind='electricity'
+                  enabled
+                  rate={selectedPropertyUtil.electricityRate}
+                />
+              )}
+            </div>
+          </label>
         </div>
       </section>
 

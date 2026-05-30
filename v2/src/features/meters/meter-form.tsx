@@ -22,6 +22,7 @@ import {
   meterReadingFormSchema,
   type MeterReadingFormValues,
 } from '@/features/meters/schema'
+import { getPropertyUtilities } from '@/features/meters/utility-badge'
 
 interface MeterFormProps {
   mode: 'create' | 'edit'
@@ -115,6 +116,19 @@ export function MeterForm({
       setValue('rate_per_unit', latestRate, { shouldDirty: false })
     }
   }, [mode, priorReadings, meterType, meterNo, prevReading, ratePerUnit, setValue])
+
+  // Fallback: ถ้ายังไม่มีเรต (ไม่มีเลขจดก่อนหน้า) → ดึงเรตตั้งต้นจากทรัพย์สิน
+  useEffect(() => {
+    if (mode !== 'create') return
+    if ((ratePerUnit ?? 0) > 0) return
+    if (meterType !== 'water' && meterType !== 'electricity') return
+    const prop = properties?.find((p) => p.id === selectedPropertyId)
+    const u = getPropertyUtilities(prop?.data)
+    const r = meterType === 'water' ? u.waterRate : u.electricityRate
+    if (r > 0) {
+      setValue('rate_per_unit', r, { shouldDirty: false })
+    }
+  }, [mode, selectedPropertyId, meterType, ratePerUnit, properties, setValue])
 
   const sortedProperties = useMemo(() => {
     if (!properties) return []

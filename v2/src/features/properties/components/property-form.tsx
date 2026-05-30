@@ -61,6 +61,8 @@ export function PropertyForm({
 
   const images = form.watch("images")
   const multiTenant = form.watch("multiTenant")
+  const hasWater = form.watch("hasWater")
+  const hasElectricity = form.watch("hasElectricity")
   const type = form.watch("type")
   const ownerLandlordId = form.watch("ownerLandlordId")
   const addrLine = form.watch("addrLine")
@@ -286,6 +288,50 @@ export function PropertyForm({
         </div>
       </section>
 
+      {/* มิเตอร์น้ำ/ไฟ */}
+      <section>
+        <div className="mb-3">
+          <Label className="text-sm">มิเตอร์น้ำ / ไฟ</Label>
+          <p className="text-xs text-muted-foreground">
+            ติ๊กว่าทรัพย์นี้มีมิเตอร์อะไรบ้าง + เรตหน่วยละกี่บาท · ตอนสร้างสัญญาจะดึงไปตั้งต้นว่าผู้เช่าต้องจ่าย
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <MeterToggle
+            label="มีมิเตอร์น้ำ"
+            checked={hasWater}
+            onCheckedChange={(v) =>
+              form.setValue("hasWater", v, { shouldDirty: true })
+            }
+            rateInput={
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="เรตน้ำ บาท/หน่วย"
+                {...form.register("waterRate", { valueAsNumber: true })}
+              />
+            }
+          />
+          <MeterToggle
+            label="มีมิเตอร์ไฟ"
+            checked={hasElectricity}
+            onCheckedChange={(v) =>
+              form.setValue("hasElectricity", v, { shouldDirty: true })
+            }
+            rateInput={
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="เรตไฟ บาท/หน่วย"
+                {...form.register("electricityRate", { valueAsNumber: true })}
+              />
+            }
+          />
+        </div>
+      </section>
+
       {/* Images */}
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -374,4 +420,29 @@ export function PropertyForm({
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return <p className="mt-1.5 text-xs text-destructive">{children}</p>
+}
+
+function MeterToggle({
+  label,
+  checked,
+  onCheckedChange,
+  rateInput,
+}: {
+  label: string
+  checked: boolean
+  onCheckedChange: (v: boolean) => void
+  rateInput: React.ReactNode
+}) {
+  return (
+    <div className="rounded-md border bg-card p-3">
+      <label className="flex cursor-pointer items-center gap-3">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={(c) => onCheckedChange(c === true)}
+        />
+        <span className="text-sm font-medium">{label}</span>
+      </label>
+      {checked && <div className="mt-3">{rateInput}</div>}
+    </div>
+  )
 }

@@ -10,6 +10,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import {
   Building2,
   Download,
+  Droplet,
   FileText,
   Image as ImageIcon,
   MapPin,
@@ -18,6 +19,7 @@ import {
   StickyNote,
   User,
   Users,
+  Zap,
 } from 'lucide-react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
 import { useRowHover } from '@/hooks/use-row-hover'
@@ -55,6 +57,10 @@ import {
   useProperties,
 } from '@/features/properties/queries'
 import { PROPERTY_TYPES, type Property } from '@/features/properties/types'
+import {
+  UtilityBadge,
+  getPropertyUtilities,
+} from '@/features/meters/utility-badge'
 import {
   type ContractMatchRow,
   useContractMatchKeys,
@@ -368,8 +374,9 @@ export function Properties() {
         cell: ({ row }) => {
           const p = row.original.data
           const imgCount = getPropertyImageCount(p)
+          const u = getPropertyUtilities(p)
           return (
-            <div className='flex items-center gap-2 text-xs text-muted-foreground'>
+            <div className='flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground'>
               {p?.multiTenant && (
                 <span
                   className='inline-flex items-center gap-1 rounded-md bg-accent/15 px-1.5 py-0.5 text-accent'
@@ -379,6 +386,8 @@ export function Properties() {
                   หลายผู้เช่า
                 </span>
               )}
+              {u.water && <UtilityBadge kind='water' enabled />}
+              {u.electricity && <UtilityBadge kind='electricity' enabled />}
               {imgCount > 0 && (
                 <span className='inline-flex items-center gap-1'>
                   <ImageIcon className='size-3' />
@@ -727,6 +736,16 @@ function PropertyHoverDetail({ row }: { row: Row }) {
           {d.multiTenant && (
             <span className='inline-flex items-center gap-1 text-accent'>
               <Users className='size-2.5' /> หลายผู้เช่า
+            </span>
+          )}
+          {getPropertyUtilities(d).water && (
+            <span className='inline-flex items-center gap-1 text-sky-600 dark:text-sky-400'>
+              <Droplet className='size-2.5' /> น้ำ
+            </span>
+          )}
+          {getPropertyUtilities(d).electricity && (
+            <span className='inline-flex items-center gap-1 text-amber-600 dark:text-amber-400'>
+              <Zap className='size-2.5' /> ไฟ
             </span>
           )}
           {imgCount > 0 && (

@@ -45,6 +45,16 @@ export type PropertyData = {
   ownerLandlordId?: string;
   /** ทรัพย์สินแบ่งได้หลายผู้เช่าพร้อมกัน (default true ถ้า type=rooftop_tower) */
   multiTenant?: boolean;
+  /**
+   * มิเตอร์น้ำ/ไฟของทรัพย์สิน — แหล่งความจริงของ "มีมิเตอร์ + เรตหน่วยละกี่บาท"
+   * enabled = ทรัพย์นี้มีมิเตอร์ประเภทนั้น → สัญญาใหม่ดึงไปตั้งต้นว่าผู้เช่าต้องจ่าย
+   * ratePerUnit = เรตตั้งต้น ใช้ prefill ฟอร์มจดมิเตอร์ (เลขจดแต่ละครั้ง snapshot เรตของตัวเองอยู่แล้ว)
+   * ไม่มี key = ทรัพย์เก่าที่ยังไม่ตั้งค่า (ถือว่าไม่มีมิเตอร์)
+   */
+  utilities?: {
+    water?: { enabled: boolean; ratePerUnit?: number };
+    electricity?: { enabled: boolean; ratePerUnit?: number };
+  };
   /** Status field (legacy v1 · ตอนนี้ derive จาก contracts จริงๆ) */
   status?: string;
   /**

@@ -45,6 +45,13 @@ function valuesToManagedFields(values: PropertyFormValues, pid: number) {
     owner: values.owner ?? "",
     ownerLandlordId: values.ownerLandlordId ?? "",
     multiTenant: values.multiTenant,
+    utilities: {
+      water: { enabled: values.hasWater, ratePerUnit: values.waterRate },
+      electricity: {
+        enabled: values.hasElectricity,
+        ratePerUnit: values.electricityRate,
+      },
+    },
     images: values.images,
   }
 }

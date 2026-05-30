@@ -78,6 +78,10 @@ import {
 } from '@/features/contracts/schema'
 import { useLandlord, useLandlords } from '@/features/landlords/queries'
 import { useProperty } from '@/features/properties/queries'
+import {
+  UtilityBadges,
+  getContractUtilities,
+} from '@/features/meters/utility-badge'
 import { useTenant, useTenants } from '@/features/tenants/queries'
 import { coerceDurMonths, coerceNumber } from '@/lib/contract-normalize'
 import { amt, todayBE } from '@/lib/thai'
@@ -349,6 +353,8 @@ function ContractEditing({
     spot: c.spot ?? '',
     dueDay: c.dueDay ?? 5,
     rateAdj: c.rateAdj ?? '',
+    hasWaterCharge: c.utilities?.water === true,
+    hasElectricityCharge: c.utilities?.electricity === true,
     // สถานที่ทำสัญญา: 5 fields ใหม่ · fallback ไป legacy madeAt string ใน line
     madeAtLine: c.madeAtLine ?? c.madeAt ?? '',
     madeAtSubdistrict: c.madeAtSubdistrict ?? '',
@@ -504,6 +510,12 @@ function Content({
                   เช่าช่วง
                 </Badge>
               )}
+              {(() => {
+                const u = getContractUtilities(c)
+                return (
+                  <UtilityBadges water={u.water} electricity={u.electricity} />
+                )
+              })()}
             </div>
           </div>
         </div>

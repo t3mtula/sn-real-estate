@@ -100,6 +100,10 @@ function valuesToManagedFields(
     spot: values.spot.trim() || undefined,
     dueDay: values.dueDay || 5,
     rateAdj: values.rateAdj.trim() || undefined,
+    utilities: {
+      water: values.hasWaterCharge,
+      electricity: values.hasElectricityCharge,
+    },
     madeDate: values.madeDate.trim(),
     wit1: values.wit1.trim(),
     wit2: values.wit2.trim(),

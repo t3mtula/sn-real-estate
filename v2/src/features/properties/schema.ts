@@ -30,6 +30,11 @@ export const propertyFormSchema = z.object({
   /** Link ไป landlords.id · '' = ไม่ระบุ (เก็บเป็น free-text owner แทน) */
   ownerLandlordId: z.string().trim().max(50),
   multiTenant: z.boolean(),
+  /** มิเตอร์น้ำ/ไฟ — flat fields map เข้า nested data.utilities ใน mutations */
+  hasWater: z.boolean(),
+  waterRate: z.number().min(0, 'เรตต้องไม่ติดลบ'),
+  hasElectricity: z.boolean(),
+  electricityRate: z.number().min(0, 'เรตต้องไม่ติดลบ'),
   images: z.array(z.string().url().or(z.string().startsWith('data:'))),
 })
 
@@ -49,5 +54,9 @@ export const PROPERTY_FORM_DEFAULTS: PropertyFormValues = {
   owner: '',
   ownerLandlordId: '',
   multiTenant: false,
+  hasWater: false,
+  waterRate: 0,
+  hasElectricity: false,
+  electricityRate: 0,
   images: [],
 }

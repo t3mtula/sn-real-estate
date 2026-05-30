@@ -28,7 +28,7 @@ import {
   useUpdateProperty,
 } from '@/features/properties/mutations'
 import {
-  getPropertyAddressShort,
+  getPropertyAddressFull,
   getPropertyName,
   getPropertyProvince,
   useProperty,
@@ -41,6 +41,10 @@ import {
 } from '@/features/properties/schema'
 import { PROPERTY_TYPES, type PropertyTypeValue } from '@/features/properties/types'
 import { BackButton } from '@/components/yonghua/back-button'
+import {
+  UtilityBadge,
+  getPropertyUtilities,
+} from '@/features/meters/utility-badge'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
   PROPERTY_TYPES.map((t) => [t.value, t.label])
@@ -222,6 +226,10 @@ function PropertyEditing({
     owner: p.owner ?? '',
     ownerLandlordId: p.ownerLandlordId ?? '',
     multiTenant: p.multiTenant === true,
+    hasWater: p.utilities?.water?.enabled === true,
+    waterRate: p.utilities?.water?.ratePerUnit ?? 0,
+    hasElectricity: p.utilities?.electricity?.enabled === true,
+    electricityRate: p.utilities?.electricity?.ratePerUnit ?? 0,
     images: (p.images ?? []).filter(Boolean),
   }
   return (
@@ -263,7 +271,7 @@ function PropertyContent({
   const p = property.data
   const typeName = p.type ? (TYPE_LABEL[p.type] ?? p.type) : '—'
   const province = getPropertyProvince(p)
-  const address = getPropertyAddressShort(p)
+  const address = getPropertyAddressFull(p)
   const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)
   const { data: allContracts } = useContracts()
 
@@ -308,6 +316,23 @@ function PropertyContent({
                   หลายผู้เช่า
                 </Badge>
               )}
+              {(() => {
+                const u = getPropertyUtilities(p)
+                return (
+                  <>
+                    {u.water && (
+                      <UtilityBadge kind='water' enabled rate={u.waterRate} />
+                    )}
+                    {u.electricity && (
+                      <UtilityBadge
+                        kind='electricity'
+                        enabled
+                        rate={u.electricityRate}
+                      />
+                    )}
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>
