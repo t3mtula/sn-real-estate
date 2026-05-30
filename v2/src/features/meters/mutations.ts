@@ -183,3 +183,41 @@ export function useBulkCreateMeterReadings() {
     },
   })
 }
+
+/**
+ * บันทึกมิเตอร์แบบ upsert (จากตาราง grid ที่จดเป็นรายเดือน + แก้ย้อนได้)
+ * - item ที่มี `id` = แก้ของเดิม · ไม่มี = สร้างใหม่
+ * - ใช้กับ cascade: ส่งทั้งเดือนที่จด + เดือนถัดๆ ที่คำนวณใหม่ (เฉพาะที่ยังไม่ออกบิล) มาในชุดเดียว
+ */
+export function useUpsertMeterReadings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (items: Array<{ id?: string; data: MeterReadingData }>) => {
+      if (items.length === 0) return { count: 0 }
+      const toInsert = items.filter((it) => !it.id).map((it) => ({ data: it.data }))
+      const toUpdate = items.filter((it) => it.id) as Array<{ id: string; data: MeterReadingData }>
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from(TABLE).insert(toInsert)
+        if (error) throw error
+      }
+      for (const it of toUpdate) {
+        const { error } = await supabase
+          .from(TABLE)
+          .update({ data: it.data, updated_at: new Date().toISOString() })
+          .eq('id', it.id)
+        if (error) throw error
+      }
+      void logActivity({
+        action: 'update',
+        entity: 'meter_readings',
+        entity_id: `grid-${items.length}`,
+        description: `บันทึกมิเตอร์ (ตาราง) ${items.length} รายการ`,
+        after: { inserted: toInsert.length, updated: toUpdate.length },
+      })
+      return { count: items.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meter_readings'] })
+    },
+  })
+}
