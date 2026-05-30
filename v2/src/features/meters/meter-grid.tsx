@@ -551,11 +551,9 @@ function UtilityCells({
           placeholder='เลขเริ่ม'
           className='h-8 w-24 text-right tabular-nums'
         />
-        {info.autoPrevMonth && (
-          <span className='mt-0.5 block text-right text-[10px] text-muted-foreground'>
-            สิ้น {formatMonth(info.autoPrevMonth)}
-          </span>
-        )}
+        <span className='mt-0.5 block text-right text-[10px] text-muted-foreground'>
+          {info.autoPrevMonth ? `สิ้น ${formatMonth(info.autoPrevMonth)}` : 'ครั้งแรก'}
+        </span>
       </TableCell>
       <TableCell className='py-1'>
         <Input
