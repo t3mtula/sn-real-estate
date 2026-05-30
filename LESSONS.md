@@ -33,6 +33,25 @@ Lesson แต่ละข้อคือ rule ที่ต้อง apply ทั
 
 ---
 
+## ⭐ v2 "preview" = Cloudflare preview deploy เสมอ · ห้ามใช้ local dev server
+
+**พอ Tem พูดว่า "preview" / "ดูหน่อย" / ขอ verify งาน v2 ในเบราว์เซอร์ → ทำ Cloudflare preview deploy ทันที · ห้ามเปิด local dev server (`preview_start` / localhost:5173)**
+
+วิธีที่ถูก:
+```
+git checkout -b <งาน>           # แตก branch
+git add ... && git commit
+npm run deploy:preview          # → https://preview.sn-real-estate-v2.pages.dev
+```
+ส่ง URL preview ให้ Tem ลองเอง → ผ่านแล้วค่อย merge main + `deploy:prod`
+
+**ทำไม local ใช้ไม่ได้ (พลาดมาแล้ว 30 พ.ค.):**
+- v2 auth = Google OAuth บัญชีบริษัท → local เปิดมาติดหน้า sign-in ที่ Claude ผ่านเองไม่ได้ (บัญชี Tem + ข้อมูล production จริงหลัง auth) → ตรวจอะไรไม่ได้เลย เสียเวลาเปล่า
+- Cloudflare preview ใช้ session/data จริงที่ Tem login อยู่แล้ว → เห็นของจริง
+- workflow นี้มีอยู่แล้วใน `v2/CLAUDE.md` (Deploy section) + skill `v2-deploy` + script `deploy:preview` — แค่ต้องใช้ให้ถูก
+
+---
+
 ## 🚀 Cloudflare Pages deploy — ใช้ `--branch=main` เสมอ
 
 **deploy ด้วย `--branch=main` เท่านั้น** — ห้ามใช้ `--branch=production` หรือชื่ออื่น
