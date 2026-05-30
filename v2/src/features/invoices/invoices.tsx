@@ -1,7 +1,6 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
-  type RowSelectionState,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -27,7 +26,6 @@ import {
   Trash2,
   UserRound,
   Wallet,
-  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -42,7 +40,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Checkbox } from '@/components/ui/checkbox'
+import {
+  useRangeSelection,
+  createSelectColumn,
+  BatchSelectToolbar,
+} from '@/components/data-table'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { BatchPaymentDialog } from '@/features/invoices/batch-payment-dialog'
@@ -140,10 +142,8 @@ export function Invoices() {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  // id ของแถวที่คลิกล่าสุด — ใช้เลือกเป็นช่วงด้วย shift+click
-  // เก็บเป็น id (ไม่ใช่ index) เพื่อให้ช่วงถูกต้องแม้ตอน sort/filter
-  const selAnchorRef = useRef<string | null>(null)
+  const sel = useRangeSelection<Row>((r) => r.id)
+  const { rowSelection, setRowSelection } = sel
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -200,36 +200,7 @@ export function Invoices() {
 
   const columns = useMemo<ColumnDef<Row>[]>(
     () => [
-      {
-        id: 'select',
-        size: 28,
-        enableSorting: false,
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected()
-                ? true
-                : table.getIsSomePageRowsSelected()
-                ? 'indeterminate'
-                : false
-            }
-            onCheckedChange={(v) => table.toggleAllPageRowsSelected(!!v)}
-            aria-label='เลือกทั้งหมดในหน้า'
-            onClick={(e) => e.stopPropagation()}
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(v) => row.toggleSelected(!!v)}
-            aria-label='เลือก'
-            onClick={(e) => {
-              e.stopPropagation()
-              selAnchorRef.current = row.id
-            }}
-          />
-        ),
-      },
+      createSelectColumn<Row>(),
       {
         id: 'no',
         accessorFn: (row) => getInvoiceDisplay(row),
@@ -522,6 +493,8 @@ export function Invoices() {
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original)
   const selectedIds = selectedRows.map((r) => r.id)
   const selectedCount = selectedIds.length
+  // ลำดับแถวที่เห็นจริง (หลัง sort/filter) — ป้อนให้ Shift-click เลือกช่วง
+  const orderedRows = () => table.getRowModel().rows.map((r) => r.original)
   const sumSelected = selectedRows.reduce(
     (s, r) => s + (Number(r.data?.total) || 0),
     0,
@@ -837,34 +810,22 @@ export function Invoices() {
                           ),
                         )}
                         onClick={(e) => {
-                          const rows = table.getRowModel().rows
-                          // shift+click = เลือกทั้งช่วงจากแถวที่คลิกล่าสุด
-                          if (e.shiftKey && selAnchorRef.current) {
-                            e.preventDefault()
-                            const a = rows.findIndex(
-                              (r) => r.id === selAnchorRef.current,
-                            )
-                            const b = rows.findIndex((r) => r.id === row.id)
-                            if (a !== -1 && b !== -1) {
-                              const [lo, hi] = a < b ? [a, b] : [b, a]
-                              const next = { ...rowSelection }
-                              for (let i = lo; i <= hi; i++) next[rows[i].id] = true
-                              setRowSelection(next)
-                            }
-                            selAnchorRef.current = row.id
+                          // โหมดเลือก (เลือกไว้แล้ว ≥1) → คลิกแถว = ติ๊ก/เอาติ๊กออก
+                          //   · Shift+คลิก = เลือกเป็นช่วงจากอันก่อนหน้า
+                          // ปกติ (ยังไม่เลือกอะไร) → คลิกแถว = เปิดหน้ารายละเอียด
+                          if (selectedCount > 0) {
+                            if (e.shiftKey && sel.rangeTo(row.id, orderedRows())) return
+                            sel.toggle(row.id)
                             return
                           }
-                          // อยู่ในโหมดเลือก (มีติ๊กแล้ว) → คลิกแถว = สลับเลือก ไม่เข้าหน้ารายละเอียด
-                          if (Object.keys(rowSelection).length > 0) {
-                            row.toggleSelected()
-                            selAnchorRef.current = row.id
-                            return
-                          }
-                          // ยังไม่มีติ๊กเลย → คลิกแถว = เปิดหน้ารายละเอียดเหมือนเดิม
                           navigate({
                             to: '/invoices/$id',
                             params: { id: row.original.id },
                           })
+                        }}
+                        onMouseDown={(e) => {
+                          // กัน browser ลากไฮไลต์ข้อความตอน Shift+คลิกเลือกช่วง
+                          if (e.shiftKey) e.preventDefault()
                         }}
                         onMouseEnter={(e) => onRowEnter(row.original, e)}
                         onMouseMove={(e) => {
@@ -878,11 +839,34 @@ export function Invoices() {
                         }}
                         onMouseLeave={onRowLeave}
                       >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className='py-3'>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
+                        {row.getVisibleCells().map((cell) => {
+                          const isSelect = cell.column.id === 'select'
+                          return (
+                            <TableCell
+                              key={cell.id}
+                              className={cn('py-3', isSelect && 'w-10')}
+                              // ทั้ง cell ของช่องติ๊ก = toggle เลือก · ไม่ navigate
+                              onClick={
+                                isSelect
+                                  ? (e) => {
+                                      e.stopPropagation()
+                                      if (
+                                        e.shiftKey &&
+                                        sel.rangeTo(row.id, orderedRows())
+                                      )
+                                        return
+                                      sel.toggle(row.id)
+                                    }
+                                  : undefined
+                              }
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          )
+                        })}
                       </TableRow>
                     ))
                   )}
@@ -912,16 +896,16 @@ export function Invoices() {
       </CursorPopover>
 
       {/* Floating bulk action bar */}
-      {selectedCount > 0 && (
-        <div className='pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4'>
-          <div className='pointer-events-auto flex flex-wrap items-center gap-3 rounded-full border bg-card/95 px-4 py-2 shadow-lg backdrop-blur'>
-            <span className='text-sm font-semibold'>
-              เลือก {selectedCount.toLocaleString('th-TH')} ใบ
-            </span>
-            <span className='text-xs text-muted-foreground tabular-nums'>
-              · รวม {amt(sumSelected, { decimal: 0 })}
-            </span>
-            <span className='h-4 w-px bg-border' />
+      <BatchSelectToolbar
+        selectedCount={selectedCount}
+        entityName='ใบ'
+        onClear={sel.clear}
+        summary={
+          <span className='text-xs text-muted-foreground tabular-nums'>
+            รวม {amt(sumSelected, { decimal: 0 })}
+          </span>
+        }
+      >
             <Button
               size='sm'
               variant='outline'
@@ -972,18 +956,7 @@ export function Invoices() {
               ลบ ({selectedCount})
             </Button>
             <BatchReceiptPrintButton invoices={selectedRows} />
-            <span className='h-4 w-px bg-border' />
-            <Button
-              size='sm'
-              variant='ghost'
-              onClick={() => setRowSelection({})}
-              aria-label='ล้างการเลือก'
-            >
-              <X className='size-4' />
-            </Button>
-          </div>
-        </div>
-      )}
+      </BatchSelectToolbar>
 
       <BatchPaymentDialog
         open={batchPayOpen}
