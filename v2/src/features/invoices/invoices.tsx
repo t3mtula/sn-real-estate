@@ -141,8 +141,9 @@ export function Invoices() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  // index ของแถวที่คลิกล่าสุด — ใช้เลือกเป็นช่วงด้วย shift+click
-  const selAnchorRef = useRef<number | null>(null)
+  // id ของแถวที่คลิกล่าสุด — ใช้เลือกเป็นช่วงด้วย shift+click
+  // เก็บเป็น id (ไม่ใช่ index) เพื่อให้ช่วงถูกต้องแม้ตอน sort/filter
+  const selAnchorRef = useRef<string | null>(null)
   const [payQuickId, setPayQuickId] = useState<string | null>(null)
   const navigate = useNavigate()
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -224,7 +225,7 @@ export function Invoices() {
             aria-label='เลือก'
             onClick={(e) => {
               e.stopPropagation()
-              selAnchorRef.current = row.index
+              selAnchorRef.current = row.id
             }}
           />
         ),
@@ -835,12 +836,36 @@ export function Invoices() {
                             row.original._overdue,
                           ),
                         )}
-                        onClick={() =>
+                        onClick={(e) => {
+                          const rows = table.getRowModel().rows
+                          // shift+click = เลือกทั้งช่วงจากแถวที่คลิกล่าสุด
+                          if (e.shiftKey && selAnchorRef.current) {
+                            e.preventDefault()
+                            const a = rows.findIndex(
+                              (r) => r.id === selAnchorRef.current,
+                            )
+                            const b = rows.findIndex((r) => r.id === row.id)
+                            if (a !== -1 && b !== -1) {
+                              const [lo, hi] = a < b ? [a, b] : [b, a]
+                              const next = { ...rowSelection }
+                              for (let i = lo; i <= hi; i++) next[rows[i].id] = true
+                              setRowSelection(next)
+                            }
+                            selAnchorRef.current = row.id
+                            return
+                          }
+                          // อยู่ในโหมดเลือก (มีติ๊กแล้ว) → คลิกแถว = สลับเลือก ไม่เข้าหน้ารายละเอียด
+                          if (Object.keys(rowSelection).length > 0) {
+                            row.toggleSelected()
+                            selAnchorRef.current = row.id
+                            return
+                          }
+                          // ยังไม่มีติ๊กเลย → คลิกแถว = เปิดหน้ารายละเอียดเหมือนเดิม
                           navigate({
                             to: '/invoices/$id',
                             params: { id: row.original.id },
                           })
-                        }
+                        }}
                         onMouseEnter={(e) => onRowEnter(row.original, e)}
                         onMouseMove={(e) => {
                           if (hover && hover.row.id === row.original.id) {
