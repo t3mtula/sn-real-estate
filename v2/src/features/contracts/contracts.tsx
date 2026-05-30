@@ -1,5 +1,4 @@
 import {
-  type ColumnDef,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -7,18 +6,16 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Calendar, CreditCard, Download, Eye, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, StickyNote, Tag as TagIcon, UserRound } from 'lucide-react'
+import { Calendar, CreditCard, Download, FileText, Landmark, Loader2, MapPin, Plus, Printer, Receipt, StickyNote, Tag as TagIcon, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useExportXlsx, xlsxFilename } from '@/hooks/use-xlsx'
-import { freqShortLabel, monthlyRevenue } from '@/lib/contracts/stats'
-import { OverdueBadge } from '@/components/yonghua/overdue-badge'
+import { monthlyRevenue } from '@/lib/contracts/stats'
 import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Popover,
@@ -34,10 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { SortableHeader } from '@/components/yonghua/sortable-header'
 import {
   useRangeSelection,
-  createSelectColumn,
   BatchSelectToolbar,
 } from '@/components/data-table'
 import {
@@ -51,7 +46,12 @@ import {
 } from '@/features/properties/queries'
 import { CursorPopover } from '@/components/cursor-popover'
 import { ContractRowPreview } from '@/features/contracts/contract-row-preview'
-import { ContractTimelineBar } from '@/features/contracts/contract-timeline-bar'
+import {
+  type ContractRow as Row,
+  StatusBadge,
+  STATUS_ACCENT_STRIP,
+  createContractColumns,
+} from '@/features/contracts/contract-columns'
 import {
   getContractDisplay,
   getContractStatus,
@@ -62,66 +62,8 @@ import {
 import { useBulkUpdateTags } from '@/features/contracts/mutations'
 import { TagInput } from '@/components/yonghua/tag-input'
 import { GenerateMonthlyDialog } from '@/features/invoices/generate-monthly-dialog'
-import { amt, dayjs, fmtThaiShort } from '@/lib/thai'
-import { type Contract, type ContractStatus } from '@/features/contracts/types'
-import {
-  UtilityBadge,
-  getContractUtilities,
-} from '@/features/meters/utility-badge'
+import { amt } from '@/lib/thai'
 import { cn } from '@/lib/utils'
-
-type Row = Contract & {
-  _status: ContractStatus
-  _overdueCount: number
-  _overdueAmount: number
-  _building: string
-}
-
-const STATUS_TONE_CLASS: Record<string, string> = {
-  success: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
-  warning: 'bg-amber-500/10 text-amber-700 border-amber-500/30 dark:text-amber-300',
-  info: 'bg-sky-500/10 text-sky-700 border-sky-500/30 dark:text-sky-300',
-  muted: 'bg-muted text-muted-foreground border-border',
-  destructive: 'bg-destructive/10 text-destructive border-destructive/30',
-}
-
-/** Left accent strip on the row — v1-style color cue at a glance */
-const STATUS_ACCENT_STRIP: Record<string, string> = {
-  active: 'border-l-2 border-l-emerald-500',
-  expiring: 'border-l-2 border-l-amber-500',
-  upcoming: 'border-l-2 border-l-sky-500',
-  expired: 'border-l-2 border-l-slate-400',
-  cancelled: 'border-l-2 border-l-red-500',
-  closed: 'border-l-2 border-l-slate-300',
-  unknown: 'border-l-2 border-l-transparent',
-}
-
-function relativeThaiTime(isoStr: string | null | undefined): string {
-  if (!isoStr) return '—'
-  const d = dayjs(isoStr)
-  if (!d.isValid()) return '—'
-  const days = dayjs().diff(d, 'day')
-  if (days === 0) return 'วันนี้'
-  if (days === 1) return 'เมื่อวาน'
-  if (days < 7) return `${days} วันที่แล้ว`
-  const weeks = Math.floor(days / 7)
-  if (weeks < 5) return `${weeks} สัปดาห์ที่แล้ว`
-  const months = dayjs().diff(d, 'month')
-  if (months < 12) return `${months} เดือนที่แล้ว`
-  return `${dayjs().diff(d, 'year')} ปีที่แล้ว`
-}
-
-function StatusBadge({ status }: { status: ContractStatus }) {
-  const meta = getStatusMeta(status)
-  return (
-    <Badge
-      variant='outline'
-      className={cn('font-normal', STATUS_TONE_CLASS[meta.tone] ?? '')}
-    >
-      {meta.label}
-    </Badge>
-  )
-}
 
 export function Contracts() {
   const { data: contracts, isLoading, error } = useContracts()
@@ -223,221 +165,15 @@ export function Contracts() {
   )
   const filter = useCascadingFilter(rows, filterFields, searchGet)
 
-  const columns = useMemo<ColumnDef<Row>[]>(
-    () => [
-      createSelectColumn<Row>(),
-      {
-        id: 'no',
-        accessorFn: (row) => getContractDisplay(row),
-        header: ({ column }) => (
-          <SortableHeader column={column}>เลขที่สัญญา</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const v = getContractDisplay(row.original)
-          const tags = Array.isArray(row.original.data?.tags)
-            ? (row.original.data.tags as string[])
-            : []
-          return (
-            <div className='max-w-[150px]'>
-              <span className='block truncate font-medium' title={v}>
-                {v}
-              </span>
-              {tags.length > 0 && (
-                <div className='mt-1 flex flex-wrap gap-1'>
-                  {tags.slice(0, 3).map((t) => (
-                    <span
-                      key={t}
-                      className='inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'
-                    >
-                      {t}
-                    </span>
-                  ))}
-                  {tags.length > 3 && (
-                    <span className='text-[10px] text-muted-foreground'>
-                      +{tags.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        },
-      },
-      {
-        id: 'tenant',
-        accessorFn: (row) => row.data?.tenant ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>ผู้เช่า</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const v = row.original.data?.tenant?.trim() || '—'
-          return (
-            <span className='block max-w-[180px] truncate text-sm' title={v}>
-              {v}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'landlord',
-        accessorFn: (row) => row.data?.landlord ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>ผู้ให้เช่า</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const v = row.original.data?.landlord?.trim() || '—'
-          return (
-            <span className='block max-w-[180px] truncate text-sm' title={v}>
-              {v}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'property',
-        accessorFn: (row) => String(row.data?.property ?? ''),
-        header: ({ column }) => (
-          <SortableHeader column={column}>ทรัพย์สิน</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const v = String(row.original.data?.property ?? '').trim() || '—'
-          const building = row.original._building
-          const u = getContractUtilities(row.original.data)
-          return (
-            <div className='max-w-[180px]'>
-              <span className='block truncate text-sm' title={v}>
-                {v}
-              </span>
-              {building && (
-                <span
-                  className='block truncate text-xs text-muted-foreground'
-                  title={building}
-                >
-                  {building}
-                </span>
-              )}
-              {(u.water || u.electricity) && (
-                <div className='mt-1 flex flex-wrap gap-1'>
-                  {u.water && <UtilityBadge kind='water' enabled />}
-                  {u.electricity && <UtilityBadge kind='electricity' enabled />}
-                </div>
-              )}
-            </div>
-          )
-        },
-      },
-      {
-        id: 'end',
-        accessorFn: (row) => row.data?.end ?? '',
-        header: ({ column }) => (
-          <SortableHeader column={column}>ระยะสัญญา</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const d = row.original.data
-          return (
-            <div className='min-w-[180px] max-w-[260px]'>
-              <ContractTimelineBar
-                start={d?.start}
-                end={d?.end}
-                cancelled={!!d?.cancelled || row.original._status === 'cancelled'}
-              />
-            </div>
-          )
-        },
-      },
-      {
-        id: 'rate',
-        // v1 legacy data ships rate as messy string. amt() loose-parses it.
-        accessorFn: (row) => {
-          const formatted = amt(row.data?.rate as number | string | undefined, {
-            symbol: false,
-            decimal: 0,
-            emDash: false,
-          })
-          return formatted ? Number(formatted.replace(/[,\s]/g, '')) : 0
-        },
-        header: ({ column }) => (
-          <SortableHeader column={column}>ค่าเช่า</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const d = row.original.data
-          const formatted = amt(d?.rate as number | string | undefined, {
-            symbol: false,
-            decimal: 0,
-          })
-          if (formatted === '—') {
-            return <span className='text-sm text-muted-foreground'>—</span>
-          }
-          const freqLabel = freqShortLabel(d ?? {})
-          return (
-            <span className='text-sm tabular-nums'>
-              {formatted}
-              {freqLabel ? (
-                <span className='ms-2 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground'>
-                  {freqLabel}
-                </span>
-              ) : null}
-            </span>
-          )
-        },
-      },
-      {
-        id: 'status',
-        accessorFn: (row) => row._status,
-        header: ({ column }) => (
-          <SortableHeader column={column}>สถานะ</SortableHeader>
-        ),
-        cell: ({ row }) => (
-          <div className='flex flex-col items-start gap-1'>
-            <StatusBadge status={row.original._status} />
-            {row.original._overdueCount > 0 && (
-              <OverdueBadge
-                count={row.original._overdueCount}
-                amount={row.original._overdueAmount}
-                unit='ใบ'
-              />
-            )}
-          </div>
-        ),
-      },
-      {
-        id: 'updated_at',
-        accessorFn: (row) => row.updated_at ?? '',
-        sortDescFirst: true,
-        header: ({ column }) => (
-          <SortableHeader column={column}>แก้ล่าสุด</SortableHeader>
-        ),
-        cell: ({ row }) => {
-          const ts = row.original.updated_at
-          if (!ts) return <span className='text-sm text-muted-foreground'>—</span>
-          return (
-            <div className='min-w-[90px]'>
-              <div className='text-sm tabular-nums'>{fmtThaiShort(ts)}</div>
-              <div className='text-[11px] text-muted-foreground'>{relativeThaiTime(ts)}</div>
-            </div>
-          )
-        },
-      },
-      {
-        id: 'actions',
-        header: () => <span className='sr-only'>การกระทำ</span>,
-        cell: ({ row }) => (
-          <Button
-            variant='ghost'
-            size='sm'
-            className='size-8 p-0'
-            title='ดูตัวอย่างพิมพ์'
-            onClick={(e) => {
-              e.stopPropagation()
-              setPreviewId(row.original.id)
-            }}
-          >
-            <Eye className='size-4' />
-            <span className='sr-only'>ตัวอย่างพิมพ์</span>
-          </Button>
-        ),
-      },
-    ],
+  const columns = useMemo(
+    () =>
+      createContractColumns({
+        select: true,
+        onPreview: setPreviewId,
+        landlord: true,
+        property: true,
+        updatedAt: true,
+      }),
     [],
   )
 

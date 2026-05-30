@@ -1,5 +1,12 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+import {
   Building2,
   Landmark,
   MapPin,
@@ -19,6 +26,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useLandlord } from '@/features/landlords/queries'
 import { PropertyForm } from '@/features/properties/components/property-form'
@@ -35,6 +50,12 @@ import {
 } from '@/features/properties/queries'
 import { useContractMatchKeys } from '@/lib/queries/contract-match'
 import { useContracts, getContractStatus } from '@/features/contracts/queries'
+import { useInvoiceStatsByContract } from '@/lib/queries/invoice-stats'
+import {
+  type ContractRow,
+  STATUS_ACCENT_STRIP,
+  createContractColumns,
+} from '@/features/contracts/contract-columns'
 import {
   PROPERTY_FORM_DEFAULTS,
   type PropertyFormValues,
@@ -45,6 +66,7 @@ import {
   UtilityBadge,
   getPropertyUtilities,
 } from '@/features/meters/utility-badge'
+import { cn } from '@/lib/utils'
 
 const TYPE_LABEL: Record<string, string> = Object.fromEntries(
   PROPERTY_TYPES.map((t) => [t.value, t.label])
@@ -274,9 +296,12 @@ function PropertyContent({
   const address = getPropertyAddressFull(p)
   const { data: ownerLandlord } = useLandlord(p.ownerLandlordId)
   const { data: allContracts } = useContracts()
+  const { data: invoiceStats } = useInvoiceStatsByContract()
+  const navigate = useNavigate()
 
-  // Find contracts linked to this property by pid match
-  const linkedContracts = useMemo(() => {
+  // สัญญาที่ผูกกับทรัพย์นี้ (จับคู่ด้วย pid) · augment สถานะ + ยอดค้าง
+  // default order: ค้างชำระมากสุดอยู่บน → ใช้งานก่อนยกเลิก → สิ้นสุดล่าสุดก่อน
+  const contractRows = useMemo<ContractRow[]>(() => {
     if (!allContracts) return []
     const pid = p?.pid ?? Number.parseInt(property.id, 10)
     const n = Number(pid)
@@ -286,13 +311,42 @@ function PropertyContent({
       const b = (c.data as { pid?: number })?.pid
       return Number(a) === n || Number(b) === n
     })
-    return [...matched].sort((a, b) => {
-      const aActive = !a.data?.cancelled ? 0 : 1
-      const bActive = !b.data?.cancelled ? 0 : 1
+    const augmented: ContractRow[] = matched.map((c) => ({
+      ...c,
+      _status: getContractStatus(c.data),
+      _overdueCount: invoiceStats?.get(c.id)?.overdueCount ?? 0,
+      _overdueAmount: invoiceStats?.get(c.id)?.overdueAmount ?? 0,
+      _building: '',
+    }))
+    return augmented.sort((a, b) => {
+      const aHasDebt = a._overdueAmount > 0 ? 1 : 0
+      const bHasDebt = b._overdueAmount > 0 ? 1 : 0
+      if (aHasDebt !== bHasDebt) return bHasDebt - aHasDebt
+      if (b._overdueAmount !== a._overdueAmount)
+        return b._overdueAmount - a._overdueAmount
+      const aActive = a.data?.cancelled ? 1 : 0
+      const bActive = b.data?.cancelled ? 1 : 0
       if (aActive !== bActive) return aActive - bActive
       return (b.data?.end ?? '').localeCompare(a.data?.end ?? '')
     })
-  }, [allContracts, p?.pid, property.id])
+  }, [allContracts, invoiceStats, p?.pid, property.id])
+
+  // คอลัมน์ใช้ชุดกลางตัวเดียวกับหน้า "สัญญาเช่า" — โชว์ น้ำ/ไฟ แทนคอลัมน์ทรัพย์
+  // (ทรัพย์ซ้ำกับหน้าที่เปิดอยู่) · ปิด select/landlord/แก้ล่าสุด/ปุ่ม preview
+  const contractColumns = useMemo(
+    () => createContractColumns({ utilities: true }),
+    [],
+  )
+  const [contractSorting, setContractSorting] = useState<SortingState>([])
+  const contractTable = useReactTable({
+    data: contractRows,
+    columns: contractColumns,
+    state: { sorting: contractSorting },
+    getRowId: (row) => row.id,
+    onSortingChange: setContractSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
 
   return (
     <>
@@ -410,86 +464,104 @@ function PropertyContent({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className='text-base'>ข้อมูลระบบ</CardTitle>
-          </CardHeader>
-          <CardContent className='space-y-3 text-sm'>
-            <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
-              <span className='font-medium'>
-                {formatDate(property.created_at)}
-              </span>
-            </div>
-            <div className='flex justify-between gap-3'>
-              <span className='text-muted-foreground'>แก้ไขล่าสุด</span>
-              <span className='font-medium'>
-                {formatDate(property.updated_at)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className='space-y-6'>
+          <Card>
+            <CardHeader>
+              <CardTitle className='text-base'>ข้อมูลระบบ</CardTitle>
+            </CardHeader>
+            <CardContent className='space-y-3 text-sm'>
+              <div className='flex justify-between gap-3'>
+                <span className='text-muted-foreground'>เพิ่มเมื่อ</span>
+                <span className='font-medium'>
+                  {formatDate(property.created_at)}
+                </span>
+              </div>
+              <div className='flex justify-between gap-3'>
+                <span className='text-muted-foreground'>แก้ไขล่าสุด</span>
+                <span className='font-medium'>
+                  {formatDate(property.updated_at)}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className='text-base'>
+                รูปภาพ ({p.images?.length ?? 0})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropertyImages images={p.images ?? []} alt={getPropertyName(p)} />
+            </CardContent>
+          </Card>
+        </div>
 
         <Card className='lg:col-span-3'>
           <CardHeader>
             <CardTitle className='text-base'>
-              รูปภาพ ({p.images?.length ?? 0})
+              สัญญาเช่าที่เกี่ยวข้อง ({contractRows.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <PropertyImages images={p.images ?? []} alt={getPropertyName(p)} />
-          </CardContent>
-        </Card>
-
-        <Card className='lg:col-span-3'>
-          <CardHeader>
-            <CardTitle className='text-base'>
-              สัญญาเช่าที่เกี่ยวข้อง ({linkedContracts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className='space-y-1'>
-            {linkedContracts.length === 0 ? (
+            {contractRows.length === 0 ? (
               <p className='text-sm text-muted-foreground'>
                 ยังไม่มีสัญญาเช่าผูกกับทรัพย์สินนี้
               </p>
             ) : (
-              linkedContracts.map((c) => {
-                const status = c.data?.cancelled
-                  ? 'cancelled'
-                  : getContractStatus(c.data)
-                const statusLabel: Record<string, string> = {
-                  active: 'ใช้งาน',
-                  expiring: 'ใกล้หมด',
-                  expired: 'หมดอายุ',
-                  upcoming: 'ยังไม่เริ่ม',
-                  cancelled: 'ยกเลิก',
-                  closed: 'ปิด',
-                  unknown: '—',
-                }
-                const tone =
-                  status === 'active' ? 'default'
-                  : status === 'expiring' ? 'secondary'
-                  : status === 'cancelled' || status === 'expired' ? 'destructive'
-                  : 'outline'
-                return (
-                  <Link
-                    key={c.id}
-                    to='/contracts/$id'
-                    params={{ id: c.id }}
-                    className='flex items-center gap-3 rounded-md p-2 -mx-2 hover:bg-muted transition-colors'
-                  >
-                    <span className='font-medium text-sm'>
-                      {c.data?.no || c.id.slice(0, 8)}
-                    </span>
-                    <span className='text-xs text-muted-foreground flex-1 truncate'>
-                      {c.data?.tenant ?? '—'} · {c.data?.start || '—'} → {c.data?.end || '—'}
-                    </span>
-                    <Badge variant={tone} className='text-xs'>
-                      {statusLabel[status] ?? status}
-                    </Badge>
-                  </Link>
-                )
-              })
+              <div className='overflow-x-auto rounded-md border'>
+                <Table className='min-w-[720px]'>
+                  <TableHeader>
+                    {contractTable.getHeaderGroups().map((headerGroup) => (
+                      <TableRow
+                        key={headerGroup.id}
+                        className='hover:bg-transparent'
+                      >
+                        {headerGroup.headers.map((header) => (
+                          <TableHead
+                            key={header.id}
+                            className='text-xs uppercase tracking-wider'
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {contractTable.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          'cursor-pointer hover:bg-muted/40',
+                          STATUS_ACCENT_STRIP[row.original._status] ??
+                            'border-l-2 border-l-transparent',
+                        )}
+                        onClick={() =>
+                          navigate({
+                            to: '/contracts/$id',
+                            params: { id: row.original.id },
+                          })
+                        }
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id} className='py-3'>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
