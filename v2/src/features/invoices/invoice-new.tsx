@@ -3,6 +3,7 @@ import { useNavigate, useSearch  } from '@tanstack/react-router'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -27,6 +28,7 @@ import { useProperty } from '@/features/properties/queries'
 import { useTenant } from '@/features/tenants/queries'
 import {
   DuplicateInvoiceError,
+  fetchUnbilledUtilitiesByContract,
   useGenerateInvoiceFromContract,
 } from '@/features/invoices/mutations'
 import {
@@ -138,7 +140,16 @@ export function InvoiceNew() {
     (s, it) => s + (Number(it?.amount) || 0),
     0,
   )
-  const grandTotal = finalAmount + extrasSum
+
+  // มิเตอร์ที่จะเข้าใบนี้ (preview · เฉพาะค่าเช่า · เดือน X ← จดเดือน X-1)
+  const { data: utilMap } = useQuery({
+    queryKey: ['util-preview', contractId, month, category],
+    queryFn: () => fetchUnbilledUtilitiesByContract([contract!], month),
+    enabled: !!contract && category === 'rent' && !!month,
+  })
+  const previewUtils = (contract ? utilMap?.get(contract.id) : undefined) ?? []
+  const utilSum = previewUtils.reduce((s, u) => s + u.amount, 0)
+  const grandTotal = finalAmount + utilSum + extrasSum
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -429,6 +440,12 @@ export function InvoiceNew() {
                   {category === 'deposit' ? 'เงินประกัน' : 'ค่าเช่า'}:{' '}
                   <span className='text-foreground'>{amt(finalAmount)}</span>
                 </li>
+                {previewUtils.map((u, i) => (
+                  <li key={`util-${i}`}>
+                    {u.label} ({u.units} หน่วย):{' '}
+                    <span className='text-foreground'>{amt(u.amount)}</span>
+                  </li>
+                ))}
                 {extraItems
                   .filter(
                     (it) =>
